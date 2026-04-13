@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Noltbook Canvas App</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+  <style>
+    :root {
+      --amber: #ffaa00;
+      --bg: #181818;
+      --panel: #1a1a1a;
+      --panel-2: #2a2a2a;
+      --line: #333;
+      --text: #ddd;
+      --text-dim: #888;
+      --white: #fff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "IBM Plex Mono", monospace;
+      overflow: hidden;
+    }
+
+    body {
+      display: grid;
+      place-items: start stretch;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 720px;
+      margin: 0 auto;
+      background: var(--bg);
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      padding: 0.35rem 0.5rem;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-bottom: none;
+      align-items: center;
+    }
+
+    .tool-btn {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      color: #aaa;
+      padding: 0.15rem 0.45rem;
+      font-family: inherit;
+      font-size: 0.85rem;
+      cursor: pointer;
+      line-height: 1.4;
+    }
+
+    .tool-btn:hover {
+      border-color: #555;
+      color: var(--white);
+    }
+
+    .tool-btn.active {
+      border-color: var(--amber);
+      color: var(--amber);
+    }
+
+    .color-input {
+      width: 24px;
+      height: 24px;
+      border: 1px solid var(--line);
+      background: none;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .size-input {
+      width: 60px;
+      accent-color: var(--amber);
+    }
+
+    .separator {
+      color: var(--line);
+      user-select: none;
+    }
+
+    .canvas-wrap {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      overflow: hidden;
+      position: relative;
+      background: var(--white);
+      border: 1px solid var(--line);
+    }
+
+    .canvas-wrap .canvas-container {
+      transform-origin: top left;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    .img-dropdown {
+      position: relative;
+      display: inline-block;
+    }
+
+    .img-menu {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      z-index: 100;
+      min-width: 90px;
+    }
+
+    .img-menu.open {
+      display: block;
+    }
+
+    .img-menu button {
+      display: block;
+      width: 100%;
+      background: none;
+      border: none;
+      border-bottom: 1px solid #222;
+      color: #aaa;
+      font-family: inherit;
+      font-size: 0.85rem;
+      padding: 0.3rem 0.6rem;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .img-menu button:last-child {
+      border-bottom: none;
+    }
+
+    .img-menu button:hover {
+      background: var(--panel-2);
+      color: var(--white);
+    }
+
+    .context-menu {
+      display: none;
+      position: fixed;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      z-index: 9999;
+      min-width: 140px;
+    }
+
+    .context-menu.open {
+      display: block;
+    }
+
+    .context-menu button {
+      display: block;
+      width: 100%;
+      background: none;
+      border: none;
+      border-bottom: 1px solid #222;
+      color: #aaa;
+      font-family: inherit;
+      font-size: 0.85rem;
+      padding: 0.35rem 0.7rem;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .context-menu button:last-child {
+      border-bottom: none;
+    }
+
+    .context-menu button:hover {
+      background: var(--panel-2);
+      color: var(--white);
+    }
+
+  </style>
+</head>
+<body>
+  <div class="app">
+
+    <div class="toolbar" id="toolbar">
+      <button class="tool-btn" id="tool-select" title="Select / Move">✥</button>
+      <button class="tool-btn active" id="tool-pen" title="Pen">✏</button>
+      <button class="tool-btn" id="tool-eraser" title="Eraser">◻</button>
+      <button class="tool-btn" id="tool-text" title="Add Text">T</button>
+      <span class="separator">|</span>
+      <input type="color" class="color-input" id="color" value="#ff6600" title="Color" />
+      <input type="range" class="size-input" id="size" min="1" max="40" value="3" title="Brush size" />
+      <span class="separator">|</span>
+      <div class="img-dropdown">
+        <button class="tool-btn" id="tool-image" title="Add image">⊞</button>
+        <div class="img-menu" id="imgMenu">
+          <button id="imgUrl">URL</button>
+          <button id="imgUpload">Upload</button>
+        </div>
+      </div>
+      <span class="separator">|</span>
+      <button class="tool-btn" id="tool-undo" title="Undo">↩</button>
+      <button class="tool-btn" id="tool-front" title="Bring forward">↑</button>
+      <button class="tool-btn" id="tool-back" title="Send backward">↓</button>
+      <span class="separator">|</span>
+      <button class="tool-btn" id="tool-clear" title="Clear canvas">⌫ clear</button>
+      <input type="file" id="fileInput" accept="image/*" hidden />
+    </div>
+
+    <div class="canvas-wrap" id="canvasWrap">
+      <canvas id="canvas"></canvas>
+    </div>
+
+  </div>
+
+  <div class="context-menu" id="contextMenu">
+    <button id="savePng">Save image</button>
+  </div>
+
+  <script>
+    const HOST_SOURCE = "noltbook-host";
+    const APP_SOURCE = "noltbook-canvas-app";
+    const LOCAL_KEY = "noltbook-canvas-preview-state";
+    const statusEl = null;
+    const contextMenu = document.getElementById("contextMenu");
+    const canvasWrap = document.getElementById("canvasWrap");
+    const fileInput = document.getElementById("fileInput");
+    const imgMenu = document.getElementById("imgMenu");
+
+    let fc;
+    let tool = "pen";
+    let textMode = false;
+    let undoStack = [];
+    let currentStateJson = null;
+    let hostReady = false;
+    let hostMode = window.parent !== window;
+    let saveTimer = null;
+
+    function setStatus(text) {
+      if(statusEl) statusEl.textContent = text;
+    }
+
+    function sendHost(type, payload = {}) {
+      if (!hostMode) return;
+      window.parent.postMessage({ source: APP_SOURCE, type, payload }, "*");
+    }
+
+    function resizeHost() {
+      const height = document.documentElement.scrollHeight;
+      sendHost("nb:resize", { height });
+    }
+
+    function saveLocal(json) {
+      try {
+        localStorage.setItem(LOCAL_KEY, json);
+      } catch (err) {
+        console.warn("Local save failed", err);
+      }
+    }
+
+    function loadLocal() {
+      try {
+        return localStorage.getItem(LOCAL_KEY);
+      } catch (err) {
+        console.warn("Local load failed", err);
+        return null;
+      }
+    }
+
+    function generateId() {
+      return Math.random().toString(36).slice(2, 11) + Date.now().toString(36);
+    }
+
+    function captureState() {
+      return JSON.stringify(fc.toJSON(["id"]));
+    }
+
+    function pushUndo(json) {
+      undoStack.push(json);
+      if (undoStack.length > 20) undoStack.shift();
+    }
+
+    function applyState(json, preserveUndo = false) {
+      if (!json) return;
+      currentStateJson = json;
+      fc.loadFromJSON(json, () => {
+        fc.renderAll();
+        if (!preserveUndo) undoStack = [json];
+        resizeHost();
+      });
+    }
+
+    function commitState(reason = "change") {
+      const json = captureState();
+      currentStateJson = json;
+      pushUndo(json);
+      if (hostReady) {
+        sendHost("nb:dispatch", {
+          action: "canvas.save",
+          payload: { json, reason }
+        });
+      } else {
+        saveLocal(json);
+      }
+    }
+
+    function scheduleCommit(reason = "change") {
+      window.clearTimeout(saveTimer);
+      saveTimer = window.setTimeout(() => commitState(reason), 150);
+    }
+
+    function setActiveTool(nextTool) {
+      tool = nextTool;
+      textMode = nextTool === "text";
+
+      ["select", "pen", "eraser", "text"].forEach((name) => {
+        const btn = document.getElementById(`tool-${name}`);
+        if (btn) btn.classList.toggle("active", name === nextTool);
+      });
+
+      const colorVal = document.getElementById("color").value;
+      const sizeVal = parseInt(document.getElementById("size").value, 10);
+
+      if (nextTool === "select") {
+        fc.isDrawingMode = false;
+        fc.selection = true;
+        fc.defaultCursor = "default";
+      } else if (nextTool === "pen") {
+        fc.isDrawingMode = true;
+        fc.selection = false;
+        fc.defaultCursor = "crosshair";
+        fc.freeDrawingBrush = new fabric.PencilBrush(fc);
+        fc.freeDrawingBrush.color = colorVal;
+        fc.freeDrawingBrush.width = sizeVal;
+      } else if (nextTool === "eraser") {
+        fc.isDrawingMode = true;
+        fc.selection = false;
+        fc.defaultCursor = "crosshair";
+        fc.freeDrawingBrush = new fabric.PencilBrush(fc);
+        fc.freeDrawingBrush.color = "#ffffff";
+        fc.freeDrawingBrush.width = sizeVal * 4;
+      } else if (nextTool === "text") {
+        fc.isDrawingMode = false;
+        fc.selection = false;
+        fc.defaultCursor = "text";
+      }
+    }
+
+    function setColor(color) {
+      if (tool === "pen" && fc.freeDrawingBrush) {
+        fc.freeDrawingBrush.color = color;
+      }
+    }
+
+    function setSize(size) {
+      if (!fc.freeDrawingBrush) return;
+      const px = parseInt(size, 10);
+      fc.freeDrawingBrush.width = tool === "eraser" ? px * 4 : px;
+    }
+
+    function addImageFromUrl(src) {
+      fabric.Image.fromURL(src, (img) => {
+        if (!img) return;
+        const maxW = fc.width * 0.5;
+        if (img.width > maxW) img.scaleToWidth(maxW);
+        img.set({ left: 50, top: 50 });
+        img.id = generateId();
+        fc.add(img);
+        fc.setActiveObject(img);
+        fc.renderAll();
+        setActiveTool("select");
+        scheduleCommit("image-add");
+      }, { crossOrigin: "anonymous" });
+    }
+
+    function undo() {
+      if (undoStack.length <= 1) return;
+      undoStack.pop();
+      const prev = undoStack[undoStack.length - 1];
+      currentStateJson = prev;
+      fc.loadFromJSON(prev, () => {
+        fc.renderAll();
+        if (hostReady) {
+          sendHost("nb:dispatch", {
+            action: "canvas.save",
+            payload: { json: prev, reason: "undo" }
+          });
+        } else {
+          saveLocal(prev);
+        }
+      });
+    }
+
+    function clearCanvas() {
+      fc.clear();
+      fc.backgroundColor = "#ffffff";
+      fc.renderAll();
+      undoStack = [captureState()];
+      scheduleCommit("clear");
+    }
+
+    function initEvents() {
+      fc.on("path:created", (event) => {
+        const path = event.path;
+        if (path && !path.id) path.id = generateId();
+        scheduleCommit("path");
+      });
+
+      fc.on("object:modified", () => {
+        scheduleCommit("object-modified");
+      });
+
+      fc.on("text:editing:exited", (event) => {
+        const obj = event.target;
+        if (obj && !obj.id) obj.id = generateId();
+        scheduleCommit("text-edit");
+      });
+
+      fc.on("mouse:down", (event) => {
+        if (!textMode) return;
+        textMode = false;
+        setActiveTool("select");
+        const pointer = fc.getPointer(event.e);
+        const text = new fabric.IText("Text", {
+          left: pointer.x,
+          top: pointer.y,
+          fontSize: 24,
+          fill: document.getElementById("color").value || "#ff6600",
+          fontFamily: "monospace"
+        });
+        text.id = generateId();
+        fc.add(text);
+        fc.setActiveObject(text);
+        text.enterEditing();
+        text.selectAll();
+        fc.renderAll();
+        scheduleCommit("text-add");
+      });
+    }
+
+    function initUi() {
+      document.getElementById("tool-select").addEventListener("click", () => setActiveTool("select"));
+      document.getElementById("tool-pen").addEventListener("click", () => setActiveTool("pen"));
+      document.getElementById("tool-eraser").addEventListener("click", () => setActiveTool("eraser"));
+      document.getElementById("tool-text").addEventListener("click", () => setActiveTool("text"));
+
+      document.getElementById("color").addEventListener("input", (event) => setColor(event.target.value));
+      document.getElementById("size").addEventListener("input", (event) => setSize(event.target.value));
+
+      document.getElementById("tool-image").addEventListener("click", () => {
+        imgMenu.classList.toggle("open");
+      });
+
+      document.getElementById("imgUrl").addEventListener("click", () => {
+        imgMenu.classList.remove("open");
+        const url = window.prompt("Image URL:");
+        if (url && url.trim()) addImageFromUrl(url.trim());
+      });
+
+      document.getElementById("imgUpload").addEventListener("click", () => {
+        imgMenu.classList.remove("open");
+        fileInput.value = "";
+        fileInput.click();
+      });
+
+      fileInput.addEventListener("change", async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        const url = URL.createObjectURL(file);
+        addImageFromUrl(url);
+      });
+
+      document.getElementById("tool-undo").addEventListener("click", undo);
+      document.getElementById("tool-front").addEventListener("click", () => {
+        const obj = fc.getActiveObject();
+        if (!obj) return;
+        fc.bringForward(obj);
+        fc.renderAll();
+        scheduleCommit("bring-forward");
+      });
+      document.getElementById("tool-back").addEventListener("click", () => {
+        const obj = fc.getActiveObject();
+        if (!obj) return;
+        fc.sendBackwards(obj);
+        fc.renderAll();
+        scheduleCommit("send-backward");
+      });
+      document.getElementById("tool-clear").addEventListener("click", clearCanvas);
+
+      document.addEventListener("click", (event) => {
+        if (!imgMenu.parentElement.contains(event.target)) imgMenu.classList.remove("open");
+        if (!contextMenu.contains(event.target)) contextMenu.classList.remove("open");
+      });
+
+      canvasWrap.addEventListener("contextmenu", (event) => {
+        event.preventDefault();
+        contextMenu.style.left = `${event.clientX}px`;
+        contextMenu.style.top = `${event.clientY}px`;
+        contextMenu.classList.add("open");
+      });
+
+      document.getElementById("savePng").addEventListener("click", () => {
+        contextMenu.classList.remove("open");
+        const dataUrl = fc.toDataURL({ format: "png", multiplier: 1 });
+        const a = document.createElement("a");
+        a.href = dataUrl;
+        a.download = "canvas.png";
+        a.click();
+      });
+
+      document.addEventListener("paste", (event) => {
+        const active = document.activeElement;
+        if (active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA")) return;
+        const items = event.clipboardData && event.clipboardData.items;
+        if (!items) return;
+        for (const item of items) {
+          if (item.type.startsWith("image/")) {
+            event.preventDefault();
+            const file = item.getAsFile();
+            const url = URL.createObjectURL(file);
+            addImageFromUrl(url);
+            break;
+          }
+        }
+      });
+
+      document.addEventListener("dragenter", (event) => {
+        event.preventDefault();
+      });
+
+      document.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        canvasWrap.style.outline = event.target.closest(".canvas-wrap") ? "2px solid var(--amber)" : "";
+      });
+
+      document.addEventListener("dragleave", (event) => {
+        if (event.relatedTarget) return;
+        canvasWrap.style.outline = "";
+      });
+
+      document.addEventListener("drop", (event) => {
+        event.preventDefault();
+        canvasWrap.style.outline = "";
+        const files = Array.from(event.dataTransfer.files || []);
+        if (!event.target.closest(".canvas-wrap")) return;
+        files.filter((file) => file.type.startsWith("image/")).forEach((file) => {
+          const url = URL.createObjectURL(file);
+          addImageFromUrl(url);
+        });
+      });
+    }
+
+    function initHostBridge() {
+      window.addEventListener("message", (event) => {
+        const data = event.data || {};
+        if (data.source !== HOST_SOURCE) return;
+
+        if (data.type === "nb:init") {
+          hostReady = true;
+          setStatus(`Connected to noltbook host${data.payload && data.payload.hostShip ? ` via ${data.payload.hostShip}` : ""}.`);
+          if (data.payload && data.payload.state && typeof data.payload.state.json === "string") {
+            applyState(data.payload.state.json);
+          }
+          resizeHost();
+        }
+
+        if (data.type === "nb:state" && data.payload && typeof data.payload.json === "string") {
+          if (data.payload.json !== currentStateJson) {
+            applyState(data.payload.json, true);
+          }
+        }
+      });
+
+      if (hostMode) {
+        sendHost("nb:init", {
+          appId: "canvas",
+          version: "0.1.0"
+        });
+        window.setTimeout(() => {
+          if (!hostReady) {
+            setStatus("Standalone preview mode. Waiting for host bridge timed out.");
+          }
+        }, 700);
+      } else {
+        setStatus("Standalone preview mode. State saves locally in your browser.");
+      }
+    }
+
+    function boot() {
+      fc = new fabric.Canvas("canvas", {
+        width: 900,
+        height: 900,
+        backgroundColor: "#ffffff",
+        isDrawingMode: true,
+        selection: false,
+        preserveObjectStacking: true
+      });
+
+      fc.freeDrawingBrush = new fabric.PencilBrush(fc);
+      fc.freeDrawingBrush.color = "#ff6600";
+      fc.freeDrawingBrush.width = 3;
+
+      const wrapW = document.getElementById('canvasWrap').clientWidth;
+      const scale = wrapW / 900;
+      document.querySelector('.canvas-container').style.transform = 'scale(' + scale + ')';
+
+      initEvents();
+      initUi();
+      initHostBridge();
+
+      const localState = loadLocal();
+      if (localState) {
+        applyState(localState);
+      } else {
+        const fresh = captureState();
+        undoStack = [fresh];
+        currentStateJson = fresh;
+      }
+
+      setActiveTool("pen");
+      resizeHost();
+    }
+
+    boot();
+  </script>
+</body>
+</html>

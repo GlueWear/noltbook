@@ -1,0 +1,221 @@
+/-  noltbook
+|_  act=action:noltbook
+++  grab
+  |%
+  ++  noun  action:noltbook
+  ++  json
+    |=  jon=^json
+    ^-  action:noltbook
+    ?>  ?=([%o *] jon)
+    =/  obj  p.jon
+    =/  tag-node  (need (~(get by obj) 'action'))
+    ?>  ?=([%s *] tag-node)
+    =/  tag=@t  p.tag-node
+    =/  dat-node  (need (~(get by obj) 'data'))
+    ?>  ?=([%o *] dat-node)
+    =/  d  p.dat-node
+    ::  create-note
+    ?:  =('create-note' tag)
+      =/  nm-nd  (need (~(get by d) 'name'))
+      ?>  ?=([%s *] nm-nd)
+      =/  par-raw  (~(get by d) 'parent')
+      =/  par=(unit @ta)
+        ?~  par-raw  ~
+        ?.  ?=([%s *] u.par-raw)  ~
+        ``@ta`p.u.par-raw
+      [%create-note p.nm-nd par]
+    ::  rename-note
+    ?:  =('rename-note' tag)
+      =/  id-nd  (need (~(get by d) 'id'))
+      ?>  ?=([%s *] id-nd)
+      =/  nm-nd  (need (~(get by d) 'name'))
+      ?>  ?=([%s *] nm-nd)
+      [%rename-note `@ta`p.id-nd p.nm-nd]
+    ::  delete-note
+    ?:  =('delete-note' tag)
+      =/  id-nd  (need (~(get by d) 'id'))
+      ?>  ?=([%s *] id-nd)
+      [%delete-note `@ta`p.id-nd]
+    ::  switch-note
+    ?:  =('switch-note' tag)
+      =/  id-nd  (need (~(get by d) 'id'))
+      ?>  ?=([%s *] id-nd)
+      [%switch-note `@ta`p.id-nd]
+    ::  send-message
+    ?:  =('send-message' tag)
+      =/  nid-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] nid-nd)
+      =/  txt-nd  (need (~(get by d) 'text'))
+      ?>  ?=([%s *] txt-nd)
+      =/  rt-raw  (~(get by d) 'replyTo')
+      =/  rt=(unit @da)
+        ?~  rt-raw  ~
+        ?.  ?=([%n *] u.rt-raw)  ~
+        ``@da`(add ~1970.1.1 (mul (rash p.u.rt-raw dem) (div ~s1 1.000)))
+      [%send-message `@ta`p.nid-nd p.txt-nd rt]
+    ::  edit-message
+    ?:  =('edit-message' tag)
+      =/  nid-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] nid-nd)
+      =/  mid-nd  (need (~(get by d) 'msgId'))
+      ?>  ?=([%n *] mid-nd)
+      =/  txt-nd  (need (~(get by d) 'text'))
+      ?>  ?=([%s *] txt-nd)
+      =/  mid=@da  (add ~1970.1.1 (mul (rash p.mid-nd dem) (div ~s1 1.000)))
+      [%edit-message `@ta`p.nid-nd mid p.txt-nd]
+    ::  delete-message
+    ?:  =('delete-message' tag)
+      =/  nid-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] nid-nd)
+      =/  mid-nd  (need (~(get by d) 'msgId'))
+      ?>  ?=([%n *] mid-nd)
+      =/  mid=@da  (add ~1970.1.1 (mul (rash p.mid-nd dem) (div ~s1 1.000)))
+      [%delete-message `@ta`p.nid-nd mid]
+    ::  set-note-meta
+    ?:  =('set-note-meta' tag)
+      =/  id-nd  (need (~(get by d) 'id'))
+      ?>  ?=([%s *] id-nd)
+      =/  vis-nd  (need (~(get by d) 'visibility'))
+      ?>  ?=([%s *] vis-nd)
+      =/  vis=note-visibility:noltbook
+        ?:  =('public' p.vis-nd)   %public
+        ?:  =('private' p.vis-nd)  %private
+        %secret
+      =/  ico-raw  (~(get by d) 'iconUrl')
+      =/  ico=(unit @t)
+        ?~  ico-raw  ~
+        ?.  ?=([%s *] u.ico-raw)  ~
+        ?:  =(%~ p.u.ico-raw)  ~
+        `p.u.ico-raw
+      =/  wrt-raw  (~(get by d) 'writable')
+      =/  wrt=?
+        ?~  wrt-raw  &
+        ?.  ?=([%b *] u.wrt-raw)  &
+        p.u.wrt-raw
+      [%set-note-meta `@ta`p.id-nd vis ico wrt]
+    ::  invite-to-note
+    ?:  =('invite-to-note' tag)
+      =/  id-nd  (need (~(get by d) 'id'))
+      ?>  ?=([%s *] id-nd)
+      =/  ship-nd  (need (~(get by d) 'ship'))
+      ?>  ?=([%s *] ship-nd)
+      [%invite-to-note `@ta`p.id-nd (slav %p p.ship-nd)]
+    ::  create-artifact
+    ?:  =('create-artifact' tag)
+      =/  nid-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] nid-nd)
+      =/  nm-nd  (need (~(get by d) 'name'))
+      ?>  ?=([%s *] nm-nd)
+      =/  typ-nd  (need (~(get by d) 'type'))
+      ?>  ?=([%s *] typ-nd)
+      =/  art-type=artifact-type:noltbook
+        ?:  =('code' p.typ-nd)  %code
+        ?:  =('app' p.typ-nd)   %app
+        ?>  =('file' p.typ-nd)
+        %file
+      =/  cnt-nd  (need (~(get by d) 'content'))
+      ?>  ?=([%s *] cnt-nd)
+      [%create-artifact `@ta`p.nid-nd p.nm-nd art-type p.cnt-nd]
+    ::  edit-artifact
+    ?:  =('edit-artifact' tag)
+      =/  id-nd  (need (~(get by d) 'id'))
+      ?>  ?=([%s *] id-nd)
+      =/  cnt-nd  (need (~(get by d) 'content'))
+      ?>  ?=([%s *] cnt-nd)
+      [%edit-artifact `@ta`p.id-nd p.cnt-nd]
+    ::  delete-artifact
+    ?:  =('delete-artifact' tag)
+      =/  id-nd  (need (~(get by d) 'id'))
+      ?>  ?=([%s *] id-nd)
+      [%delete-artifact `@ta`p.id-nd]
+    ::  file-save
+    ?:  =('file-save' tag)
+      =/  id-nd  (need (~(get by d) 'id'))
+      ?>  ?=([%s *] id-nd)
+      =/  dat-nd  (need (~(get by d) 'data'))
+      ?>  ?=([%s *] dat-nd)
+      [%file-save `@ta`p.id-nd p.dat-nd]
+    ::  update-profile
+    ?:  =('update-profile' tag)
+      =/  dn-raw  (~(get by d) 'displayName')
+      =/  dn=(unit @t)
+        ?~  dn-raw  ~
+        ?.  ?=([%s *] u.dn-raw)  ~
+        `p.u.dn-raw
+      =/  av-raw  (~(get by d) 'avatar')
+      =/  av=(unit avatar-ref:noltbook)
+        ?~  av-raw  ~
+        ?.  ?=([%o *] u.av-raw)  ~
+        =/  av-obj  p.u.av-raw
+        =/  type-nd  (~(get by av-obj) 'type')
+        ?~  type-nd  ~
+        ?.  ?=([%s *] u.type-nd)  ~
+        =/  url-nd  (~(get by av-obj) 'url')
+        =/  url=@t
+          ?~  url-nd  ''
+          ?.  ?=([%s *] u.url-nd)  ''
+          p.u.url-nd
+        =/  atype=avatar-type:noltbook
+          ?:  =('urbit' p.u.type-nd)     %urbit
+          ?:  =('s3' p.u.type-nd)        %s3
+          ?:  =('ipfs' p.u.type-nd)      %ipfs
+          ?>  =('external' p.u.type-nd)
+          %external
+        `[atype url]
+      =/  wa-raw  (~(get by d) 'walletAddress')
+      =/  wa=(unit @t)
+        ?~  wa-raw  ~
+        ?.  ?=([%s *] u.wa-raw)  ~
+        `p.u.wa-raw
+      =/  az-raw  (~(get by d) 'azimuthAddress')
+      =/  az=(unit @t)
+        ?~  az-raw  ~
+        ?.  ?=([%s *] u.az-raw)  ~
+        `p.u.az-raw
+      [%update-profile dn av wa az]
+    ::  register-wallet
+    ?:  =('register-wallet' tag)
+      =/  addr-nd  (need (~(get by d) 'address'))
+      ?>  ?=([%s *] addr-nd)
+      [%register-wallet p.addr-nd]
+    ::  request-remote-notes
+    ?:  =('request-remote-notes' tag)
+      =/  ship-nd  (need (~(get by d) 'ship'))
+      ?>  ?=([%s *] ship-nd)
+      [%request-remote-notes (slav %p p.ship-nd)]
+    ::  nock-send-confirmed
+    ?:  =('nock-send-confirmed' tag)
+      =/  to-nd  (need (~(get by d) 'to'))
+      ?>  ?=([%s *] to-nd)
+      =/  amt-nd  (need (~(get by d) 'amount'))
+      ?>  ?=([%n *] amt-nd)
+      =/  hash-nd  (need (~(get by d) 'txHash'))
+      ?>  ?=([%s *] hash-nd)
+      [%nock-send-confirmed p.to-nd (rash p.amt-nd dem) p.hash-nd]
+    ::  add-pal
+    ?:  =('add-pal' tag)
+      =/  ship-nd  (need (~(get by d) 'ship'))
+      ?>  ?=([%s *] ship-nd)
+      [%add-pal (slav %p p.ship-nd)]
+    ::  remove-pal
+    ?:  =('remove-pal' tag)
+      =/  ship-nd  (need (~(get by d) 'ship'))
+      ?>  ?=([%s *] ship-nd)
+      [%remove-pal (slav %p p.ship-nd)]
+    ::  block-pal
+    ?:  =('block-pal' tag)
+      =/  ship-nd  (need (~(get by d) 'ship'))
+      ?>  ?=([%s *] ship-nd)
+      [%block-pal (slav %p p.ship-nd)]
+    ::  unblock-pal (final case)
+    ?>  =('unblock-pal' tag)
+    =/  ship-nd  (need (~(get by d) 'ship'))
+    ?>  ?=([%s *] ship-nd)
+    [%unblock-pal (slav %p p.ship-nd)]
+  --
+++  grow
+  |%
+  ++  noun  act
+  --
+++  grad  %noun
+--

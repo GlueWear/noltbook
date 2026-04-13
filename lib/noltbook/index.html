@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>GRIMOIRE</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+*{scrollbar-width:thin;scrollbar-color:#333 transparent}
+*::-webkit-scrollbar{width:4px;height:4px}
+*::-webkit-scrollbar-thumb{background:#333;border-radius:2px}
+:root{
+  --urbit:#ffaa00;--visitor:#569CD6;--bot:#6A9955;
+  --bg:#181818;--bg2:#2a2a2a;--bg3:#242424;
+  --border:#222;--border2:#2a2a2a;
+  --text:#ddd;--text-dim:#666;--text-muted:#888;
+  --font:'IBM Plex Mono',monospace;
+}
+html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg);color:var(--text);overflow:hidden}
+.app{display:flex;flex-direction:column;height:100vh}
+.app-header{display:flex;align-items:center;justify-content:space-between;padding:0 1rem;height:42px;border-bottom:1px solid var(--border);flex-shrink:0}
+.logo{font-size:1.5rem;letter-spacing:.3em;color:#ffaa00;margin-left:.3em}
+.user-info{display:flex;align-items:center;gap:.75rem}
+.ship-name{font-size:1.5rem;cursor:pointer;padding:.2rem .4rem}
+.ship-name:hover{background:var(--bg2)}
+.app-body{display:flex;flex:1;overflow:hidden}
+.sidebar{width:220px;min-width:150px;max-width:500px;background:var(--bg);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;position:relative}
+.sidebar-resize{position:absolute;top:0;right:0;width:4px;height:100%;cursor:col-resize;z-index:10}
+.sidebar-resize:hover{background:rgba(255,170,0,.3)}
+.sidebar-top{padding:0 .75rem;height:42px;display:flex;align-items:center;gap:.5rem;border-bottom:1px solid var(--border);flex-shrink:0}
+.view-toggle{display:flex;height:1.7rem;flex-shrink:0}
+.view-toggle-opt{font-family:var(--font);font-size:.7rem;padding:0 .5rem;background:transparent;border:1px solid #444;color:#888;cursor:pointer;letter-spacing:.05em;display:flex;align-items:center}
+.view-toggle-opt+.view-toggle-opt{margin-left:-1px}
+.view-toggle-opt.active{border-color:#ffaa00;color:#ffaa00;z-index:1}
+.new-btn{font-family:var(--font);font-size:.8rem;padding:.25rem .5rem;background:transparent;border:1px solid #ffaa00;color:#ffaa00;cursor:pointer;margin-left:auto}
+.new-btn:hover{background:rgba(255,170,0,.15)}
+.pals-btn{font-family:var(--font);font-size:.8rem;padding:.25rem .5rem;background:transparent;border:1px solid #4aba8a;color:#4aba8a;cursor:pointer;margin-left:auto}
+.pals-btn:hover{background:rgba(74,186,138,.15)}
+.contact-item{padding:.4rem 1rem;cursor:pointer;display:flex;align-items:flex-start;gap:.5rem;border-bottom:1px solid var(--border)}
+.contact-item:hover{background:var(--bg2)}
+.contact-avatar{width:3.5rem;height:3.5rem;border-radius:3px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#000;overflow:hidden}
+.contact-avatar img{width:100%;height:100%;object-fit:cover;border-radius:3px}
+.contact-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:.1rem}
+.contact-name{font-size:1rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.contact-ship{font-size:.85rem;color:#bbb;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.contact-tags{display:flex;gap:.35rem;margin-top:.15rem}
+.contact-tag{font-family:var(--font);font-size:.6rem;padding:.1rem .35rem;border:1px solid #444;color:#888;cursor:pointer;user-select:none;letter-spacing:.05em}
+.contact-tag:hover{border-color:#666}
+.contact-tag.blocked{border-color:#ff4444;color:#ff4444;background:rgba(255,68,68,.1)}
+.contact-tag.mutual{border-color:#2D6752;color:#4aba8a;background:rgba(45,103,82,.15)}
+.contact-tag.requesting{border-color:#ffaa00;color:#ffaa00;background:rgba(255,170,0,.1)}
+.contact-tag.requested{border-color:#3b82f6;color:#3b82f6;background:rgba(59,130,246,.1)}
+.sidebar-scroll{flex:1;overflow-y:auto;overflow-x:hidden}
+.section-header{display:flex;align-items:center;gap:.4rem;padding:.4rem .75rem;cursor:pointer;border-bottom:1px solid var(--border);user-select:none}
+.section-header:hover{background:var(--bg2)}
+.section-arrow{font-size:.6rem;color:var(--text-dim);transition:transform .15s}
+.section-arrow.open{transform:rotate(90deg)}
+.section-title{font-size:.8rem;color:var(--text-dim);letter-spacing:.1em}
+.section-body{display:none}
+.section-body.open{display:block}
+.note-item{padding:.4rem 1rem;cursor:pointer;display:flex;align-items:flex-start;gap:.3rem;position:relative;border-bottom:1px solid var(--border)}
+.note-item:hover{background:var(--bg2)}
+.note-item.active{background:var(--bg2);border-left:2px solid #ffaa00}
+.note-item.depth-1{padding-left:2rem}
+.note-item.depth-2{padding-left:3rem}
+.note-item.depth-3{padding-left:4rem}
+.note-item.depth-4{padding-left:5rem}
+.note-item.depth-5{padding-left:6rem}
+.note-icon{width:3.5rem;height:3.5rem;border-radius:3px;flex-shrink:0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;align-items:center;justify-items:center;font-size:.75rem;background:#000;color:#bbb;line-height:1}
+.note-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:.1rem}
+.note-name{font-size:1rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.note-item.active .note-name{color:#ffaa00}
+.note-source{font-size:.85rem;color:#bbb;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.note-preview{font-size:.8rem;color:#bbb;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.note-dot{width:5px;height:5px;border-radius:50%;background:var(--bot);flex-shrink:0;display:none}
+.note-item.has-notif .note-dot{display:block}
+.note-arrow{font-size:.55rem;color:var(--text-dim);width:.8rem;flex-shrink:0;cursor:pointer;transition:transform .15s}
+.note-arrow.open{transform:rotate(90deg)}
+.note-arrow:hover{color:var(--text-muted)}
+.chat{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.chat-header{display:flex;align-items:center;justify-content:space-between;padding:0 1rem;height:42px;border-bottom:1px solid var(--border);flex-shrink:0}
+.chat-note-name{font-size:1.1rem;color:#ffaa00;cursor:pointer}
+.share-btn{font-family:var(--font);font-size:.8rem;padding:.25rem .5rem;background:transparent;border:1px solid #ffaa00;color:#ffaa00;cursor:pointer;display:none}
+.share-btn:hover{background:rgba(255,170,0,.15)}
+.chat-messages{flex:1;overflow-y:auto;padding:.5rem 0}
+.msg{display:flex;align-items:flex-start;gap:.6rem;padding:0 1rem;margin-top:.6rem;position:relative}
+.msg:first-child{padding-top:.25rem}
+.msg.grouped{padding:0 1rem;margin-top:0}
+.msg-avatar{width:2.8rem;height:2.8rem;border-radius:3px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.8rem;background:#000;color:var(--text-dim);overflow:hidden}
+.msg-avatar svg{width:100%;height:100%}
+.msg.grouped .msg-avatar{display:none}
+.msg-body{flex:1;min-width:0}
+.msg-header{display:flex;align-items:baseline;gap:.6rem;margin-bottom:0}
+.msg.grouped .msg-header{display:none}
+.msg-author{font-size:1rem;font-weight:500}
+.msg-author.urbit{color:#ddd}
+.msg-author.visitor{color:var(--visitor)}
+.msg-time{font-size:.75rem;color:var(--text-dim)}
+.msg-text{font-family:var(--font);font-size:1rem;line-height:1.5;color:#ddd;word-break:break-word;white-space:pre-wrap}
+.msg-actions{display:flex;gap:.35rem;position:absolute;right:1rem;top:0;opacity:0;pointer-events:none;background:var(--bg1);padding:.15rem .25rem;border:1px solid var(--border);border-radius:3px;z-index:1}
+.msg:hover .msg-actions{opacity:1;pointer-events:auto}
+.msg.grouped:hover .msg-actions{opacity:1;pointer-events:auto}
+.msg-action-btn{font-family:var(--font);font-size:.7rem;padding:.15rem .4rem;background:transparent;border:1px solid #333;color:#666;cursor:pointer;transition:all .15s}
+.msg-action-btn:hover{border-color:#ffaa00;color:#ffaa00}
+.msg-action-btn.send-msg:hover{border-color:#00ff88;color:#00ff88}
+.msg-action-btn.delete-msg{color:#666;border-color:#333}
+.msg-action-btn.delete-msg:hover{border-color:#ff4444;color:#ff4444;background:rgba(255,68,68,.15)}
+.msg-edited{font-size:.65rem;color:var(--text-dim);font-style:italic;margin-left:.4rem}
+.msg.depth-1{margin-left:1.5rem}
+.msg.depth-2{margin-left:3rem}
+.msg.depth-3{margin-left:4.5rem}
+.msg.depth-4{margin-left:6rem}
+.msg.depth-5{margin-left:7.5rem}
+.msg-thread{margin-left:0;padding-left:0}
+.msg-thread-more{font-family:var(--font);font-size:.7rem;color:var(--text-dim);background:none;border:none;cursor:pointer;padding:.2rem 1rem;display:block}
+.msg-thread-more:hover{color:#ffaa00}
+.reply-bar{background:transparent;padding:.25rem .75rem;margin:0 0 .4rem 0;font-size:.8rem;color:var(--text-dim);display:none}
+.reply-bar.visible{display:flex;align-items:center;gap:.35rem}
+.reply-label{background:rgba(255,255,255,.06);padding:.2rem .5rem;border-radius:2px;font-size:.8rem;color:var(--text-dim)}
+.reply-close{background:none;border:1px solid #333;color:var(--text-dim);cursor:pointer;font-family:var(--font);font-size:.7rem;padding:.1rem .25rem;line-height:1;width:1.4rem;height:1.4rem;display:flex;align-items:center;justify-content:center}
+.reply-close:hover{border-color:var(--text-dim);color:var(--text)}
+.chat-input-area{border-top:1px solid var(--border);padding:1rem 1rem 1.5rem;flex-shrink:0;background:var(--bg)}
+.chat-input-row{display:flex;align-items:stretch;gap:.5rem}
+.attach-wrap{position:relative;flex-shrink:0;display:flex}
+.attach-btn{font-family:var(--font);font-size:1rem;line-height:1;padding:.4rem .55rem;background:transparent;border:1px solid var(--border2);color:var(--text-dim);cursor:pointer;display:block;width:100%}
+.attach-btn:hover{border-color:var(--text-muted);color:var(--text)}
+.attach-menu{position:absolute;bottom:calc(100% + 6px);right:0;background:var(--bg2);border:1px solid var(--border);min-width:150px;display:none;z-index:50}
+.attach-menu.open{display:block}
+.attach-item{display:block;width:100%;font-family:var(--font);font-size:.8rem;padding:.45rem .75rem;background:none;border:none;color:var(--text-muted);cursor:pointer;text-align:left}
+.attach-item:hover{background:var(--bg3);color:var(--text)}
+.chat-input{flex:1;font-family:var(--font);font-size:1rem;background:var(--bg2);border:1px solid var(--border2);color:#ddd;padding:.4rem .6rem;resize:none;outline:none;min-height:2.1rem;max-height:8rem;line-height:1.4}
+.chat-input:focus{border-color:var(--text-muted)}
+.send-btn{font-family:var(--font);font-size:.8rem;padding:.4rem .9rem;background:transparent;border:1px solid #ffaa00;color:#ffaa00;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.send-btn:hover{background:rgba(255,170,0,.15)}
+.artifact-panel{width:0;border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:width .2s;flex-shrink:0}
+.artifact-panel.open{width:360px}
+.artifact-header{display:flex;align-items:center;justify-content:space-between;padding:0 .75rem;height:42px;border-bottom:1px solid var(--border);flex-shrink:0}
+.artifact-title{font-size:.85rem;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.artifact-close{background:none;border:none;color:var(--text-dim);cursor:pointer;font-family:var(--font);font-size:.9rem}
+.artifact-close:hover{color:var(--text)}
+.artifact-body{flex:1;overflow:auto;padding:.75rem}
+.artifact-code{font-size:.8rem;line-height:1.6;color:#d4d4d4;white-space:pre-wrap;word-break:break-word}
+.artifact-canvas-wrap{width:100%;aspect-ratio:1}
+.artifact-canvas-wrap canvas{width:100%!important;height:100%!important}
+.artifact-meta{font-size:.75rem;color:var(--text-dim);padding:.5rem .75rem;border-top:1px solid var(--border);flex-shrink:0}
+.inline-artifact{background:var(--bg2);border-left:2px solid var(--border2);padding:.4rem .75rem;margin:.25rem 0;cursor:pointer;display:flex;align-items:center;gap:.5rem}
+.inline-artifact:hover{border-left-color:#ffaa00}
+.inline-artifact-type{font-size:.7rem;color:var(--text-dim)}
+.inline-artifact-name{font-size:.85rem;color:var(--text)}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border);width:360px;padding:1.25rem;display:flex;flex-direction:column;gap:1rem}
+.modal-title{font-size:.85rem;color:var(--text-dim);letter-spacing:.1em}
+.modal-field{display:flex;flex-direction:column;gap:.35rem}
+.modal-label{font-size:.75rem;color:var(--text-dim)}
+.modal-input,.modal-select,.modal-textarea{font-family:var(--font);font-size:.85rem;background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:.35rem .5rem;outline:none}
+.modal-textarea{resize:vertical;min-height:120px}
+.modal-input:focus,.modal-textarea:focus{border-color:var(--text-dim)}
+.modal-actions{display:flex;justify-content:flex-end;gap:.5rem}
+.modal-btn{font-family:var(--font);font-size:.8rem;padding:.35rem .9rem;background:transparent;border:1px solid var(--border2);color:var(--text-dim);cursor:pointer}
+.modal-btn:hover{border-color:var(--text-dim);color:var(--text)}
+.modal-btn.primary{border-color:var(--text-muted);color:var(--text)}
+.modal-btn.save{border-color:#00ff88;color:#00ff88}
+.modal-btn.save:hover{background:rgba(0,255,136,.15)}
+.modal-btn.cancel:hover{border-color:#ff4444;color:#ff4444;background:rgba(255,68,68,.15)}
+.profile-modal{background:var(--bg2);border:1px solid var(--border);width:400px;padding:1.25rem;display:flex;flex-direction:column;gap:1rem}
+.profile-top{display:flex;gap:1rem;align-items:flex-start}
+.profile-sigil{width:80px;height:80px;flex-shrink:0;background:#000;border-radius:3px;perspective:900px;overflow:hidden;cursor:pointer}
+.profile-sigil-inner{width:100%;height:100%;display:flex;align-items:center;justify-content:center;transform-style:preserve-3d;animation:profile-spin 18s linear infinite}
+.profile-sigil-inner svg{width:100%;height:100%}
+.profile-info{flex:1;display:flex;flex-direction:column;gap:.75rem;min-width:0}
+.profile-field-label{font-size:.95rem;color:#ddd}
+.profile-name-input{font-family:var(--font);font-size:.95rem;background:transparent;border:none;border-bottom:1px solid var(--border2);color:#ddd;padding:.2rem 0;outline:none;flex:1}
+.profile-name-input::placeholder{color:var(--text-dim);font-size:.75rem}
+.profile-name-input:focus{border-bottom-color:var(--text-muted)}
+.profile-ship{font-size:.95rem;color:#ddd;opacity:1}
+.profile-point{font-size:.95rem;color:#ddd;opacity:1}
+.profile-section-label{font-size:.95rem;color:#ddd;letter-spacing:.1em;margin-bottom:.25rem}
+.profile-azimuth-input{font-family:var(--font);font-size:.75rem;background:transparent;border:1px solid var(--border2);color:var(--text);padding:.35rem .5rem;outline:none;width:100%;resize:none;height:calc(4 * 1.4em + .7rem);line-height:1.4;overflow:hidden;box-sizing:border-box}
+.profile-azimuth-input::placeholder{color:var(--text-dim);font-size:.75rem}
+.profile-azimuth-input:focus{border-color:var(--text-muted)}
+.profile-notes-list{font-size:.75rem;color:var(--text-dim);display:flex;flex-direction:column;gap:0}
+.profile-note-entry{display:flex;align-items:flex-start;gap:.3rem;padding:.4rem 0;border-bottom:1px solid var(--border)}
+.profile-note-entry:last-child{border-bottom:none}
+.profile-note-icon{width:3.5rem;height:3.5rem;border-radius:3px;flex-shrink:0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;align-items:center;justify-items:center;font-size:.75rem;background:#000;color:#bbb;line-height:1;overflow:hidden}
+.profile-note-icon img{width:100%;height:100%;object-fit:cover;border-radius:3px}
+.profile-note-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:.1rem}
+.profile-note-name{font-size:1rem;color:#ffaa00;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.profile-note-desc{font-size:.85rem;color:#bbb;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.profile-note-desc input{font-family:var(--font);font-size:.85rem;background:transparent;border:none;border-bottom:1px solid transparent;color:#bbb;padding:0;outline:none;width:100%}
+.profile-note-desc input::placeholder{color:var(--text-dim);font-size:.75rem}
+.profile-note-desc input:focus{border-bottom-color:var(--text-muted)}
+.profile-note-vis{font-size:.8rem;color:var(--text-dim);line-height:1.3}
+.profile-sponsor-chain{font-size:.95rem;color:#ddd;padding:.2rem 0}
+.profile-row{display:flex;align-items:baseline;gap:.4rem}
+@keyframes profile-spin{from{transform:rotateY(0deg)}to{transform:rotateY(360deg)}}
+@media(prefers-reduced-motion:reduce){.profile-sigil-inner{animation:none}}
+.context-menu{position:fixed;background:#181818;border:1px solid #333;min-width:160px;z-index:1000;box-shadow:0 4px 12px rgba(0,0,0,.5)}
+.context-menu-item{padding:.5rem .75rem;color:#ccc;cursor:pointer;display:flex;align-items:center;gap:.5rem;font-size:.9rem}
+.context-menu-item:hover{background:#1a1a1a;color:#ffaa00}
+.context-menu-item.danger:hover{color:#ff4444}
+.context-menu-divider{height:1px;background:#333;margin:.25rem 0}
+.context-radio{width:8px;height:8px;border-radius:50%;border:1px solid #555}
+.context-radio.selected{background:#ffaa00;border-color:#ffaa00}
+.app-picker-list{display:flex;flex-direction:column;gap:.35rem;max-height:300px;overflow-y:auto;padding:.25rem 0}
+.app-picker-item{display:flex;align-items:center;gap:.6rem;padding:.5rem .65rem;background:var(--bg2);border:1px solid var(--border);cursor:pointer;font-family:inherit;color:var(--text);font-size:.85rem}
+.app-picker-item:hover{border-color:#ffaa00}
+.app-picker-icon{font-size:1.1rem;width:24px;text-align:center}
+.app-picker-info{display:flex;flex-direction:column;gap:.1rem}
+.app-picker-name{font-size:.85rem;color:var(--text)}
+.app-picker-desc{font-size:.7rem;color:var(--text-dim)}
+.inline-app-artifact{margin:.5rem 0;border:1px solid var(--border);background:var(--bg2);overflow:hidden}
+.inline-app-header{display:flex;align-items:center;gap:.5rem;padding:.35rem .65rem;border-bottom:1px solid var(--border);font-size:.8rem;color:var(--text-dim)}
+.inline-app-icon{font-size:.9rem}
+.inline-app-name{color:var(--text)}
+</style>
+<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+</head>
+<body>
+<div class="app">
+  <header class="app-header">
+    <span class="logo">GRIMOIRE</span>
+    <div class="user-info">
+      <span class="ship-name" id="shipDisplay" onclick="openProfileModal()"></span>
+    </div>
+  </header>
+  <div class="app-body">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-resize" id="sidebarResize"></div>
+      <div class="sidebar-top">
+        <div class="view-toggle">
+          <button class="view-toggle-opt active" id="toggleNotes" onclick="switchView('notes')">NOTES</button>
+          <button class="view-toggle-opt" id="toggleContact" onclick="switchView('contact')">CONTACTS</button>
+        </div>
+        <button class="new-btn" id="newBtn" onclick="createNote()">+ NEW</button>
+        <button class="pals-btn" id="palsBtn" style="display:none">%PALS</button>
+      </div>
+      <div class="sidebar-scroll">
+        <div class="section-header" onclick="toggleSection('ars')">
+          <span class="section-arrow open" id="arsArrow">▶</span>
+          <span class="section-title">ARS NOTORIA</span>
+        </div>
+        <div class="section-body open" id="arsBody"></div>
+        <div class="section-header" onclick="toggleSection('notes')">
+          <span class="section-arrow open" id="notesArrow">▶</span>
+          <span class="section-title">NOTES</span>
+        </div>
+        <div class="section-body open" id="notesBody"></div>
+        <div class="section-header" onclick="toggleSection('shared')">
+          <span class="section-arrow open" id="sharedArrow">▶</span>
+          <span class="section-title">SHARED</span>
+        </div>
+        <div class="section-body open" id="sharedBody"></div>
+      </div>
+      <div class="sidebar-scroll" id="palsList" style="display:none"></div>
+    </aside>
+    <section class="chat">
+      <div class="chat-header">
+        <span class="chat-note-name" id="chatNoteName">%Grimoire</span>
+        <button class="share-btn" id="shareBtn" onclick="openSharePrompt()">SHARE</button>
+      </div>
+      <div class="chat-messages" id="chatMessages"></div>
+      <div class="chat-input-area">
+        <div class="reply-bar" id="replyBar">
+          <span class="reply-label" id="replyLabel">↩ replying to</span>
+          <button class="reply-close" onclick="cancelReply()">✕</button>
+        </div>
+        <div class="chat-input-row">
+          <textarea class="chat-input" id="chatInput" placeholder="message..." rows="1"
+            onkeydown="handleInputKey(event)" oninput="autoResize(this)"></textarea>
+          <div class="attach-wrap">
+            <button class="attach-btn" onclick="toggleAttachMenu()">+</button>
+            <div class="attach-menu" id="attachMenu">
+              <button class="attach-item" onclick="openAppPicker()">% Apps</button>
+              <button class="attach-item" onclick="pickFile()">⊞ File / Img</button>
+              <input type="file" id="quickFileInput" hidden>
+              <button class="attach-item" onclick="openArtifactModal('code')">{ } Code</button>
+            </div>
+          </div>
+          <button class="send-btn" onclick="sendMessage()">SEND</button>
+        </div>
+      </div>
+    </section>
+    <aside class="artifact-panel" id="artifactPanel">
+      <div class="artifact-header">
+        <span class="artifact-title" id="artifactPanelTitle"></span>
+        <button class="artifact-close" onclick="closeArtifactPanel()">✕</button>
+      </div>
+      <div class="artifact-body" id="artifactPanelBody"></div>
+      <div class="artifact-meta" id="artifactPanelMeta"></div>
+    </aside>
+  </div>
+</div>
+<div class="modal-overlay" id="noteModal">
+  <div class="modal">
+    <span class="modal-title" id="noteModalTitle">NEW NOTE</span>
+    <div class="modal-field">
+      <label class="modal-label">NAME</label>
+      <input class="modal-input" id="noteNameInput" placeholder="note name" autocomplete="off"
+        onkeydown="if(event.key==='Enter')submitNote()">
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="closeNoteModal()">CANCEL</button>
+      <button class="modal-btn primary" onclick="submitNote()">CREATE</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="artifactModal">
+  <div class="modal">
+    <span class="modal-title" id="artifactModalTitle">NEW ARTIFACT</span>
+    <div class="modal-field">
+      <label class="modal-label">NAME</label>
+      <input class="modal-input" id="artNameInput" placeholder="artifact-name" autocomplete="off">
+    </div>
+    <div class="modal-field" id="artContentField">
+      <label class="modal-label">CONTENT</label>
+      <textarea class="modal-textarea" id="artContentInput" placeholder="content..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="closeArtifactModal()">CANCEL</button>
+      <button class="modal-btn primary" onclick="submitArtifact()">CREATE</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="appPickerModal">
+  <div class="modal">
+    <span class="modal-title">MY APPS</span>
+    <div class="app-picker-list" id="appPickerList"></div>
+    <div class="modal-actions">
+      <button class="modal-btn" onclick="closeAppPicker()">CANCEL</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay" id="profileModal">
+  <div class="profile-modal">
+    <div class="profile-top">
+      <div class="profile-sigil" id="profileSigilWrap" oncontextmenu="event.preventDefault();promptProfileIcon()"><div class="profile-sigil-inner" id="profileSigil"></div></div>
+      <div class="profile-info">
+        <div class="profile-row"><span class="profile-field-label">User Name:</span><input class="profile-name-input" id="profileDisplayName" placeholder="set display name..." maxlength="32" autocomplete="off"></div>
+        <div class="profile-row"><span class="profile-field-label">Urbit ID:</span><span class="profile-ship" id="profileShip"></span></div>
+        <div class="profile-row"><span class="profile-field-label">Point #:</span><span class="profile-point" id="profilePoint"></span></div>
+      </div>
+    </div>
+    <div>
+      <div class="profile-row"><span class="profile-field-label">Sponsorship Chain:</span><span class="profile-sponsor-chain" id="profileSponsors"></span></div>
+    </div>
+    <div>
+      <span class="profile-section-label">Offline Azimuth</span>
+      <textarea class="profile-azimuth-input" id="profileAzimuth" placeholder="enter offline azimuth..." autocomplete="off"></textarea>
+    </div>
+    <div>
+      <span class="profile-section-label">Shared Notes</span>
+      <div class="profile-notes-list" id="profileNotesList">none available</div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="closeProfileModal()">CANCEL</button>
+      <button class="modal-btn save" onclick="saveProfile()">SAVE</button>
+    </div>
+  </div>
+</div>
+<script>
+const api = {
+  ship:null,uid:null,url:null,msgId:0,subs:{},subMeta:{},es:null,reconnecting:false,lastAcked:-1,
+  init(ship){this.ship=ship;this.newChannel()},
+  newChannel(){this.uid=Date.now().toString(36)+Math.random().toString(36).slice(2,6);this.url=`/~/channel/${this.uid}`;this.msgId=0;this.lastAcked=-1},
+  async put(a){try{const r=await fetch(this.url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(a),credentials:'include'});if(!r.ok){console.error('PUT failed',r.status);return false}return true}catch(e){console.error('PUT error',e);return false}},
+  async poke(app,mark,json){return this.put([{id:++this.msgId,action:'poke',ship:this.ship,app,mark,json}])},
+  async subscribe(app,path,handler){const id=++this.msgId;this.subs[id]=handler;this.subMeta[id]={app,path,handler};const ok=await this.put([{id,action:'subscribe',ship:this.ship,app,path}]);if(!ok){delete this.subs[id];delete this.subMeta[id];return null}return id},
+  async unsubscribe(subId){if(!this.subs[subId])return;this.put([{id:++this.msgId,action:'unsubscribe',subscription:subId}]);delete this.subs[subId];delete this.subMeta[subId]},
+  async scry(app,path){const r=await fetch(`/~/scry/${app}${path}.json`,{credentials:'include'});if(!r.ok)throw new Error('scry failed '+r.status);return r.json()},
+  open(){
+    if(this.es)try{this.es.close()}catch(e){}
+    this.es=new EventSource(this.url,{withCredentials:true});
+    this.es.onopen=()=>{console.log('[SSE] connected')};
+    this.es.onmessage=(e)=>{
+      const d=JSON.parse(e.data);
+      const evId=parseInt(e.lastEventId);
+      if(!isNaN(evId)&&evId>this.lastAcked){
+        this.lastAcked=evId;
+        this.put([{id:++this.msgId,action:'ack','event-id':evId}]);
+      }
+      if(d.response==='diff'&&this.subs[d.id])this.subs[d.id](d.json);
+    };
+    this.es.onerror=(e)=>{
+      console.warn('[SSE error]');
+      this.es.close();
+      if(!this.reconnecting)this.reconnect();
+    }
+  },
+  async reconnect(){
+    if(this.reconnecting)return;
+    this.reconnecting=true;
+    console.log('[SSE] reconnecting with fresh channel...');
+    if(this.es)try{this.es.close()}catch(e){}
+    await new Promise(r=>setTimeout(r,2000));
+    const oldMeta=Object.values(this.subMeta);
+    this.subs={};this.subMeta={};
+    this.newChannel();
+    const batch=[];
+    for(const m of oldMeta){
+      const id=++this.msgId;
+      this.subs[id]=m.handler;
+      this.subMeta[id]={app:m.app,path:m.path,handler:m.handler};
+      batch.push({id,action:'subscribe',ship:this.ship,app:m.app,path:m.path});
+    }
+    const ok=batch.length?await this.put(batch):true;
+    if(!ok){
+      console.error('[SSE] reconnect PUT failed, retrying...');
+      this.reconnecting=false;
+      setTimeout(()=>this.reconnect(),3000);
+      return;
+    }
+    this.open();
+    for(const [id,m] of Object.entries(this.subMeta)){
+      if(m.path==='/notes/'+state.currentNoteId)state.currentNoteSub=parseInt(id);
+    }
+    console.log('[SSE] reconnected, re-subscribed to',oldMeta.length,'paths');
+    this.reconnecting=false;
+  }
+};
+const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{}};
+let sigilFn=null;
+const sigilCache={};
+(async function loadSigil(){
+  try{
+    const mod=await import('https://esm.sh/@urbit/sigil-js@2.2.0?bundle');
+    sigilFn=mod.default||mod.sigil||mod;
+    console.log('[sigil] loaded',typeof sigilFn);
+  }catch(e){console.warn('[sigil] failed to load',e)}
+})();
+function shipType(ship){
+  if(!ship||!ship.startsWith('~'))return'comet';
+  const bare=ship.slice(1);
+  const parts=bare.split('-');
+  if(parts.length===1&&bare.length<=3)return'galaxy';
+  if(parts.length===1&&bare.length<=6)return'star';
+  if(parts.length===2)return'planet';
+  if(bare.includes('--'))return'moon';
+  return'comet';
+}
+function shipColor(ship){
+  const t=shipType(ship);
+  if(t==='galaxy')return'#bb77ff';
+  if(t==='star')return'#ffee55';
+  if(t==='planet')return'#ffaa00';
+  if(t==='moon')return'#00ff88';
+  return'#ddd';
+}
+function getSigilSvg(ship){
+  if(sigilCache[ship])return sigilCache[ship];
+  if(!ship.startsWith('~'))return null;
+  const parts=ship.slice(1).split('-');
+  if(parts.length>2)return null;
+  if(!sigilFn)return null;
+  try{
+    const color=shipColor(ship);
+    const svg=sigilFn({point:ship,size:44,foreground:color,background:'#000000',space:'none',detail:'default'});
+    sigilCache[ship]=svg;
+    return svg;
+  }catch(e){console.warn('[sigil] error',ship,e);return null}
+}
+function getLastMessage(noteId){
+  const msgs=state.messages[noteId];
+  if(!msgs||!msgs.length)return null;
+  return msgs[msgs.length-1];
+}
+function noteInitials(name){
+  const clean=name.replace(/[^a-zA-Z0-9]/g,'');
+  const chars=(clean.length>=4?clean.slice(0,4):clean.padEnd(4,' ')).toUpperCase();
+  return `<span>${chars[0]}</span><span>${chars[1]}</span><span>${chars[2]}</span><span>${chars[3]}</span>`;
+}
+function updateCoverPreview(){}
+async function getShip(){
+  try{
+    const r=await fetch('/~/host',{credentials:'include'});
+    if(r.ok){const t=await r.text();const s=t.trim().replace(/"/g,'');if(s)return s.replace(/^~/,'')}
+  }catch(e){}
+  for(const c of document.cookie.split(';')){const m=c.trim().match(/^urbauth-(~[\w-]+)=/);if(m)return m[1].slice(1)}
+  return location.hostname==='localhost'?'zod':location.hostname.split('.')[0];
+}
+async function boot(){
+  const ship=await getShip();
+  api.init(ship);
+  document.getElementById('shipDisplay').textContent='~'+ship;
+  document.getElementById('shipDisplay').style.color=shipColor('~'+ship);
+  await api.subscribe('noltbook','/notes',handleUpdate);
+  api.open();
+  openNote('cover');
+}
+function updateSidebarSigil(){
+  const ship='~'+api.ship;
+  renderAvatar(ship,document.getElementById('profileSigil'));
+}
+let _renderTimer=null;
+function scheduleRender(noteId){if(_renderTimer)clearTimeout(_renderTimer);_renderTimer=setTimeout(()=>{_renderTimer=null;renderMessages(noteId||state.currentNoteId)},50)}
+let _noteListTimer=null;
+function scheduleNoteList(){if(_noteListTimer)clearTimeout(_noteListTimer);_noteListTimer=setTimeout(()=>{_noteListTimer=null;renderNoteList()},50)}
+let _lastMsgHash={};
+function handleUpdate(upd){
+  if(upd['note-list']){console.log('[note-list]',JSON.stringify(upd['note-list']));for(const n of upd['note-list'])state.notes[n.id]=n;renderNoteList()}
+  else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));state.notes[n.id]=n;if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id);state.expandedNotes.add(n.parent)}if(n.creator==='~'+api.ship)openNote(n.id);else state.notifications.add(n.id);renderNoteList()}
+  else if(upd['note-renamed']){const{id,name}=upd['note-renamed'];if(state.notes[id]){state.notes[id].name=name;renderNoteList()}if(state.currentNoteId===id)document.getElementById('chatNoteName').textContent=name}
+  else if(upd['note-deleted']){const{id}=upd['note-deleted'];delete state.notes[id];if(state.currentNoteId===id)openNote('cover');renderNoteList()}
+  else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];const hash=noteId+':'+messages.length+':'+(messages.length?messages[messages.length-1].id:'');if(_lastMsgHash[noteId]===hash)return;_lastMsgHash[noteId]=hash;state.messages[noteId]=messages;for(const a of artifacts)state.artifacts[a.id]=a;if(state.currentNoteId===noteId)scheduleRender(noteId);updateCoverPreview();scheduleNoteList()}
+  else if(upd['new-message']){const msg=upd['new-message'];if(!state.messages[msg.noteId])state.messages[msg.noteId]=[];state.messages[msg.noteId].push(msg);if(state.notes[msg.noteId]){state.notes[msg.noteId].lastAuthor=msg.author;state.notes[msg.noteId].lastPreview=msg.text}if(state.currentNoteId===msg.noteId)appendMessage(msg);else state.notifications.add(msg.noteId);updateCoverPreview();scheduleNoteList()}
+  else if(upd['artifact-created']){const a=upd['artifact-created'];state.artifacts[a.id]=a;if(a.type==='app'||a.type==='file')scheduleRender()}
+  else if(upd['artifact-updated']){const a=upd['artifact-updated'];state.artifacts[a.id]=a;if(state.activeAppBridge&&state.activeAppBridge.artifactId===a.id){const lastVer=a.versions[a.versions.length-1];if(lastVer){try{const meta=JSON.parse(lastVer.content);const iframe=document.getElementById(state.activeAppBridge.iframeId);if(iframe&&iframe.contentWindow){iframe.contentWindow.postMessage({source:'noltbook-host',type:'nb:state',payload:meta.state||{}},'*')}}catch(e){}}}else if(document.getElementById('artifactPanel').classList.contains('open')&&document.getElementById('artifactPanelTitle').textContent===a.name)openArtifactPanel(a.id)}
+  else if(upd['artifact-deleted']){delete state.artifacts[upd['artifact-deleted'].id];closeArtifactPanel();scheduleRender()}
+  else if(upd['note-meta-updated']){const d=upd['note-meta-updated'];const n=state.notes[d.id];if(n){n.visibility=d.visibility;n.iconUrl=d.iconUrl||null;n.writable=d.writable;renderNoteList()}}
+  else if(upd['message-edited']){const{noteId,message}=upd['message-edited'];const msgs=state.messages[noteId]||[];const idx=msgs.findIndex(m=>m.id===message.id);if(idx>=0){msgs[idx]=message}if(state.currentNoteId===noteId)scheduleRender(noteId)}
+  else if(upd['message-deleted']){const{noteId,msgId}=upd['message-deleted'];const msgs=state.messages[noteId]||[];const idx=msgs.findIndex(m=>m.id===msgId);if(idx>=0)msgs.splice(idx,1);if(state.currentNoteId===noteId)scheduleRender(noteId)}
+  else if(upd['profile-list']){for(const entry of upd['profile-list']){state.profiles[entry.ship]=entry.profile}const me=state.profiles['~'+api.ship];if(me){if(me.displayName)document.getElementById('shipDisplay').textContent=me.displayName;updateSidebarSigil()}if(state.palsView)renderPalsList();if(state.currentNoteId)scheduleRender()}
+  else if(upd['profile-updated']){const{ship,profile}=upd['profile-updated'];state.profiles[ship]=profile;if(ship==='~'+api.ship){document.getElementById('shipDisplay').textContent=profile.displayName||'~'+api.ship;updateSidebarSigil()}if(state.palsView)renderPalsList();if(state.currentNoteId)scheduleRender()}
+  else if(upd['remote-note-list']){const{ship,notes}=upd['remote-note-list'];const el=document.getElementById('viewProfileNotes');if(el){const pubNotes=notes.filter(n=>n.visibility==='public').sort((a,b)=>a.name.localeCompare(b.name));const privNotes=notes.filter(n=>n.visibility==='private').sort((a,b)=>a.name.localeCompare(b.name));const all=[...pubNotes,...privNotes];if(all.length===0){el.innerHTML='<span style="color:var(--dim)">none available</span>'}else{el.innerHTML=all.map(n=>{const ic=n.iconUrl?'<img src="'+escAttr(n.iconUrl)+'">':noteInitials(n.name);const vis=n.visibility==='public'?'public':'private';return '<div class="profile-note-entry"><div class="profile-note-icon">'+ic+'</div><div class="profile-note-text"><span class="profile-note-name">'+escHtml(n.name)+'</span><span class="profile-note-vis">'+vis+'</span></div></div>'}).join('')}}}
+  else if(upd['pal-list']){for(const entry of upd['pal-list']){state.palStatus[entry.ship]=entry.status}if(state.palsView)renderPalsList()}
+  else if(upd['pal-update']){const{ship,status}=upd['pal-update'];state.palStatus[ship]=status;if(state.palsView)renderPalsList()}
+}
+async function openNote(id){
+  if(state.currentNoteSub!==null){await api.unsubscribe(state.currentNoteSub);state.currentNoteSub=null}
+  state.currentNoteId=id;state.notifications.delete(id);state.lastMsgAuthor=null;
+  document.getElementById('chatNoteName').textContent=id==='cover'?'%Grimoire':(state.notes[id]?state.notes[id].name:id);
+  document.getElementById('shareBtn').style.display=id==='cover'?'none':'block';
+  document.querySelectorAll('.note-item').forEach(el=>el.classList.remove('active'));
+  const activeEl=document.querySelector(`[data-note-id="${id}"]`);if(activeEl)activeEl.classList.add('active');
+  document.getElementById('chatMessages').innerHTML='';
+  await api.poke('noltbook','noltbook-action',{action:'switch-note',data:{id}});
+  const subId=await api.subscribe('noltbook','/notes/'+id,handleUpdate);
+  if(subId===null){console.error('[openNote] subscribe failed, reconnecting');if(!api.reconnecting)api.reconnect();return}
+  state.currentNoteSub=subId;
+  if(state.messages[id])renderMessages(id);
+  renderNoteList();
+}
+const arsEntries=[
+  {id:'cover',name:'%Grimoire',color:'#ffaa00',icon:null,bgColor:null},
+  {id:'ars-rumors',name:'%Rumors',color:'#652287',icon:null,bgColor:null},
+  {id:'ars-groups',name:'%Groups',color:'#000000',icon:null,bgColor:null},
+  {id:'ars-exchange',name:'%Exchange',color:'#555',icon:null,bgColor:null},
+  {id:'ars-hits',name:'%Hits',color:null,icon:null,bgColor:'#EBE1E1'}
+];
+function makeArsItem(entry){
+  const div=document.createElement('div');
+  div.className='note-item'+(entry.id===state.currentNoteId?' active':'');
+  div.setAttribute('data-note-id',entry.id);
+  const last=getLastMessage(entry.id);
+  const source=last?displayName(last.author):'';
+  const preview=last?last.text.replace(/\n/g,' '):'';
+  const bgStyle=entry.bgColor?`background:${entry.bgColor}`:entry.color?`background:${entry.color}`:'background:#000';
+  div.innerHTML=`<span class="note-arrow" style="visibility:hidden">&#9654;</span><div class="note-icon" style="${bgStyle};display:flex;align-items:center;justify-content:center"></div><div class="note-text"><span class="note-name">${escHtml(entry.name)}</span><span class="note-source">${escHtml(source)}</span><span class="note-preview">${escHtml(preview)}</span></div><span class="note-dot"></span>`;
+  div.onclick=()=>{openNote(entry.id)};
+  return div;
+}
+function renderNoteList(){
+  const arsEl=document.getElementById('arsBody'),notesEl=document.getElementById('notesBody'),sharedEl=document.getElementById('sharedBody');
+  arsEl.innerHTML='';notesEl.innerHTML='';sharedEl.innerHTML='';
+  for(const entry of arsEntries)arsEl.appendChild(makeArsItem(entry));
+  function renderTree(noteId,depth,container){
+    const n=state.notes[noteId];
+    if(!n)return;
+    container.appendChild(makeNoteItem(n,depth));
+    if(state.expandedNotes.has(n.id)&&n.children){
+      for(const cid of n.children)renderTree(cid,depth+1,container);
+    }
+  }
+  for(const n of Object.values(state.notes)){
+    if(n.id==='cover')continue;
+    if(n.parent)continue;
+    const target=n.type==='dm'?sharedEl:notesEl;
+    renderTree(n.id,0,target);
+  }
+  updateCoverPreview();
+}
+function makeNoteItem(n,depth){
+  const div=document.createElement('div');
+  const hasChildren=n.children&&n.children.length>0;
+  const isExpanded=state.expandedNotes.has(n.id);
+  div.className='note-item'+(n.id===state.currentNoteId?' active':'')+(state.notifications.has(n.id)?' has-notif':'')+(depth?` depth-${depth}`:'');
+  div.setAttribute('data-note-id',n.id);
+  const last=getLastMessage(n.id);
+  const iconContent=n.iconUrl?`<img src="${escAttr(n.iconUrl)}" style="width:100%;height:100%;object-fit:cover;border-radius:3px">`:noteInitials(n.name);
+  const rawSource=last?last.author:(n.lastAuthor||'');
+  const source=rawSource?displayName(rawSource):'';
+  const preview=last?last.text.replace(/\n/g,' '):(n.lastPreview?n.lastPreview.replace(/\n/g,' '):'');
+  const chevron=hasChildren?`<span class="note-arrow ${isExpanded?'open':''}" onclick="event.stopPropagation();toggleNoteExpand('${n.id}')">&#9654;</span>`:`<span class="note-arrow" style="visibility:hidden">&#9654;</span>`;
+  div.innerHTML=`${chevron}<div class="note-icon" ${n.iconUrl?'style="display:flex"':''}>${iconContent}</div><div class="note-text"><span class="note-name">${escHtml(n.name)}</span><span class="note-source">${escHtml(source)}</span><span class="note-preview">${escHtml(preview)}</span></div><span class="note-dot"></span>`;
+  let clickTimer=null;
+  div.onclick=()=>{if(clickTimer)return;clickTimer=setTimeout(()=>{clickTimer=null;openNote(n.id)},250)};
+  div.ondblclick=(e)=>{clearTimeout(clickTimer);clickTimer=null;e.preventDefault();toggleNoteExpand(n.id)};
+  div.oncontextmenu=(e)=>{e.preventDefault();showNoteContextMenu(e,n.id)};
+  return div;
+}
+function toggleNoteExpand(id){if(state.expandedNotes.has(id))state.expandedNotes.delete(id);else state.expandedNotes.add(id);renderNoteList()}
+function toggleSection(name){state.expandedSections[name]=!state.expandedSections[name];document.getElementById(name+'Body').classList.toggle('open',state.expandedSections[name]);document.getElementById(name+'Arrow').classList.toggle('open',state.expandedSections[name])}
+function switchView(mode){
+  state.palsView=mode==='contact';
+  const notesBtn=document.getElementById('toggleNotes');
+  const contactBtn=document.getElementById('toggleContact');
+  const newBtn=document.getElementById('newBtn');
+  const palsBtn=document.getElementById('palsBtn');
+  const noteScroll=document.querySelector('.sidebar-scroll:not(#palsList)');
+  const palsList=document.getElementById('palsList');
+  notesBtn.classList.toggle('active',!state.palsView);
+  contactBtn.classList.toggle('active',state.palsView);
+  if(state.palsView){
+    noteScroll.style.display='none';
+    palsList.style.display='block';
+    newBtn.style.display='none';
+    palsBtn.style.display='';
+    renderPalsList();
+  }else{
+    noteScroll.style.display='';
+    palsList.style.display='none';
+    newBtn.style.display='';
+    palsBtn.style.display='none';
+  }
+}
+function renderPalsList(){
+  const el=document.getElementById('palsList');
+  el.innerHTML='';
+  const me='~'+api.ship;
+  const ships=Object.keys(state.profiles).filter(s=>s!==me).sort((a,b)=>{
+    const na=displayName(a).toLowerCase(),nb=displayName(b).toLowerCase();
+    return na.localeCompare(nb);
+  });
+  if(ships.length===0){
+    el.innerHTML='<div style="padding:1rem;color:var(--text-dim);font-size:.85rem">No contacts discovered yet</div>';
+    return;
+  }
+  for(const ship of ships){
+    el.appendChild(makeContactItem(ship));
+  }
+}
+function palStatusLabel(status){
+  if(status==='mutual')return{cls:'contact-tag mutual',label:'PALS'};
+  if(status==='requesting')return{cls:'contact-tag requesting',label:'REQUESTING'};
+  if(status==='requested')return{cls:'contact-tag requested',label:'REQUESTED'};
+  if(status==='blocked')return{cls:'contact-tag blocked',label:'BLOCKED'};
+  return{cls:'contact-tag',label:'ADD PAL'};
+}
+function makeContactItem(ship){
+  const div=document.createElement('div');
+  div.className='contact-item';
+  const prof=state.profiles[ship]||{};
+  const name=prof.displayName||ship;
+  const av=avatarHtml(ship);
+  const status=state.palStatus[ship]||'none';
+  const isBlocked=status==='blocked';
+  const blockInfo=isBlocked?{cls:'contact-tag blocked',label:'BLOCKED'}:{cls:'contact-tag',label:'BLOCK'};
+  const palInfo=isBlocked?{cls:'contact-tag',label:'PALS'}:palStatusLabel(status);
+  div.innerHTML=`<div class="contact-avatar">${av}</div><div class="contact-info"><span class="contact-name">${escHtml(name)}</span><span class="contact-ship">${escHtml(ship)}</span><div class="contact-tags"><span class="${blockInfo.cls}" data-ship="${escAttr(ship)}" data-tag="block" onclick="event.stopPropagation();toggleContactTag(this)">${blockInfo.label}</span><span class="${palInfo.cls}" data-ship="${escAttr(ship)}" data-tag="pal" onclick="event.stopPropagation();toggleContactTag(this)">${palInfo.label}</span></div></div>`;
+  div.onclick=()=>{viewProfile(ship)};
+  return div;
+}
+function toggleContactTag(el){
+  const ship=el.dataset.ship;
+  const tag=el.dataset.tag;
+  if(tag==='block'){
+    // NOTE: block is UI-only for now. Will be wired to backend later
+    // to hide a ship from your timeline and prevent their content from appearing.
+    el.classList.toggle('blocked');
+    el.textContent=el.classList.contains('blocked')?'BLOCKED':'BLOCK';
+    return;
+  }
+  if(tag==='pal'){
+    const status=state.palStatus[ship]||'none';
+    if(status==='mutual'||status==='requesting'){
+      api.poke('noltbook','noltbook-action',{action:'remove-pal',data:{ship}});
+    }else{
+      api.poke('noltbook','noltbook-action',{action:'add-pal',data:{ship}});
+    }
+  }
+}
+function findThreadRoot(msgId,byId){
+  let cur=byId[msgId];
+  while(cur&&cur.replyTo&&byId[cur.replyTo])cur=byId[cur.replyTo];
+  return cur?cur.id:msgId;
+}
+function collectThreadFlat(rootId,children,byId,depth){
+  depth=depth||1;
+  const replies=children[rootId]||[];
+  let all=[];
+  for(const r of replies){all.push({msg:r,depth});all=all.concat(collectThreadFlat(r.id,children,byId,depth+1))}
+  return all;
+}
+function getAncestorChain(msgId,byId){
+  const chain=[];let cur=byId[msgId];
+  while(cur&&cur.replyTo&&byId[cur.replyTo]){cur=byId[cur.replyTo];chain.unshift(cur.id)}
+  return chain;
+}
+function msgDepth(msgId,byId){
+  let d=0,cur=byId[msgId];
+  while(cur&&cur.replyTo&&byId[cur.replyTo]){cur=byId[cur.replyTo];d++}
+  return d;
+}
+function renderMessages(noteId){
+  const el=document.getElementById('chatMessages');el.innerHTML='';state.lastMsgAuthor=null;state.lastMsgDepth=-1;
+  const msgs=state.messages[noteId]||[];
+  const byId={};msgs.forEach(m=>byId[m.id]=m);
+  const children={};msgs.forEach(m=>{if(m.replyTo){if(!children[m.replyTo])children[m.replyTo]=[];children[m.replyTo].push(m)}});
+  const threadMap={};const threads={};
+  for(const m of msgs){
+    const root=findThreadRoot(m.id,byId);
+    threadMap[m.id]=root;
+    if(!threads[root])threads[root]={root,allFlat:[],lastTime:0,newestId:null};
+    if(m.id!==root)threads[root].allFlat.push(m);
+    if(m.id>threads[root].lastTime){threads[root].lastTime=m.id;threads[root].newestId=m.id}
+  }
+  const items=[];
+  for(const tid in threads){
+    const t=threads[tid];
+    if(t.allFlat.length===0)items.push({type:'msg',msg:byId[tid],time:t.lastTime});
+    else items.push({type:'thread',threadId:parseInt(tid),time:t.lastTime,newestId:t.newestId});
+  }
+  // merge artifacts into the timeline so they appear in chronological order with messages
+  const noteArts=Object.values(state.artifacts).filter(a=>a.noteId===noteId&&(a.type==='app'||a.type==='file'));
+  for(const art of noteArts){const lv=art.versions.length?art.versions[art.versions.length-1]:null;items.push({type:'artifact',art,time:lv?lv.timestamp:0})}
+  items.sort((a,b)=>a.time-b.time);
+  for(const item of items){
+    if(item.type==='msg'){
+      renderMsg(el,item.msg,0);
+    }else if(item.type==='thread'){
+      const rootId=item.threadId;
+      const flat=collectThreadFlat(rootId,children,byId,1);
+      const expanded=state.expandedThreads&&state.expandedThreads.has(rootId);
+      const wrap=document.createElement('div');
+      wrap.className='msg-thread';
+      wrap.id='thread-'+rootId;
+      state.lastMsgAuthor=null;state.lastMsgDepth=-1;
+      renderMsg(wrap,byId[rootId],0);
+      if(expanded||flat.length<=2){
+        for(const f of flat)renderMsg(wrap,f.msg,f.depth);
+      }else{
+        const newest=byId[item.newestId];
+        const newestDepth=msgDepth(item.newestId,byId);
+        const parentOfNewest=newest.replyTo?byId[newest.replyTo]:null;
+        const parentDepth=parentOfNewest?msgDepth(parentOfNewest.id,byId):0;
+        const visibleIds=new Set();
+        visibleIds.add(rootId);
+        if(parentOfNewest&&parentOfNewest.id!==rootId)visibleIds.add(parentOfNewest.id);
+        visibleIds.add(newest.id);
+        // also show ancestor chain from root to parent so indentation context is clear
+        if(parentOfNewest){const chain=getAncestorChain(parentOfNewest.id,byId);chain.forEach(id=>visibleIds.add(id))}
+        const hiddenCount=flat.filter(f=>!visibleIds.has(f.msg.id)).length;
+        let shownMore=false;
+        for(const f of flat){
+          if(visibleIds.has(f.msg.id)){
+            if(!shownMore&&hiddenCount>0&&(f.msg.id===(parentOfNewest?parentOfNewest.id:newest.id))){
+              const moreBtn=document.createElement('button');
+              moreBtn.className='msg-thread-more';
+              moreBtn.textContent='show '+hiddenCount+' more repl'+(hiddenCount===1?'y':'ies');
+              moreBtn.onclick=()=>expandThread(rootId);
+              wrap.appendChild(moreBtn);
+              shownMore=true;
+            }
+            renderMsg(wrap,f.msg,f.depth);
+          }
+        }
+        if(!shownMore&&hiddenCount>0){
+          const moreBtn=document.createElement('button');
+          moreBtn.className='msg-thread-more';
+          moreBtn.textContent='show '+hiddenCount+' more repl'+(hiddenCount===1?'y':'ies');
+          moreBtn.onclick=()=>expandThread(rootId);
+          wrap.appendChild(moreBtn);
+        }
+      }
+      el.appendChild(wrap);
+    }else if(item.type==='artifact'){
+      const art=item.art;
+      const wrap=document.createElement('div');
+      wrap.className='msg';
+      wrap.id=(art.type==='app'?'inline-app-':'inline-file-')+art.id;
+      const authorColor=art.creator.startsWith('~')?shipColor(art.creator):'var(--visitor)';
+      const lastVer=art.versions[art.versions.length-1];
+      const timeStr=lastVer?new Date(lastVer.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
+      const actions=`<div class="msg-actions"><button class="msg-action-btn" onclick="startReply('${art.id}','${escAttr(art.creator)}')">REPLY</button><button class="msg-action-btn send-msg" onclick="sendToUser('${escAttr(art.creator)}','${art.id}')">SEND</button><button class="msg-action-btn delete-msg" onclick="deleteArtifact('${art.id}')">DELETE</button></div>`;
+      if(art.type==='app'){
+        let meta={};if(lastVer){try{meta=JSON.parse(lastVer.content)}catch(e){}}
+        const iframeId='app-iframe-'+art.id;
+        wrap.innerHTML=`<div class="msg-header" style="padding-left:0"><span class="msg-author" style="color:${authorColor}">${escHtml(displayName(art.creator))}</span><span class="msg-time">${timeStr}</span>${actions}</div><iframe id="${iframeId}" src="/apps/noltbook/pkg/${meta.packageId||'canvas'}" sandbox="allow-scripts" scrolling="no" style="width:100%;height:760px;border:none;background:#181818;overflow:hidden"></iframe>`;
+        wrap.style.cssText='display:block;padding:0 1rem;margin-top:.6rem';
+        // hover handled by CSS .msg:hover .msg-actions
+        el.appendChild(wrap);
+        initHostBridge(iframeId,art.id,meta);
+      }else{
+        let fileContent='';
+        let meta={};if(lastVer){try{meta=JSON.parse(lastVer.content)}catch(e){}}
+        const fname=escHtml(meta.fileName||art.name);
+        const dblExpand=`ondblclick="openFileFullscreen('${art.id}')"`;
+        if(meta.dataUrl&&meta.mimeType&&meta.mimeType.startsWith('image/')){
+          fileContent=`<img src="${escAttr(meta.dataUrl)}" alt="${fname}" style="max-width:100%;max-height:400px;border:1px solid var(--border);margin-top:.35rem;cursor:pointer;display:block" ${dblExpand}>`;
+        }else if(meta.dataUrl&&meta.mimeType==='application/pdf'){
+          fileContent=`<div style="margin-top:.35rem" ${dblExpand}><iframe src="${escAttr(meta.dataUrl)}" style="width:100%;height:400px;border:1px solid var(--border);background:#fff;pointer-events:none"></iframe></div>`;
+        }else if(meta.dataUrl&&meta.mimeType&&(meta.mimeType.startsWith('text/')||meta.mimeType==='application/json'||meta.mimeType==='application/xml'||meta.mimeType==='application/javascript')){
+          const textId='file-text-'+art.id;
+          fileContent=`<pre id="${textId}" style="max-height:300px;overflow:auto;border:1px solid var(--border);margin-top:.35rem;padding:.5rem;font-size:.8rem;color:var(--text);background:var(--bg2);white-space:pre-wrap;margin-bottom:0;cursor:pointer" ${dblExpand}></pre>`;
+          setTimeout(()=>{const el=document.getElementById(textId);if(el)fetch(meta.dataUrl).then(r=>r.text()).then(t=>{el.textContent=t})},0);
+        }else if(meta.dataUrl&&meta.mimeType&&meta.mimeType.startsWith('audio/')){
+          fileContent=`<div style="margin-top:.35rem" ${dblExpand}><div style="font-size:.85rem;color:var(--text-dim);margin-bottom:.25rem">${fname}</div><audio controls src="${escAttr(meta.dataUrl)}" style="width:100%;max-width:400px"></audio></div>`;
+        }else if(meta.dataUrl&&meta.mimeType&&meta.mimeType.startsWith('video/')){
+          fileContent=`<video controls src="${escAttr(meta.dataUrl)}" style="max-width:100%;max-height:400px;border:1px solid var(--border);margin-top:.35rem" ${dblExpand}></video>`;
+        }else if(meta.dataUrl){
+          fileContent=`<div style="display:flex;align-items:center;gap:.5rem;margin-top:.35rem;padding:.4rem .6rem;border:1px solid var(--border);background:var(--bg2);cursor:pointer" ${dblExpand}><span style="font-size:.85rem;color:var(--text)">${fname}</span></div>`;
+        }else{
+          fileContent=`<div style="margin-top:.35rem;font-size:.85rem;color:var(--text-dim)">${escHtml(lastVer.content).slice(0,200)}</div>`;
+        }
+        wrap.innerHTML=`<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar">${avatarHtml(art.creator)}</div><div class="msg-body"><div class="msg-header"><span class="msg-author" style="color:${authorColor}">${escHtml(displayName(art.creator))}</span><span class="msg-time">${timeStr}</span>${actions}</div>${fileContent}</div></div>`;
+        el.appendChild(wrap);
+      }
+    }
+  }
+  el.scrollTop=el.scrollHeight;
+  if(window.twttr&&twttr.widgets)twttr.widgets.load(el);
+}
+function expandThread(rootId){
+  if(!state.expandedThreads)state.expandedThreads=new Set();
+  state.expandedThreads.add(rootId);
+  renderMessages(state.currentNoteId);
+}
+function renderMsg(el,msg,depth){
+  const grouped=msg.author===state.lastMsgAuthor&&depth===state.lastMsgDepth;
+  state.lastMsgAuthor=msg.author;state.lastMsgDepth=depth;
+  const isUrbit=msg.author.startsWith('~');
+  const timeStr=new Date(msg.id).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  const editedStamp=msg.edited?'<span class="msg-edited">(edited)</span>':'';
+  const actions=`<div class="msg-actions"><button class="msg-action-btn" onclick="startReply('${msg.id}','${escAttr(msg.author)}')">REPLY</button><button class="msg-action-btn" onclick="editMessage('${msg.id}')">EDIT</button><button class="msg-action-btn send-msg" onclick="sendToUser('${escAttr(msg.author)}','${msg.id}')">SEND</button><button class="msg-action-btn delete-msg" onclick="deleteMessage('${msg.id}')">DELETE</button></div>`;
+  const div=document.createElement('div');
+  const depthClass=depth>0?' depth-'+Math.min(depth,5):'';
+  if(grouped){
+    div.className='msg grouped'+depthClass;
+    div.id='msg-'+msg.id;
+    div.innerHTML=`<div style="display:flex;align-items:baseline;padding-left:calc(2.8rem + .6rem)"><div class="msg-text" style="flex:1">${renderText(msg.text)}${editedStamp}</div>${actions}</div>`;
+  }else{
+    div.className='msg'+depthClass;
+    div.id='msg-'+msg.id;
+    const authorColor=isUrbit?shipColor(msg.author):'var(--visitor)';
+    div.innerHTML=`<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar" style="cursor:pointer" onclick="viewProfile('${escAttr(msg.author)}')">${avatarHtml(msg.author)}</div><div class="msg-body"><div class="msg-header"><span class="msg-author" style="color:${authorColor};cursor:pointer" onclick="viewProfile('${escAttr(msg.author)}')">${escHtml(displayName(msg.author))}</span><span class="msg-time">${timeStr}</span>${actions}</div><div class="msg-text">${renderText(msg.text)}${editedStamp}</div></div></div>`;
+  }
+  el.appendChild(div);
+}
+function appendMessage(msg){
+  if(state.expandedThreads){const byId={};(state.messages[state.currentNoteId]||[]).forEach(m=>byId[m.id]=m);const root=findThreadRoot(msg.id,byId);state.expandedThreads.delete(root)}
+  renderMessages(state.currentNoteId);
+}
+let ownAvatarBlobUrl=null;
+function resolveAvatarUrl(ship){
+  if(ship==='~'+api.ship&&ownAvatarBlobUrl)return ownAvatarBlobUrl;
+  const prof=state.profiles[ship];
+  if(!prof||!prof.avatar)return null;
+  const av=prof.avatar;
+  if(av.type==='urbit'){
+    if(ship==='~'+api.ship)return '/apps/noltbook/avatar';
+    return null;
+  }
+  if(av.url)return av.url;
+  return null;
+}
+function sigilFallbackHtml(ship){
+  if(ship.startsWith('~')){
+    const svg=getSigilSvg(ship);
+    if(svg)return svg;
+    return '<span style="color:'+shipColor(ship)+';font-size:.65rem">'+ship.slice(1,3)+'</span>';
+  }
+  return '<span style="color:var(--visitor)">'+ship[0].toUpperCase()+'</span>';
+}
+function avatarHtml(ship){
+  const url=resolveAvatarUrl(ship);
+  const sigil=sigilFallbackHtml(ship);
+  if(url)return '<div style="position:relative;width:100%;height:100%">'+sigil+'<img src="'+escAttr(url)+'" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;border-radius:3px" onerror="this.style.display=\'none\'"></div>';
+  return sigil;
+}
+function renderAvatar(ship,element){
+  element.innerHTML=sigilFallbackHtml(ship);
+  const url=resolveAvatarUrl(ship);
+  if(url){
+    const img=new Image();
+    img.onload=function(){element.innerHTML='<img src="'+escAttr(url)+'" style="width:100%;height:100%;object-fit:cover">';element.style.animation='none'};
+    img.src=url;
+  }
+}
+function displayName(ship){const p=state.profiles[ship];return(p&&p.displayName)?p.displayName:ship}
+function renderText(text){if(!text)return'';var out=escHtml(text);out=out.replace(/`([^`]+)`/g,'<code style="background:var(--bg3);padding:.1rem .3rem">$1</code>');out=out.replace(/(data:image\/[^\s"]+)/g,function(m){var raw=m.replace(/&amp;/g,'&').replace(/&quot;/g,'"');return '<div style="margin:.35rem 0"><img src="'+raw+'" style="max-width:100%;max-height:400px;border:1px solid var(--border);cursor:pointer" ondblclick="openImageFullscreen(this.src)"></div>'});out=out.replace(/(https?:\/\/[^\s]+)/g,function(url){var raw=url.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/[.,;:!?\)]+$/,'');if(/\.(png|jpe?g|gif|webp|svg|bmp|ico)(\?[^\s]*)?$/i.test(raw)){return '<div style="margin:.35rem 0"><img src="'+escAttr(raw)+'" style="max-width:100%;max-height:400px;border:1px solid var(--border);cursor:pointer" ondblclick="openImageFullscreen(this.src)"></div>'}var yt=raw.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/);if(yt){return '<div style="margin:.35rem 0;max-width:480px;aspect-ratio:16/9"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[1]+'" style="width:100%;height:100%;border:1px solid var(--border)" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe></div>'}var tw=raw.match(/(?:twitter\.com|x\.com)\/(\w+)\/status\/(\d+)/);if(tw){return '<div class="tweet-embed" style="margin:.35rem 0;max-width:480px"><blockquote class="twitter-tweet" data-theme="dark" data-conversation="none"><a href="https://twitter.com/'+tw[1]+'/status/'+tw[2]+'"></a></blockquote></div>'}return '<a href="'+escAttr(raw)+'" target="_blank" rel="noopener" style="color:#ffaa00">'+url+'</a>'});return out}
+function openImageFullscreen(url){var o=document.createElement('div');o.id='file-fullscreen';o.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.92);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer';o.innerHTML='<img src="'+url+'" style="max-width:95%;max-height:90vh">';o.onclick=function(){o.remove()};document.body.appendChild(o)}
+async function sendMessage(){
+  const input=document.getElementById('chatInput');const text=input.value.trim();if(!text)return;
+  if(state.editingMsgId){
+    const msgId=state.editingMsgId;
+    await api.poke('noltbook','noltbook-action',{action:'edit-message',data:{noteId:state.currentNoteId,msgId,text}});
+    const msgs=state.messages[state.currentNoteId]||[];
+    const msg=msgs.find(m=>m.id===msgId);
+    if(msg){msg.text=text;msg.edited=true}
+    renderMessages(state.currentNoteId);
+    input.value='';input.style.height='';cancelEdit();
+    return;
+  }
+  const data={noteId:state.currentNoteId,text};if(state.replyingTo)data.replyTo=state.replyingTo;await api.poke('noltbook','noltbook-action',{action:'send-message',data});input.value='';input.style.height='';cancelReply()
+}
+function handleInputKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage()}if(e.key==='Escape'){if(state.editingMsgId)cancelEdit();else if(state.replyingTo)cancelReply()}}
+function autoResize(el){el.style.height='';el.style.height=Math.min(el.scrollHeight,120)+'px'}
+function startReply(msgId,author){state.replyingTo=parseInt(msgId);document.getElementById('replyLabel').textContent='↩ replying to '+author;document.getElementById('replyBar').classList.add('visible');document.getElementById('chatInput').focus()}
+function cancelReply(){state.replyingTo=null;document.getElementById('replyBar').classList.remove('visible')}
+function editMessage(msgId){
+  cancelReply();
+  const msgs=state.messages[state.currentNoteId]||[];
+  const msg=msgs.find(m=>String(m.id)===String(msgId));
+  if(!msg)return;
+  state.editingMsgId=parseInt(msgId);
+  const input=document.getElementById('chatInput');
+  input.value=msg.text;
+  input.placeholder='editing message... (Esc to cancel)';
+  input.focus();
+  autoResize(input);
+}
+function cancelEdit(){state.editingMsgId=null;const input=document.getElementById('chatInput');input.value='';input.style.height='';input.placeholder='message...'}
+async function deleteMessage(msgId){
+  if(!confirm('Delete this message?'))return;
+  msgId=parseInt(msgId);
+  await api.poke('noltbook','noltbook-action',{action:'delete-message',data:{noteId:state.currentNoteId,msgId}});
+  const msgs=state.messages[state.currentNoteId]||[];
+  const idx=msgs.findIndex(m=>m.id===msgId);
+  if(idx>=0)msgs.splice(idx,1);
+  const el=document.getElementById('msg-'+msgId);
+  if(el)el.remove();
+  if(state.editingMsgId===msgId)cancelEdit();
+}
+async function deleteArtifact(artId){
+  if(!confirm('Delete this app?'))return;
+  await api.poke('noltbook','noltbook-action',{action:'delete-artifact',data:{id:artId}});
+}
+function sendToUser(author,msgId){console.log('[send] author=',author,'msgId=',msgId)}
+function openSharePrompt(){
+  const noteId=state.currentNoteId;
+  if(!noteId||noteId==='cover')return;
+  const note=state.notes[noteId];
+  if(!note)return;
+  const overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999';
+  const modal=document.createElement('div');
+  modal.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--bg2);border:1px solid var(--border);padding:1rem;z-index:10000;min-width:300px;display:flex;flex-direction:column;gap:.6rem';
+  const usersList=Array.from(note.users||[]).map(u=>'<div style="color:var(--dim);font-size:.75rem">'+escHtml(u)+'</div>').join('');
+  modal.innerHTML=`
+    <div style="font-size:.85rem;color:#ffaa00;font-weight:bold">SHARE "${escHtml(note.name)}"</div>
+    <div style="font-size:.75rem;color:var(--dim)">Current users:</div>
+    ${usersList}
+    <input type="text" id="shareShipInput" placeholder="~sampel-palnet" style="background:var(--bg1);color:var(--text);border:1px solid var(--border);padding:.4rem;font-size:.85rem;font-family:var(--font)">
+    <div style="display:flex;gap:.5rem;justify-content:flex-end">
+      <button id="shareCancelBtn" style="background:var(--bg3);color:var(--text);border:none;padding:.3rem .6rem;cursor:pointer;font-family:var(--font)">Cancel</button>
+      <button id="shareInviteBtn" style="background:#ffaa00;color:#000;border:none;padding:.3rem .6rem;cursor:pointer;font-weight:bold;font-family:var(--font)">INVITE</button>
+    </div>`;
+  overlay.addEventListener('click',function(e){if(e.target===overlay){overlay.remove();modal.remove()}});
+  document.body.appendChild(overlay);
+  document.body.appendChild(modal);
+  setTimeout(()=>document.getElementById('shareShipInput').focus(),50);
+  document.getElementById('shareCancelBtn').addEventListener('click',function(){overlay.remove();modal.remove()});
+  document.getElementById('shareInviteBtn').addEventListener('click',function(){
+    const ship=document.getElementById('shareShipInput').value.trim();
+    if(!ship)return;
+    const normalized=ship.startsWith('~')?ship:'~'+ship;
+    api.poke('noltbook','noltbook-action',{action:'invite-to-note',data:{id:noteId,ship:normalized}});
+    overlay.remove();modal.remove();
+  });
+  document.getElementById('shareShipInput').addEventListener('keydown',function(e){if(e.key==='Enter'){document.getElementById('shareInviteBtn').click()}});
+}
+function createNote(parentId){state.pendingParent=parentId||null;document.getElementById('noteNameInput').value='';document.getElementById('noteModalTitle').textContent=parentId?'NEW CHILD NOTE':'NEW NOTE';document.getElementById('noteModal').classList.add('open');setTimeout(()=>document.getElementById('noteNameInput').focus(),50)}
+function closeNoteModal(){document.getElementById('noteModal').classList.remove('open');state.pendingParent=null}
+async function submitNote(){const name=document.getElementById('noteNameInput').value.trim();if(!name)return;const data={name};if(state.pendingParent)data.parent=state.pendingParent;await api.poke('noltbook','noltbook-action',{action:'create-note',data});closeNoteModal()}
+function promptRenameNote(id){const note=state.notes[id];if(!note)return;const name=prompt('Rename note:',note.name);if(name&&name.trim()&&name.trim()!==note.name)api.poke('noltbook','noltbook-action',{action:'rename-note',data:{id,name:name.trim()}})}
+function promptNoteImage(id){const note=state.notes[id];if(!note)return;const url=prompt('Image URL for icon:',note.iconUrl||'');if(url!==null){note.iconUrl=url.trim()||null;api.poke('noltbook','noltbook-action',{action:'set-note-meta',data:{id,visibility:note.visibility||'secret',iconUrl:note.iconUrl||'',writable:note.writable!==false}});renderNoteList()}}
+function showNoteContextMenu(event,noteId){
+  event.preventDefault();
+  const note=state.notes[noteId];
+  if(!note||note.isSpecial)return;
+  const existing=document.getElementById('noteContextMenu');
+  if(existing)existing.remove();
+  const menu=document.createElement('div');
+  menu.id='noteContextMenu';
+  menu.className='context-menu';
+  const vis=note.visibility||'secret';
+  const wr=note.writable!==false;
+  menu.innerHTML=`
+    <div class="context-menu-item" data-action="visibility" data-val="public"><span class="context-radio ${vis==='public'?'selected':''}"></span> Public</div>
+    <div class="context-menu-item" data-action="visibility" data-val="private"><span class="context-radio ${vis==='private'?'selected':''}"></span> Private</div>
+    <div class="context-menu-item" data-action="visibility" data-val="secret"><span class="context-radio ${vis==='secret'?'selected':''}"></span> Secret</div>
+    <div class="context-menu-divider"></div>
+    <div class="context-menu-item" data-action="writable" data-val="true"><span class="context-radio ${wr?'selected':''}"></span> Write</div>
+    <div class="context-menu-item" data-action="writable" data-val="false"><span class="context-radio ${!wr?'selected':''}"></span> Read Only</div>
+    <div class="context-menu-divider"></div>
+    <div class="context-menu-item" data-action="child">+ Child</div>
+    <div class="context-menu-item" data-action="img">+ Img</div>
+    <div class="context-menu-item" data-action="duplicate">Duplicate</div>
+    <div class="context-menu-item" data-action="rename">Rename</div>
+    <div class="context-menu-item danger" data-action="delete">Delete</div>`;
+  menu.style.left=event.pageX+'px';
+  menu.style.top=event.pageY+'px';
+  menu.addEventListener('click',function(e){
+    const item=e.target.closest('.context-menu-item');
+    if(!item)return;
+    const action=item.dataset.action;
+    if(action==='visibility'){note.visibility=item.dataset.val;api.poke('noltbook','noltbook-action',{action:'set-note-meta',data:{id:noteId,visibility:note.visibility,iconUrl:note.iconUrl||'',writable:note.writable!==false}});closeContextMenu()}
+    else if(action==='writable'){note.writable=item.dataset.val==='true';api.poke('noltbook','noltbook-action',{action:'set-note-meta',data:{id:noteId,visibility:note.visibility||'secret',iconUrl:note.iconUrl||'',writable:note.writable}});closeContextMenu()}
+    else if(action==='child'){closeContextMenu();createNote(noteId)}
+    else if(action==='img'){closeContextMenu();promptNoteImage(noteId)}
+    else if(action==='duplicate'){closeContextMenu()}
+    else if(action==='rename'){closeContextMenu();promptRenameNote(noteId)}
+    else if(action==='delete'){closeContextMenu();if(confirm('Delete "'+note.name+'"?'))api.poke('noltbook','noltbook-action',{action:'delete-note',data:{id:noteId}})}
+  });
+  document.body.appendChild(menu);
+  setTimeout(()=>{document.addEventListener('click',closeContextMenu)},0);
+}
+function closeContextMenu(){const menu=document.getElementById('noteContextMenu');if(menu)menu.remove();document.removeEventListener('click',closeContextMenu)}
+function toggleAttachMenu(){document.getElementById('attachMenu').classList.toggle('open')}
+const APP_REGISTRY=[
+  {id:'canvas',name:'Canvas',icon:'▢',version:'0.1.0',description:'Collaborative drawing app'}
+];
+function openAppPicker(){
+  document.getElementById('attachMenu').classList.remove('open');
+  const list=document.getElementById('appPickerList');
+  list.innerHTML='';
+  for(const app of APP_REGISTRY){
+    const item=document.createElement('button');
+    item.className='app-picker-item';
+    item.innerHTML=`<span class="app-picker-icon">${app.icon}</span><div class="app-picker-info"><span class="app-picker-name">${app.name}</span><span class="app-picker-desc">${app.description}</span></div>`;
+    item.onclick=()=>{closeAppPicker();insertApp(app)};
+    list.appendChild(item);
+  }
+  document.getElementById('appPickerModal').classList.add('open');
+}
+function closeAppPicker(){document.getElementById('appPickerModal').classList.remove('open')}
+async function insertApp(app){
+  const content=JSON.stringify({packageId:app.id,packageVersion:app.version,hostShip:'~'+api.ship,state:{}});
+  await api.poke('noltbook','noltbook-action',{action:'create-artifact',data:{noteId:state.currentNoteId,name:app.name,type:'app',content}});
+}
+function pickFile(){document.getElementById('attachMenu').classList.remove('open');const inp=document.getElementById('quickFileInput');inp.value='';inp.onchange=function(){if(this.files[0])uploadFile(this.files[0])};inp.click()}
+async function uploadFile(file){const reader=new FileReader();reader.onload=async function(){const content=JSON.stringify({dataUrl:reader.result,fileName:file.name,mimeType:file.type||'application/octet-stream',size:file.size});await api.poke('noltbook','noltbook-action',{action:'create-artifact',data:{noteId:state.currentNoteId,name:file.name,type:'file',content}})};reader.readAsDataURL(file)}
+function openFileFullscreen(artId){const art=state.artifacts[artId];if(!art)return;const lastVer=art.versions[art.versions.length-1];if(!lastVer)return;let meta={};try{meta=JSON.parse(lastVer.content)}catch(e){return}const overlay=document.createElement('div');overlay.id='file-fullscreen';overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.92);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center';const bar=document.createElement('div');bar.style.cssText='position:absolute;top:0;right:0;padding:.75rem 1rem;display:flex;gap:.5rem;z-index:1';bar.innerHTML=`<a href="${escAttr(meta.dataUrl)}" download="${escAttr(meta.fileName||art.name)}" style="font-family:var(--font);font-size:.75rem;padding:.25rem .6rem;border:1px solid #555;color:#aaa;text-decoration:none;cursor:pointer">DOWNLOAD</a><button onclick="this.closest('#file-fullscreen').remove()" style="font-family:var(--font);font-size:.75rem;padding:.25rem .6rem;border:1px solid #555;color:#aaa;background:none;cursor:pointer">CLOSE</button>`;overlay.appendChild(bar);const body=document.createElement('div');body.style.cssText='max-width:95%;max-height:90%;overflow:auto';if(meta.mimeType&&meta.mimeType.startsWith('image/')){body.innerHTML=`<img src="${escAttr(meta.dataUrl)}" style="max-width:100%;max-height:90vh">`}else if(meta.mimeType==='application/pdf'){body.innerHTML=`<iframe src="${escAttr(meta.dataUrl)}" style="width:90vw;height:85vh;border:none;background:#fff"></iframe>`}else if(meta.mimeType&&(meta.mimeType.startsWith('text/')||meta.mimeType==='application/json')){fetch(meta.dataUrl).then(r=>r.text()).then(t=>{body.innerHTML=`<pre style="color:#ddd;font-size:.85rem;white-space:pre-wrap;padding:1rem">${escHtml(t)}</pre>`})}else{body.innerHTML=`<div style="color:#aaa;font-size:1rem;text-align:center"><div style="font-size:2rem;margin-bottom:.5rem">📄</div>${escHtml(meta.fileName||art.name)}</div>`}overlay.appendChild(body);overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove()});document.body.appendChild(overlay)}
+function openArtifactModal(type){document.getElementById('attachMenu').classList.remove('open');state.currentArtifactType=type;document.getElementById('artifactModalTitle').textContent=type==='code'?'NEW CODE':'NEW FILE / IMG';document.getElementById('artNameInput').value='';document.getElementById('artContentInput').value='';document.getElementById('artContentField').style.display='';document.getElementById('artFileField').style.display='none';document.getElementById('artifactModal').classList.add('open');setTimeout(()=>document.getElementById('artNameInput').focus(),50)}
+function closeArtifactModal(){document.getElementById('artifactModal').classList.remove('open')}
+async function submitArtifact(){const name=document.getElementById('artNameInput').value.trim();if(!name)return;const content=document.getElementById('artContentInput').value;await api.poke('noltbook','noltbook-action',{action:'create-artifact',data:{noteId:state.currentNoteId,name,type:state.currentArtifactType,content}});closeArtifactModal()}
+function openArtifactPanel(id){const art=state.artifacts[id];if(!art)return;document.getElementById('artifactPanel').classList.add('open');document.getElementById('artifactPanelTitle').textContent=art.name;const lastVer=art.versions[art.versions.length-1];const content=lastVer?lastVer.content:'';const body=document.getElementById('artifactPanelBody');if(art.type==='file'){let meta={};try{meta=JSON.parse(content)}catch(e){}if(meta.dataUrl&&meta.mimeType&&meta.mimeType.startsWith('image/')){body.innerHTML=`<img src="${escAttr(meta.dataUrl)}" alt="${escAttr(art.name)}" style="max-width:100%">`}else if(meta.dataUrl){body.innerHTML=`<a href="${escAttr(meta.dataUrl)}" download="${escAttr(meta.fileName||art.name)}" style="color:var(--amber)">${escHtml(meta.fileName||art.name)}</a>`}else{body.innerHTML=`<div class="artifact-file-wrap">${escHtml(content)}</div>`}}else if(art.type==='app'){let meta={};try{meta=JSON.parse(content)}catch(e){}const iframeId='app-iframe-'+id;body.innerHTML=`<iframe id="${iframeId}" src="/apps/noltbook/pkg/${meta.packageId||'canvas'}" sandbox="allow-scripts" style="width:100%;height:600px;border:none;background:#181818"></iframe>`;initHostBridge(iframeId,id,meta)}else{body.innerHTML=`<pre class="artifact-code">${escHtml(content)}</pre>`}document.getElementById('artifactPanelMeta').textContent=`v${art.versions.length} · ${art.creator} · ${new Date(lastVer?lastVer.timestamp:Date.now()).toLocaleDateString()}`}
+function closeArtifactPanel(){document.getElementById('artifactPanel').classList.remove('open');state.activeAppBridge=null}
+function initHostBridge(iframeId,artifactId,meta){
+  const iframe=document.getElementById(iframeId);
+  if(!iframe)return;
+  if(state.activeAppBridge&&state.activeAppBridge.listener){window.removeEventListener('message',state.activeAppBridge.listener)}
+  function handler(event){
+    const data=event.data;
+    if(!data||typeof data!=='object')return;
+    if(data.type==='nb:init'&&data.source){
+      const art=state.artifacts[artifactId];
+      const lastVer=art&&art.versions[art.versions.length-1];
+      let appState={};
+      if(lastVer){try{appState=JSON.parse(lastVer.content).state||{}}catch(e){}}
+      iframe.contentWindow.postMessage({source:'noltbook-host',type:'nb:init',payload:{hostShip:'~'+api.ship,state:appState}},'*');
+    }
+    if(data.type==='nb:dispatch'&&data.payload){
+      const art=state.artifacts[artifactId];
+      const lastVer=art&&art.versions[art.versions.length-1];
+      let oldContent={};
+      if(lastVer){try{oldContent=JSON.parse(lastVer.content)}catch(e){}}
+      oldContent.state={json:data.payload.payload.json};
+      api.poke('noltbook','noltbook-action',{action:'file-save',data:{id:artifactId,data:JSON.stringify(oldContent)}});
+    }
+    if(data.type==='nb:resize'&&data.payload){
+      const isInline=iframe.id&&iframe.id.startsWith('app-iframe-');
+      if(!isInline)iframe.style.height=data.payload.height+'px';
+    }
+  }
+  window.addEventListener('message',handler);
+  state.activeAppBridge={iframeId,artifactId,meta,listener:handler};
+}
+let obLib=null;
+(async function loadOb(){
+  try{
+    const mod=await import('https://esm.sh/@urbit/aura@1.0.0?bundle');
+    obLib=mod;
+    console.log('[ob] loaded');
+  }catch(e){console.warn('[ob] failed to load',e)}
+})();
+function shipToPoint(ship){
+  if(obLib&&obLib.patp2dec)try{return Number(obLib.patp2dec(ship))}catch(e){}
+  return -1;
+}
+function resizeImageToBlob(file,maxSize,cb){
+  const img=new Image();
+  img.onload=function(){
+    const c=document.createElement('canvas');
+    const scale=Math.min(maxSize/img.width,maxSize/img.height,1);
+    c.width=Math.round(img.width*scale);
+    c.height=Math.round(img.height*scale);
+    c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+    c.toBlob(function(blob){cb(blob)},'image/jpeg',0.7);
+  };
+  img.src=URL.createObjectURL(file);
+}
+function promptProfileIcon(){
+  let pendingBlob=null;
+  const overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999';
+  const menu=document.createElement('div');
+  menu.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--bg2);border:1px solid var(--border);padding:1rem;z-index:10000;display:flex;flex-direction:column;gap:.5rem;min-width:280px';
+  const prof=state.profiles['~'+api.ship]||{};
+  const currentUrl=(prof.avatar&&prof.avatar.type!=='urbit')?prof.avatar.url:'';
+  menu.innerHTML=`
+    <div style="font-size:.85rem;color:var(--text)">Profile Picture</div>
+    <input type="text" id="profileIconUrl" value="${escAttr(currentUrl)}" placeholder="Paste image URL (https://...)..." style="background:var(--bg1);color:var(--text);border:1px solid var(--border);padding:.4rem;font-size:.8rem">
+    <div style="font-size:.75rem;color:var(--dim)">— or —</div>
+    <label style="background:var(--bg1);border:1px solid var(--border);padding:.4rem;text-align:center;cursor:pointer;font-size:.8rem;color:var(--text)">Upload Image<input type="file" accept="image/*" id="profileIconFile" style="display:none"></label>
+    <div id="profileIconPreview" style="display:none;text-align:center"></div>
+    <div style="display:flex;gap:.5rem;justify-content:flex-end">
+      <button id="profileIconCancel" style="background:var(--bg3);color:var(--text);border:none;padding:.3rem .6rem;cursor:pointer">Cancel</button>
+      <button id="profileIconClear" style="background:var(--bg3);color:var(--text);border:none;padding:.3rem .6rem;cursor:pointer">Clear</button>
+      <button id="profileIconSave" style="background:var(--accent);color:#000;border:none;padding:.3rem .6rem;cursor:pointer">Save</button>
+    </div>`;
+  overlay.addEventListener('click',function(e){if(e.target===overlay){overlay.remove();menu.remove()}});
+  document.body.appendChild(overlay);
+  document.body.appendChild(menu);
+  const fileInput=menu.querySelector('#profileIconFile');
+  const urlInput=menu.querySelector('#profileIconUrl');
+  const preview=menu.querySelector('#profileIconPreview');
+  fileInput.addEventListener('change',function(){
+    const file=this.files[0];if(!file)return;
+    resizeImageToBlob(file,128,function(blob){
+      pendingBlob=blob;
+      urlInput.value='(file selected)';
+      preview.innerHTML='<img src="'+URL.createObjectURL(blob)+'" style="width:64px;height:64px;object-fit:cover;border-radius:4px">';
+      preview.style.display='block';
+    });
+  });
+  menu.querySelector('#profileIconCancel').addEventListener('click',function(){overlay.remove();menu.remove()});
+  menu.querySelector('#profileIconClear').addEventListener('click',function(){
+    const p=state.profiles['~'+api.ship]||{};
+    api.poke('noltbook','noltbook-action',{action:'update-profile',data:{displayName:p.displayName||null,avatar:null,walletAddress:p.walletAddress||null,azimuthAddress:p.azimuthAddress||null}});
+    ownAvatarBlobUrl=null;
+    updateSidebarSigil();
+    overlay.remove();menu.remove();
+  });
+  menu.querySelector('#profileIconSave').addEventListener('click',async function(){
+    const p=state.profiles['~'+api.ship]||{};
+    if(pendingBlob){
+      const resp=await fetch('/apps/noltbook/upload-avatar',{method:'POST',body:pendingBlob,credentials:'include'});
+      if(resp.ok){
+        ownAvatarBlobUrl=URL.createObjectURL(pendingBlob);
+        api.poke('noltbook','noltbook-action',{action:'update-profile',data:{displayName:p.displayName||null,avatar:{type:'urbit',url:''},walletAddress:p.walletAddress||null,azimuthAddress:p.azimuthAddress||null}});
+        updateSidebarSigil();
+      }
+    }else{
+      const val=urlInput.value.trim();
+      if(val&&!val.startsWith('data:')){
+        api.poke('noltbook','noltbook-action',{action:'update-profile',data:{displayName:p.displayName||null,avatar:{type:'external',url:val},walletAddress:p.walletAddress||null,azimuthAddress:p.azimuthAddress||null}});
+      }
+    }
+    overlay.remove();menu.remove();
+  });
+}
+async function viewProfile(ship){
+  const isMe=ship==='~'+api.ship;
+  if(isMe){openProfileModal();return}
+  const p=state.profiles[ship]||{};
+  const sc=shipColor(ship);
+  const overlay=document.createElement('div');
+  overlay.className='modal-overlay open';
+  const modal=document.createElement('div');
+  modal.className='profile-modal';
+  const viewUrl=resolveAvatarUrl(ship);
+  const avatarContent=viewUrl
+    ?'<img src="'+escAttr(viewUrl)+'" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'">'+(function(){const svg=getSigilSvg(ship);return svg||'<span style="color:'+sc+';font-size:1.5rem">'+ship.slice(1,3)+'</span>'})()
+    :(function(){const svg=getSigilSvg(ship);return svg||'<span style="color:'+sc+';font-size:1.5rem">'+ship.slice(1,3)+'</span>'})();
+  const dn=p.displayName||ship;
+  const pt=shipToPoint(ship);
+  const allNotes=Object.values(state.notes);
+  const userNotes=allNotes.filter(n=>(n.users&&(Array.isArray(n.users)?n.users.includes(ship):false))||n.creator===ship);
+  const pubNotes=userNotes.filter(n=>n.visibility==='public').sort((a,b)=>a.name.localeCompare(b.name));
+  const privNotes=userNotes.filter(n=>n.visibility==='private').sort((a,b)=>a.name.localeCompare(b.name));
+  const sharedNotes=[...pubNotes,...privNotes];
+  const notesHtml=sharedNotes.length===0?'<span style="color:var(--dim)">loading...</span>'
+    :sharedNotes.map(n=>{
+      const ic=n.iconUrl?'<img src="'+escAttr(n.iconUrl)+'">':noteInitials(n.name);
+      const vis=n.visibility==='public'?'public':'private';
+      return '<div class="profile-note-entry"><div class="profile-note-icon">'+ic+'</div><div class="profile-note-text"><span class="profile-note-name">'+escHtml(n.name)+'</span><span class="profile-note-vis">'+vis+'</span></div></div>';
+    }).join('');
+  modal.innerHTML=`
+    <div class="profile-top">
+      <div class="profile-sigil"><div class="profile-sigil-inner">${avatarContent}</div></div>
+      <div class="profile-info">
+        <div class="profile-row"><span class="profile-field-label">User Name:</span><span style="color:${sc}">${escHtml(dn)}</span></div>
+        <div class="profile-row"><span class="profile-field-label">Urbit ID:</span><span style="color:${sc}">${escHtml(ship)}</span></div>
+        <div class="profile-row"><span class="profile-field-label">Point #:</span><span style="color:${sc}">${pt>=0?pt:''}</span></div>
+      </div>
+    </div>
+    <div class="profile-row"><span class="profile-field-label">Sponsors:</span><span id="viewProfileSponsors" style="color:var(--dim)">loading...</span></div>
+    ${p.azimuthAddress?'<div><span class="profile-field-label">Offline Azimuth:</span> <span style="color:var(--text)">'+escHtml(p.azimuthAddress)+'</span></div>':''}
+    <div>
+      <span class="profile-section-label">Notes</span>
+      <div class="profile-notes-list" id="viewProfileNotes">${notesHtml}</div>
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" id="viewProfileClose">CLOSE</button>
+    </div>`;
+  overlay.appendChild(modal);
+  overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove()});
+  document.body.appendChild(overlay);
+  overlay.querySelector('#viewProfileClose').addEventListener('click',function(){overlay.remove()});
+  try{
+    const res=await api.scry('noltbook','/sponsors/'+ship);
+    const chain=(res['sponsor-chain']||[]).reverse();
+    const el=overlay.querySelector('#viewProfileSponsors');
+    if(el)el.innerHTML=chain.map(s=>'<span style="color:'+shipColor(s)+'">'+s+'</span>').join('&nbsp;&nbsp;')||'none';
+  }catch(e){console.warn('[sponsors]',e);const el=overlay.querySelector('#viewProfileSponsors');if(el)el.textContent='unavailable'}
+  // fetch remote notes
+  api.poke('noltbook','noltbook-action',{action:'request-remote-notes',data:{ship}});
+}
+async function openProfileModal(){
+  const ship='~'+api.ship;
+  const p=state.profiles[ship];
+  const sc=shipColor(ship);
+  document.getElementById('profileDisplayName').value=(p&&p.displayName)||'';
+  document.getElementById('profileDisplayName').style.color=sc;
+  document.getElementById('profileAzimuth').value=(p&&p.azimuthAddress)||'';
+  document.getElementById('profileShip').textContent=ship;
+  document.getElementById('profileShip').style.color=sc;
+  const pt=shipToPoint(ship);
+  document.getElementById('profilePoint').textContent=pt>=0?''+pt:'';
+  document.getElementById('profilePoint').style.color=sc;
+  renderAvatar(ship,document.getElementById('profileSigil'));
+  const notesListEl=document.getElementById('profileNotesList');
+  const allNotes=Object.values(state.notes);
+  const pubNotes=allNotes.filter(n=>n.visibility==='public').sort((a,b)=>a.name.localeCompare(b.name));
+  const privNotes=allNotes.filter(n=>n.visibility==='private').sort((a,b)=>a.name.localeCompare(b.name));
+  const sharedNotes=[...pubNotes,...privNotes];
+  if(sharedNotes.length===0){notesListEl.textContent='none available'}
+  else{notesListEl.innerHTML=sharedNotes.map(n=>{const ic=n.iconUrl?`<img src="${escAttr(n.iconUrl)}">`:(noteInitials(n.name));const vis=n.visibility==='public'?'public':'private';const desc=n.noteDescription||'';return `<div class="profile-note-entry"><div class="profile-note-icon">${ic}</div><div class="profile-note-text"><span class="profile-note-name">${escHtml(n.name)}</span><div class="profile-note-desc"><input type="text" value="${escAttr(desc)}" placeholder="add a description..." data-note-id="${n.id}" onchange="updateNoteDescription(this)" maxlength="120"></div><span class="profile-note-vis">${vis}</span></div></div>`}).join('')}
+  const sponsorEl=document.getElementById('profileSponsors');
+  sponsorEl.textContent='loading...';
+  document.getElementById('profileModal').classList.add('open');
+  try{
+    const res=await api.scry('noltbook','/sponsors');
+    const chain=(res['sponsor-chain']||[]).reverse();
+    sponsorEl.innerHTML=chain.map(s=>`<span style="color:${shipColor(s)}">${s}</span>`).join('&nbsp;&nbsp;')||'none';
+  }catch(e){console.warn('[sponsors]',e);sponsorEl.textContent='unavailable'}
+}
+function closeProfileModal(){document.getElementById('profileModal').classList.remove('open')}
+function updateNoteDescription(input){const id=input.dataset.noteId;const note=state.notes[id];if(note)note.noteDescription=input.value.trim()}
+async function saveProfile(){
+  const dn=document.getElementById('profileDisplayName').value.trim()||null;
+  const az=document.getElementById('profileAzimuth').value.trim()||null;
+  const p=state.profiles['~'+api.ship]||{};
+  await api.poke('noltbook','noltbook-action',{action:'update-profile',data:{displayName:dn,avatar:p.avatar||null,walletAddress:p.walletAddress||null,azimuthAddress:az}});
+  closeProfileModal();
+}
+function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function escAttr(s){return String(s).replace(/'/g,'&#39;').replace(/"/g,'&quot;')}
+document.addEventListener('click',(e)=>{if(!e.target.closest('.attach-wrap'))document.getElementById('attachMenu').classList.remove('open')});
+(function initSidebarResize(){
+  const sidebar=document.getElementById('sidebar');
+  const handle=document.getElementById('sidebarResize');
+  let dragging=false,startX=0,startW=0;
+  handle.addEventListener('mousedown',(e)=>{e.preventDefault();dragging=true;startX=e.clientX;startW=sidebar.offsetWidth;document.body.style.cursor='col-resize';document.body.style.userSelect='none'});
+  document.addEventListener('mousemove',(e)=>{if(!dragging)return;const w=Math.min(500,Math.max(150,startW+(e.clientX-startX)));sidebar.style.width=w+'px'});
+  document.addEventListener('mouseup',()=>{if(dragging){dragging=false;document.body.style.cursor='';document.body.style.userSelect=''}});
+})();
+boot();
+</script>
+</body>
+</html>
