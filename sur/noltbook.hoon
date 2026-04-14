@@ -81,7 +81,7 @@
 +$  remote
   $%  [%remote-invite note-id=@ta name=@t creator=@p users=(set @p) visibility=note-visibility]
       [%remote-message note-id=@ta msg=message]
-      [%remote-ars msg=message]
+      [%remote-ars msg=message hops=@ud]
       [%remote-profile ship=@p profile=profile]
       [%remote-note-request requester=@p]
       [%remote-note-list notes=(list note)]
@@ -111,6 +111,7 @@
       [%remove-pal ship=@p]
       [%block-pal ship=@p]
       [%unblock-pal ship=@p]
+      [%set-dial dial=@ud]
   ==
 ::  subscription updates (agent to client)
 +$  update
@@ -133,5 +134,7 @@
       [%remote-note-list ship=@p notes=(list note)]
       [%pal-list pals=(list [@p pal-status])]
       [%pal-update ship=@p status=pal-status]
+      [%dial-update dial=@ud]
+      [%gossip-message msg=message hops=@ud]
   ==
 --

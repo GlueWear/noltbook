@@ -9,6 +9,7 @@
       state-5
       state-6
       state-7
+      state-8
   ==
 +$  profile-1
   $:  display-name=(unit @t)
@@ -109,10 +110,30 @@
       pal-incoming=(set @p)
       pal-blocked=(set @p)
   ==
+::  state-8: adds %dial gossip hop control
+::  dial: 0-3, controls how many hops of gossip the frontend displays
+::  gossip-hops: tracks hop count for each cover message by id
+::
++$  state-8
+  $:  %8
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+  ==
 +$  card  card:agent:gall
 --
 %-  agent:dbug
-=|  state-7
+=|  state-8
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -129,8 +150,12 @@
 ++  on-load
   |=  old=vase
   ^-  (quip card _this)
+  ?:  ?=([%8 *] q.old)
+    `this(state !<(state-8 old))
+  ::  state-7 → state-8: add dial and gossip-hops
   ?:  ?=([%7 *] q.old)
-    `this(state !<(state-7 old))
+    =/  s7  !<(state-7 old)
+    `this(state [%8 notes.s7 messages.s7 artifacts.s7 profiles.s7 transactions.s7 current-note.s7 peers.s7 has-avatar.s7 pal-outgoing.s7 pal-incoming.s7 pal-blocked.s7 0 ~])
   ::  state-6 → state-7: add pal sets, auto-hey all existing peers
   ?:  ?=([%6 *] q.old)
     =/  s6  !<(state-6 old)
@@ -141,7 +166,7 @@
       %+  turn  ~(tap in peers.s6)
       |=  p=@p
       [%pass /pal-hey/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-hey ~])]
-    :_  this(state [%7 notes.s6 messages.s6 artifacts.s6 profiles.s6 transactions.s6 current-note.s6 peers.s6 has-avatar.s6 peers.s6 ~ ~])
+    :_  this(state [%8 notes.s6 messages.s6 artifacts.s6 profiles.s6 transactions.s6 current-note.s6 peers.s6 has-avatar.s6 peers.s6 ~ ~ 0 ~])
     hey-cards
   ?:  ?=([%5 *] q.old)
     =/  s5  !<(state-5 old)
@@ -150,7 +175,7 @@
       |=  p=profile-2
       ^-  profile:noltbook
       [display-name.p ~ wallet-address.p azimuth-address.p]
-    `this(state [%7 notes.s5 messages.s5 artifacts.s5 new-profiles transactions.s5 current-note.s5 peers.s5 %.n ~ ~ ~])
+    `this(state [%8 notes.s5 messages.s5 artifacts.s5 new-profiles transactions.s5 current-note.s5 peers.s5 %.n ~ ~ ~ 0 ~])
   ?:  ?=([%4 *] q.old)
     =/  s4  !<(state-4 old)
     =/  init-peers=(set @p)
@@ -163,7 +188,7 @@
       |=  p=profile-2
       ^-  profile:noltbook
       [display-name.p ~ wallet-address.p azimuth-address.p]
-    `this(state [%7 notes.s4 messages.s4 artifacts.s4 new-profiles transactions.s4 current-note.s4 init-peers %.n ~ ~ ~])
+    `this(state [%8 notes.s4 messages.s4 artifacts.s4 new-profiles transactions.s4 current-note.s4 init-peers %.n ~ ~ ~ 0 ~])
   ?:  ?=([%3 *] q.old)
     =/  s3  !<(state-3 old)
     =/  new-notes=(map @ta note:noltbook)
@@ -176,7 +201,7 @@
       |=  p=profile-2
       ^-  profile:noltbook
       [display-name.p ~ wallet-address.p azimuth-address.p]
-    `this(state [%7 new-notes messages.s3 artifacts.s3 new-profiles transactions.s3 current-note.s3 ~ %.n ~ ~ ~])
+    `this(state [%8 new-notes messages.s3 artifacts.s3 new-profiles transactions.s3 current-note.s3 ~ %.n ~ ~ ~ 0 ~])
   ?:  ?=([%2 *] q.old)
     =/  s2  !<(state-2 old)
     =/  new-arts=(map @ta artifact:noltbook)
@@ -197,7 +222,7 @@
       |=  p=profile-2
       ^-  profile:noltbook
       [display-name.p ~ wallet-address.p azimuth-address.p]
-    `this(state [%7 new-notes messages.s2 new-arts new-profiles transactions.s2 current-note.s2 ~ %.n ~ ~ ~])
+    `this(state [%8 new-notes messages.s2 new-arts new-profiles transactions.s2 current-note.s2 ~ %.n ~ ~ ~ 0 ~])
   =/  s1  !<(state-1 old)
   =/  cov  (~(get by notes.s1) %cover)
   =/  fixed-notes=(map @ta note-3:noltbook)
@@ -222,7 +247,7 @@
     |=  n=note-3:noltbook
     ^-  note:noltbook
     [id.n name.n type.n creator.n users.n children.n parent.n last-author.n last-preview.n %secret ~ &]
-  `this(state [%7 new-notes messages.s1 new-arts new-profiles transactions.s1 current-note.s1 ~ %.n ~ ~ ~])
+  `this(state [%8 new-notes messages.s1 new-arts new-profiles transactions.s1 current-note.s1 ~ %.n ~ ~ ~ 0 ~])
 ::
 ++  on-watch
   |=  =path
@@ -244,10 +269,12 @@
       ?:  (~(has in pal-incoming) p)  %requested
       %requesting  :: default for known peers not yet tracked
     =/  palupd=update:noltbook  [%pal-list pal-pairs]
+    =/  dialupd=update:noltbook  [%dial-update dial]
     :_  this
     :~  [%give %fact ~ %noltbook-update !>(upd)]
         [%give %fact ~ %noltbook-update !>(pupd)]
         [%give %fact ~ %noltbook-update !>(palupd)]
+        [%give %fact ~ %noltbook-update !>(dialupd)]
     ==
   ::
       [%notes @ ~]
@@ -463,14 +490,15 @@
       ::  ARS NOTORIA: store locally and gossip to all peers
       ?:  =(note-id.act %cover)
         =/  cur=(list message:noltbook)  (fall (~(get by messages) %cover) ~)
-        =/  upd=update:noltbook  [%new-message msg]
+        ::  own messages are hop 0
+        =/  upd=update:noltbook  [%gossip-message msg 0]
         =/  gossip=(list card)
-          %+  turn  ~(tap in peers)
+          %+  turn  ~(tap in pal-outgoing)
           |=  p=@p
           ^-  card
-          [%pass /ars-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-ars msg])]
+          [%pass /ars-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-ars msg 0])]
         =/  upd-note=note:noltbook  u.exists(last-author `our.bowl, last-preview `text.act)
-        :_  this(notes (~(put by notes) %cover upd-note), messages (~(put by messages) %cover (snoc cur msg)))
+        :_  this(notes (~(put by notes) %cover upd-note), messages (~(put by messages) %cover (snoc cur msg)), gossip-hops (~(put by gossip-hops) id.msg 0))
         [[%give %fact ~[/notes/cover] %noltbook-update !>(upd)] gossip]
       ::  remote note: forward to creator
       ?.  =(our.bowl creator.u.exists)
@@ -702,6 +730,13 @@
       =/  upd=update:noltbook  [%pal-update ship.act status]
       :_  this(pal-blocked new-blocked)
       ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
+    ::
+        %set-dial
+      ::  clamp dial to 0-3
+      =/  new-dial=@ud  (min dial.act 3)
+      =/  upd=update:noltbook  [%dial-update new-dial]
+      :_  this(dial new-dial)
+      ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
     ==
   ::
       %noltbook-remote
@@ -760,9 +795,19 @@
       ::  dedup by message id
       ?:  (lien cur |=(m=message:noltbook =(id.m id.msg.rem)))
         `this
-      =/  upd=update:noltbook  [%new-message msg.rem]
-      :_  this(messages (~(put by messages) %cover (snoc cur msg.rem)))
-      ~[[%give %fact ~[/notes/cover] %noltbook-update !>(upd)]]
+      ::  hop count: direct from sender = hops in message + 1
+      ::  (sender originates at 0, so we receive it as 1 hop away, etc)
+      =/  my-hops=@ud  (add hops.rem 1)
+      =/  upd=update:noltbook  [%gossip-message msg.rem my-hops]
+      ::  relay to outgoing pals only (ships we follow)
+      =/  relay=(list card)
+        %+  murn  ~(tap in pal-outgoing)
+        |=  p=@p
+        ?:  =(p src.bowl)  ~  :: don't relay back to sender
+        ?:  =(p author.msg.rem)  ~  :: don't relay back to author
+        `[%pass /ars-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-ars msg.rem my-hops])]
+      :_  this(messages (~(put by messages) %cover (snoc cur msg.rem)), gossip-hops (~(put by gossip-hops) id.msg.rem my-hops))
+      [[%give %fact ~[/notes/cover] %noltbook-update !>(upd)] relay]
     ::
         %remote-profile
       ::  a peer sent us their profile
@@ -932,27 +977,45 @@
       =/  upd  !<(update:noltbook q.cage.sign)
       ?+  -.upd  `this
           %new-message
+        ::  legacy: treat as hop 1 (direct from peer)
         =/  msg  msg.upd
         =/  cur=(list message:noltbook)  (fall (~(get by messages) %cover) ~)
-        ::  dedup
         ?:  (lien cur |=(m=message:noltbook =(id.m id.msg)))
           `this
+        =/  gupd=update:noltbook  [%gossip-message msg 1]
         =.  messages  (~(put by messages) %cover (snoc cur msg))
+        =.  gossip-hops  (~(put by gossip-hops) id.msg 1)
         :_  this
-        ~[[%give %fact ~[/notes/cover] %noltbook-update !>(upd)]]
+        ~[[%give %fact ~[/notes/cover] %noltbook-update !>(gupd)]]
+      ::
+          %gossip-message
+        ::  gossip with hop count from peer's cover subscription
+        =/  msg  msg.upd
+        =/  cur=(list message:noltbook)  (fall (~(get by messages) %cover) ~)
+        ?:  (lien cur |=(m=message:noltbook =(id.m id.msg)))
+          `this
+        =/  my-hops=@ud  (add hops.upd 1)
+        =/  gupd=update:noltbook  [%gossip-message msg my-hops]
+        =.  messages  (~(put by messages) %cover (snoc cur msg))
+        =.  gossip-hops  (~(put by gossip-hops) id.msg my-hops)
+        :_  this
+        ~[[%give %fact ~[/notes/cover] %noltbook-update !>(gupd)]]
       ::
           %message-list
         ::  initial sync of cover messages from peer
         ::  store locally but do NOT relay to /notes/cover subscribers
-        ::  (relaying message-list causes gossip loops between peers)
-        ::  frontend gets messages via on-watch; live updates via %new-message
         =/  cur=(list message:noltbook)  (fall (~(get by messages) %cover) ~)
         =/  new-msgs=(list message:noltbook)
           %+  skim  messages.upd
           |=  m=message:noltbook
           !(lien cur |=(c=message:noltbook =(id.c id.m)))
         ?~  new-msgs  `this
-        `this(messages (~(put by messages) %cover (weld cur new-msgs)))
+        ::  assign hop 1 for all synced messages (came from direct peer)
+        =/  new-hops=(map @da @ud)
+          %-  ~(rep in `(set message:noltbook)`(sy new-msgs))
+          |=  [m=message:noltbook acc=(map @da @ud)]
+          (~(put by acc) id.m 1)
+        `this(messages (~(put by messages) %cover (weld cur new-msgs)), gossip-hops (~(uni by gossip-hops) new-hops))
       ==
     ::
         %kick

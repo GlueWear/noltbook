@@ -207,11 +207,16 @@
       =/  ship-nd  (need (~(get by d) 'ship'))
       ?>  ?=([%s *] ship-nd)
       [%block-pal (slav %p p.ship-nd)]
-    ::  unblock-pal (final case)
-    ?>  =('unblock-pal' tag)
-    =/  ship-nd  (need (~(get by d) 'ship'))
-    ?>  ?=([%s *] ship-nd)
-    [%unblock-pal (slav %p p.ship-nd)]
+    ::  unblock-pal
+    ?:  =('unblock-pal' tag)
+      =/  ship-nd  (need (~(get by d) 'ship'))
+      ?>  ?=([%s *] ship-nd)
+      [%unblock-pal (slav %p p.ship-nd)]
+    ::  set-dial (final case)
+    ?>  =('set-dial' tag)
+    =/  dial-nd  (need (~(get by d) 'dial'))
+    ?>  ?=([%n *] dial-nd)
+    [%set-dial (rash p.dial-nd dem)]
   --
 ++  grow
   |%

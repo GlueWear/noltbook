@@ -105,6 +105,16 @@
       :~  ['ship' s+(scot %p ship.upd)]
           ['status' s+(crip (trip (scot %tas status.upd)))]
       ==
+    ::
+        %dial-update
+      (frond 'dial-update' (numb dial.upd))
+    ::
+        %gossip-message
+      %+  frond  'gossip-message'
+      %-  pairs
+      :~  ['message' (msg-to-json msg.upd)]
+          ['hops' (numb hops.upd)]
+      ==
     ==
     ::
     ++  da-to-ms

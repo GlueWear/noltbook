@@ -83,6 +83,11 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .chat-note-name{font-size:1.1rem;color:#ffaa00;cursor:pointer}
 .share-btn{font-family:var(--font);font-size:.8rem;padding:.25rem .5rem;background:transparent;border:1px solid #ffaa00;color:#ffaa00;cursor:pointer;display:none}
 .share-btn:hover{background:rgba(255,170,0,.15)}
+.dial-wrap{display:none;align-items:center;gap:.3rem;margin-left:auto;margin-right:.5rem}
+.dial-label{font-size:.65rem;color:var(--text-dim);letter-spacing:.1em}
+.dial-box{font-family:var(--font);font-size:.7rem;width:1.5rem;height:1.5rem;display:flex;align-items:center;justify-content:center;border:1px solid #444;color:#888;cursor:pointer;background:transparent}
+.dial-box:hover{border-color:#666}
+.dial-box.active{border-color:#ffaa00;color:#ffaa00}
 .chat-messages{flex:1;overflow-y:auto;padding:.5rem 0}
 .msg{display:flex;align-items:flex-start;gap:.6rem;padding:0 1rem;margin-top:.6rem;position:relative}
 .msg:first-child{padding-top:.25rem}
@@ -258,6 +263,13 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
     <section class="chat">
       <div class="chat-header">
         <span class="chat-note-name" id="chatNoteName">%Grimoire</span>
+        <div class="dial-wrap" id="dialWrap">
+          <span class="dial-label">DIAL</span>
+          <div class="dial-box active" onclick="setDial(0)">0</div>
+          <div class="dial-box" onclick="setDial(1)">1</div>
+          <div class="dial-box" onclick="setDial(2)">2</div>
+          <div class="dial-box" onclick="setDial(3)">3</div>
+        </div>
         <button class="share-btn" id="shareBtn" onclick="openSharePrompt()">SHARE</button>
       </div>
       <div class="chat-messages" id="chatMessages"></div>
@@ -419,7 +431,7 @@ const api = {
     this.reconnecting=false;
   }
 };
-const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{}};
+const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},dial:0,gossipHops:{}};
 let sigilFn=null;
 const sigilCache={};
 (async function loadSigil(){
@@ -515,12 +527,15 @@ function handleUpdate(upd){
   else if(upd['remote-note-list']){const{ship,notes}=upd['remote-note-list'];const el=document.getElementById('viewProfileNotes');if(el){const pubNotes=notes.filter(n=>n.visibility==='public').sort((a,b)=>a.name.localeCompare(b.name));const privNotes=notes.filter(n=>n.visibility==='private').sort((a,b)=>a.name.localeCompare(b.name));const all=[...pubNotes,...privNotes];if(all.length===0){el.innerHTML='<span style="color:var(--dim)">none available</span>'}else{el.innerHTML=all.map(n=>{const ic=n.iconUrl?'<img src="'+escAttr(n.iconUrl)+'">':noteInitials(n.name);const vis=n.visibility==='public'?'public':'private';return '<div class="profile-note-entry"><div class="profile-note-icon">'+ic+'</div><div class="profile-note-text"><span class="profile-note-name">'+escHtml(n.name)+'</span><span class="profile-note-vis">'+vis+'</span></div></div>'}).join('')}}}
   else if(upd['pal-list']){for(const entry of upd['pal-list']){state.palStatus[entry.ship]=entry.status}if(state.palsView)renderPalsList()}
   else if(upd['pal-update']){const{ship,status}=upd['pal-update'];state.palStatus[ship]=status;if(state.palsView)renderPalsList()}
+  else if(upd['dial-update']){state.dial=upd['dial-update'];updateDialUI();if(state.currentNoteId==='cover')scheduleRender('cover')}
+  else if(upd['gossip-message']){const{message,hops}=upd['gossip-message'];state.gossipHops[message.id]=hops;if(!state.messages['cover'])state.messages['cover']=[];state.messages['cover'].push(message);if(state.notes['cover']){state.notes['cover'].lastAuthor=message.author;state.notes['cover'].lastPreview=message.text}if(state.currentNoteId==='cover'&&coverMsgVisible(message))appendMessage(message);else if(state.currentNoteId!=='cover')state.notifications.add('cover');updateCoverPreview();scheduleNoteList()}
 }
 async function openNote(id){
   if(state.currentNoteSub!==null){await api.unsubscribe(state.currentNoteSub);state.currentNoteSub=null}
   state.currentNoteId=id;state.notifications.delete(id);state.lastMsgAuthor=null;
   document.getElementById('chatNoteName').textContent=id==='cover'?'%Grimoire':(state.notes[id]?state.notes[id].name:id);
   document.getElementById('shareBtn').style.display=id==='cover'?'none':'block';
+  document.getElementById('dialWrap').style.display=id==='cover'?'flex':'none';
   document.querySelectorAll('.note-item').forEach(el=>el.classList.remove('active'));
   const activeEl=document.querySelector(`[data-note-id="${id}"]`);if(activeEl)activeEl.classList.add('active');
   document.getElementById('chatMessages').innerHTML='';
@@ -530,6 +545,26 @@ async function openNote(id){
   state.currentNoteSub=subId;
   if(state.messages[id])renderMessages(id);
   renderNoteList();
+}
+function updateDialUI(){
+  const boxes=document.querySelectorAll('.dial-box');
+  boxes.forEach((b,i)=>{if(i===state.dial)b.classList.add('active');else b.classList.remove('active')});
+}
+async function setDial(n){
+  state.dial=n;updateDialUI();
+  await api.poke('noltbook','noltbook-action',{action:'set-dial',data:{dial:n}});
+  if(state.currentNoteId==='cover')scheduleRender('cover');
+}
+function coverMsgVisible(m){
+  var me='~'+api.ship;
+  if(m.author===me)return true;
+  if(state.dial===0){
+    var ps=state.palStatus[m.author];
+    return ps==='mutual'||ps==='requesting';
+  }
+  var h=state.gossipHops[m.id];
+  if(h===undefined)return true;
+  return h<=state.dial+1;
 }
 const arsEntries=[
   {id:'cover',name:'%Grimoire',color:'#ffaa00',icon:null,bgColor:null},
@@ -694,7 +729,8 @@ function msgDepth(msgId,byId){
 }
 function renderMessages(noteId){
   const el=document.getElementById('chatMessages');el.innerHTML='';state.lastMsgAuthor=null;state.lastMsgDepth=-1;
-  const msgs=state.messages[noteId]||[];
+  let msgs=state.messages[noteId]||[];
+  if(noteId==='cover'){msgs=msgs.filter(coverMsgVisible)}
   const byId={};msgs.forEach(m=>byId[m.id]=m);
   const children={};msgs.forEach(m=>{if(m.replyTo){if(!children[m.replyTo])children[m.replyTo]=[];children[m.replyTo].push(m)}});
   const threadMap={};const threads={};
