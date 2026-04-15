@@ -186,6 +186,24 @@
       dial.s
       gossip-hops.s
   ==
+::  root-uniqueness helpers
+::  find-root: first non-cover root note whose users = target set
+++  find-root
+  |=  [nmap=(map @ta note:noltbook) us=(set @p)]
+  ^-  (unit note:noltbook)
+  =/  hits=(list note:noltbook)
+    %+  skim  ~(val by nmap)
+    |=  n=note:noltbook
+    &(?=(~ parent.n) =(users.n us) !=(%cover type.n))
+  ?~  hits  ~
+  `i.hits
+::  root-wins: does candidate a beat candidate b?
+::  lower creator ship wins; tie → lower id (earlier) wins
+++  root-wins
+  |=  [a=[cr=@p id=@ta] b=[cr=@p id=@ta]]
+  ^-  ?
+  ?.  =(cr.a cr.b)  (lth `@`cr.a `@`cr.b)
+  (lth `@`id.a `@`id.b)
 --
 %-  agent:dbug
 =|  state-9
@@ -594,6 +612,8 @@
       ?~  old  `this
       ::  only creator (host) can delete the note
       ?.  =(our.bowl creator.u.old)  `this
+      ::  block delete if other users present (handoff TBD); non-host uses %leave-note
+      ?:  (gth ~(wyt in users.u.old) 1)  `this
       =/  trimmed=(map @ta note:noltbook)
         ?~  parent.u.old  notes
         =/  par  (~(get by notes) u.parent.u.old)
@@ -606,9 +626,15 @@
         %create-note
       ::  no parent: personal root note
       ?~  parent.act
+        =/  self-set=(set @p)  (sy ~[our.bowl])
+        =/  dup  (find-root notes self-set)
+        ?^  dup
+          ::  already have personal root; focus it
+          :_  this
+          ~[[%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%note-created u.dup])]]
         =/  nid=@ta  (crip (weld "note-" (trip (scot %da now.bowl))))
         =/  new-note=note:noltbook
-          :*  nid  name.act  %notebook  our.bowl  (sy ~[our.bowl])  ~  ~  ~  ~  %secret  ~  &
+          :*  nid  name.act  %notebook  our.bowl  self-set  ~  ~  ~  ~  %secret  ~  &
           ==
         =/  upd=update:noltbook  [%note-created new-note]
         :_  this(notes (~(put by notes) nid new-note), messages (~(put by messages) nid *(list message:noltbook)))
@@ -752,13 +778,13 @@
       ?>  =(our.bowl creator.u.old)
       ::  compute new user set
       =/  new-users=(set @p)  (~(put in users.u.old) ship.act)
-      ::  dedup: if another host-rooted note already has same users, focus it
+      ::  dedup: if any root note (local OR remote-hosted) already has these users, focus it
       =/  dup-id=(unit @ta)
         %-  ~(rep by notes)
         |=  [[k=@ta v=note:noltbook] acc=(unit @ta)]
         ?^  acc  acc
-        ?:  ?&  =(creator.v our.bowl)
-                ?=(~ parent.v)
+        ?:  ?&  ?=(~ parent.v)
+                !=(%cover type.v)
                 !=(k id.act)
                 =(users.v new-users)
             ==
@@ -767,7 +793,9 @@
       ?^  dup-id
         =/  ex=note:noltbook  (~(got by notes) u.dup-id)
         :_  this
-        ~[[%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%note-created ex])]]
+        :~  [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%note-created ex])]
+            [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%note-redirect id.act u.dup-id])]
+        ==
       =/  new-note=note:noltbook  u.old(users new-users)
       ::  poke remote ship with invite
       =/  rem=remote:noltbook  [%remote-invite id.act name.u.old our.bowl users.new-note visibility.u.old]
@@ -948,6 +976,32 @@
       :_  this(dial new-dial)
       ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
     ::
+        %leave-note
+      =/  old  (~(get by notes) id.act)
+      ?~  old  `this
+      ?:  =(%cover id.u.old)  `this
+      =/  is-host=?  =(our.bowl creator.u.old)
+      =/  user-count  ~(wyt in users.u.old)
+      ::  host w/ others: blocked until handoff lands
+      ?:  &(is-host (gth user-count 1))  `this
+      ::  sole user (host alone OR personal root): act like delete
+      ?:  (lte user-count 1)
+        =/  trimmed=(map @ta note:noltbook)
+          ?~  parent.u.old  notes
+          =/  par  (~(get by notes) u.parent.u.old)
+          ?~  par  notes
+          (~(put by notes) u.parent.u.old u.par(children (skim children.u.par |=(c=@ta !=(c id.act)))))
+        =/  upd=update:noltbook  [%note-deleted id.act]
+        :_  this(notes (~(del by trimmed) id.act), messages (~(del by messages) id.act))
+        ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
+      ::  non-host leaving shared note: poke host, drop locally
+      =/  host=@p  creator.u.old
+      =/  leave-card=card
+        [%pass /leave-out/(scot %p host)/[id.act] %agent [host %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-leave id.act])]
+      =/  upd=update:noltbook  [%note-deleted id.act]
+      :_  this(notes (~(del by notes) id.act), messages (~(del by messages) id.act))
+      ~[leave-card [%give %fact ~[/notes] %noltbook-update !>(upd)]]
+    ::
         %create-dm
       ?:  =(ship.act our.bowl)  `this
       ::  dedup: if a root shared note with exactly these two users exists, refocus it
@@ -995,6 +1049,58 @@
       ::  someone invited us to their note
       =/  new-note=note:noltbook
         [note-id.rem name.rem %notebook creator.rem users.rem ~ ~ ~ ~ visibility.rem ~ &]
+      ::  root-uniqueness: only dedup non-cover roots
+      =/  dup  ?:(=(note-id.rem %cover) ~ (find-root notes users.rem))
+      ?^  dup
+        ?:  =(id.u.dup note-id.rem)  `this  :: same note, no-op
+        =/  local-wins=?
+          %+  root-wins
+            [creator.u.dup id.u.dup]
+          [creator.rem note-id.rem]
+        ?:  local-wins
+          ::  keep local; tell sender to drop theirs + adopt ours
+          :_  this
+          :~  :*  %pass  /root-exists/(scot %p src.bowl)/[note-id.rem]
+                  %agent  [src.bowl %noltbook]  %poke
+                  %noltbook-remote
+                  !>(`remote:noltbook`[%remote-root-exists note-id.rem u.dup])
+              ==
+          ==
+        ::  remote wins; drop local root, adopt incoming
+        =/  old-id=@ta  id.u.dup
+        =/  trimmed=(map @ta note:noltbook)  (~(del by notes) old-id)
+        =/  trimmed-msgs=(map @ta (list message:noltbook))  (~(del by messages) old-id)
+        =/  redir=update:noltbook  [%note-redirect old-id note-id.rem]
+        =/  new-peers=(set @p)  (~(put in peers) creator.rem)
+        =/  is-new-peer=?  !(~(has in peers) creator.rem)
+        =/  ars-cards=(list card)
+          ?.  is-new-peer  ~
+          ~[[%pass /ars/(scot %p creator.rem) %agent [creator.rem %noltbook] %watch /notes/cover]]
+        =/  new-outgoing=(set @p)
+          ?.  is-new-peer  pal-outgoing
+          (~(put in pal-outgoing) creator.rem)
+        =/  hey-cards=(list card)
+          ?.  is-new-peer  ~
+          ~[[%pass /pal-hey/(scot %p creator.rem) %agent [creator.rem %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-hey ~])]]
+        =/  pal-status-upd=(list card)
+          ?.  is-new-peer  ~
+          ~[[%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%pal-update creator.rem %requesting])]]
+        =/  upd=update:noltbook  [%note-created new-note]
+        =/  sub-card=card
+          [%pass /remote-note/[note-id.rem] %agent [creator.rem %noltbook] %watch /notes/[note-id.rem]]
+        =/  head-cards=(list card)
+          :~  [%give %fact ~[/notes] %noltbook-update !>(redir)]
+              sub-card
+              [%give %fact ~[/notes] %noltbook-update !>(upd)]
+          ==
+        :_  %=  this
+              notes  (~(put by trimmed) note-id.rem new-note)
+              messages  (~(put by trimmed-msgs) note-id.rem ~)
+              peers  new-peers
+              pal-outgoing  new-outgoing
+            ==
+        :(weld head-cards ars-cards hey-cards pal-status-upd)
+      ::  no collision: original path
       ::  add creator to peers, subscribe to their ars notoria
       =/  new-peers=(set @p)  (~(put in peers) creator.rem)
       =/  is-new-peer=?  !(~(has in peers) creator.rem)
@@ -1178,6 +1284,71 @@
       =/  pax=path  ~[%notes note-id.rem]
       :_  this(messages (~(put by messages) note-id.rem new-msgs))
       ~[[%give %fact ~[pax] %noltbook-update !>(upd)]]
+    ::
+        %remote-leave
+      ::  a user left a note we host
+      =/  old  (~(get by notes) note-id.rem)
+      ?~  old  `this
+      ?.  =(our.bowl creator.u.old)  `this
+      ?.  (~(has in users.u.old) src.bowl)  `this
+      =/  new-users=(set @p)  (~(del in users.u.old) src.bowl)
+      =/  pax=path  ~[%notes note-id.rem]
+      ::  if host is alone after this, delete entirely
+      ?:  =(~(wyt in new-users) 1)
+        =/  del-upd=update:noltbook  [%note-deleted note-id.rem]
+        =/  trimmed=(map @ta note:noltbook)
+          ?~  parent.u.old  notes
+          =/  par  (~(get by notes) u.parent.u.old)
+          ?~  par  notes
+          (~(put by notes) u.parent.u.old u.par(children (skim children.u.par |=(c=@ta !=(c note-id.rem)))))
+        :_  this(notes (~(del by trimmed) note-id.rem), messages (~(del by messages) note-id.rem))
+        :~  [%give %fact ~[/notes] %noltbook-update !>(del-upd)]
+            [%give %fact ~[pax] %noltbook-update !>(del-upd)]
+        ==
+      ::  remaining users > 1: shrink set, fan out update
+      =/  new-note=note:noltbook  u.old(users new-users)
+      =/  users-upd=update:noltbook
+        [%note-users-updated note-id.rem ~(tap in new-users)]
+      :_  this(notes (~(put by notes) note-id.rem new-note))
+      :~  [%give %fact ~[/notes] %noltbook-update !>(users-upd)]
+          [%give %fact ~[pax] %noltbook-update !>(users-upd)]
+      ==
+    ::
+        %remote-root-exists
+      ::  we lost a root-uniqueness race; drop loser, adopt canonical
+      ::  sender must be the canonical's creator (authority on winner)
+      ?.  =(src.bowl creator.canonical.rem)  `this
+      =/  loser  (~(get by notes) losing-id.rem)
+      ::  only drop if we actually created it and it's root
+      =?  notes  ?=(^ loser)
+        ?:  &(=(our.bowl creator.u.loser) ?=(~ parent.u.loser))
+          (~(del by notes) losing-id.rem)
+        notes
+      =?  messages  ?=(^ loser)
+        ?:  &(=(our.bowl creator.u.loser) ?=(~ parent.u.loser))
+          (~(del by messages) losing-id.rem)
+        messages
+      ::  install canonical if we don't have it
+      =/  have-canonical=?  (~(has by notes) id.canonical.rem)
+      =.  notes
+        ?:  have-canonical  notes
+        (~(put by notes) id.canonical.rem canonical.rem)
+      =.  messages
+        ?:  have-canonical  messages
+        (~(put by messages) id.canonical.rem ~)
+      ::  subscribe to canonical creator for updates (skip if already or cover)
+      =/  sub-cards=(list card)
+        ?:  have-canonical  ~
+        ?:  =(id.canonical.rem %cover)  ~
+        ~[[%pass /remote-note/[id.canonical.rem] %agent [creator.canonical.rem %noltbook] %watch /notes/[id.canonical.rem]]]
+      =/  redir=update:noltbook  [%note-redirect losing-id.rem id.canonical.rem]
+      =/  adopt=update:noltbook  [%note-created canonical.rem]
+      =/  tail-cards=(list card)
+        :~  [%give %fact ~[/notes] %noltbook-update !>(adopt)]
+            [%give %fact ~[/notes] %noltbook-update !>(redir)]
+        ==
+      :_  this
+      (weld sub-cards tail-cards)
     ==
   ==
 ::
@@ -1284,6 +1455,14 @@
           %profile-updated
         ::  store remote profile locally and relay to frontend
         =.  profiles  (~(put by profiles) ship.upd profile.upd)
+        :_  this
+        ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
+      ::
+          %note-users-updated
+        ::  host updated the user set; sync locally
+        =/  note  (~(get by notes) id.upd)
+        =?  notes  ?=(^ note)
+          (~(put by notes) id.upd u.note(users (sy users.upd)))
         :_  this
         ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
       ==
@@ -1425,6 +1604,22 @@
     ::  ack/nack for profile broadcast pokes
     ?+  -.sign  `this
         %poke-ack  `this
+    ==
+  ::
+      [%leave-out @ @ ~]
+    ?+  -.sign  `this
+        %poke-ack
+      ?~  p.sign  `this
+      ~&  [%leave-poke-failed wire u.p.sign]
+      `this
+    ==
+  ::
+      [%root-exists @ @ ~]
+    ?+  -.sign  `this
+        %poke-ack
+      ?~  p.sign  `this
+      ~&  [%root-exists-failed wire u.p.sign]
+      `this
     ==
   ==
 ::

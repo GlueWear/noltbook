@@ -115,6 +115,20 @@
       :~  ['message' (msg-to-json msg.upd)]
           ['hops' (numb hops.upd)]
       ==
+    ::
+        %note-redirect
+      %+  frond  'note-redirect'
+      %-  pairs
+      :~  ['oldId' s+(crip (trip old-id.upd))]
+          ['newId' s+(crip (trip new-id.upd))]
+      ==
+    ::
+        %note-users-updated
+      %+  frond  'note-users-updated'
+      %-  pairs
+      :~  ['id' s+(crip (trip id.upd))]
+          ['users' a+(turn users.upd |=(p=@p s+(scot %p p)))]
+      ==
     ==
     ::
     ++  da-to-ms

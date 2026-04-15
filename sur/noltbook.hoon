@@ -92,6 +92,9 @@
       [%remote-delete-msg note-id=@ta msg-id=@da]
       [%remote-create-child parent-id=@ta name=@t]
       [%remote-child-note parent-id=@ta note=note]
+      ::  root-uniqueness: tell loser to drop their root + adopt ours
+      [%remote-root-exists losing-id=@ta canonical=note]
+      [%remote-leave note-id=@ta]
   ==
 ::  poke actions (client to agent)
 +$  action
@@ -118,6 +121,7 @@
       [%unblock-pal ship=@p]
       [%set-dial dial=@ud]
       [%create-dm ship=@p]
+      [%leave-note id=@ta]
   ==
 ::  subscription updates (agent to client)
 +$  update
@@ -142,5 +146,7 @@
       [%pal-update ship=@p status=pal-status]
       [%dial-update dial=@ud]
       [%gossip-message msg=message hops=@ud]
+      [%note-redirect old-id=@ta new-id=@ta]
+      [%note-users-updated id=@ta users=(list @p)]
   ==
 --

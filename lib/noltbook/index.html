@@ -542,6 +542,8 @@ function handleUpdate(upd){
   else if(upd['pal-list']){for(const entry of upd['pal-list']){state.palStatus[entry.ship]=entry.status}if(state.palsView)renderPalsList()}
   else if(upd['pal-update']){const{ship,status}=upd['pal-update'];state.palStatus[ship]=status;if(state.palsView)renderPalsList()}
   else if(upd['dial-update']){state.dial=upd['dial-update'];updateDialUI();if(state.currentNoteId==='cover')scheduleRender('cover');scheduleNoteList()}
+  else if(upd['note-users-updated']){const{id,users}=upd['note-users-updated'];console.log('[note-users-updated]',id,users);if(state.notes[id]){state.notes[id].users=users;renderNoteList();if(state.currentNoteId===id)scheduleRender(id)}}
+  else if(upd['note-redirect']){const{oldId,newId}=upd['note-redirect'];console.log('[note-redirect]',oldId,'->',newId);delete state.notes[oldId];delete state.messages[oldId];state.notifications.delete(oldId);if(state.currentNoteId===oldId){if(state.notes[newId])openNote(newId);else openNote('cover')}renderNoteList()}
   else if(upd['gossip-message']){const{message,hops}=upd['gossip-message'];state.gossipHops[message.id]=hops;if(!state.messages['cover'])state.messages['cover']=[];state.messages['cover'].push(message);const visible=coverMsgVisible(message);if(visible&&state.notes['cover']){state.notes['cover'].lastAuthor=message.author;state.notes['cover'].lastPreview=message.text}if(state.currentNoteId==='cover'&&visible)appendMessage(message);else if(state.currentNoteId!=='cover'&&visible)state.notifications.add('cover');updateCoverPreview();scheduleNoteList()}
 }
 function revealNoteInTree(id){
@@ -1210,7 +1212,13 @@ function showNoteContextMenu(event,noteId){
   const me='~'+api.ship;
   const isCreator=note.creator===me;
   const ro=isCreator?'':' disabled';
-  const delItem=isCreator?'<div class="context-menu-item danger" data-action="delete">Delete</div>':'';
+  const userCount=(note.users||[]).length;
+  const isShared=userCount>1;
+  // host w/ others: blocked (handoff TBD); host alone: delete; non-host: leave
+  let delItem='';
+  if(isCreator&&!isShared)delItem='<div class="context-menu-item danger" data-action="delete">Delete</div>';
+  else if(!isCreator)delItem='<div class="context-menu-item danger" data-action="leave">Leave</div>';
+  else delItem='<div class="context-menu-item disabled">Delete (handoff pending)</div>';
   menu.innerHTML=`
     <div class="context-menu-item${ro}" data-action="visibility" data-val="public"><span class="context-radio ${vis==='public'?'selected':''}"></span> Public</div>
     <div class="context-menu-item${ro}" data-action="visibility" data-val="private"><span class="context-radio ${vis==='private'?'selected':''}"></span> Private</div>
@@ -1239,6 +1247,7 @@ function showNoteContextMenu(event,noteId){
     else if(action==='duplicate'){closeContextMenu()}
     else if(action==='rename'){closeContextMenu();promptRenameNote(noteId)}
     else if(action==='delete'){closeContextMenu();if(confirm('Delete "'+note.name+'"?'))api.poke('noltbook','noltbook-action',{action:'delete-note',data:{id:noteId}})}
+    else if(action==='leave'){closeContextMenu();if(confirm('Leave "'+note.name+'"?'))api.poke('noltbook','noltbook-action',{action:'leave-note',data:{id:noteId}})}
   });
   document.body.appendChild(menu);
   const mr=menu.getBoundingClientRect();

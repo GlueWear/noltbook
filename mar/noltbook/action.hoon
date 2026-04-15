@@ -217,6 +217,11 @@
       =/  ship-nd  (need (~(get by d) 'ship'))
       ?>  ?=([%s *] ship-nd)
       [%create-dm (slav %p p.ship-nd)]
+    ::  leave-note
+    ?:  =('leave-note' tag)
+      =/  id-nd  (need (~(get by d) 'id'))
+      ?>  ?=([%s *] id-nd)
+      [%leave-note `@ta`p.id-nd]
     ::  set-dial (final case)
     ?>  =('set-dial' tag)
     =/  dial-nd  (need (~(get by d) 'dial'))
