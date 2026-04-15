@@ -148,6 +148,7 @@
           ['text' s+text.m]
           ['timestamp' (numb (da-to-ms timestamp.m))]
           ['replyTo' ?~(reply-to.m ~ (numb (da-to-ms u.reply-to.m)))]
+          ['edited' b+edited.m]
       ==
     ::
     ++  art-to-json

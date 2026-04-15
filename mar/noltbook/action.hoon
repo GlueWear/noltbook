@@ -212,6 +212,11 @@
       =/  ship-nd  (need (~(get by d) 'ship'))
       ?>  ?=([%s *] ship-nd)
       [%unblock-pal (slav %p p.ship-nd)]
+    ::  create-dm
+    ?:  =('create-dm' tag)
+      =/  ship-nd  (need (~(get by d) 'ship'))
+      ?>  ?=([%s *] ship-nd)
+      [%create-dm (slav %p p.ship-nd)]
     ::  set-dial (final case)
     ?>  =('set-dial' tag)
     =/  dial-nd  (need (~(get by d) 'dial'))

@@ -1,6 +1,6 @@
 |%
 ::  note types
-+$  note-type  ?(%notebook %dm %cover)
++$  note-type  ?(%notebook %dm %group %cover)
 +$  note-visibility  ?(%public %private %secret)
 ::
 +$  note
@@ -37,6 +37,7 @@
       text=@t
       timestamp=@da
       reply-to=(unit @da)
+      edited=?
   ==
 ::
 +$  artifact-type  ?(%code %app %file)
@@ -87,6 +88,10 @@
       [%remote-note-list notes=(list note)]
       [%remote-hey ~]
       [%remote-bye ~]
+      [%remote-edit-msg note-id=@ta msg-id=@da text=@t]
+      [%remote-delete-msg note-id=@ta msg-id=@da]
+      [%remote-create-child parent-id=@ta name=@t]
+      [%remote-child-note parent-id=@ta note=note]
   ==
 ::  poke actions (client to agent)
 +$  action
@@ -112,6 +117,7 @@
       [%block-pal ship=@p]
       [%unblock-pal ship=@p]
       [%set-dial dial=@ud]
+      [%create-dm ship=@p]
   ==
 ::  subscription updates (agent to client)
 +$  update

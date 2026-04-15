@@ -57,7 +57,8 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .contact-tag.requesting{border-color:#ffaa00;color:#ffaa00;background:rgba(255,170,0,.1)}
 .contact-tag.requested{border-color:#3b82f6;color:#3b82f6;background:rgba(59,130,246,.1)}
 .sidebar-scroll{flex:1;overflow-y:auto;overflow-x:hidden}
-.section-header{display:flex;align-items:center;gap:.4rem;padding:.4rem .75rem;cursor:pointer;border-bottom:1px solid var(--border);user-select:none}
+.section-header{display:flex;align-items:center;gap:.4rem;padding:.4rem .75rem;cursor:pointer;border-bottom:1px solid var(--border);user-select:none;position:relative}
+.section-header.has-notif::after{content:'';width:5px;height:5px;border-radius:50%;background:var(--bot);position:absolute;right:.75rem;top:50%;transform:translateY(-50%)}
 .section-header:hover{background:var(--bg2)}
 .section-arrow{font-size:.6rem;color:var(--text-dim);transition:transform .15s}
 .section-arrow.open{transform:rotate(90deg)}
@@ -212,6 +213,8 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .context-menu-item{padding:.5rem .75rem;color:#ccc;cursor:pointer;display:flex;align-items:center;gap:.5rem;font-size:.9rem}
 .context-menu-item:hover{background:#1a1a1a;color:#ffaa00}
 .context-menu-item.danger:hover{color:#ff4444}
+.context-menu-item.disabled{color:#555;cursor:not-allowed;opacity:.6}
+.context-menu-item.disabled:hover{background:transparent;color:#555}
 .context-menu-divider{height:1px;background:#333;margin:.25rem 0}
 .context-radio{width:8px;height:8px;border-radius:50%;border:1px solid #555}
 .context-radio.selected{background:#ffaa00;border-color:#ffaa00}
@@ -522,7 +525,7 @@ function scheduleNoteList(){if(_noteListTimer)clearTimeout(_noteListTimer);_note
 let _lastMsgHash={};
 function handleUpdate(upd){
   if(upd['note-list']){console.log('[note-list]',JSON.stringify(upd['note-list']));for(const n of upd['note-list'])state.notes[n.id]=n;renderNoteList()}
-  else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));state.notes[n.id]=n;if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id);state.expandedNotes.add(n.parent)}if(n.creator==='~'+api.ship)openNote(n.id);else state.notifications.add(n.id);renderNoteList()}
+  else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));state.notes[n.id]=n;if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id);state.expandedNotes.add(n.parent)}if(n.creator==='~'+api.ship)openNote(n.id);else{state.notifications.add(n.id);if(n.parent)state.notifications.add(n.parent)}renderNoteList()}
   else if(upd['note-renamed']){const{id,name}=upd['note-renamed'];if(state.notes[id]){state.notes[id].name=name;renderNoteList()}if(state.currentNoteId===id)document.getElementById('chatNoteName').textContent=name}
   else if(upd['note-deleted']){const{id}=upd['note-deleted'];delete state.notes[id];if(state.currentNoteId===id)openNote('cover');renderNoteList()}
   else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];const hash=noteId+':'+messages.length+':'+(messages.length?messages[messages.length-1].id:'');if(_lastMsgHash[noteId]===hash)return;_lastMsgHash[noteId]=hash;state.messages[noteId]=messages;for(const a of artifacts)state.artifacts[a.id]=a;if(state.currentNoteId===noteId)scheduleRender(noteId);updateCoverPreview();scheduleNoteList()}
@@ -541,13 +544,36 @@ function handleUpdate(upd){
   else if(upd['dial-update']){state.dial=upd['dial-update'];updateDialUI();if(state.currentNoteId==='cover')scheduleRender('cover');scheduleNoteList()}
   else if(upd['gossip-message']){const{message,hops}=upd['gossip-message'];state.gossipHops[message.id]=hops;if(!state.messages['cover'])state.messages['cover']=[];state.messages['cover'].push(message);const visible=coverMsgVisible(message);if(visible&&state.notes['cover']){state.notes['cover'].lastAuthor=message.author;state.notes['cover'].lastPreview=message.text}if(state.currentNoteId==='cover'&&visible)appendMessage(message);else if(state.currentNoteId!=='cover'&&visible)state.notifications.add('cover');updateCoverPreview();scheduleNoteList()}
 }
+function revealNoteInTree(id){
+  // expand ancestors and open the containing section so the note is visible
+  const me='~'+api.ship;
+  let cur=state.notes[id]; if(!cur&&id!=='cover')return;
+  // climb to root, expanding each ancestor
+  let node=cur;
+  while(node&&node.parent){
+    state.expandedNotes.add(node.parent);
+    node=state.notes[node.parent];
+  }
+  // open the section containing the root
+  let section='notes';
+  if(id==='cover')section='ars';
+  else if(node){
+    const others=(node.users||[]).filter(u=>u&&u!==me);
+    const isShared=node.type==='dm'||node.type==='group'||others.length>0||(node.creator&&node.creator!==me);
+    section=isShared?'shared':'notes';
+  }
+  if(!state.expandedSections[section]){
+    state.expandedSections[section]=true;
+    document.getElementById(section+'Body').classList.add('open');
+    document.getElementById(section+'Arrow').classList.add('open');
+  }
+}
 async function openNote(id){
   if(state.currentNoteSub!==null){await api.unsubscribe(state.currentNoteSub);state.currentNoteSub=null}
   state.currentNoteId=id;state.notifications.delete(id);state.lastMsgAuthor=null;
-  document.getElementById('chatNoteName').textContent=id==='cover'?'%Grimoire':(state.notes[id]?state.notes[id].name:id);
+  revealNoteInTree(id);
+  document.getElementById('chatNoteName').textContent=id==='cover'?'%Grimoire':(state.notes[id]?noteDisplayName(state.notes[id]):id);
   document.getElementById('shareBtn').style.display=id==='cover'?'none':'block';
-  document.querySelectorAll('.note-item').forEach(el=>el.classList.remove('active'));
-  const activeEl=document.querySelector(`[data-note-id="${id}"]`);if(activeEl)activeEl.classList.add('active');
   document.getElementById('chatMessages').innerHTML='';
   await api.poke('noltbook','noltbook-action',{action:'switch-note',data:{id}});
   const subId=await api.subscribe('noltbook','/notes/'+id,handleUpdate);
@@ -555,6 +581,11 @@ async function openNote(id){
   state.currentNoteSub=subId;
   if(state.messages[id])renderMessages(id);
   renderNoteList();
+  // scroll revealed note into view
+  requestAnimationFrame(()=>{
+    const el=document.querySelector(`[data-note-id="${id}"]`);
+    if(el&&el.scrollIntoView)el.scrollIntoView({block:'nearest',behavior:'smooth'});
+  });
 }
 function updateDialUI(){
   const boxes=document.querySelectorAll('.dial-box');
@@ -597,9 +628,84 @@ function makeArsItem(entry){
   div.onclick=()=>{openNote(entry.id)};
   return div;
 }
+function dmCounterparty(note){
+  if(!note)return null;
+  const me='~'+api.ship;
+  const users=note.users||[];
+  if(users.length!==2)return null;
+  if(!users.includes(me))return null;
+  return users.find(u=>u!==me);
+}
+function noteDisplayName(note){
+  const cp=dmCounterparty(note);
+  if(cp)return displayName(cp);
+  return note.name;
+}
+function resolveNoteIconUrl(note){
+  if(!note.iconUrl)return null;
+  if(note.iconUrl.startsWith('/apps/noltbook/icon/')){
+    if(note.creator!=='~'+api.ship)return null;
+  }
+  return note.iconUrl;
+}
+function noteDisplayIconHtml(note){
+  const cp=dmCounterparty(note);
+  if(cp)return avatarHtml(cp);
+  const url=resolveNoteIconUrl(note);
+  return url?`<img src="${escAttr(url)}" style="width:100%;height:100%;object-fit:cover;border-radius:3px">`:noteInitials(note.name);
+}
+function findSharedRootByUsers(userSet){
+  // returns note whose users match userSet exactly and has no parent; null if none
+  const target=[...userSet].sort().join(',');
+  for(const n of Object.values(state.notes)){
+    if(n.parent)continue;
+    if(n.id==='cover')continue;
+    const u=[...(n.users||[])].sort().join(',');
+    if(u===target)return n;
+  }
+  return null;
+}
+function computeTrickle(){
+  // returns {dotted: Set<noteId>, sections: {ars,notes,shared}}
+  const dotted=new Set();
+  const sections={ars:false,notes:false,shared:false};
+  const me='~'+api.ship;
+  function sectionOf(rootId){
+    if(rootId==='cover')return 'ars';
+    const r=state.notes[rootId]; if(!r)return 'notes';
+    const others=(r.users||[]).filter(u=>u&&u!==me);
+    const isShared=r.type==='dm'||r.type==='group'||others.length>0||(r.creator&&r.creator!==me);
+    return isShared?'shared':'notes';
+  }
+  for(const rawId of state.notifications){
+    if(!state.notes[rawId]&&rawId!=='cover')continue;
+    // build root→leaf chain
+    const chain=[]; let cur=rawId;
+    while(cur){chain.unshift(cur); cur=state.notes[cur]?.parent||null;}
+    const root=chain[0];
+    const sec=sectionOf(root);
+    // if section is collapsed, dot goes on section header only
+    if(!state.expandedSections[sec]){sections[sec]=true; continue;}
+    // walk root→leaf: last visible = deepest where all ancestors expanded
+    let lv=chain[0];
+    for(let i=1;i<chain.length;i++){
+      if(state.expandedNotes.has(chain[i-1])) lv=chain[i];
+      else break;
+    }
+    dotted.add(lv);
+  }
+  return {dotted,sections};
+}
 function renderNoteList(){
   const arsEl=document.getElementById('arsBody'),notesEl=document.getElementById('notesBody'),sharedEl=document.getElementById('sharedBody');
   arsEl.innerHTML='';notesEl.innerHTML='';sharedEl.innerHTML='';
+  const trickle=computeTrickle();
+  state._trickleDotted=trickle.dotted;
+  // section-header dots
+  for(const sec of ['ars','notes','shared']){
+    const hdr=document.querySelector('.section-header[onclick*="\''+sec+'\'"]');
+    if(hdr)hdr.classList.toggle('has-notif',trickle.sections[sec]);
+  }
   for(const entry of arsEntries)arsEl.appendChild(makeArsItem(entry));
   function renderTree(noteId,depth,container){
     const n=state.notes[noteId];
@@ -614,7 +720,7 @@ function renderNoteList(){
     if(n.parent)continue;
     const me='~'+api.ship;
     const others=(n.users||[]).filter(u=>u&&u!==me);
-    const isShared=n.type==='dm'||others.length>0||(n.creator&&n.creator!==me);
+    const isShared=n.type==='dm'||n.type==='group'||others.length>0||(n.creator&&n.creator!==me);
     const target=isShared?sharedEl:notesEl;
     renderTree(n.id,0,target);
   }
@@ -624,15 +730,18 @@ function makeNoteItem(n,depth){
   const div=document.createElement('div');
   const hasChildren=n.children&&n.children.length>0;
   const isExpanded=state.expandedNotes.has(n.id);
-  div.className='note-item'+(n.id===state.currentNoteId?' active':'')+(state.notifications.has(n.id)?' has-notif':'')+(depth?` depth-${depth}`:'');
+  const hasNotif=state._trickleDotted?state._trickleDotted.has(n.id):state.notifications.has(n.id);
+  div.className='note-item'+(n.id===state.currentNoteId?' active':'')+(hasNotif?' has-notif':'')+(depth?` depth-${depth}`:'');
   div.setAttribute('data-note-id',n.id);
   const last=getLastMessage(n.id);
-  const iconContent=n.iconUrl?`<img src="${escAttr(n.iconUrl)}" style="width:100%;height:100%;object-fit:cover;border-radius:3px">`:noteInitials(n.name);
+  const iconContent=noteDisplayIconHtml(n);
+  const displayNameStr=noteDisplayName(n);
   const rawSource=last?last.author:(n.lastAuthor||'');
   const source=rawSource?displayName(rawSource):'';
   const preview=last?last.text.replace(/\n/g,' '):(n.lastPreview?n.lastPreview.replace(/\n/g,' '):'');
   const chevron=hasChildren?`<span class="note-arrow ${isExpanded?'open':''}" onclick="event.stopPropagation();toggleNoteExpand('${n.id}')">&#9654;</span>`:`<span class="note-arrow" style="visibility:hidden">&#9654;</span>`;
-  div.innerHTML=`${chevron}<div class="note-icon" ${n.iconUrl?'style="display:flex"':''}>${iconContent}</div><div class="note-text"><span class="note-name">${escHtml(n.name)}</span><span class="note-source">${escHtml(source)}</span><span class="note-preview">${escHtml(preview)}</span></div><span class="note-dot"></span>`;
+  const hasCustomIcon=!!n.iconUrl||!!dmCounterparty(n);
+  div.innerHTML=`${chevron}<div class="note-icon" ${hasCustomIcon?'style="display:flex"':''}>${iconContent}</div><div class="note-text"><span class="note-name">${escHtml(displayNameStr)}</span><span class="note-source">${escHtml(source)}</span><span class="note-preview">${escHtml(preview)}</span></div><span class="note-dot"></span>`;
   let clickTimer=null;
   div.onclick=()=>{if(clickTimer)return;clickTimer=setTimeout(()=>{clickTimer=null;openNote(n.id)},250)};
   div.ondblclick=(e)=>{clearTimeout(clickTimer);clickTimer=null;e.preventDefault();toggleNoteExpand(n.id)};
@@ -640,7 +749,7 @@ function makeNoteItem(n,depth){
   return div;
 }
 function toggleNoteExpand(id){if(state.expandedNotes.has(id))state.expandedNotes.delete(id);else state.expandedNotes.add(id);renderNoteList()}
-function toggleSection(name){state.expandedSections[name]=!state.expandedSections[name];document.getElementById(name+'Body').classList.toggle('open',state.expandedSections[name]);document.getElementById(name+'Arrow').classList.toggle('open',state.expandedSections[name])}
+function toggleSection(name){state.expandedSections[name]=!state.expandedSections[name];document.getElementById(name+'Body').classList.toggle('open',state.expandedSections[name]);document.getElementById(name+'Arrow').classList.toggle('open',state.expandedSections[name]);renderNoteList()}
 function switchView(mode){
   state.palsView=mode==='contact';
   const notesBtn=document.getElementById('toggleNotes');
@@ -868,12 +977,34 @@ function expandThread(rootId){
   renderMessages(state.currentNoteId);
 }
 function renderMsg(el,msg,depth){
+  if(msg.text&&msg.text.charCodeAt(0)===1){
+    const parts=msg.text.slice(1).split(':');
+    if(parts[0]==='SYS'&&parts[1]==='host-delete'){
+      const victim=parts[2]||'';
+      const div=document.createElement('div');
+      div.className='msg-system';
+      div.id='msg-'+msg.id;
+      div.innerHTML=`<div style="text-align:center;opacity:.6;font-size:.85rem;padding:.4rem 0;font-style:italic">host deleted message from ${escHtml(displayName(victim))}</div>`;
+      el.appendChild(div);
+      state.lastMsgAuthor=null;state.lastMsgDepth=-1;
+      return;
+    }
+  }
   const grouped=msg.author===state.lastMsgAuthor&&depth===state.lastMsgDepth;
   state.lastMsgAuthor=msg.author;state.lastMsgDepth=depth;
   const isUrbit=msg.author.startsWith('~');
   const timeStr=new Date(msg.id).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
   const editedStamp=msg.edited?'<span class="msg-edited">(edited)</span>':'';
-  const actions=`<div class="msg-actions" onclick="event.stopPropagation()"><button class="msg-action-btn" onclick="startReply('${msg.id}','${escAttr(msg.author)}');toggleMsgActions(this,false)">REPLY</button><button class="msg-action-btn" onclick="editMessage('${msg.id}');toggleMsgActions(this,false)">EDIT</button><button class="msg-action-btn send-msg" onclick="sendToUser('${escAttr(msg.author)}','${msg.id}');toggleMsgActions(this,false)">SEND</button><button class="msg-action-btn delete-msg" onclick="deleteMessage('${msg.id}');toggleMsgActions(this,false)">DELETE</button></div>`;
+  const me='~'+api.ship;
+  const note=state.notes[msg.noteId]||state.notes[state.currentNoteId]||{};
+  const isAuthor=msg.author===me;
+  const isGroup=(note.users||[]).length>2;
+  const isCreator=note.creator===me;
+  const canEdit=isAuthor;
+  const canDelete=isAuthor||(isGroup&&isCreator);
+  const editBtn=canEdit?`<button class="msg-action-btn" onclick="editMessage('${msg.id}');toggleMsgActions(this,false)">EDIT</button>`:'';
+  const delBtn=canDelete?`<button class="msg-action-btn delete-msg" onclick="deleteMessage('${msg.id}');toggleMsgActions(this,false)">DELETE</button>`:'';
+  const actions=`<div class="msg-actions" onclick="event.stopPropagation()"><button class="msg-action-btn" onclick="startReply('${msg.id}','${escAttr(msg.author)}');toggleMsgActions(this,false)">REPLY</button>${editBtn}<button class="msg-action-btn send-msg" onclick="sendToUser('${escAttr(msg.author)}','${msg.id}');toggleMsgActions(this,false)">SEND</button>${delBtn}</div>`;
   const div=document.createElement('div');
   const depthClass=depth>0?' depth-'+Math.min(depth,5):'';
   if(grouped){
@@ -1017,7 +1148,7 @@ async function submitNote(){const name=document.getElementById('noteNameInput').
 function promptRenameNote(id){const note=state.notes[id];if(!note)return;const name=prompt('Rename note:',note.name);if(name&&name.trim()&&name.trim()!==note.name)api.poke('noltbook','noltbook-action',{action:'rename-note',data:{id,name:name.trim()}})}
 function promptNoteImage(id){
   const note=state.notes[id];if(!note)return;
-  let pendingDataUrl=null;
+  let pendingDataUrl=null;let pendingBlob=null;
   const overlay=document.createElement('div');
   overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999';
   const menu=document.createElement('div');
@@ -1041,6 +1172,7 @@ function promptNoteImage(id){
   fileInput.addEventListener('change',function(){
     const file=this.files[0];if(!file)return;
     resizeImageToBlob(file,128,function(blob){
+      pendingBlob=blob;
       const reader=new FileReader();
       reader.onload=function(){pendingDataUrl=reader.result;urlInput.value='(file selected)';preview.innerHTML='<img src="'+pendingDataUrl+'" style="width:64px;height:64px;object-fit:cover;border-radius:4px">';preview.style.display='block'};
       reader.readAsDataURL(blob);
@@ -1053,9 +1185,15 @@ function promptNoteImage(id){
   }
   menu.querySelector('#noteIconCancel').addEventListener('click',function(){overlay.remove();menu.remove()});
   menu.querySelector('#noteIconClear').addEventListener('click',function(){save('');overlay.remove();menu.remove()});
-  menu.querySelector('#noteIconSave').addEventListener('click',function(){
-    const val=pendingDataUrl||urlInput.value.trim();
-    save(val);overlay.remove();menu.remove();
+  menu.querySelector('#noteIconSave').addEventListener('click',async function(){
+    if(pendingBlob){
+      try{
+        const resp=await fetch('/apps/noltbook/upload-icon/'+encodeURIComponent(id),{method:'POST',body:pendingBlob,credentials:'include'});
+        if(!resp.ok){alert('upload failed: '+resp.status)}
+      }catch(e){alert('upload error: '+e.message)}
+      overlay.remove();menu.remove();return;
+    }
+    save(urlInput.value.trim());overlay.remove();menu.remove();
   });
 }
 function showNoteContextMenu(event,noteId){
@@ -1069,25 +1207,30 @@ function showNoteContextMenu(event,noteId){
   menu.className='context-menu';
   const vis=note.visibility||'secret';
   const wr=note.writable!==false;
+  const me='~'+api.ship;
+  const isCreator=note.creator===me;
+  const ro=isCreator?'':' disabled';
+  const delItem=isCreator?'<div class="context-menu-item danger" data-action="delete">Delete</div>':'';
   menu.innerHTML=`
-    <div class="context-menu-item" data-action="visibility" data-val="public"><span class="context-radio ${vis==='public'?'selected':''}"></span> Public</div>
-    <div class="context-menu-item" data-action="visibility" data-val="private"><span class="context-radio ${vis==='private'?'selected':''}"></span> Private</div>
-    <div class="context-menu-item" data-action="visibility" data-val="secret"><span class="context-radio ${vis==='secret'?'selected':''}"></span> Secret</div>
+    <div class="context-menu-item${ro}" data-action="visibility" data-val="public"><span class="context-radio ${vis==='public'?'selected':''}"></span> Public</div>
+    <div class="context-menu-item${ro}" data-action="visibility" data-val="private"><span class="context-radio ${vis==='private'?'selected':''}"></span> Private</div>
+    <div class="context-menu-item${ro}" data-action="visibility" data-val="secret"><span class="context-radio ${vis==='secret'?'selected':''}"></span> Secret</div>
     <div class="context-menu-divider"></div>
-    <div class="context-menu-item" data-action="writable" data-val="true"><span class="context-radio ${wr?'selected':''}"></span> Write</div>
-    <div class="context-menu-item" data-action="writable" data-val="false"><span class="context-radio ${!wr?'selected':''}"></span> Read Only</div>
+    <div class="context-menu-item${ro}" data-action="writable" data-val="true"><span class="context-radio ${wr?'selected':''}"></span> Write</div>
+    <div class="context-menu-item${ro}" data-action="writable" data-val="false"><span class="context-radio ${!wr?'selected':''}"></span> Read Only</div>
     <div class="context-menu-divider"></div>
     <div class="context-menu-item" data-action="child">+ Child</div>
     <div class="context-menu-item" data-action="img">+ Img</div>
     <div class="context-menu-item" data-action="duplicate">Duplicate</div>
     <div class="context-menu-item" data-action="rename">Rename</div>
-    <div class="context-menu-item danger" data-action="delete">Delete</div>`;
+    ${delItem}`;
   menu.style.left=event.pageX+'px';
   menu.style.top=event.pageY+'px';
   menu.style.visibility='hidden';
   menu.addEventListener('click',function(e){
     const item=e.target.closest('.context-menu-item');
     if(!item)return;
+    if(item.classList.contains('disabled'))return;
     const action=item.dataset.action;
     if(action==='visibility'){note.visibility=item.dataset.val;api.poke('noltbook','noltbook-action',{action:'set-note-meta',data:{id:noteId,visibility:note.visibility,iconUrl:note.iconUrl||'',writable:note.writable!==false}});closeContextMenu()}
     else if(action==='writable'){note.writable=item.dataset.val==='true';api.poke('noltbook','noltbook-action',{action:'set-note-meta',data:{id:noteId,visibility:note.visibility||'secret',iconUrl:note.iconUrl||'',writable:note.writable}});closeContextMenu()}
@@ -1273,7 +1416,7 @@ async function viewProfile(ship){
   const sharedNotes=[...pubNotes,...privNotes];
   const notesHtml=sharedNotes.length===0?'<span style="color:var(--dim)">loading...</span>'
     :sharedNotes.map(n=>{
-      const ic=n.iconUrl?'<img src="'+escAttr(n.iconUrl)+'">':noteInitials(n.name);
+      const _icU=resolveNoteIconUrl(n);const ic=_icU?'<img src="'+escAttr(_icU)+'">':noteInitials(n.name);
       const vis=n.visibility==='public'?'public':'private';
       return '<div class="profile-note-entry"><div class="profile-note-icon">'+ic+'</div><div class="profile-note-text"><span class="profile-note-name">'+escHtml(n.name)+'</span><span class="profile-note-vis">'+vis+'</span></div></div>';
     }).join('');
@@ -1289,6 +1432,7 @@ async function viewProfile(ship){
     <div class="profile-row"><span class="profile-field-label">Sponsors:</span><span id="viewProfileSponsors" style="color:var(--dim)">loading...</span></div>
     <div class="contact-tags" style="padding:.25rem 0">
       <span class="contact-tag pal-slot" id="viewProfilePal" onclick="viewProfileTogglePal('${escAttr(ship)}')"></span>
+      <span class="contact-tag block-slot" onclick="viewProfileDm('${escAttr(ship)}')">DM</span>
       <span class="contact-tag block-slot" id="viewProfileBlock" onclick="viewProfileToggleBlock('${escAttr(ship)}')"></span>
       <span class="contact-tag" style="border-color:#ff4444;color:#ff4444;margin-left:.35rem" onclick="viewProfileDeleteContact('${escAttr(ship)}')">DELETE CONTACT</span>
     </div>
@@ -1389,6 +1533,42 @@ function viewProfileDeleteContact(ship){
   // backend TBD
   console.log('[delete-contact]',ship);
 }
+async function viewProfileDm(ship){
+  // close profile modal
+  const overlay=document.querySelector('.modal-overlay.open');
+  if(overlay&&overlay.id!=='noteModal')overlay.remove();
+  // check if DM already exists locally for instant focus
+  const existing=findSharedRootByUsers(new Set(['~'+api.ship,ship]));
+  if(existing){openNote(existing.id);return}
+  // otherwise poke backend to create; note-created handler will not auto-open
+  // since we're not the creator check — we ARE creator here, so note-created
+  // triggers openNote automatically in handleUpdate. fine.
+  await api.poke('noltbook','noltbook-action',{action:'create-dm',data:{ship}});
+}
+function openGroupMembersModal(note){
+  const me='~'+api.ship;
+  const overlay=document.createElement('div');
+  overlay.className='modal-overlay open';
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center';
+  const modal=document.createElement('div');
+  modal.style.cssText='background:var(--bg2);border:1px solid var(--border);min-width:320px;max-width:420px;max-height:80vh;overflow:auto;padding:1rem;display:flex;flex-direction:column;gap:.5rem';
+  const members=(note.users||[]).slice().sort();
+  const host=note.creator;
+  const rows=members.map(m=>{
+    const hostTag=m===host?'<span style="color:var(--amber);font-size:.7rem;margin-left:.4rem">HOST</span>':'';
+    const meTag=m===me?'<span style="color:var(--dim);font-size:.7rem;margin-left:.4rem">(you)</span>':'';
+    return `<div class="contact-item" style="display:flex;align-items:center;gap:.5rem;padding:.4rem;cursor:pointer" onclick="openGroupMembersModalClick('${escAttr(m)}')"><div style="width:2rem;height:2rem;flex-shrink:0">${avatarHtml(m)}</div><span style="flex:1">${escHtml(displayName(m))}</span>${hostTag}${meTag}</div>`;
+  }).join('');
+  modal.innerHTML=`<div style="font-size:.9rem;color:var(--text-dim);letter-spacing:.1em;margin-bottom:.25rem">MEMBERS (${members.length})</div>${rows}<div class="modal-actions" style="margin-top:.5rem"><button class="modal-btn cancel" onclick="this.closest('.modal-overlay').remove()">CLOSE</button></div>`;
+  overlay.appendChild(modal);
+  overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove()});
+  document.body.appendChild(overlay);
+}
+function openGroupMembersModalClick(ship){
+  const ov=document.querySelector('.modal-overlay.open');
+  if(ov)ov.remove();
+  viewProfile(ship);
+}
 function toggleMsgActions(el,force,event){
   const msg=el.closest('.msg');if(!msg)return;
   if(event){
@@ -1422,7 +1602,8 @@ function openCurrentNoteMenu(event){
   event.stopPropagation();
   const id=state.currentNoteId;
   if(!id||id==='cover'||(id+'').startsWith('ars-'))return;
-  if(!state.notes[id])return;
+  const note=state.notes[id]; if(!note)return;
+  if((note.users||[]).length>2){openGroupMembersModal(note);return}
   const el=document.getElementById('chatNoteName');const r=el.getBoundingClientRect();
   showNoteContextMenu({preventDefault(){},pageX:r.left,pageY:r.bottom+4},id);
 }

@@ -10,6 +10,16 @@
       state-6
       state-7
       state-8
+      state-9
+  ==
+::  pre-edited-flag message shape — used by state-1..8 for on-load typing
++$  message-legacy
+  $:  id=@da
+      note-id=@ta
+      author=@p
+      text=@t
+      timestamp=@da
+      reply-to=(unit @da)
   ==
 +$  profile-1
   $:  display-name=(unit @t)
@@ -34,7 +44,7 @@
 +$  state-1
   $:  %1
       notes=(map @ta note-3:noltbook)
-      messages=(map @ta (list message:noltbook))
+      messages=(map @ta (list message-legacy))
       artifacts=(map @ta artifact-2)
       profiles=(map @p profile-1)
       transactions=(list transaction:noltbook)
@@ -43,7 +53,7 @@
 +$  state-2
   $:  %2
       notes=(map @ta note-3:noltbook)
-      messages=(map @ta (list message:noltbook))
+      messages=(map @ta (list message-legacy))
       artifacts=(map @ta artifact-2)
       profiles=(map @p profile-2)
       transactions=(list transaction:noltbook)
@@ -52,7 +62,7 @@
 +$  state-3
   $:  %3
       notes=(map @ta note-3:noltbook)
-      messages=(map @ta (list message:noltbook))
+      messages=(map @ta (list message-legacy))
       artifacts=(map @ta artifact:noltbook)
       profiles=(map @p profile-2)
       transactions=(list transaction:noltbook)
@@ -61,7 +71,7 @@
 +$  state-4
   $:  %4
       notes=(map @ta note:noltbook)
-      messages=(map @ta (list message:noltbook))
+      messages=(map @ta (list message-legacy))
       artifacts=(map @ta artifact:noltbook)
       profiles=(map @p profile-2)
       transactions=(list transaction:noltbook)
@@ -70,7 +80,7 @@
 +$  state-5
   $:  %5
       notes=(map @ta note:noltbook)
-      messages=(map @ta (list message:noltbook))
+      messages=(map @ta (list message-legacy))
       artifacts=(map @ta artifact:noltbook)
       profiles=(map @p profile-2)
       transactions=(list transaction:noltbook)
@@ -80,7 +90,7 @@
 +$  state-6
   $:  %6
       notes=(map @ta note:noltbook)
-      messages=(map @ta (list message:noltbook))
+      messages=(map @ta (list message-legacy))
       artifacts=(map @ta artifact:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
@@ -99,7 +109,7 @@
 +$  state-7
   $:  %7
       notes=(map @ta note:noltbook)
-      messages=(map @ta (list message:noltbook))
+      messages=(map @ta (list message-legacy))
       artifacts=(map @ta artifact:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
@@ -117,6 +127,24 @@
 +$  state-8
   $:  %8
       notes=(map @ta note:noltbook)
+      messages=(map @ta (list message-legacy))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+  ==
+::  state-9: adds edited flag to messages
+::
++$  state-9
+  $:  %9
+      notes=(map @ta note:noltbook)
       messages=(map @ta (list message:noltbook))
       artifacts=(map @ta artifact:noltbook)
       profiles=(map @p profile:noltbook)
@@ -131,9 +159,36 @@
       gossip-hops=(map @da @ud)
   ==
 +$  card  card:agent:gall
+::
+++  upgrade-8-to-9
+  |=  s=state-8
+  ^-  state-9
+  =/  new-msgs=(map @ta (list message:noltbook))
+    %-  ~(run by messages.s)
+    |=  ml=(list message-legacy)
+    ^-  (list message:noltbook)
+    %+  turn  ml
+    |=  m=message-legacy
+    ^-  message:noltbook
+    [id.m note-id.m author.m text.m timestamp.m reply-to.m %.n]
+  :*  %9
+      notes.s
+      new-msgs
+      artifacts.s
+      profiles.s
+      transactions.s
+      current-note.s
+      peers.s
+      has-avatar.s
+      pal-outgoing.s
+      pal-incoming.s
+      pal-blocked.s
+      dial.s
+      gossip-hops.s
+  ==
 --
 %-  agent:dbug
-=|  state-8
+=|  state-9
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -150,12 +205,17 @@
 ++  on-load
   |=  old=vase
   ^-  (quip card _this)
+  ?:  ?=([%9 *] q.old)
+    `this(state !<(state-9 old))
+  ::  state-8 → state-9: add edited flag to messages (default %.n)
   ?:  ?=([%8 *] q.old)
-    `this(state !<(state-8 old))
-  ::  state-7 → state-8: add dial and gossip-hops
+    `this(state (upgrade-8-to-9 !<(state-8 old)))
+  ::  state-7 → state-8 → state-9
   ?:  ?=([%7 *] q.old)
     =/  s7  !<(state-7 old)
-    `this(state [%8 notes.s7 messages.s7 artifacts.s7 profiles.s7 transactions.s7 current-note.s7 peers.s7 has-avatar.s7 pal-outgoing.s7 pal-incoming.s7 pal-blocked.s7 0 ~])
+    =/  s8=state-8
+      [%8 notes.s7 messages.s7 artifacts.s7 profiles.s7 transactions.s7 current-note.s7 peers.s7 has-avatar.s7 pal-outgoing.s7 pal-incoming.s7 pal-blocked.s7 0 ~]
+    `this(state (upgrade-8-to-9 s8))
   ::  state-6 → state-7: add pal sets, auto-hey all existing peers
   ?:  ?=([%6 *] q.old)
     =/  s6  !<(state-6 old)
@@ -166,7 +226,9 @@
       %+  turn  ~(tap in peers.s6)
       |=  p=@p
       [%pass /pal-hey/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-hey ~])]
-    :_  this(state [%8 notes.s6 messages.s6 artifacts.s6 profiles.s6 transactions.s6 current-note.s6 peers.s6 has-avatar.s6 peers.s6 ~ ~ 0 ~])
+    =/  s8=state-8
+      [%8 notes.s6 messages.s6 artifacts.s6 profiles.s6 transactions.s6 current-note.s6 peers.s6 has-avatar.s6 peers.s6 ~ ~ 0 ~]
+    :_  this(state (upgrade-8-to-9 s8))
     hey-cards
   ?:  ?=([%5 *] q.old)
     =/  s5  !<(state-5 old)
@@ -175,7 +237,9 @@
       |=  p=profile-2
       ^-  profile:noltbook
       [display-name.p ~ wallet-address.p azimuth-address.p]
-    `this(state [%8 notes.s5 messages.s5 artifacts.s5 new-profiles transactions.s5 current-note.s5 peers.s5 %.n ~ ~ ~ 0 ~])
+    =/  s8=state-8
+      [%8 notes.s5 messages.s5 artifacts.s5 new-profiles transactions.s5 current-note.s5 peers.s5 %.n ~ ~ ~ 0 ~]
+    `this(state (upgrade-8-to-9 s8))
   ?:  ?=([%4 *] q.old)
     =/  s4  !<(state-4 old)
     =/  init-peers=(set @p)
@@ -188,7 +252,9 @@
       |=  p=profile-2
       ^-  profile:noltbook
       [display-name.p ~ wallet-address.p azimuth-address.p]
-    `this(state [%8 notes.s4 messages.s4 artifacts.s4 new-profiles transactions.s4 current-note.s4 init-peers %.n ~ ~ ~ 0 ~])
+    =/  s8=state-8
+      [%8 notes.s4 messages.s4 artifacts.s4 new-profiles transactions.s4 current-note.s4 init-peers %.n ~ ~ ~ 0 ~]
+    `this(state (upgrade-8-to-9 s8))
   ?:  ?=([%3 *] q.old)
     =/  s3  !<(state-3 old)
     =/  new-notes=(map @ta note:noltbook)
@@ -201,7 +267,9 @@
       |=  p=profile-2
       ^-  profile:noltbook
       [display-name.p ~ wallet-address.p azimuth-address.p]
-    `this(state [%8 new-notes messages.s3 artifacts.s3 new-profiles transactions.s3 current-note.s3 ~ %.n ~ ~ ~ 0 ~])
+    =/  s8=state-8
+      [%8 new-notes messages.s3 artifacts.s3 new-profiles transactions.s3 current-note.s3 ~ %.n ~ ~ ~ 0 ~]
+    `this(state (upgrade-8-to-9 s8))
   ?:  ?=([%2 *] q.old)
     =/  s2  !<(state-2 old)
     =/  new-arts=(map @ta artifact:noltbook)
@@ -222,7 +290,9 @@
       |=  p=profile-2
       ^-  profile:noltbook
       [display-name.p ~ wallet-address.p azimuth-address.p]
-    `this(state [%8 new-notes messages.s2 new-arts new-profiles transactions.s2 current-note.s2 ~ %.n ~ ~ ~ 0 ~])
+    =/  s8=state-8
+      [%8 new-notes messages.s2 new-arts new-profiles transactions.s2 current-note.s2 ~ %.n ~ ~ ~ 0 ~]
+    `this(state (upgrade-8-to-9 s8))
   =/  s1  !<(state-1 old)
   =/  cov  (~(get by notes.s1) %cover)
   =/  fixed-notes=(map @ta note-3:noltbook)
@@ -247,7 +317,9 @@
     |=  n=note-3:noltbook
     ^-  note:noltbook
     [id.n name.n type.n creator.n users.n children.n parent.n last-author.n last-preview.n %secret ~ &]
-  `this(state [%8 new-notes messages.s1 new-arts new-profiles transactions.s1 current-note.s1 ~ %.n ~ ~ ~ 0 ~])
+  =/  s8=state-8
+    [%8 new-notes messages.s1 new-arts new-profiles transactions.s1 current-note.s1 ~ %.n ~ ~ ~ 0 ~]
+  `this(state (upgrade-8-to-9 s8))
 ::
 ++  on-watch
   |=  =path
@@ -385,6 +457,37 @@
             ['access-control-allow-origin' '*']
         ==
       [(give-simple-payload:app:server eyre-id simple-payload) this]
+    ::  public endpoint: serve note icon (only the note's host serves it)
+    ?:  &(=(%'GET' method.request.inbound-request) =((scag 20 url-tape) "/apps/noltbook/icon/"))
+      =/  nid=@ta  (crip (slag 20 url-tape))
+      =/  nt  (~(get by notes) nid)
+      ?~  nt
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[404 ~] ~]
+      ?.  =(our.bowl creator.u.nt)
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[404 ~] ~]
+      ?~  icon-url.u.nt
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[404 ~] ~]
+      =/  ic-clay=path
+        :*  (scot %p our.bowl)
+            q.byk.bowl
+            (scot %da now.bowl)
+            /lib/noltbook/icons/[nid]/mime
+        ==
+      =/  icon-data=mime  .^(mime %cx ic-clay)
+      =/  =simple-payload:http
+        :_  `q.icon-data
+        :-  200
+        :~  ['content-type' (rap 3 (join '/' p.icon-data))]
+            ['cache-control' 'max-age=3600']
+            ['access-control-allow-origin' '*']
+        ==
+      [(give-simple-payload:app:server eyre-id simple-payload) this]
     ::  all other endpoints require auth
     ?.  authenticated.inbound-request
       :_  this
@@ -409,6 +512,43 @@
       =/  http-cards  (give-simple-payload:app:server eyre-id ok-payload)
       :_  this(has-avatar %.y)
       [clay-card http-cards]
+    ::  note icon upload endpoint
+    ?:  &(=(%'POST' method.request.inbound-request) =((scag 27 url-tape) "/apps/noltbook/upload-icon/"))
+      =/  nid=@ta  (crip (slag 27 url-tape))
+      =/  nt  (~(get by notes) nid)
+      ?~  nt
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[404 ~] ~]
+      ?.  =(our.bowl creator.u.nt)
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[403 ~] ~]
+      =/  bod  body.request.inbound-request
+      ?~  bod
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[400 ~] ~]
+      ?:  (gth p.u.bod 51.200)
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[413 ~] ~]
+      =/  had-icon=?  ?=(^ icon-url.u.nt)
+      =/  icon-cage=cage  [%mime !>(`mime`[/image/jpeg u.bod])]
+      =/  miso-act  ?:(had-icon [%mut icon-cage] [%ins icon-cage])
+      =/  nori  [%& ~[[/lib/noltbook/icons/[nid]/mime miso-act]]]
+      =/  clay-card=card  [%pass /icon-write/[nid] %arvo %c %info q.byk.bowl nori]
+      =/  new-url=@t  (crip (weld "/apps/noltbook/icon/" (trip nid)))
+      =/  new-nt=note:noltbook  u.nt(icon-url `new-url)
+      =/  meta-upd=update:noltbook  [%note-meta-updated nid visibility.u.nt `new-url writable.u.nt]
+      =/  ok-payload=simple-payload:http  [[200 ~] ~]
+      =/  http-cards  (give-simple-payload:app:server eyre-id ok-payload)
+      :_  this(notes (~(put by notes) nid new-nt))
+      %+  weld  http-cards
+      :~  clay-card
+          [%give %fact ~[/notes] %noltbook-update !>(meta-upd)]
+          [%give %fact ~[/notes/[nid]] %noltbook-update !>(meta-upd)]
+      ==
     ::  serve packages
     ?:  =((scag 19 url-tape) "/apps/noltbook/pkg/")
       =/  pkg-id=@ta  (crip (slag 19 url-tape))
@@ -452,6 +592,8 @@
         %delete-note
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
+      ::  only creator (host) can delete the note
+      ?.  =(our.bowl creator.u.old)  `this
       =/  trimmed=(map @ta note:noltbook)
         ?~  parent.u.old  notes
         =/  par  (~(get by notes) u.parent.u.old)
@@ -462,30 +604,47 @@
       ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
     ::
         %create-note
+      ::  no parent: personal root note
+      ?~  parent.act
+        =/  nid=@ta  (crip (weld "note-" (trip (scot %da now.bowl))))
+        =/  new-note=note:noltbook
+          :*  nid  name.act  %notebook  our.bowl  (sy ~[our.bowl])  ~  ~  ~  ~  %secret  ~  &
+          ==
+        =/  upd=update:noltbook  [%note-created new-note]
+        :_  this(notes (~(put by notes) nid new-note), messages (~(put by messages) nid *(list message:noltbook)))
+        ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
+      =/  pid=@ta  u.parent.act
+      =/  par-u=(unit note:noltbook)  (~(get by notes) pid)
+      ?~  par-u  `this
+      =/  par=note:noltbook  u.par-u
+      =/  is-shared=?  (gth ~(wyt in users.par) 1)
+      ::  shared & not host: forward to host
+      ?:  ?&  is-shared  !=(our.bowl creator.par)  ==
+        :_  this
+        ~[[%pass /create-child/[pid] %agent [creator.par %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-create-child pid name.act])]]
+      ::  local create; inherit users and creator from parent
       =/  nid=@ta  (crip (weld "note-" (trip (scot %da now.bowl))))
-      =/  init-users=(set @p)
-        ?~  parent.act  (sy ~[our.bowl])
-        =/  par  (~(get by notes) u.parent.act)
-        ?~  par  (sy ~[our.bowl])
-        users.u.par
       =/  new-note=note:noltbook
-        :*  nid  name.act  %notebook  our.bowl  init-users  ~  parent.act  ~  ~  %secret  ~  &
+        :*  nid  name.act  %notebook  creator.par  users.par  ~  `pid  ~  ~  %secret  ~  &
         ==
       =/  n1=(map @ta note:noltbook)  (~(put by notes) nid new-note)
       =/  n2=(map @ta note:noltbook)
-        ?~  parent.act  n1
-        =/  par  (~(get by n1) u.parent.act)
-        ?~  par  n1
-        (~(put by n1) u.parent.act u.par(children (snoc children.u.par nid)))
+        (~(put by n1) pid par(children (snoc children.par nid)))
       =/  upd=update:noltbook  [%note-created new-note]
+      =/  broadcast=(list card)
+        ?.  is-shared  ~
+        %+  murn  ~(tap in users.par)
+        |=  p=@p
+        ?:  =(p our.bowl)  ~
+        `[%pass /child-out/(scot %p p)/[nid] %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-child-note pid new-note])]
       :_  this(notes n2, messages (~(put by messages) nid *(list message:noltbook)))
-      ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
+      :(weld ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] broadcast)
     ::
         %send-message
       =/  exists  (~(get by notes) note-id.act)
       ?~  exists  `this
       =/  msg=message:noltbook
-        :*  now.bowl  note-id.act  our.bowl  text.act  now.bowl  reply-to.act
+        :*  now.bowl  note-id.act  our.bowl  text.act  now.bowl  reply-to.act  %.n
         ==
       ::  ARS NOTORIA: store locally and gossip to all peers
       ?:  =(note-id.act %cover)
@@ -515,16 +674,21 @@
         %edit-message
       =/  exists  (~(get by notes) note-id.act)
       ?~  exists  `this
+      ::  non-creator forwards to creator
+      ?.  =(our.bowl creator.u.exists)
+        :_  this
+        ~[[%pass /msg-edit/[note-id.act] %agent [creator.u.exists %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-edit-msg note-id.act msg-id.act text.act])]]
+      ::  creator: verify author is us (only author can edit own)
       =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
+      =/  found  (skim cur |=(m=message:noltbook =(id.m msg-id.act)))
+      ?~  found  `this
+      ?.  =(our.bowl author.i.found)  `this
       =/  new-msgs=(list message:noltbook)
         %+  turn  cur
         |=  m=message:noltbook
         ?.  =(id.m msg-id.act)  m
-        m(text text.act)
-      =/  edited=message:noltbook
-        =/  found  (skim cur |=(m=message:noltbook =(id.m msg-id.act)))
-        ?>  ?=(^ found)
-        i.found(text text.act)
+        m(text text.act, edited &)
+      =/  edited=message:noltbook  i.found(text text.act, edited &)
       =/  upd=update:noltbook  [%message-edited note-id.act edited]
       =/  pax=path  ~[%notes note-id.act]
       :_  this(messages (~(put by messages) note-id.act new-msgs))
@@ -533,17 +697,46 @@
         %delete-message
       =/  exists  (~(get by notes) note-id.act)
       ?~  exists  `this
+      ::  non-creator forwards to creator
+      ?.  =(our.bowl creator.u.exists)
+        :_  this
+        ~[[%pass /msg-del/[note-id.act] %agent [creator.u.exists %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-delete-msg note-id.act msg-id.act])]]
+      ::  creator: allow if our==author, or group-host (creator in >2-user note)
       =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
-      =/  new-msgs=(list message:noltbook)
+      =/  found  (skim cur |=(m=message:noltbook =(id.m msg-id.act)))
+      ?~  found  `this
+      =/  is-group=?  (gth ~(wyt in users.u.exists) 2)
+      ?.  ?|  =(our.bowl author.i.found)
+              is-group
+          ==
+        `this
+      =/  kept=(list message:noltbook)
         (skim cur |=(m=message:noltbook !=(id.m msg-id.act)))
-      =/  upd=update:noltbook  [%message-deleted note-id.act msg-id.act]
+      =/  is-host-del=?  &(is-group !=(our.bowl author.i.found))
+      =/  sys-msg=(unit message:noltbook)
+        ?.  is-host-del  ~
+        =/  vic=@t  (scot %p author.i.found)
+        =/  txt=@t  (crip (weld "\01SYS:host-delete:" (trip vic)))
+        `[now.bowl note-id.act our.bowl txt now.bowl ~ %.n]
+      =/  new-msgs=(list message:noltbook)
+        ?~  sys-msg  kept
+        (weld kept ~[u.sys-msg])
+      =/  del-upd=update:noltbook  [%message-deleted note-id.act msg-id.act]
       =/  pax=path  ~[%notes note-id.act]
+      =/  facts=(list card)
+        ?~  sys-msg
+          ~[[%give %fact ~[pax] %noltbook-update !>(del-upd)]]
+        :~  [%give %fact ~[pax] %noltbook-update !>(del-upd)]
+            [%give %fact ~[pax] %noltbook-update !>(`update:noltbook`[%new-message u.sys-msg])]
+        ==
       :_  this(messages (~(put by messages) note-id.act new-msgs))
-      ~[[%give %fact ~[pax] %noltbook-update !>(upd)]]
+      facts
     ::
         %set-note-meta
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
+      ::  only creator can change meta
+      ?.  =(our.bowl creator.u.old)  `this
       =/  upd-note=note:noltbook
         u.old(visibility visibility.act, icon-url icon-url.act, writable writable.act)
       =/  upd=update:noltbook  [%note-meta-updated id.act visibility.act icon-url.act writable.act]
@@ -557,8 +750,25 @@
       ?~  old  `this
       ::  must be creator to invite
       ?>  =(our.bowl creator.u.old)
-      ::  add ship to users
-      =/  new-note=note:noltbook  u.old(users (~(put in users.u.old) ship.act))
+      ::  compute new user set
+      =/  new-users=(set @p)  (~(put in users.u.old) ship.act)
+      ::  dedup: if another host-rooted note already has same users, focus it
+      =/  dup-id=(unit @ta)
+        %-  ~(rep by notes)
+        |=  [[k=@ta v=note:noltbook] acc=(unit @ta)]
+        ?^  acc  acc
+        ?:  ?&  =(creator.v our.bowl)
+                ?=(~ parent.v)
+                !=(k id.act)
+                =(users.v new-users)
+            ==
+          `k
+        acc
+      ?^  dup-id
+        =/  ex=note:noltbook  (~(got by notes) u.dup-id)
+        :_  this
+        ~[[%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%note-created ex])]]
+      =/  new-note=note:noltbook  u.old(users new-users)
       ::  poke remote ship with invite
       =/  rem=remote:noltbook  [%remote-invite id.act name.u.old our.bowl users.new-note visibility.u.old]
       =/  poke-card=card
@@ -737,6 +947,44 @@
       =/  upd=update:noltbook  [%dial-update new-dial]
       :_  this(dial new-dial)
       ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
+    ::
+        %create-dm
+      ?:  =(ship.act our.bowl)  `this
+      ::  dedup: if a root shared note with exactly these two users exists, refocus it
+      =/  target-users=(set @p)  (sy ~[our.bowl ship.act])
+      =/  existing=(list note:noltbook)
+        %+  skim  ~(val by notes)
+        |=  n=note:noltbook
+        &(?=(~ parent.n) =(users.n target-users) !=(%cover type.n))
+      ?^  existing
+        =/  upd=update:noltbook  [%note-created i.existing]
+        :_  this
+        ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
+      ::  create new DM root and invite counterparty
+      =/  nid=@ta  (crip (weld "note-" (trip (scot %da now.bowl))))
+      =/  new-note=note:noltbook
+        :*  nid  (scot %p ship.act)  %dm  our.bowl  target-users  ~  ~  ~  ~  %secret  ~  &
+        ==
+      =/  rem=remote:noltbook  [%remote-invite nid name.new-note our.bowl target-users %secret]
+      =/  poke-card=card
+        [%pass /invite/(scot %p ship.act)/[nid] %agent [ship.act %noltbook] %poke %noltbook-remote !>(rem)]
+      =/  new-peers=(set @p)  (~(put in peers) ship.act)
+      =/  is-new-peer=?  !(~(has in peers) ship.act)
+      =/  ars-cards=(list card)
+        ?.  is-new-peer  ~
+        ~[[%pass /ars/(scot %p ship.act) %agent [ship.act %noltbook] %watch /notes/cover]]
+      =/  new-outgoing=(set @p)
+        ?.  is-new-peer  pal-outgoing
+        (~(put in pal-outgoing) ship.act)
+      =/  hey-cards=(list card)
+        ?.  is-new-peer  ~
+        ~[[%pass /pal-hey/(scot %p ship.act) %agent [ship.act %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-hey ~])]]
+      =/  pal-status-upd=(list card)
+        ?.  is-new-peer  ~
+        ~[[%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%pal-update ship.act %requesting])]]
+      =/  upd=update:noltbook  [%note-created new-note]
+      :_  this(notes (~(put by notes) nid new-note), messages (~(put by messages) nid *(list message:noltbook)), peers new-peers, pal-outgoing new-outgoing)
+      :(weld [poke-card [%give %fact ~[/notes] %noltbook-update !>(upd)] ~] ars-cards hey-cards pal-status-upd)
     ==
   ::
       %noltbook-remote
@@ -852,6 +1100,84 @@
       =/  upd=update:noltbook  [%pal-update src.bowl status]
       :_  this(pal-incoming new-incoming)
       ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
+    ::
+        %remote-edit-msg
+      ::  remote user editing their own message in a note we host
+      =/  old  (~(get by notes) note-id.rem)
+      ?~  old  `this
+      ?.  =(our.bowl creator.u.old)  `this
+      ?.  (~(has in users.u.old) src.bowl)  `this
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
+      =/  found  (skim cur |=(m=message:noltbook =(id.m msg-id.rem)))
+      ?~  found  `this
+      ::  only the author can edit their own msg
+      ?.  =(src.bowl author.i.found)  `this
+      =/  new-msgs=(list message:noltbook)
+        %+  turn  cur
+        |=  m=message:noltbook
+        ?.  =(id.m msg-id.rem)  m
+        m(text text.rem, edited &)
+      =/  edited=message:noltbook  i.found(text text.rem, edited &)
+      =/  upd=update:noltbook  [%message-edited note-id.rem edited]
+      =/  pax=path  ~[%notes note-id.rem]
+      :_  this(messages (~(put by messages) note-id.rem new-msgs))
+      ~[[%give %fact ~[pax] %noltbook-update !>(upd)]]
+    ::
+        %remote-create-child
+      ::  a user in our shared note asked us to create a child
+      =/  old  (~(get by notes) parent-id.rem)
+      ?~  old  `this
+      ?.  =(our.bowl creator.u.old)  `this
+      ?.  (~(has in users.u.old) src.bowl)  `this
+      =/  nid=@ta  (crip (weld "note-" (trip (scot %da now.bowl))))
+      =/  new-note=note:noltbook
+        :*  nid  name.rem  %notebook  our.bowl  users.u.old  ~  `parent-id.rem  ~  ~  %secret  ~  &
+        ==
+      =/  new-par=note:noltbook  u.old(children (snoc children.u.old nid))
+      =/  all-notes  (~(put by (~(put by notes) nid new-note)) parent-id.rem new-par)
+      =/  upd=update:noltbook  [%note-created new-note]
+      =/  broadcast=(list card)
+        %+  murn  ~(tap in users.u.old)
+        |=  p=@p
+        ?:  =(p our.bowl)  ~
+        `[%pass /child-out/(scot %p p)/[nid] %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-child-note parent-id.rem new-note])]
+      :_  this(notes all-notes, messages (~(put by messages) nid *(list message:noltbook)))
+      :(weld ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] broadcast)
+    ::
+        %remote-child-note
+      ::  host created a child in a shared note; update our tree
+      =/  old-par  (~(get by notes) parent-id.rem)
+      ?~  old-par  `this
+      ::  must come from the host (creator of parent)
+      ?.  =(src.bowl creator.u.old-par)  `this
+      =/  new-par=note:noltbook  u.old-par(children (snoc children.u.old-par id.note.rem))
+      =/  new-notes=(map @ta note:noltbook)
+        (~(put by (~(put by notes) id.note.rem note.rem)) parent-id.rem new-par)
+      =/  sub-card=card
+        [%pass /remote-note/[id.note.rem] %agent [creator.note.rem %noltbook] %watch /notes/[id.note.rem]]
+      =/  upd=update:noltbook  [%note-created note.rem]
+      :_  this(notes new-notes, messages (~(put by messages) id.note.rem *(list message:noltbook)))
+      :~  sub-card
+          [%give %fact ~[/notes] %noltbook-update !>(upd)]
+      ==
+    ::
+        %remote-delete-msg
+      ::  remote user deleting their own message in a note we host
+      =/  old  (~(get by notes) note-id.rem)
+      ?~  old  `this
+      ?.  =(our.bowl creator.u.old)  `this
+      ?.  (~(has in users.u.old) src.bowl)  `this
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
+      =/  found  (skim cur |=(m=message:noltbook =(id.m msg-id.rem)))
+      ?~  found  `this
+      ::  only the author can delete their own msg via remote
+      ?.  =(src.bowl author.i.found)  `this
+      =/  new-msgs=(list message:noltbook)
+        (skim cur |=(m=message:noltbook !=(id.m msg-id.rem)))
+      =/  upd=update:noltbook  [%message-deleted note-id.rem msg-id.rem]
+      =/  pax=path  ~[%notes note-id.rem]
+      :_  this(messages (~(put by messages) note-id.rem new-msgs))
+      ~[[%give %fact ~[pax] %noltbook-update !>(upd)]]
     ==
   ==
 ::
@@ -867,6 +1193,16 @@
     ~&  [%clay-write-failed wire]
     ?:  ?=([%avatar-write ~] wire)
       `this(has-avatar %.n)
+    ?:  ?=([%icon-write @ ~] wire)
+      =/  nid=@ta  i.t.wire
+      =/  old  (~(get by notes) nid)
+      ?~  old  `this
+      =/  rev=note:noltbook  u.old(icon-url ~)
+      =/  upd=update:noltbook  [%note-meta-updated nid visibility.u.old ~ writable.u.old]
+      :_  this(notes (~(put by notes) nid rev))
+      :~  [%give %fact ~[/notes] %noltbook-update !>(upd)]
+          [%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]
+      ==
     `this
   (on-arvo:def wire sign-arvo)
 ::
@@ -1044,6 +1380,38 @@
         %poke-ack
       ?~  p.sign  `this
       ~&  [%msg-fwd-failed wire u.p.sign]
+      `this
+    ==
+  ::
+      [%msg-edit @ ~]
+    ?+  -.sign  `this
+        %poke-ack
+      ?~  p.sign  `this
+      ~&  [%msg-edit-failed wire u.p.sign]
+      `this
+    ==
+  ::
+      [%msg-del @ ~]
+    ?+  -.sign  `this
+        %poke-ack
+      ?~  p.sign  `this
+      ~&  [%msg-del-failed wire u.p.sign]
+      `this
+    ==
+  ::
+      [%create-child @ ~]
+    ?+  -.sign  `this
+        %poke-ack
+      ?~  p.sign  `this
+      ~&  [%create-child-failed wire u.p.sign]
+      `this
+    ==
+  ::
+      [%child-out @ @ ~]
+    ?+  -.sign  `this
+        %poke-ack
+      ?~  p.sign  `this
+      ~&  [%child-out-failed wire u.p.sign]
       `this
     ==
   ::
