@@ -1139,6 +1139,20 @@ function openSharePrompt(){
     const ship=document.getElementById('shareShipInput').value.trim();
     if(!ship)return;
     const normalized=ship.startsWith('~')?ship:'~'+ship;
+    const note=state.notes[noteId];
+    if(!note){overlay.remove();modal.remove();return}
+    const newUsers=new Set(note.users||[]);
+    newUsers.add(normalized);
+    const existing=Object.values(state.notes).find(n=>
+      !n.parent&&n.id!=='cover'&&n.id!==noteId&&
+      n.users&&n.users.length===newUsers.size&&
+      n.users.every(u=>newUsers.has(u))
+    );
+    if(existing){
+      overlay.remove();modal.remove();
+      showReparentPrompt(noteId,note.name,existing.id,existing.name);
+      return;
+    }
     api.poke('noltbook','noltbook-action',{action:'invite-to-note',data:{id:noteId,ship:normalized}});
     overlay.remove();modal.remove();
   });
@@ -1214,11 +1228,9 @@ function showNoteContextMenu(event,noteId){
   const ro=isCreator?'':' disabled';
   const userCount=(note.users||[]).length;
   const isShared=userCount>1;
-  // host w/ others: blocked (handoff TBD); host alone: delete; non-host: leave
-  let delItem='';
-  if(isCreator&&!isShared)delItem='<div class="context-menu-item danger" data-action="delete">Delete</div>';
-  else if(!isCreator)delItem='<div class="context-menu-item danger" data-action="leave">Leave</div>';
-  else delItem='<div class="context-menu-item disabled">Delete (handoff pending)</div>';
+  const delItem=isShared
+    ?'<div class="context-menu-item danger" data-action="leave">Leave</div>'
+    :'<div class="context-menu-item danger" data-action="delete">Delete</div>';
   menu.innerHTML=`
     <div class="context-menu-item${ro}" data-action="visibility" data-val="public"><span class="context-radio ${vis==='public'?'selected':''}"></span> Public</div>
     <div class="context-menu-item${ro}" data-action="visibility" data-val="private"><span class="context-radio ${vis==='private'?'selected':''}"></span> Private</div>
@@ -1259,6 +1271,22 @@ function showNoteContextMenu(event,noteId){
   setTimeout(()=>{document.addEventListener('click',closeContextMenu)},0);
 }
 function closeContextMenu(){const menu=document.getElementById('noteContextMenu');if(menu)menu.remove();document.removeEventListener('click',closeContextMenu)}
+function showReparentPrompt(childId,childName,parentId,parentName){
+  const ov=document.createElement('div');ov.className='modal-overlay open';ov.id='reparentOverlay';
+  const m=document.createElement('div');m.className='modal';
+  m.innerHTML=`<span class="modal-title">GROUP EXISTS</span>`+
+    `<div style="font-size:.85rem;color:var(--text);line-height:1.5">A group with these users already exists:<br>`+
+    `<span style="color:var(--accent,#00ff88)">"${escHtml(parentName)}"</span><br><br>`+
+    `Make <span style="color:var(--text)">"${escHtml(childName)}"</span> a child of it?</div>`+
+    `<div class="modal-actions"><button class="modal-btn cancel" id="reparentNo">CANCEL</button>`+
+    `<button class="modal-btn primary" id="reparentYes">MAKE CHILD</button></div>`;
+  ov.appendChild(m);document.body.appendChild(ov);
+  document.getElementById('reparentNo').addEventListener('click',function(){ov.remove()});
+  document.getElementById('reparentYes').addEventListener('click',function(){
+    api.poke('noltbook','noltbook-action',{action:'reparent-note',data:{id:childId,newParent:parentId}});
+    ov.remove();
+  });
+}
 function toggleAttachMenu(){document.getElementById('attachMenu').classList.toggle('open')}
 const APP_REGISTRY=[
   {id:'canvas',name:'Canvas',icon:'▢',version:'0.1.0',description:'Collaborative drawing app'}

@@ -222,6 +222,13 @@
       =/  id-nd  (need (~(get by d) 'id'))
       ?>  ?=([%s *] id-nd)
       [%leave-note `@ta`p.id-nd]
+    ::  reparent-note
+    ?:  =('reparent-note' tag)
+      =/  id-nd  (need (~(get by d) 'id'))
+      ?>  ?=([%s *] id-nd)
+      =/  par-nd  (need (~(get by d) 'newParent'))
+      ?>  ?=([%s *] par-nd)
+      [%reparent-note `@ta`p.id-nd `@ta`p.par-nd]
     ::  set-dial (final case)
     ?>  =('set-dial' tag)
     =/  dial-nd  (need (~(get by d) 'dial'))

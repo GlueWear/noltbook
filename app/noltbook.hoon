@@ -610,10 +610,8 @@
         %delete-note
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
-      ::  only creator (host) can delete the note
+      ::  only creator (host) can delete; shared notes use %leave-note
       ?.  =(our.bowl creator.u.old)  `this
-      ::  block delete if other users present (handoff TBD); non-host uses %leave-note
-      ?:  (gth ~(wyt in users.u.old) 1)  `this
       =/  trimmed=(map @ta note:noltbook)
         ?~  parent.u.old  notes
         =/  par  (~(get by notes) u.parent.u.old)
@@ -796,9 +794,13 @@
         :~  [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%note-created ex])]
             [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%note-redirect id.act u.dup-id])]
         ==
-      =/  new-note=note:noltbook  u.old(users new-users)
+      ::  promote dm → group if adding 3rd+ user
+      =/  new-type=note-type:noltbook
+        ?:  &(=(%dm type.u.old) (gth ~(wyt in new-users) 2))  %group
+        type.u.old
+      =/  new-note=note:noltbook  u.old(users new-users, type new-type)
       ::  poke remote ship with invite
-      =/  rem=remote:noltbook  [%remote-invite id.act name.u.old our.bowl users.new-note visibility.u.old]
+      =/  rem=remote:noltbook  [%remote-invite id.act name.u.old new-type our.bowl users.new-note visibility.u.old]
       =/  poke-card=card
         [%pass /invite/(scot %p ship.act)/[id.act] %agent [ship.act %noltbook] %poke %noltbook-remote !>(rem)]
       ::  subscribe to remote's ars notoria if new peer
@@ -976,15 +978,43 @@
       :_  this(dial new-dial)
       ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
     ::
+        %reparent-note
+      =/  old  (~(get by notes) id.act)
+      ?~  old  `this
+      =/  par  (~(get by notes) new-parent.act)
+      ?~  par  `this
+      ::  only creator can reparent; parent must be root
+      ?.  =(our.bowl creator.u.old)  `this
+      ::  remove from old parent's children if it had one
+      =/  n1=(map @ta note:noltbook)
+        ?~  parent.u.old  notes
+        =/  op  (~(get by notes) u.parent.u.old)
+        ?~  op  notes
+        (~(put by notes) u.parent.u.old u.op(children (skim children.u.op |=(c=@ta !=(c id.act)))))
+      ::  update child: set parent, inherit users from new parent
+      =/  moved=note:noltbook  u.old(parent `new-parent.act, users users.u.par, creator creator.u.par)
+      =/  n2=(map @ta note:noltbook)  (~(put by n1) id.act moved)
+      ::  add to new parent's children
+      =/  new-par=note:noltbook  u.par(children (snoc children.u.par id.act))
+      =/  n3=(map @ta note:noltbook)  (~(put by n2) new-parent.act new-par)
+      =/  upd=update:noltbook  [%note-created moved]
+      =/  is-shared=?  (gth ~(wyt in users.u.par) 1)
+      =/  broadcast=(list card)
+        ?.  is-shared  ~
+        %+  murn  ~(tap in users.u.par)
+        |=  p=@p
+        ?:  =(p our.bowl)  ~
+        `[%pass /child-out/(scot %p p)/[id.act] %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-child-note new-parent.act moved])]
+      :_  this(notes n3, messages (~(put by messages) id.act (fall (~(get by messages) id.act) ~)))
+      :(weld ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] broadcast)
+    ::
         %leave-note
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
       ?:  =(%cover id.u.old)  `this
       =/  is-host=?  =(our.bowl creator.u.old)
       =/  user-count  ~(wyt in users.u.old)
-      ::  host w/ others: blocked until handoff lands
-      ?:  &(is-host (gth user-count 1))  `this
-      ::  sole user (host alone OR personal root): act like delete
+      ::  sole user: act like delete
       ?:  (lte user-count 1)
         =/  trimmed=(map @ta note:noltbook)
           ?~  parent.u.old  notes
@@ -993,6 +1023,11 @@
           (~(put by notes) u.parent.u.old u.par(children (skim children.u.par |=(c=@ta !=(c id.act)))))
         =/  upd=update:noltbook  [%note-deleted id.act]
         :_  this(notes (~(del by trimmed) id.act), messages (~(del by messages) id.act))
+        ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
+      ::  host leaving shared note: drop locally (orphans note for others until handoff)
+      ?:  is-host
+        =/  upd=update:noltbook  [%note-deleted id.act]
+        :_  this(notes (~(del by notes) id.act), messages (~(del by messages) id.act))
         ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
       ::  non-host leaving shared note: poke host, drop locally
       =/  host=@p  creator.u.old
@@ -1019,7 +1054,7 @@
       =/  new-note=note:noltbook
         :*  nid  (scot %p ship.act)  %dm  our.bowl  target-users  ~  ~  ~  ~  %secret  ~  &
         ==
-      =/  rem=remote:noltbook  [%remote-invite nid name.new-note our.bowl target-users %secret]
+      =/  rem=remote:noltbook  [%remote-invite nid name.new-note %dm our.bowl target-users %secret]
       =/  poke-card=card
         [%pass /invite/(scot %p ship.act)/[nid] %agent [ship.act %noltbook] %poke %noltbook-remote !>(rem)]
       =/  new-peers=(set @p)  (~(put in peers) ship.act)
@@ -1048,7 +1083,7 @@
         %remote-invite
       ::  someone invited us to their note
       =/  new-note=note:noltbook
-        [note-id.rem name.rem %notebook creator.rem users.rem ~ ~ ~ ~ visibility.rem ~ &]
+        [note-id.rem name.rem type.rem creator.rem users.rem ~ ~ ~ ~ visibility.rem ~ &]
       ::  root-uniqueness: only dedup non-cover roots
       =/  dup  ?:(=(note-id.rem %cover) ~ (find-root notes users.rem))
       ?^  dup

@@ -80,7 +80,7 @@
   ==
 ::  ship-to-ship remote pokes
 +$  remote
-  $%  [%remote-invite note-id=@ta name=@t creator=@p users=(set @p) visibility=note-visibility]
+  $%  [%remote-invite note-id=@ta name=@t type=note-type creator=@p users=(set @p) visibility=note-visibility]
       [%remote-message note-id=@ta msg=message]
       [%remote-ars msg=message hops=@ud]
       [%remote-profile ship=@p profile=profile]
@@ -122,6 +122,7 @@
       [%set-dial dial=@ud]
       [%create-dm ship=@p]
       [%leave-note id=@ta]
+      [%reparent-note id=@ta new-parent=@ta]
   ==
 ::  subscription updates (agent to client)
 +$  update
