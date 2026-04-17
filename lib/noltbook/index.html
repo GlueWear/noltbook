@@ -229,6 +229,64 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .inline-app-header{display:flex;align-items:center;gap:.5rem;padding:.35rem .65rem;border-bottom:1px solid var(--border);font-size:.8rem;color:var(--text-dim)}
 .inline-app-icon{font-size:.9rem}
 .inline-app-name{color:var(--text)}
+/* wallet */
+.wallet-btn{font-family:var(--font);font-size:.75rem;color:var(--urbit);background:transparent;border:1px solid var(--border);padding:.2rem .6rem;cursor:pointer;letter-spacing:.08em;display:flex;align-items:center;gap:.3rem}
+.wallet-btn:hover{border-color:var(--urbit);background:rgba(255,170,0,.08)}
+.wallet-btn.connected{border-color:var(--bot);color:var(--bot)}
+.wallet-btn.connected:hover{border-color:var(--bot);background:rgba(0,255,136,.08)}
+.wallet-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:500;justify-content:center;align-items:center}
+.wallet-overlay.open{display:flex}
+.wallet-panel{background:var(--bg);border:1px solid #333;width:350px;max-height:80vh;display:flex;flex-direction:column;font-family:var(--font)}
+.wallet-header{display:flex;justify-content:space-between;align-items:center;padding:.75rem 1rem;border-bottom:1px solid var(--border)}
+.wallet-title{color:var(--urbit);font-size:.9rem;letter-spacing:.1em}
+.wallet-close{background:none;border:none;color:var(--text-dim);font-size:1rem;cursor:pointer;padding:.2rem}
+.wallet-close:hover{color:var(--text)}
+.wallet-connect-section{padding:2rem 1rem;text-align:center}
+.wallet-connect-msg{color:var(--text-dim);font-size:.85rem;margin-bottom:1.5rem;line-height:1.4}
+.wallet-connect-btn{font-family:var(--font);font-size:.85rem;padding:.6rem 1.2rem;background:transparent;border:2px solid var(--urbit);color:var(--urbit);cursor:pointer;transition:all .15s;letter-spacing:.05em}
+.wallet-connect-btn:hover{background:rgba(255,170,0,.15)}
+.wallet-connect-btn:disabled{opacity:.5;cursor:wait}
+.wallet-connect-status{margin-top:.75rem;font-size:.75rem;color:var(--text-dim)}
+.wallet-connect-status.error{color:#ff4444}
+.wallet-address{padding:.6rem 1rem;border-bottom:1px solid var(--border);text-align:center;cursor:pointer;transition:background .15s}
+.wallet-address:hover{background:rgba(255,170,0,.05)}
+.wallet-address-label{display:block;font-size:.65rem;color:#555;margin-bottom:.15rem}
+.wallet-address-value{font-size:.7rem;color:var(--text-muted);word-break:break-all}
+.wallet-balance{padding:1.25rem 1rem;text-align:center;border-bottom:1px solid var(--border);position:relative}
+.wallet-balance-label{display:block;font-size:.7rem;color:var(--text-dim);margin-bottom:.35rem}
+.wallet-balance-amount{font-size:1.6rem;color:var(--bot)}
+.wallet-refresh{position:absolute;right:.75rem;top:50%;transform:translateY(-50%);background:none;border:1px solid #333;color:#555;font-size:.85rem;padding:.15rem .4rem;cursor:pointer;transition:all .15s}
+.wallet-refresh:hover{border-color:var(--urbit);color:var(--urbit)}
+.wallet-actions{display:flex;gap:.5rem;padding:.75rem 1rem;border-bottom:1px solid var(--border)}
+.wallet-action-btn{flex:1;padding:.4rem;font-family:var(--font);font-size:.8rem;background:#1a1a1a;border:1px solid #333;color:#bbb;cursor:pointer;transition:all .15s;letter-spacing:.05em}
+.wallet-action-btn:hover{border-color:var(--urbit);color:var(--urbit)}
+.wallet-transactions{flex:1;overflow-y:auto;padding:.75rem 1rem}
+.wallet-tx-title{font-size:.7rem;color:var(--text-dim);margin-bottom:.5rem;letter-spacing:.08em}
+.wallet-tx-list{display:flex;flex-direction:column;gap:.4rem}
+.wallet-tx-empty{color:#444;font-size:.8rem;text-align:center;padding:.75rem}
+.wallet-tx-item{padding:.4rem .5rem;background:var(--bg);border:1px solid #1a1a1a;font-size:.75rem}
+.wallet-tx-row{display:flex;justify-content:space-between;align-items:center}
+.wallet-tx-who{color:var(--text-muted)}
+.wallet-tx-amount{font-weight:500}
+.wallet-tx-amount.sent{color:#cc4444}
+.wallet-tx-amount.received{color:var(--bot)}
+.wallet-tx-time{font-size:.65rem;color:#555;margin-top:.15rem}
+.wallet-modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.8);z-index:501;justify-content:center;align-items:center}
+.wallet-modal-overlay.open{display:flex}
+.wallet-modal{background:var(--bg);border:1px solid #333;width:300px;font-family:var(--font)}
+.wallet-modal-header{display:flex;justify-content:space-between;align-items:center;padding:.75rem 1rem;border-bottom:1px solid var(--border);color:var(--urbit);font-size:.85rem}
+.wallet-modal-body{padding:1rem}
+.wallet-modal-field{margin-bottom:.75rem}
+.wallet-modal-field label{display:block;font-size:.7rem;color:var(--text-dim);margin-bottom:.2rem;letter-spacing:.05em}
+.wallet-modal-field input{width:100%;padding:.4rem .5rem;font-family:var(--font);font-size:.85rem;background:var(--bg);border:1px solid #333;color:var(--text);box-sizing:border-box}
+.wallet-modal-field input:focus{outline:none;border-color:var(--urbit)}
+.wallet-modal-footer{display:flex;gap:.5rem;padding:.75rem 1rem;border-top:1px solid var(--border)}
+.wallet-modal-cancel,.wallet-modal-confirm{flex:1;padding:.4rem;font-family:var(--font);font-size:.85rem;cursor:pointer;transition:all .15s}
+.wallet-modal-cancel{background:#1a1a1a;border:1px solid #333;color:var(--text-muted)}
+.wallet-modal-cancel:hover{border-color:#555;color:#bbb}
+.wallet-modal-confirm{background:var(--urbit);border:1px solid var(--urbit);color:#000}
+.wallet-modal-confirm:hover{background:#ffcc00}
+.wallet-modal-confirm:disabled{opacity:.5;cursor:not-allowed}
 </style>
 <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 </head>
@@ -243,6 +301,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
       <div class="dial-box" onclick="setDial(2)">2</div>
       <div class="dial-box" onclick="setDial(3)">3</div>
     </div>
+    <button class="wallet-btn" id="walletHeaderBtn" onclick="toggleWallet()">⛓ WALLET</button>
     <div class="user-info">
       <span class="ship-name" id="shipDisplay" onclick="openProfileModal()"></span>
     </div>
@@ -1649,7 +1708,306 @@ function openCurrentNoteMenu(event){
   const el=document.getElementById('chatNoteName');const r=el.getBoundingClientRect();
   showNoteContextMenu({preventDefault(){},pageX:r.left,pageY:r.bottom+4},id);
 }
+/* ========== WALLET ========== */
+// Iris provider: window.nockchain.request({method, params, timeout})
+// Methods: nock_connect, nock_getWalletInfo, nock_signMessage, nock_sendTransaction, nock_signRawTx
+// Params format: array (params[0], params[1], ...)
+// Units: 65536 nock = 1 nick | RPC: rpc.nockbox.org | Chain: nockchain-1
+const NOCK_PER_NICK=65536;
+const wallet={connected:false,pkh:null,grpc:null,balance:null,transactions:[]};
+
+function irisReady(){return window.nockchain&&typeof window.nockchain.request==='function'}
+function truncatePkh(p){return p?p.slice(0,8)+'...'+p.slice(-6):'—'}
+function formatNock(nicks){return(Number(nicks)/NOCK_PER_NICK).toFixed(4)}
+
+function toggleWallet(){
+  const ov=document.getElementById('walletOverlay');
+  ov.classList.add('open');
+  if(wallet.connected){walletRefreshBalance()}
+}
+function closeWallet(){document.getElementById('walletOverlay').classList.remove('open')}
+
+function walletUpdateUI(){
+  const hdr=document.getElementById('walletHeaderBtn');
+  const conn=document.getElementById('walletConnectSection');
+  const main=document.getElementById('walletConnectedSection');
+  if(wallet.connected){
+    conn.style.display='none';
+    main.style.display='';
+    hdr.classList.add('connected');
+    hdr.textContent='⛓ '+truncatePkh(wallet.pkh);
+    document.getElementById('walletPkh').textContent=wallet.pkh||'—';
+    if(wallet.balance!==null){
+      document.getElementById('walletBalance').textContent=formatNock(wallet.balance)+' $NOCK';
+    }else{
+      document.getElementById('walletBalance').textContent='—';
+    }
+  }else{
+    conn.style.display='';
+    main.style.display='none';
+    hdr.classList.remove('connected');
+    hdr.textContent='⛓ WALLET';
+  }
+}
+
+async function walletConnect(){
+  if(!irisReady()){
+    document.getElementById('walletConnectStatus').textContent='Iris wallet extension not detected';
+    document.getElementById('walletConnectStatus').classList.add('error');
+    return;
+  }
+  const btn=document.getElementById('walletConnectBtn');
+  const status=document.getElementById('walletConnectStatus');
+  btn.disabled=true;
+  status.textContent='Connecting...';
+  status.classList.remove('error');
+  try{
+    const r=await window.nockchain.request({method:'nock_connect',timeout:30000});
+    wallet.connected=true;
+    if(r){
+      wallet.pkh=r.pkh||null;
+      wallet.grpc=r.grpcEndpoint||'rpc.nockbox.org';
+    }
+    // Also fetch identity for full info
+    try{
+      const info=await window.nockchain.request({method:'nock_getWalletInfo',timeout:10000});
+      if(info){
+        if(info.pkh)wallet.pkh=info.pkh;
+        if(info.grpcEndpoint)wallet.grpc=info.grpcEndpoint;
+        if(info.balance!==undefined)wallet.balance=info.balance;
+      }
+    }catch(e){console.log('getWalletInfo after connect:',e)}
+    status.textContent='';
+    walletUpdateUI();
+  }catch(e){
+    const msg=typeof e==='object'?JSON.stringify(e):(e.message||String(e));
+    status.textContent='Connection failed: '+msg;
+    status.classList.add('error');
+  }
+  btn.disabled=false;
+}
+
+async function walletRefreshBalance(){
+  if(!irisReady()||!wallet.connected)return;
+  try{
+    const r=await window.nockchain.request({method:'nock_getWalletInfo',timeout:10000});
+    if(r&&r.balance!==undefined){
+      wallet.balance=r.balance;
+    }
+    walletUpdateUI();
+  }catch(e){console.log('balance refresh:',e)}
+}
+
+function copyWalletAddress(){
+  if(!wallet.pkh)return;
+  navigator.clipboard.writeText(wallet.pkh).then(()=>{
+    const el=document.getElementById('walletPkh');
+    const orig=el.textContent;
+    el.textContent='Copied!';
+    setTimeout(()=>{el.textContent=orig},1200);
+  }).catch(()=>{});
+}
+
+// Send modal
+function openSendModal(){
+  document.getElementById('sendTo').value='';
+  document.getElementById('sendAmount').value='';
+  document.getElementById('sendModal').classList.add('open');
+  document.getElementById('sendTo').focus();
+}
+function closeSendModal(){document.getElementById('sendModal').classList.remove('open')}
+
+async function walletSend(){
+  const to=document.getElementById('sendTo').value.trim();
+  const amountStr=document.getElementById('sendAmount').value;
+  const amount=parseFloat(amountStr);
+  if(!to){alert('Enter a recipient');return}
+  if(!amount||amount<=0){alert('Enter a valid amount');return}
+  if(!irisReady()||!wallet.connected){alert('Wallet not connected');return}
+
+  // Resolve @p to wallet address
+  // TODO: lookup recipient PKH from @p via Urbit scry or contacts
+  // For now, if input looks like a PKH (long alphanumeric), use directly
+  // Otherwise, mark as unresolved
+  let recipientPkh=to;
+  if(to.startsWith('~')){
+    // @p username — need resolution to PKH
+    // Placeholder: check if recipient has walletAddress in contacts
+    const contact=Object.values(state.contacts||{}).find(c=>c.ship===to);
+    if(contact&&contact.walletAddress){
+      recipientPkh=contact.walletAddress;
+    }else{
+      alert('Cannot resolve '+to+' to a wallet address yet.\nEnter a PKH directly or ask them to set their wallet address in their profile.');
+      return;
+    }
+  }
+
+  const nicks=BigInt(Math.floor(amount*NOCK_PER_NICK));
+  const btn=document.getElementById('sendConfirmBtn');
+  btn.disabled=true;
+  btn.textContent='SIGNING...';
+
+  try{
+    // Use nock_sendTransaction — Iris will prompt user to approve
+    const r=await window.nockchain.request({
+      method:'nock_sendTransaction',
+      params:[{to:recipientPkh,amount:nicks.toString()}],
+      timeout:60000
+    });
+    console.log('sendTransaction result:',r);
+
+    // Record transaction locally
+    wallet.transactions.unshift({
+      type:'sent',who:to,amount:amount,
+      time:new Date().toLocaleString(),
+      txid:r&&r.txId?r.txId:null
+    });
+    renderWalletTransactions();
+    closeSendModal();
+    walletRefreshBalance();
+  }catch(e){
+    const msg=typeof e==='object'?JSON.stringify(e):(e.message||String(e));
+    console.error('send failed:',e);
+    alert('Send failed: '+msg);
+  }
+  btn.disabled=false;
+  btn.textContent='SEND';
+}
+
+// Request modal
+function openRequestModal(){
+  document.getElementById('requestFrom').value='';
+  document.getElementById('requestAmount').value='';
+  document.getElementById('requestModal').classList.add('open');
+  document.getElementById('requestFrom').focus();
+}
+function closeRequestModal(){document.getElementById('requestModal').classList.remove('open')}
+
+function walletRequest(){
+  const from=document.getElementById('requestFrom').value.trim();
+  const amount=parseFloat(document.getElementById('requestAmount').value);
+  if(!from){alert('Enter who to request from');return}
+  if(!amount||amount<=0){alert('Enter a valid amount');return}
+
+  // Send request as a DM via noltbook chat
+  // TODO: wire to noltbook messaging — send a payment request message
+  // For now: record locally and show confirmation
+  wallet.transactions.unshift({
+    type:'requested',who:from,amount:amount,
+    time:new Date().toLocaleString(),
+    txid:null
+  });
+  renderWalletTransactions();
+  closeRequestModal();
+  alert('Payment request for '+amount+' NOCK sent to '+from+'\n(Chat integration pending)');
+}
+
+function renderWalletTransactions(){
+  const el=document.getElementById('walletTxList');
+  if(!wallet.transactions.length){
+    el.innerHTML='<div class="wallet-tx-empty">No transactions yet</div>';
+    return;
+  }
+  el.innerHTML=wallet.transactions.map(tx=>{
+    const sign=tx.type==='sent'?'-':tx.type==='received'?'+':'⟵';
+    const cls=tx.type==='sent'?'sent':tx.type==='received'?'received':'';
+    return '<div class="wallet-tx-item">'+
+      '<div class="wallet-tx-row">'+
+        '<span class="wallet-tx-who">'+(tx.type==='sent'?'To: ':'From: ')+tx.who+'</span>'+
+        '<span class="wallet-tx-amount '+cls+'">'+sign+tx.amount.toFixed(4)+' $NOCK</span>'+
+      '</div>'+
+      '<div class="wallet-tx-time">'+tx.time+(tx.txid?' • '+tx.txid.slice(0,12)+'...':'')+'</div>'+
+    '</div>';
+  }).join('');
+}
+/* ========== END WALLET ========== */
+
 boot();
 </script>
+<!-- Wallet Panel (trusted top-level only) -->
+<div class="wallet-overlay" id="walletOverlay" onclick="closeWallet()">
+  <div class="wallet-panel" onclick="event.stopPropagation()">
+    <div class="wallet-header">
+      <span class="wallet-title">WALLET</span>
+      <button class="wallet-close" onclick="closeWallet()">✕</button>
+    </div>
+    <!-- Connect section (shown when not connected) -->
+    <div id="walletConnectSection" class="wallet-connect-section">
+      <div class="wallet-connect-msg">Connect your Iris wallet to send and receive $NOCK</div>
+      <button class="wallet-connect-btn" id="walletConnectBtn" onclick="walletConnect()">CONNECT WALLET</button>
+      <div class="wallet-connect-status" id="walletConnectStatus"></div>
+    </div>
+    <!-- Connected section (shown when connected) -->
+    <div id="walletConnectedSection" style="display:none">
+      <div class="wallet-address" onclick="copyWalletAddress()" title="Click to copy">
+        <span class="wallet-address-label">PKH</span>
+        <span class="wallet-address-value" id="walletPkh">—</span>
+      </div>
+      <div class="wallet-balance">
+        <span class="wallet-balance-label">Balance</span>
+        <span class="wallet-balance-amount" id="walletBalance">—</span>
+        <button class="wallet-refresh" onclick="walletRefreshBalance()" title="Refresh">↻</button>
+      </div>
+      <div class="wallet-actions">
+        <button class="wallet-action-btn" onclick="openSendModal()">SEND</button>
+        <button class="wallet-action-btn" onclick="openRequestModal()">REQUEST</button>
+      </div>
+      <div class="wallet-transactions">
+        <div class="wallet-tx-title">TRANSACTIONS</div>
+        <div class="wallet-tx-list" id="walletTxList">
+          <div class="wallet-tx-empty">No transactions yet</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Send Modal -->
+<div class="wallet-modal-overlay" id="sendModal">
+  <div class="wallet-modal">
+    <div class="wallet-modal-header">
+      <span>Send $NOCK</span>
+      <button class="wallet-close" onclick="closeSendModal()">✕</button>
+    </div>
+    <div class="wallet-modal-body">
+      <div class="wallet-modal-field">
+        <label>TO (@p or username)</label>
+        <input type="text" id="sendTo" placeholder="~sampel-palnet">
+      </div>
+      <div class="wallet-modal-field">
+        <label>AMOUNT (NOCK)</label>
+        <input type="number" id="sendAmount" placeholder="0.00" step="0.0001" min="0">
+      </div>
+    </div>
+    <div class="wallet-modal-footer">
+      <button class="wallet-modal-cancel" onclick="closeSendModal()">CANCEL</button>
+      <button class="wallet-modal-confirm" id="sendConfirmBtn" onclick="walletSend()">SEND</button>
+    </div>
+  </div>
+</div>
+
+<!-- Request Modal -->
+<div class="wallet-modal-overlay" id="requestModal">
+  <div class="wallet-modal">
+    <div class="wallet-modal-header">
+      <span>Request $NOCK</span>
+      <button class="wallet-close" onclick="closeRequestModal()">✕</button>
+    </div>
+    <div class="wallet-modal-body">
+      <div class="wallet-modal-field">
+        <label>FROM (@p or username)</label>
+        <input type="text" id="requestFrom" placeholder="~sampel-palnet">
+      </div>
+      <div class="wallet-modal-field">
+        <label>AMOUNT (NOCK)</label>
+        <input type="number" id="requestAmount" placeholder="0.00" step="0.0001" min="0">
+      </div>
+    </div>
+    <div class="wallet-modal-footer">
+      <button class="wallet-modal-cancel" onclick="closeRequestModal()">CANCEL</button>
+      <button class="wallet-modal-confirm" onclick="walletRequest()">REQUEST</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
