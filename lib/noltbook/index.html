@@ -863,15 +863,20 @@ function renderMessages(noteId){
   for(const m of msgs){
     const root=findThreadRoot(m.id,byId);
     threadMap[m.id]=root;
-    if(!threads[root])threads[root]={root,allFlat:[],lastTime:0,newestId:null};
-    if(m.id!==root)threads[root].allFlat.push(m);
+    if(!threads[root])threads[root]={root,replies:[],lastTime:0,newestId:null};
+    if(m.id!==root)threads[root].replies.push(m);
     if(m.id>threads[root].lastTime){threads[root].lastTime=m.id;threads[root].newestId=m.id}
   }
   const items=[];
   for(const tid in threads){
     const t=threads[tid];
-    if(t.allFlat.length===0)items.push({type:'msg',msg:byId[tid],time:t.lastTime});
-    else items.push({type:'thread',threadId:parseInt(tid),time:t.lastTime,newestId:t.newestId});
+    const rootMsg=byId[tid];
+    // original message always at its own timestamp
+    items.push({type:'msg',msg:rootMsg,time:rootMsg.id});
+    // separate thread container only if replies exist, sorted by newest reply
+    if(t.replies.length>0){
+      items.push({type:'thread',anchorId:parseInt(tid),time:t.lastTime,newestId:t.newestId});
+    }
   }
   // merge artifacts into the timeline so they appear in chronological order with messages
   const noteArts=Object.values(state.artifacts).filter(a=>a.noteId===noteId&&(a.type==='app'||a.type==='file'));
@@ -881,27 +886,25 @@ function renderMessages(noteId){
     if(item.type==='msg'){
       renderMsg(el,item.msg,0);
     }else if(item.type==='thread'){
-      const rootId=item.threadId;
-      const flat=collectThreadFlat(rootId,children,byId,1);
-      const expanded=state.expandedThreads&&state.expandedThreads.has(rootId);
+      const anchorId=item.anchorId;
+      const anchor=byId[anchorId];
+      const flat=collectThreadFlat(anchorId,children,byId,1);
+      const expanded=state.expandedThreads&&state.expandedThreads.has(anchorId);
       const wrap=document.createElement('div');
       wrap.className='msg-thread';
-      wrap.id='thread-'+rootId;
+      wrap.id='thread-'+anchorId;
       state.lastMsgAuthor=null;state.lastMsgDepth=-1;
-      renderMsg(wrap,byId[rootId],0);
+      renderMsg(wrap,anchor,0,true);
       if(expanded||flat.length<=2){
         for(const f of flat)renderMsg(wrap,f.msg,f.depth);
       }else{
         const newest=byId[item.newestId];
         const newestDepth=msgDepth(item.newestId,byId);
         const parentOfNewest=newest.replyTo?byId[newest.replyTo]:null;
-        const parentDepth=parentOfNewest?msgDepth(parentOfNewest.id,byId):0;
         const visibleIds=new Set();
-        visibleIds.add(rootId);
-        if(parentOfNewest&&parentOfNewest.id!==rootId)visibleIds.add(parentOfNewest.id);
+        if(parentOfNewest&&parentOfNewest.id!==anchorId)visibleIds.add(parentOfNewest.id);
         visibleIds.add(newest.id);
-        // also show ancestor chain from root to parent so indentation context is clear
-        if(parentOfNewest){const chain=getAncestorChain(parentOfNewest.id,byId);chain.forEach(id=>visibleIds.add(id))}
+        if(parentOfNewest){const chain=getAncestorChain(parentOfNewest.id,byId);chain.forEach(id=>{if(id!==anchorId)visibleIds.add(id)})}
         const hiddenCount=flat.filter(f=>!visibleIds.has(f.msg.id)).length;
         let shownMore=false;
         for(const f of flat){
@@ -910,7 +913,7 @@ function renderMessages(noteId){
               const moreBtn=document.createElement('button');
               moreBtn.className='msg-thread-more';
               moreBtn.textContent='show '+hiddenCount+' more repl'+(hiddenCount===1?'y':'ies');
-              moreBtn.onclick=()=>expandThread(rootId);
+              moreBtn.onclick=()=>expandThread(anchorId);
               wrap.appendChild(moreBtn);
               shownMore=true;
             }
@@ -921,7 +924,7 @@ function renderMessages(noteId){
           const moreBtn=document.createElement('button');
           moreBtn.className='msg-thread-more';
           moreBtn.textContent='show '+hiddenCount+' more repl'+(hiddenCount===1?'y':'ies');
-          moreBtn.onclick=()=>expandThread(rootId);
+          moreBtn.onclick=()=>expandThread(anchorId);
           wrap.appendChild(moreBtn);
         }
       }
@@ -978,7 +981,8 @@ function expandThread(rootId){
   state.expandedThreads.add(rootId);
   renderMessages(state.currentNoteId);
 }
-function renderMsg(el,msg,depth){
+function jumpToOriginal(msgId){const orig=document.getElementById('msg-'+msgId);if(orig){orig.scrollIntoView({behavior:'smooth'});orig.style.background='rgba(255,170,0,.12)';setTimeout(function(){orig.style.background=''},1500)}}
+function renderMsg(el,msg,depth,isThreadAnchor){
   if(msg.text&&msg.text.charCodeAt(0)===1){
     const parts=msg.text.slice(1).split(':');
     if(parts[0]==='SYS'&&parts[1]==='host-delete'){
@@ -1006,7 +1010,8 @@ function renderMsg(el,msg,depth){
   const canDelete=isAuthor||(isGroup&&isCreator);
   const editBtn=canEdit?`<button class="msg-action-btn" onclick="editMessage('${msg.id}');toggleMsgActions(this,false)">EDIT</button>`:'';
   const delBtn=canDelete?`<button class="msg-action-btn delete-msg" onclick="deleteMessage('${msg.id}');toggleMsgActions(this,false)">DELETE</button>`:'';
-  const actions=`<div class="msg-actions" onclick="event.stopPropagation()"><button class="msg-action-btn" onclick="startReply('${msg.id}','${escAttr(msg.author)}');toggleMsgActions(this,false)">REPLY</button>${editBtn}<button class="msg-action-btn send-msg" onclick="sendToUser('${escAttr(msg.author)}','${msg.id}');toggleMsgActions(this,false)">SEND</button>${delBtn}</div>`;
+  const origBtn=isThreadAnchor?`<button class="msg-action-btn" onclick="jumpToOriginal('${msg.id}');toggleMsgActions(this,false)">ORIGINAL</button>`:'';
+  const actions=`<div class="msg-actions" onclick="event.stopPropagation()">${origBtn}<button class="msg-action-btn" onclick="startReply('${msg.id}','${escAttr(msg.author)}');toggleMsgActions(this,false)">REPLY</button>${editBtn}<button class="msg-action-btn send-msg" onclick="sendToUser('${escAttr(msg.author)}','${msg.id}');toggleMsgActions(this,false)">SEND</button>${delBtn}</div>`;
   const div=document.createElement('div');
   const depthClass=depth>0?' depth-'+Math.min(depth,5):'';
   if(grouped){
