@@ -235,9 +235,12 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .wallet-sidebar-panel{display:none;flex-direction:column;border-top:1px solid var(--urbit);flex:1;min-height:0;overflow:hidden}
 .wallet-sidebar-panel.open{display:flex}
 .wallet-header{display:flex;justify-content:space-between;align-items:center;padding:.5rem .75rem;border-bottom:1px solid var(--border)}
+.wallet-header-right{display:flex;align-items:center;gap:.4rem}
 .wallet-title{color:var(--urbit);font-size:.8rem;letter-spacing:.1em}
 .wallet-close{background:none;border:none;color:var(--text-dim);font-size:.9rem;cursor:pointer;padding:.2rem}
 .wallet-close:hover{color:var(--text)}
+.wallet-disconnect{background:none;border:1px solid #333;color:#555;font-family:var(--font);font-size:.6rem;padding:.1rem .35rem;cursor:pointer;letter-spacing:.05em;transition:all .15s}
+.wallet-disconnect:hover{border-color:#cc4444;color:#cc4444}
 .wallet-connect-section{padding:1.5rem .75rem;text-align:center}
 .wallet-connect-msg{color:var(--text-dim);font-size:.8rem;margin-bottom:1rem;line-height:1.4}
 .wallet-connect-btn{font-family:var(--font);font-size:.8rem;padding:.5rem 1rem;background:transparent;border:2px solid var(--urbit);color:var(--urbit);cursor:pointer;transition:all .15s;letter-spacing:.05em}
@@ -337,7 +340,10 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
       <div class="wallet-sidebar-panel" id="walletPanel">
         <div class="wallet-header">
           <span class="wallet-title">WALLET</span>
-          <button class="wallet-close" onclick="closeWallet()">✕</button>
+          <div class="wallet-header-right">
+            <button class="wallet-disconnect" id="walletDisconnectBtn" onclick="walletDisconnect()" style="display:none">DISCONNECT</button>
+            <button class="wallet-close" onclick="closeWallet()">✕</button>
+          </div>
         </div>
         <div id="walletConnectSection" class="wallet-connect-section">
           <div class="wallet-connect-msg">Connect Iris wallet to send and receive $NOCK</div>
@@ -607,6 +613,7 @@ async function boot(){
   await api.subscribe('noltbook','/notes',handleUpdate);
   api.open();
   openNote('cover');
+  setTimeout(walletTryRestore,1500);
 }
 function updateSidebarSigil(){
   const ship='~'+api.ship;
@@ -1762,9 +1769,61 @@ const wallet={
   grpcClient:null        // wasm GrpcClient instance
 };
 
+const WALLET_STORAGE_KEY='noltbook_wallet';
 function irisReady(){return window.nockchain&&typeof window.nockchain.request==='function'}
 function truncatePkh(p){return p?p.slice(0,8)+'...'+p.slice(-6):'—'}
 function formatNock(nicks){return(Number(nicks)/NOCK_PER_NICK).toFixed(4)}
+
+function walletSaveState(){
+  try{localStorage.setItem(WALLET_STORAGE_KEY,JSON.stringify({pkh:wallet.pkh,grpc:wallet.grpc}))}
+  catch(e){console.warn('[wallet] localStorage save failed:',e)}
+}
+function walletClearState(){
+  try{localStorage.removeItem(WALLET_STORAGE_KEY)}catch(e){}
+}
+function walletLoadState(){
+  try{const s=localStorage.getItem(WALLET_STORAGE_KEY);return s?JSON.parse(s):null}
+  catch(e){return null}
+}
+
+async function walletTryRestore(){
+  const saved=walletLoadState();
+  if(!saved||!saved.pkh)return;
+  if(!irisReady()){console.log('[wallet] Iris not available, skipping restore');return}
+  console.log('[wallet] Restoring connection for',truncatePkh(saved.pkh));
+  // Set state optimistically so UI shows connecting
+  wallet.pkh=saved.pkh;
+  wallet.grpc=saved.grpc||'rpc.nockbox.org';
+  try{
+    const r=await window.nockchain.request({method:'nock_connect',timeout:10000});
+    if(r&&r.pkh){wallet.pkh=r.pkh;wallet.grpc=r.grpcEndpoint||wallet.grpc}
+    wallet.connected=true;
+    walletSaveState();
+    walletUpdateUI();
+    // Init chain reads in background
+    const wasmOk=await walletInitWasm();
+    if(wasmOk){walletInitGrpc();walletRefreshBalance()}
+    console.log('[wallet] Restore successful');
+  }catch(e){
+    console.log('[wallet] Restore failed (user may need to reconnect):',e);
+    wallet.pkh=null;wallet.grpc=null;wallet.connected=false;
+    walletClearState();
+    walletUpdateUI();
+  }
+}
+
+function walletDisconnect(){
+  wallet.connected=false;
+  wallet.pkh=null;
+  wallet.grpc=null;
+  wallet.balance=null;
+  wallet.notes=[];
+  wallet.transactions=[];
+  wallet.grpcClient=null;
+  walletClearState();
+  walletUpdateUI();
+  console.log('[wallet] Disconnected');
+}
 
 // --- WASM / gRPC initialization ---
 async function walletInitWasm(){
@@ -1885,9 +1944,11 @@ function closeWallet(){
 function walletUpdateUI(){
   const conn=document.getElementById('walletConnectSection');
   const main=document.getElementById('walletConnectedSection');
+  const dcBtn=document.getElementById('walletDisconnectBtn');
   if(wallet.connected){
     conn.style.display='none';
     main.style.display='';
+    dcBtn.style.display='';
     // Display name: use ship name if available, else truncated PKH
     const shipEl=document.getElementById('shipDisplay');
     const shipName=shipEl?shipEl.textContent.trim():'';
@@ -1903,6 +1964,7 @@ function walletUpdateUI(){
   }else{
     conn.style.display='';
     main.style.display='none';
+    dcBtn.style.display='none';
   }
   renderWalletNotes();
 }
@@ -1973,6 +2035,7 @@ async function walletConnect(){
         if(info.grpcEndpoint)wallet.grpc=info.grpcEndpoint;
       }
     }catch(e){console.log('[wallet] getWalletInfo:',e)}
+    walletSaveState();
     status.textContent='Loading chain data...';
     walletUpdateUI();
 
@@ -1987,7 +2050,29 @@ async function walletConnect(){
     }
     status.textContent='';
   }catch(e){
-    const msg=typeof e==='object'?JSON.stringify(e):(e.message||String(e));
+    // First attempt may fail due to extension init timing — retry once
+    console.warn('[wallet] First connect attempt failed:',e);
+    try{
+      await new Promise(r=>setTimeout(r,500));
+      const r2=await window.nockchain.request({method:'nock_connect',timeout:30000});
+      wallet.connected=true;
+      if(r2){wallet.pkh=r2.pkh||null;wallet.grpc=r2.grpcEndpoint||'rpc.nockbox.org'}
+      try{
+        const info=await window.nockchain.request({method:'nock_getWalletInfo',timeout:10000});
+        if(info){if(info.pkh)wallet.pkh=info.pkh;if(info.grpcEndpoint)wallet.grpc=info.grpcEndpoint}
+      }catch(e2){console.log('[wallet] getWalletInfo retry:',e2)}
+      walletSaveState();
+      status.textContent='Loading chain data...';
+      walletUpdateUI();
+      const wasmOk=await walletInitWasm();
+      if(wasmOk){walletInitGrpc();await walletRefreshBalance()}
+      status.textContent='';
+      btn.disabled=false;
+      return;
+    }catch(e2){
+      console.error('[wallet] Retry also failed:',e2);
+    }
+    const msg=e instanceof Error?e.message:typeof e==='object'?(e.message||JSON.stringify(e)):String(e);
     status.textContent='Connection failed: '+msg;
     status.classList.add('error');
   }
