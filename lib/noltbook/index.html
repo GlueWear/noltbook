@@ -729,7 +729,8 @@ function makeArsItem(entry){
   const preview=last?last.text.replace(/\n/g,' '):'';
   const bgStyle=entry.bgColor?`background:${entry.bgColor}`:entry.color?`background:${entry.color}`:'background:#000';
   const iconImg=entry.icon?`<img src="${entry.icon}" style="width:100%;height:100%;object-fit:contain">`:'';
-  div.innerHTML=`<span class="note-arrow" style="visibility:hidden">&#9654;</span><div class="note-icon" style="${bgStyle};display:flex;align-items:center;justify-content:center;overflow:hidden">${iconImg}</div><div class="note-text"><span class="note-name">${escHtml(entry.name)}</span><span class="note-source">${escHtml(source)}</span><span class="note-preview">${escHtml(preview)}</span></div><span class="note-dot"></span>`;
+  const arsSourceColor=last?shipColor(last.author):'';
+  div.innerHTML=`<span class="note-arrow" style="visibility:hidden">&#9654;</span><div class="note-icon" style="${bgStyle};display:flex;align-items:center;justify-content:center;overflow:hidden">${iconImg}</div><div class="note-text"><span class="note-name">${escHtml(entry.name)}</span><span class="note-source"${arsSourceColor?' style="color:'+arsSourceColor+'"':''}>${escHtml(source)}</span><span class="note-preview">${escHtml(preview)}</span></div><span class="note-dot"></span>`;
   div.onclick=()=>{openNote(entry.id)};
   return div;
 }
@@ -846,7 +847,8 @@ function makeNoteItem(n,depth){
   const preview=last?last.text.replace(/\n/g,' '):(n.lastPreview?n.lastPreview.replace(/\n/g,' '):'');
   const chevron=hasChildren?`<span class="note-arrow ${isExpanded?'open':''}" onclick="event.stopPropagation();toggleNoteExpand('${n.id}')">&#9654;</span>`:`<span class="note-arrow" style="visibility:hidden">&#9654;</span>`;
   const hasCustomIcon=!!n.iconUrl||!!dmCounterparty(n);
-  div.innerHTML=`${chevron}<div class="note-icon" ${hasCustomIcon?'style="display:flex"':''}>${iconContent}</div><div class="note-text"><span class="note-name">${escHtml(displayNameStr)}</span><span class="note-source">${escHtml(source)}</span><span class="note-preview">${escHtml(preview)}</span></div><span class="note-dot"></span>`;
+  const sourceColor=rawSource?shipColor(rawSource):'';
+  div.innerHTML=`${chevron}<div class="note-icon" ${hasCustomIcon?'style="display:flex"':''}>${iconContent}</div><div class="note-text"><span class="note-name">${escHtml(displayNameStr)}</span><span class="note-source"${sourceColor?' style="color:'+sourceColor+'"':''}>${escHtml(source)}</span><span class="note-preview">${escHtml(preview)}</span></div><span class="note-dot"></span>`;
   let clickTimer=null;
   div.onclick=()=>{if(clickTimer)return;clickTimer=setTimeout(()=>{clickTimer=null;openNote(n.id)},250)};
   div.ondblclick=(e)=>{clearTimeout(clickTimer);clickTimer=null;e.preventDefault();toggleNoteExpand(n.id)};
@@ -1968,7 +1970,7 @@ function walletUpdateUI(){
     const shipName=shipEl?shipEl.textContent.trim():'';
     const nameEl=document.getElementById('walletDisplayName');
     nameEl.textContent=shipName||truncatePkh(wallet.pkh);
-    nameEl.style.color=shipName?shipColor(shipName):'var(--text)';
+    nameEl.style.color=shipColor('~'+api.ship);
     document.getElementById('walletPkh').textContent=wallet.pkh||'—';
     if(wallet.balance!==null){
       document.getElementById('walletBalance').textContent=formatNock(wallet.balance)+' $NOCK';
