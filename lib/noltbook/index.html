@@ -121,6 +121,9 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .msg-action-btn.delete-msg:hover{border-color:#ff4444;color:#ff4444;background:rgba(255,68,68,.15)}
 .msg-edited{font-size:.65rem;color:var(--text-dim);font-style:italic;margin-left:.4rem}
 .msg-text.nock-send{color:#00ff88}
+.rumor-post{padding:.8rem 1.5rem;text-align:center}
+.rumor-text{color:#c8b0d8;font-size:.95rem;line-height:1.5;font-style:italic}
+.rumor-sep{margin-top:.4rem}
 .msg.depth-1{margin-left:1.5rem}
 .msg.depth-2{margin-left:3rem}
 .msg.depth-3{margin-left:4.5rem}
@@ -648,6 +651,7 @@ function handleUpdate(upd){
   else if(upd['note-redirect']){const{oldId,newId}=upd['note-redirect'];console.log('[note-redirect]',oldId,'->',newId);delete state.notes[oldId];delete state.messages[oldId];state.notifications.delete(oldId);if(state.currentNoteId===oldId){if(state.notes[newId])openNote(newId);else openNote('cover')}renderNoteList()}
   else if(upd['wallet-update']){wallet.transactions=upd['wallet-update'].map(tx=>({type:tx.type,who:tx.counterparty,amount:tx.amount,time:new Date(tx.timestamp).toLocaleString(),txid:tx.txHash}));renderWalletNotes()}
   else if(upd['gossip-message']){const{message,hops}=upd['gossip-message'];state.gossipHops[message.id]=hops;if(!state.messages['cover'])state.messages['cover']=[];state.messages['cover'].push(message);const visible=coverMsgVisible(message);if(visible&&state.notes['cover']){state.notes['cover'].lastAuthor=message.author;state.notes['cover'].lastPreview=message.text}if(state.currentNoteId==='cover'&&visible)appendMessage(message);else if(state.currentNoteId!=='cover'&&visible)state.notifications.add('cover');updateCoverPreview();scheduleNoteList()}
+  else if(upd['rumor-message']){const msg=upd['rumor-message'].message;if(!state.messages['ars-rumors'])state.messages['ars-rumors']=[];const isDup=state.messages['ars-rumors'].some(m=>m.text===msg.text);if(!isDup){state.messages['ars-rumors'].unshift(msg);if(state.currentNoteId==='ars-rumors')renderMessages('ars-rumors');else state.notifications.add('ars-rumors');scheduleNoteList()}}
 }
 function revealNoteInTree(id){
   // expand ancestors and open the containing section so the note is visible
@@ -661,7 +665,7 @@ function revealNoteInTree(id){
   }
   // open the section containing the root
   let section='notes';
-  if(id==='cover')section='ars';
+  if(id==='cover'||id==='ars-rumors')section='ars';
   else if(node){
     const others=(node.users||[]).filter(u=>u&&u!==me);
     const isShared=node.type==='dm'||node.type==='group'||others.length>0||(node.creator&&node.creator!==me);
@@ -677,8 +681,8 @@ async function openNote(id){
   if(state.currentNoteSub!==null){await api.unsubscribe(state.currentNoteSub);state.currentNoteSub=null}
   state.currentNoteId=id;state.notifications.delete(id);state.lastMsgAuthor=null;
   revealNoteInTree(id);
-  document.getElementById('chatNoteName').textContent=id==='cover'?'%Grimoire':(state.notes[id]?noteDisplayName(state.notes[id]):id);
-  document.getElementById('shareBtn').style.display=id==='cover'?'none':'block';
+  document.getElementById('chatNoteName').textContent=id==='cover'?'%Grimoire':id==='ars-rumors'?'%Rumors':(state.notes[id]?noteDisplayName(state.notes[id]):id);
+  document.getElementById('shareBtn').style.display=(id==='cover'||id==='ars-rumors')?'none':'block';
   document.getElementById('chatMessages').innerHTML='';
   await api.poke('noltbook','noltbook-action',{action:'switch-note',data:{id}});
   const subId=await api.subscribe('noltbook','/notes/'+id,handleUpdate);
@@ -725,11 +729,11 @@ function makeArsItem(entry){
   div.className='note-item'+(entry.id===state.currentNoteId?' active':'');
   div.setAttribute('data-note-id',entry.id);
   const last=getLastMessage(entry.id);
-  const source=last?displayName(last.author):'';
+  const source=entry.id==='ars-rumors'?(last?'Anonymous':''):(last?displayName(last.author):'');
   const preview=last?last.text.replace(/\n/g,' '):'';
   const bgStyle=entry.bgColor?`background:${entry.bgColor}`:entry.color?`background:${entry.color}`:'background:#000';
   const iconImg=entry.icon?`<img src="${entry.icon}" style="width:100%;height:100%;object-fit:contain">`:'';
-  const arsSourceColor=last?shipColor(last.author):'';
+  const arsSourceColor=entry.id==='ars-rumors'?(last?'#652287':''):(last?shipColor(last.author):'');
   div.innerHTML=`<span class="note-arrow" style="visibility:hidden">&#9654;</span><div class="note-icon" style="${bgStyle};display:flex;align-items:center;justify-content:center;overflow:hidden">${iconImg}</div><div class="note-text"><span class="note-name">${escHtml(entry.name)}</span><span class="note-source"${arsSourceColor?' style="color:'+arsSourceColor+'"':''}>${escHtml(source)}</span><span class="note-preview">${escHtml(preview)}</span></div><span class="note-dot"></span>`;
   div.onclick=()=>{openNote(entry.id)};
   return div;
@@ -765,7 +769,7 @@ function findSharedRootByUsers(userSet){
   const target=[...userSet].sort().join(',');
   for(const n of Object.values(state.notes)){
     if(n.parent)continue;
-    if(n.id==='cover')continue;
+    if(n.id==='cover'||(n.id+'').startsWith('ars-'))continue;
     const u=[...(n.users||[])].sort().join(',');
     if(u===target)return n;
   }
@@ -777,14 +781,14 @@ function computeTrickle(){
   const sections={ars:false,notes:false,shared:false};
   const me='~'+api.ship;
   function sectionOf(rootId){
-    if(rootId==='cover')return 'ars';
+    if(rootId==='cover'||rootId==='ars-rumors')return 'ars';
     const r=state.notes[rootId]; if(!r)return 'notes';
     const others=(r.users||[]).filter(u=>u&&u!==me);
     const isShared=r.type==='dm'||r.type==='group'||others.length>0||(r.creator&&r.creator!==me);
     return isShared?'shared':'notes';
   }
   for(const rawId of state.notifications){
-    if(!state.notes[rawId]&&rawId!=='cover')continue;
+    if(!state.notes[rawId]&&rawId!=='cover'&&rawId!=='ars-rumors')continue;
     // build root→leaf chain
     const chain=[]; let cur=rawId;
     while(cur){chain.unshift(cur); cur=state.notes[cur]?.parent||null;}
@@ -822,7 +826,7 @@ function renderNoteList(){
     }
   }
   for(const n of Object.values(state.notes)){
-    if(n.id==='cover')continue;
+    if(n.id==='cover'||(n.id+'').startsWith('ars-'))continue;
     if(n.parent)continue;
     const me='~'+api.ship;
     const others=(n.users||[]).filter(u=>u&&u!==me);
@@ -960,6 +964,13 @@ function msgDepth(msgId,byId){
 }
 function renderMessages(noteId){
   const el=document.getElementById('chatMessages');el.innerHTML='';state.lastMsgAuthor=null;state.lastMsgDepth=-1;
+  if(noteId==='ars-rumors'){
+    const saying=RUMOR_SAYINGS[Math.floor(Math.random()*RUMOR_SAYINGS.length)];
+    const hdr=document.createElement('div');
+    hdr.className='rumor-header';
+    hdr.innerHTML=`<div style="text-align:center;padding:1.2rem 1rem .6rem;color:#b088cc;font-style:italic;font-size:1.4rem;font-weight:bold">${escHtml(saying)}</div>`;
+    el.appendChild(hdr);
+  }
   let msgs=state.messages[noteId]||[];
   if(noteId==='cover'){msgs=msgs.filter(coverMsgVisible)}
   const byId={};msgs.forEach(m=>byId[m.id]=m);
@@ -986,7 +997,7 @@ function renderMessages(noteId){
   // merge artifacts into the timeline so they appear in chronological order with messages
   const noteArts=Object.values(state.artifacts).filter(a=>a.noteId===noteId&&(a.type==='app'||a.type==='file'));
   for(const art of noteArts){const lv=art.versions.length?art.versions[art.versions.length-1]:null;items.push({type:'artifact',art,time:lv?lv.timestamp:0})}
-  items.sort((a,b)=>a.time-b.time);
+  items.sort((a,b)=>noteId==='ars-rumors'?b.time-a.time:a.time-b.time);
   for(const item of items){
     if(item.type==='msg'){
       renderMsg(el,item.msg,0);
@@ -1078,7 +1089,7 @@ function renderMessages(noteId){
       }
     }
   }
-  el.scrollTop=el.scrollHeight;
+  el.scrollTop=noteId==='ars-rumors'?0:el.scrollHeight;
   if(window.twttr&&twttr.widgets)twttr.widgets.load(el);
 }
 function expandThread(rootId){
@@ -1100,6 +1111,17 @@ function renderMsg(el,msg,depth,isThreadAnchor){
       state.lastMsgAuthor=null;state.lastMsgDepth=-1;
       return;
     }
+  }
+  // Anonymous rumor rendering — centered text, no author, line separator
+  if(msg.author==='~hosted'){
+    const msgDisplay=renderText(msg.text);
+    const div=document.createElement('div');
+    div.className='rumor-post';
+    div.id='msg-'+msg.id;
+    div.innerHTML=`<div class="rumor-text">${msgDisplay}</div><div class="rumor-sep"></div>`;
+    el.appendChild(div);
+    state.lastMsgAuthor=null;state.lastMsgDepth=-1;
+    return;
   }
   const grouped=msg.author===state.lastMsgAuthor&&depth===state.lastMsgDepth;
   state.lastMsgAuthor=msg.author;state.lastMsgDepth=depth;
@@ -2159,6 +2181,22 @@ function resolveWalletAddress(ship){
 
 // Payment message prefix — messages starting with this are rendered green
 const NOCK_SEND_PREFIX='$$NOCK_SEND$$';
+const RUMOR_SAYINGS=[
+  'rumor has it...',
+  'a little bird told me...',
+  'they say...',
+  'word on the street is...',
+  'I heard through the grapevine...',
+  'whispers in the dark...',
+  'between you and me...',
+  'don\'t tell anyone, but...',
+  'sources say...',
+  'allegedly...',
+  'the walls have ears...',
+  'psst... did you hear?',
+  'unconfirmed reports suggest...',
+  'rumor mill says...'
+];
 function isNockSend(text){return text&&text.startsWith(NOCK_SEND_PREFIX)}
 function parseNockSend(text){
   // Format: $$NOCK_SEND$$ sent 1.0000 $NOCK to ~wet (tx:abc123...)

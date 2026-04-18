@@ -116,6 +116,12 @@
           ['hops' (numb hops.upd)]
       ==
     ::
+        %rumor-message
+      %+  frond  'rumor-message'
+      %-  pairs
+      :~  ['message' (msg-to-json msg.upd)]
+      ==
+    ::
         %note-redirect
       %+  frond  'note-redirect'
       %-  pairs

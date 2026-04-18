@@ -83,6 +83,7 @@
   $%  [%remote-invite note-id=@ta name=@t type=note-type creator=@p users=(set @p) visibility=note-visibility]
       [%remote-message note-id=@ta msg=message]
       [%remote-ars msg=message hops=@ud]
+      [%remote-rumor msg=message hops=@ud]
       [%remote-profile ship=@p profile=profile]
       [%remote-note-request requester=@p]
       [%remote-note-list notes=(list note)]
@@ -147,6 +148,7 @@
       [%pal-update ship=@p status=pal-status]
       [%dial-update dial=@ud]
       [%gossip-message msg=message hops=@ud]
+      [%rumor-message msg=message]
       [%note-redirect old-id=@ta new-id=@ta]
       [%note-users-updated id=@ta users=(list @p)]
   ==

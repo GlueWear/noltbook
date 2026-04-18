@@ -217,14 +217,20 @@
   =/  bind=card
     [%pass /eyre-bind %arvo %e %connect [~ /apps/noltbook] %noltbook]
   =/  cover=note:noltbook  [%cover 'ARS NOTORIA' %cover our.bowl (sy ~[our.bowl]) ~ ~ ~ ~ %secret ~ &]
-  :_  this(notes (~(put by notes) %cover cover), messages (~(put by messages) %cover *(list message:noltbook)))
+  =/  rumors=note:noltbook  [%ars-rumors 'RUMORS' %cover our.bowl (sy ~[our.bowl]) ~ ~ ~ ~ %secret ~ &]
+  :_  this(notes (~(put by (~(put by notes) %cover cover)) %ars-rumors rumors), messages (~(put by (~(put by messages) %cover *(list message:noltbook))) %ars-rumors *(list message:noltbook)))
   ~[bind]
 ++  on-save   !>(state)
 ++  on-load
   |=  old=vase
   ^-  (quip card _this)
   ?:  ?=([%9 *] q.old)
-    `this(state !<(state-9 old))
+    =/  loaded  !<(state-9 old)
+    ::  ensure ars-rumors note exists for existing ships
+    ?.  (~(has by notes.loaded) %ars-rumors)
+      =/  rumors=note:noltbook  [%ars-rumors 'RUMORS' %cover our.bowl (sy ~[our.bowl]) ~ ~ ~ ~ %secret ~ &]
+      `this(state loaded(notes (~(put by notes.loaded) %ars-rumors rumors), messages (~(put by messages.loaded) %ars-rumors *(list message:noltbook))))
+    `this(state loaded)
   ::  state-8 → state-9: add edited flag to messages (default %.n)
   ?:  ?=([%8 *] q.old)
     `this(state (upgrade-8-to-9 !<(state-8 old)))
@@ -372,6 +378,7 @@
     ::  permission check for remote subscribers
     ?>  ?|  =(src.bowl our.bowl)
             =(nid %cover)
+            =(nid %ars-rumors)
             =/  note  (~(get by notes) nid)
             ?&  ?=(^ note)
                 (~(has in users.u.note) src.bowl)
@@ -683,6 +690,30 @@
         =/  upd-note=note:noltbook  u.exists(last-author `our.bowl, last-preview `text.act)
         :_  this(notes (~(put by notes) %cover upd-note), messages (~(put by messages) %cover (snoc cur msg)), gossip-hops (~(put by gossip-hops) id.msg 0))
         [[%give %fact ~[/notes/cover] %noltbook-update !>(upd)] gossip]
+      ::  RUMORS: anonymous gossip — strip author before relaying
+      ?:  =(note-id.act %ars-rumors)
+        =/  cur=(list message:noltbook)  (fall (~(get by messages) %ars-rumors) ~)
+        ::  anonymize: strip author for everyone, including sender
+        =/  anon-msg=message:noltbook  msg(author ~hosted)
+        ::  content hash for dedup
+        =/  chash=@uv  (sham text.msg)
+        =/  upd=update:noltbook  [%rumor-message anon-msg]
+        ::  proxy relay: 50% broadcast to all, 50% proxy through one random peer
+        =/  targets=(list @p)  ~(tap in pal-outgoing)
+        =/  gossip=(list card)
+          ?:  =(0 (lent targets))  ~
+          ?.  =(0 (~(rad og eny.bowl) 2))
+            ::  broadcast to all peers
+            %+  turn  targets
+            |=  p=@p
+            ^-  card
+            [%pass /rum-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-rumor anon-msg 0])]
+          ::  proxy through one random peer
+          =/  proxy=@p  (snag (~(rad og +(eny.bowl)) (lent targets)) targets)
+          ~[[%pass /rum-out/(scot %p proxy) %agent [proxy %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-rumor anon-msg 0])]]
+        =/  upd-note=note:noltbook  u.exists(last-author ~, last-preview `text.act)
+        :_  this(notes (~(put by notes) %ars-rumors upd-note), messages (~(put by messages) %ars-rumors (snoc cur anon-msg)), gossip-hops (~(put by gossip-hops) `@da`chash 0))
+        [[%give %fact ~[/notes/ars-rumors] %noltbook-update !>(upd)] gossip]
       ::  remote note: forward to creator
       ?.  =(our.bowl creator.u.exists)
         :_  this
@@ -1204,6 +1235,34 @@
       :_  this(messages (~(put by messages) %cover (snoc cur msg.rem)), gossip-hops (~(put by gossip-hops) id.msg.rem my-hops))
       [[%give %fact ~[/notes/cover] %noltbook-update !>(upd)] relay]
     ::
+        %remote-rumor
+      ::  RUMORS: anonymous gossip from a peer
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) %ars-rumors) ~)
+      ::  dedup by content hash (not message id)
+      =/  chash=@uv  (sham text.msg.rem)
+      ?:  (~(has by gossip-hops) `@da`chash)
+        `this
+      ::  force author anonymous (don't trust sender)
+      =/  anon-msg=message:noltbook  msg.rem(author ~hosted)
+      =/  upd=update:noltbook  [%rumor-message anon-msg]
+      ::  proxy relay: 50% broadcast, 50% proxy through one random peer
+      =/  targets=(list @p)
+        %+  skim  ~(tap in pal-outgoing)
+        |=(p=@p !=(p src.bowl))
+      =/  relay=(list card)
+        ?:  =(0 (lent targets))  ~
+        ?.  =(0 (~(rad og eny.bowl) 2))
+          ::  broadcast to all (except sender)
+          %+  turn  targets
+          |=  p=@p
+          ^-  card
+          [%pass /rum-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-rumor anon-msg (add hops.rem 1)])]
+        ::  proxy through one random peer
+        =/  proxy=@p  (snag (~(rad og +(eny.bowl)) (lent targets)) targets)
+        ~[[%pass /rum-out/(scot %p proxy) %agent [proxy %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-rumor anon-msg (add hops.rem 1)])]]
+      :_  this(messages (~(put by messages) %ars-rumors (snoc cur anon-msg)), gossip-hops (~(put by gossip-hops) `@da`chash 0))
+      [[%give %fact ~[/notes/ars-rumors] %noltbook-update !>(upd)] relay]
+    ::
         %remote-profile
       ::  a peer sent us their profile
       =/  upd=update:noltbook  [%profile-updated ship.rem profile.rem]
@@ -1637,6 +1696,12 @@
   ::
       [%ars-out @ ~]
     ::  ack/nack for ars notoria gossip pokes
+    ?+  -.sign  `this
+        %poke-ack  `this
+    ==
+  ::
+      [%rum-out @ ~]
+    ::  ack/nack for rumors gossip pokes
     ?+  -.sign  `this
         %poke-ack  `this
     ==
