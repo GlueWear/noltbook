@@ -889,8 +889,14 @@
         ?~  old  [~ ~ `address.act ~]
         u.old(wallet-address `address.act)
       =/  upd=update:noltbook  [%profile-updated our.bowl prof]
+      ::  broadcast to peers so they can resolve our @p to PKH
+      =/  peer-cards=(list card)
+        %+  turn  ~(tap in peers)
+        |=  p=@p
+        ^-  card
+        [%pass /prof-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-profile our.bowl prof])]
       :_  this(profiles (~(put by profiles) our.bowl prof))
-      ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
+      [[%give %fact ~[/notes] %noltbook-update !>(upd)] peer-cards]
     ::
         %nock-send-confirmed
       =/  tx=transaction:noltbook  [%sent to.act amount.act tx-hash.act now.bowl]

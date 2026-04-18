@@ -120,6 +120,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .msg-action-btn.delete-msg{color:#666;border-color:#333}
 .msg-action-btn.delete-msg:hover{border-color:#ff4444;color:#ff4444;background:rgba(255,68,68,.15)}
 .msg-edited{font-size:.65rem;color:var(--text-dim);font-style:italic;margin-left:.4rem}
+.msg-text.nock-send{color:#00ff88}
 .msg.depth-1{margin-left:1.5rem}
 .msg.depth-2{margin-left:3rem}
 .msg.depth-3{margin-left:4.5rem}
@@ -645,6 +646,7 @@ function handleUpdate(upd){
   else if(upd['dial-update']){state.dial=upd['dial-update'];updateDialUI();if(state.currentNoteId==='cover')scheduleRender('cover');scheduleNoteList()}
   else if(upd['note-users-updated']){const{id,users}=upd['note-users-updated'];console.log('[note-users-updated]',id,users);if(state.notes[id]){state.notes[id].users=users;renderNoteList();if(state.currentNoteId===id)scheduleRender(id)}}
   else if(upd['note-redirect']){const{oldId,newId}=upd['note-redirect'];console.log('[note-redirect]',oldId,'->',newId);delete state.notes[oldId];delete state.messages[oldId];state.notifications.delete(oldId);if(state.currentNoteId===oldId){if(state.notes[newId])openNote(newId);else openNote('cover')}renderNoteList()}
+  else if(upd['wallet-update']){wallet.transactions=upd['wallet-update'].map(tx=>({type:tx.type,who:tx.counterparty,amount:tx.amount,time:new Date(tx.timestamp).toLocaleString(),txid:tx.txHash}));renderWalletNotes()}
   else if(upd['gossip-message']){const{message,hops}=upd['gossip-message'];state.gossipHops[message.id]=hops;if(!state.messages['cover'])state.messages['cover']=[];state.messages['cover'].push(message);const visible=coverMsgVisible(message);if(visible&&state.notes['cover']){state.notes['cover'].lastAuthor=message.author;state.notes['cover'].lastPreview=message.text}if(state.currentNoteId==='cover'&&visible)appendMessage(message);else if(state.currentNoteId!=='cover'&&visible)state.notifications.add('cover');updateCoverPreview();scheduleNoteList()}
 }
 function revealNoteInTree(id){
@@ -1115,15 +1117,17 @@ function renderMsg(el,msg,depth,isThreadAnchor){
   const actions=`<div class="msg-actions" onclick="event.stopPropagation()">${origBtn}<button class="msg-action-btn" onclick="startReply('${msg.id}','${escAttr(msg.author)}');toggleMsgActions(this,false)">REPLY</button>${editBtn}<button class="msg-action-btn send-msg" onclick="sendToUser('${escAttr(msg.author)}','${msg.id}');toggleMsgActions(this,false)">SEND</button>${delBtn}</div>`;
   const div=document.createElement('div');
   const depthClass=depth>0?' depth-'+Math.min(depth,5):'';
+  const nockSendClass=isNockSend(msg.text)?' nock-send':'';
+  const msgDisplay=isNockSend(msg.text)?parseNockSend(msg.text):renderText(msg.text);
   if(grouped){
     div.className='msg grouped'+depthClass;
     div.id='msg-'+msg.id;
-    div.innerHTML=`<div style="display:flex;align-items:baseline;padding-left:calc(2.8rem + .6rem)"><div class="msg-text" style="flex:1">${renderText(msg.text)}${editedStamp}</div>${actions}</div>`;
+    div.innerHTML=`<div style="display:flex;align-items:baseline;padding-left:calc(2.8rem + .6rem)"><div class="msg-text${nockSendClass}" style="flex:1">${msgDisplay}${editedStamp}</div>${actions}</div>`;
   }else{
     div.className='msg'+depthClass;
     div.id='msg-'+msg.id;
     const authorColor=isUrbit?shipColor(msg.author):'var(--visitor)';
-    div.innerHTML=`<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar" style="cursor:pointer" onclick="event.stopPropagation();viewProfile('${escAttr(msg.author)}')">${avatarHtml(msg.author)}</div><div class="msg-body"><div class="msg-header"><span class="msg-author" style="color:${authorColor};cursor:pointer" onclick="event.stopPropagation();viewProfile('${escAttr(msg.author)}')">${escHtml(displayName(msg.author))}</span><span class="msg-time">${timeStr}</span>${actions}</div><div class="msg-text">${renderText(msg.text)}${editedStamp}</div></div></div>`;
+    div.innerHTML=`<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar" style="cursor:pointer" onclick="event.stopPropagation();viewProfile('${escAttr(msg.author)}')">${avatarHtml(msg.author)}</div><div class="msg-body"><div class="msg-header"><span class="msg-author" style="color:${authorColor};cursor:pointer" onclick="event.stopPropagation();viewProfile('${escAttr(msg.author)}')">${escHtml(displayName(msg.author))}</span><span class="msg-time">${timeStr}</span>${actions}</div><div class="msg-text${nockSendClass}">${msgDisplay}${editedStamp}</div></div></div>`;
   }
   el.appendChild(div);
 }
@@ -1216,7 +1220,14 @@ async function deleteArtifact(artId){
   if(!confirm('Delete this app?'))return;
   await api.poke('noltbook','noltbook-action',{action:'delete-artifact',data:{id:artId}});
 }
-function sendToUser(author,msgId){console.log('[send] author=',author,'msgId=',msgId)}
+function sendToUser(author,msgId){
+  if(!wallet.connected){toggleWallet();return}
+  document.getElementById('sendTo').value=author;
+  document.getElementById('sendAmount').value='';
+  document.getElementById('sendModal').setAttribute('data-source-message',msgId||'');
+  document.getElementById('sendModal').classList.add('open');
+  document.getElementById('sendAmount').focus();
+}
 function openSharePrompt(){
   const noteId=state.currentNoteId;
   if(!noteId||noteId==='cover')return;
@@ -1757,6 +1768,8 @@ function openCurrentNoteMenu(event){
 // Units: 65536 nock = 1 nick | RPC: rpc.nockbox.org | Chain: nockchain-1
 // Chain reads: @nockbox/iris-wasm loaded from CDN, provides GrpcClient for real balance queries
 const NOCK_PER_NICK=65536;
+const FEE_PER_WORD=BigInt(32768); // 0.5 NOCK per word — protocol standard
+const FEE_PER_WORD_NUM=32768;
 const IRIS_WASM_VERSION='0.1.1';
 const IRIS_WASM_CDN='https://unpkg.com/@nockbox/iris-wasm@'+IRIS_WASM_VERSION;
 const wallet={
@@ -1798,6 +1811,7 @@ async function walletTryRestore(){
     const r=await window.nockchain.request({method:'nock_connect',timeout:10000});
     if(r&&r.pkh){wallet.pkh=r.pkh;wallet.grpc=r.grpcEndpoint||wallet.grpc}
     wallet.connected=true;
+    if(wallet.pkh){walletRegister(wallet.pkh)}
     walletSaveState();
     walletUpdateUI();
     // Init chain reads in background
@@ -2035,6 +2049,8 @@ async function walletConnect(){
         if(info.grpcEndpoint)wallet.grpc=info.grpcEndpoint;
       }
     }catch(e){console.log('[wallet] getWalletInfo:',e)}
+    // Register wallet address with backend for @p→PKH resolution
+    if(wallet.pkh){walletRegister(wallet.pkh)}
     walletSaveState();
     status.textContent='Loading chain data...';
     walletUpdateUI();
@@ -2061,6 +2077,7 @@ async function walletConnect(){
         const info=await window.nockchain.request({method:'nock_getWalletInfo',timeout:10000});
         if(info){if(info.pkh)wallet.pkh=info.pkh;if(info.grpcEndpoint)wallet.grpc=info.grpcEndpoint}
       }catch(e2){console.log('[wallet] getWalletInfo retry:',e2)}
+      if(wallet.pkh){walletRegister(wallet.pkh)}
       walletSaveState();
       status.textContent='Loading chain data...';
       walletUpdateUI();
@@ -2119,10 +2136,35 @@ function copyWalletAddress(){
 function openSendModal(){
   document.getElementById('sendTo').value='';
   document.getElementById('sendAmount').value='';
+  document.getElementById('sendModal').setAttribute('data-source-message','');
   document.getElementById('sendModal').classList.add('open');
   document.getElementById('sendTo').focus();
 }
 function closeSendModal(){document.getElementById('sendModal').classList.remove('open')}
+
+// Register wallet address with backend for @p→PKH resolution
+function walletRegister(pkh){
+  api.poke('noltbook','noltbook-action',{action:'register-wallet',data:{address:pkh}});
+  console.log('[wallet] Registered PKH with backend');
+}
+
+// Resolve @p to PKH via profiles
+function resolveWalletAddress(ship){
+  const prof=state.profiles[ship];
+  if(prof&&prof.walletAddress)return prof.walletAddress;
+  return null;
+}
+
+// Payment message prefix — messages starting with this are rendered green
+const NOCK_SEND_PREFIX='$$NOCK_SEND$$';
+function isNockSend(text){return text&&text.startsWith(NOCK_SEND_PREFIX)}
+function parseNockSend(text){
+  // Format: $$NOCK_SEND$$ sent 1.0000 $NOCK to ~wet (tx:abc123...)
+  try{
+    const body=text.slice(NOCK_SEND_PREFIX.length).trim();
+    return body;
+  }catch(e){return text}
+}
 
 async function walletSend(){
   const to=document.getElementById('sendTo').value.trim();
@@ -2132,42 +2174,98 @@ async function walletSend(){
   if(!amount||amount<=0){alert('Enter a valid amount');return}
   if(!irisReady()||!wallet.connected){alert('Wallet not connected');return}
 
-  // Resolve @p to wallet address
+  // Resolve @p to wallet address via profiles
   let recipientPkh=to;
+  let recipientName=to;
   if(to.startsWith('~')){
-    const contact=Object.values(state.contacts||{}).find(c=>c.ship===to);
-    if(contact&&contact.walletAddress){
-      recipientPkh=contact.walletAddress;
+    const pkh=resolveWalletAddress(to);
+    if(pkh){
+      recipientPkh=pkh;
+      console.log('[wallet] Resolved',to,'→',truncatePkh(pkh));
     }else{
-      alert('Cannot resolve '+to+' to a wallet address yet.\nEnter a PKH directly or ask them to set their wallet address in their profile.');
+      alert('Cannot resolve '+to+' to a wallet address.\nThey need to connect their wallet in noltbook first.');
       return;
     }
   }
 
-  const nicks=BigInt(Math.floor(amount*NOCK_PER_NICK));
+  const nicks=Math.floor(amount*NOCK_PER_NICK);
   const btn=document.getElementById('sendConfirmBtn');
   btn.disabled=true;
-  btn.textContent='SIGNING...';
+  btn.textContent='SENDING...';
 
   try{
-    const r=await window.nockchain.request({
-      method:'nock_sendTransaction',
-      params:[{to:recipientPkh,amount:nicks.toString()}],
-      timeout:60000
-    });
+    const txParams={to:recipientPkh,amount:nicks,fee:0};
+    console.log('[wallet] sendTransaction:',JSON.parse(JSON.stringify(txParams)));
+    // Extension bug: it does new Error(errorObj) which gives "[object Object]"
+    // Listen for the raw postMessage reply to capture the real error
+    let rawReplyError=null;
+    const errSpy=(ev)=>{
+      const d=ev.data;
+      if(d&&d.target==='IRIS'&&d.reply&&d.reply.error){
+        rawReplyError=d.reply.error;
+        console.log('[wallet] raw extension error:',JSON.stringify(d.reply.error));
+      }
+    };
+    window.addEventListener('message',errSpy);
+    let r;
+    try{
+      r=await window.nockchain.request({
+        method:'nock_sendTransaction',
+        params:[txParams],
+        timeout:120000
+      });
+    }catch(reqErr){
+      window.removeEventListener('message',errSpy);
+      // Re-throw with real error info if we captured it
+      if(rawReplyError){
+        const realMsg=rawReplyError.message||rawReplyError.msg||JSON.stringify(rawReplyError);
+        const realErr=new Error(realMsg);
+        realErr.code=rawReplyError.code;
+        realErr.data=rawReplyError;
+        throw realErr;
+      }
+      throw reqErr;
+    }
+    window.removeEventListener('message',errSpy);
+    const txHash=(r&&r.txId)?r.txId:(r&&r.txHash)?r.txHash:'';
     console.log('[wallet] sendTransaction result:',r);
-    wallet.transactions.unshift({
-      type:'sent',who:to,amount:amount,
-      time:new Date().toLocaleString(),
-      txid:r&&r.txId?r.txId:null
-    });
-    renderWalletNotes();
+
+    // Notify backend
+    api.poke('noltbook','noltbook-action',{action:'nock-send-confirmed',data:{
+      to:recipientName,amount:amount,txHash:txHash
+    }});
+
+    // Send payment message to DM
+    if(recipientName.startsWith('~')){
+      const dm=findSharedRootByUsers(new Set(['~'+api.ship,recipientName]));
+      const paymentText=NOCK_SEND_PREFIX+' sent '+amount.toFixed(4)+' $NOCK to '+recipientName+(txHash?' (tx:'+txHash.slice(0,12)+'...)':'');
+      if(dm){
+        api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:dm.id,text:paymentText}});
+      }else{
+        await api.poke('noltbook','noltbook-action',{action:'create-dm',data:{ship:recipientName}});
+        setTimeout(()=>{
+          const dm2=findSharedRootByUsers(new Set(['~'+api.ship,recipientName]));
+          if(dm2){api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:dm2.id,text:paymentText}})}
+        },2000);
+      }
+    }
+
     closeSendModal();
     walletRefreshBalance();
   }catch(e){
-    const msg=typeof e==='object'?JSON.stringify(e):(e.message||String(e));
     console.error('[wallet] send failed:',e);
-    alert('Send failed: '+msg);
+    // Dig into wrapped errors — extension often throws Error("[object Object]")
+    let inner=e;
+    if(e instanceof Error && e.message==='[object Object]'){
+      // Try to find actual error object in the rejection
+      console.error('[wallet] error is wrapped object — inspecting cause');
+    }
+    try{console.error('[wallet] send error keys:',Object.keys(e||{}));}catch(_){}
+    try{console.error('[wallet] send error entries:',Object.entries(e||{}));}catch(_){}
+    console.error('[wallet] send error full:',JSON.stringify(e,Object.getOwnPropertyNames(e||{}),2));
+    const msg=e?.data?.message||e?.message||(typeof e==='object'?JSON.stringify(e):String(e));
+    if(e&&e.code===4001){alert('Transaction cancelled')}
+    else{alert('Send failed: '+msg)}
   }
   btn.disabled=false;
   btn.textContent='SEND';
@@ -2203,7 +2301,7 @@ boot();
 <!-- Wallet modals (trusted top-level only) -->
 
 <!-- Send Modal -->
-<div class="wallet-modal-overlay" id="sendModal">
+<div class="wallet-modal-overlay" id="sendModal" data-source-message="">
   <div class="wallet-modal">
     <div class="wallet-modal-header">
       <span>Send $NOCK</span>
