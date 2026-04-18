@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>GRIMOIRE</title>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<title>NOLTBOOK</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -230,47 +230,46 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .inline-app-icon{font-size:.9rem}
 .inline-app-name{color:var(--text)}
 /* wallet */
-.wallet-btn{font-family:var(--font);font-size:.75rem;color:var(--urbit);background:transparent;border:1px solid var(--border);padding:.2rem .6rem;cursor:pointer;letter-spacing:.08em;display:flex;align-items:center;gap:.3rem}
-.wallet-btn:hover{border-color:var(--urbit);background:rgba(255,170,0,.08)}
-.wallet-btn.connected{border-color:var(--bot);color:var(--bot)}
-.wallet-btn.connected:hover{border-color:var(--bot);background:rgba(0,255,136,.08)}
-.wallet-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:500;justify-content:center;align-items:center}
-.wallet-overlay.open{display:flex}
-.wallet-panel{background:var(--bg);border:1px solid #333;width:350px;max-height:80vh;display:flex;flex-direction:column;font-family:var(--font)}
-.wallet-header{display:flex;justify-content:space-between;align-items:center;padding:.75rem 1rem;border-bottom:1px solid var(--border)}
-.wallet-title{color:var(--urbit);font-size:.9rem;letter-spacing:.1em}
-.wallet-close{background:none;border:none;color:var(--text-dim);font-size:1rem;cursor:pointer;padding:.2rem}
+.wallet-sidebar-btn{font-family:var(--font);font-size:.8rem;color:var(--urbit);background:transparent;border:1px solid var(--urbit);padding:.4rem .9rem;cursor:pointer;letter-spacing:.08em;display:flex;align-items:center;justify-content:center;gap:.3rem;margin:1rem .75rem 1.5rem;flex-shrink:0;white-space:nowrap}
+.wallet-sidebar-btn:hover{background:rgba(255,170,0,.1)}
+.wallet-sidebar-panel{display:none;flex-direction:column;border-top:1px solid var(--urbit);flex:1;min-height:0;overflow:hidden}
+.wallet-sidebar-panel.open{display:flex}
+.wallet-header{display:flex;justify-content:space-between;align-items:center;padding:.5rem .75rem;border-bottom:1px solid var(--border)}
+.wallet-title{color:var(--urbit);font-size:.8rem;letter-spacing:.1em}
+.wallet-close{background:none;border:none;color:var(--text-dim);font-size:.9rem;cursor:pointer;padding:.2rem}
 .wallet-close:hover{color:var(--text)}
-.wallet-connect-section{padding:2rem 1rem;text-align:center}
-.wallet-connect-msg{color:var(--text-dim);font-size:.85rem;margin-bottom:1.5rem;line-height:1.4}
-.wallet-connect-btn{font-family:var(--font);font-size:.85rem;padding:.6rem 1.2rem;background:transparent;border:2px solid var(--urbit);color:var(--urbit);cursor:pointer;transition:all .15s;letter-spacing:.05em}
+.wallet-connect-section{padding:1.5rem .75rem;text-align:center}
+.wallet-connect-msg{color:var(--text-dim);font-size:.8rem;margin-bottom:1rem;line-height:1.4}
+.wallet-connect-btn{font-family:var(--font);font-size:.8rem;padding:.5rem 1rem;background:transparent;border:2px solid var(--urbit);color:var(--urbit);cursor:pointer;transition:all .15s;letter-spacing:.05em}
 .wallet-connect-btn:hover{background:rgba(255,170,0,.15)}
 .wallet-connect-btn:disabled{opacity:.5;cursor:wait}
-.wallet-connect-status{margin-top:.75rem;font-size:.75rem;color:var(--text-dim)}
+.wallet-connect-status{margin-top:.5rem;font-size:.7rem;color:var(--text-dim)}
 .wallet-connect-status.error{color:#ff4444}
-.wallet-address{padding:.6rem 1rem;border-bottom:1px solid var(--border);text-align:center;cursor:pointer;transition:background .15s}
-.wallet-address:hover{background:rgba(255,170,0,.05)}
-.wallet-address-label{display:block;font-size:.65rem;color:#555;margin-bottom:.15rem}
-.wallet-address-value{font-size:.7rem;color:var(--text-muted);word-break:break-all}
-.wallet-balance{padding:1.25rem 1rem;text-align:center;border-bottom:1px solid var(--border);position:relative}
-.wallet-balance-label{display:block;font-size:.7rem;color:var(--text-dim);margin-bottom:.35rem}
-.wallet-balance-amount{font-size:1.6rem;color:var(--bot)}
-.wallet-refresh{position:absolute;right:.75rem;top:50%;transform:translateY(-50%);background:none;border:1px solid #333;color:#555;font-size:.85rem;padding:.15rem .4rem;cursor:pointer;transition:all .15s}
+.wallet-identity{padding:.5rem .75rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.5rem}
+.wallet-identity-info{flex:1;min-width:0}
+.wallet-identity-name{font-size:.85rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wallet-identity-pkh{font-size:.6rem;color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wallet-copy-btn{background:none;border:1px solid #333;color:#555;font-size:.7rem;padding:.15rem .4rem;cursor:pointer;font-family:var(--font);flex-shrink:0;transition:all .15s}
+.wallet-copy-btn:hover{border-color:var(--urbit);color:var(--urbit)}
+.wallet-balance{padding:.75rem .75rem;text-align:center;border-bottom:1px solid var(--border);position:relative}
+.wallet-balance-label{display:block;font-size:.65rem;color:var(--text-dim);margin-bottom:.25rem}
+.wallet-balance-amount{font-size:1.4rem;color:var(--bot)}
+.wallet-refresh{position:absolute;right:.5rem;top:50%;transform:translateY(-50%);background:none;border:1px solid #333;color:#555;font-size:.8rem;padding:.1rem .3rem;cursor:pointer;transition:all .15s}
 .wallet-refresh:hover{border-color:var(--urbit);color:var(--urbit)}
-.wallet-actions{display:flex;gap:.5rem;padding:.75rem 1rem;border-bottom:1px solid var(--border)}
-.wallet-action-btn{flex:1;padding:.4rem;font-family:var(--font);font-size:.8rem;background:#1a1a1a;border:1px solid #333;color:#bbb;cursor:pointer;transition:all .15s;letter-spacing:.05em}
+.wallet-actions{display:flex;gap:.4rem;padding:.5rem .75rem;border-bottom:1px solid var(--border)}
+.wallet-action-btn{flex:1;padding:.35rem;font-family:var(--font);font-size:.75rem;background:#1a1a1a;border:1px solid #333;color:#bbb;cursor:pointer;transition:all .15s;letter-spacing:.05em}
 .wallet-action-btn:hover{border-color:var(--urbit);color:var(--urbit)}
-.wallet-transactions{flex:1;overflow-y:auto;padding:.75rem 1rem}
-.wallet-tx-title{font-size:.7rem;color:var(--text-dim);margin-bottom:.5rem;letter-spacing:.08em}
-.wallet-tx-list{display:flex;flex-direction:column;gap:.4rem}
-.wallet-tx-empty{color:#444;font-size:.8rem;text-align:center;padding:.75rem}
-.wallet-tx-item{padding:.4rem .5rem;background:var(--bg);border:1px solid #1a1a1a;font-size:.75rem}
+.wallet-transactions{flex:1;overflow-y:auto;padding:.5rem .75rem;min-height:0}
+.wallet-tx-title{font-size:.65rem;color:var(--text-dim);margin-bottom:.4rem;letter-spacing:.08em}
+.wallet-tx-list{display:flex;flex-direction:column;gap:.3rem}
+.wallet-tx-empty{color:#444;font-size:.75rem;text-align:center;padding:.5rem}
+.wallet-tx-item{padding:.3rem .4rem;background:var(--bg);border:1px solid #1a1a1a;font-size:.7rem}
 .wallet-tx-row{display:flex;justify-content:space-between;align-items:center}
 .wallet-tx-who{color:var(--text-muted)}
 .wallet-tx-amount{font-weight:500}
 .wallet-tx-amount.sent{color:#cc4444}
 .wallet-tx-amount.received{color:var(--bot)}
-.wallet-tx-time{font-size:.65rem;color:#555;margin-top:.15rem}
+.wallet-tx-time{font-size:.6rem;color:#555;margin-top:.1rem}
 .wallet-modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.8);z-index:501;justify-content:center;align-items:center}
 .wallet-modal-overlay.open{display:flex}
 .wallet-modal{background:var(--bg);border:1px solid #333;width:300px;font-family:var(--font)}
@@ -293,7 +292,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 <body>
 <div class="app">
   <header class="app-header">
-    <span class="logo" onclick="openGrimoireMenu()">GRIMOIRE</span>
+    <span class="logo" onclick="openGrimoireMenu()" style="font-family:'Share Tech Mono',monospace">NOLTBOOK</span>
     <div class="header-dial" id="dialWrap">
       <span class="dial-label">DIAL</span>
       <div class="dial-box active" onclick="setDial(0)">0</div>
@@ -301,7 +300,6 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
       <div class="dial-box" onclick="setDial(2)">2</div>
       <div class="dial-box" onclick="setDial(3)">3</div>
     </div>
-    <button class="wallet-btn" id="walletHeaderBtn" onclick="toggleWallet()">⛓ WALLET</button>
     <div class="user-info">
       <span class="ship-name" id="shipDisplay" onclick="openProfileModal()"></span>
     </div>
@@ -330,11 +328,48 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
         <div class="section-body open" id="sharedBody"></div>
         <div class="section-header" onclick="toggleSection('ars')">
           <span class="section-arrow open" id="arsArrow">▶</span>
-          <span class="section-title">ARS NOTORIA</span>
+          <span class="section-title">%GOSSIP</span>
         </div>
         <div class="section-body open" id="arsBody"></div>
       </div>
       <div class="sidebar-scroll" id="palsList" style="display:none"></div>
+      <!-- Wallet panel (bottom of sidebar) -->
+      <div class="wallet-sidebar-panel" id="walletPanel">
+        <div class="wallet-header">
+          <span class="wallet-title">WALLET</span>
+          <button class="wallet-close" onclick="closeWallet()">✕</button>
+        </div>
+        <div id="walletConnectSection" class="wallet-connect-section">
+          <div class="wallet-connect-msg">Connect Iris wallet to send and receive $NOCK</div>
+          <button class="wallet-connect-btn" id="walletConnectBtn" onclick="walletConnect()">CONNECT WALLET</button>
+          <div class="wallet-connect-status" id="walletConnectStatus"></div>
+        </div>
+        <div id="walletConnectedSection" style="display:none">
+          <div class="wallet-identity">
+            <div class="wallet-identity-info">
+              <div class="wallet-identity-name" id="walletDisplayName">—</div>
+              <div class="wallet-identity-pkh" id="walletPkh">—</div>
+            </div>
+            <button class="wallet-copy-btn" id="walletCopyBtn" onclick="copyWalletAddress()">COPY</button>
+          </div>
+          <div class="wallet-balance">
+            <span class="wallet-balance-label">Balance</span>
+            <span class="wallet-balance-amount" id="walletBalance">—</span>
+            <button class="wallet-refresh" onclick="walletRefreshBalance()" title="Refresh">↻</button>
+          </div>
+          <div class="wallet-actions">
+            <button class="wallet-action-btn" onclick="openSendModal()">SEND</button>
+            <button class="wallet-action-btn" onclick="openRequestModal()">REQUEST</button>
+          </div>
+          <div class="wallet-transactions">
+            <div class="wallet-tx-title">TRANSACTIONS</div>
+            <div class="wallet-tx-list" id="walletTxList">
+              <div class="wallet-tx-empty">No transactions yet</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <button class="wallet-sidebar-btn" id="walletSidebarBtn" onclick="toggleWallet()">⛓ WALLET</button>
     </aside>
     <section class="chat">
       <div class="chat-header">
@@ -1713,43 +1748,204 @@ function openCurrentNoteMenu(event){
 // Methods: nock_connect, nock_getWalletInfo, nock_signMessage, nock_sendTransaction, nock_signRawTx
 // Params format: array (params[0], params[1], ...)
 // Units: 65536 nock = 1 nick | RPC: rpc.nockbox.org | Chain: nockchain-1
+// Chain reads: @nockbox/iris-wasm loaded from CDN, provides GrpcClient for real balance queries
 const NOCK_PER_NICK=65536;
-const wallet={connected:false,pkh:null,grpc:null,balance:null,transactions:[]};
+const IRIS_WASM_VERSION='0.1.1';
+const IRIS_WASM_CDN='https://unpkg.com/@nockbox/iris-wasm@'+IRIS_WASM_VERSION;
+const wallet={
+  connected:false,pkh:null,grpc:null,
+  balance:null,          // total balance in nicks (bigint-compatible number)
+  notes:[],              // UTXOs: [{assets,firstName,lastName}]
+  transactions:[],       // local tx log
+  wasmReady:false,       // iris-wasm initialized
+  irisWasm:null,         // wasm module ref
+  grpcClient:null        // wasm GrpcClient instance
+};
 
 function irisReady(){return window.nockchain&&typeof window.nockchain.request==='function'}
 function truncatePkh(p){return p?p.slice(0,8)+'...'+p.slice(-6):'—'}
 function formatNock(nicks){return(Number(nicks)/NOCK_PER_NICK).toFixed(4)}
 
+// --- WASM / gRPC initialization ---
+async function walletInitWasm(){
+  if(wallet.wasmReady)return true;
+  try{
+    console.log('[wallet] Loading iris-wasm from CDN...');
+    wallet.irisWasm=await import(IRIS_WASM_CDN+'/iris_wasm.js');
+    await wallet.irisWasm.default(IRIS_WASM_CDN+'/iris_wasm_bg.wasm');
+    wallet.wasmReady=true;
+    console.log('[wallet] iris-wasm ready');
+    return true;
+  }catch(e){
+    console.error('[wallet] WASM init failed:',e);
+    wallet.wasmReady=false;
+    return false;
+  }
+}
+
+function walletInitGrpc(){
+  if(!wallet.wasmReady||!wallet.grpc||wallet.grpcClient)return;
+  try{
+    wallet.grpcClient=new wallet.irisWasm.GrpcClient(wallet.grpc);
+    console.log('[wallet] GrpcClient created for',wallet.grpc);
+  }catch(e){
+    console.error('[wallet] GrpcClient init failed:',e);
+    wallet.grpcClient=null;
+  }
+}
+
+// --- Real chain balance query ---
+// Uses the same pattern as tx-builder:
+// 1. Create PKH lock from wallet address
+// 2. Create SpendCondition from PKH lock
+// 3. Get firstName (Digest) from SpendCondition
+// 4. Query gRPC getBalanceByFirstName(firstName)
+// 5. Also queries coinbase lock (PKH + timelock) for mined coins
+// Returns {total, notes[]} where total is sum of all note assets
+async function walletQueryBalance(){
+  if(!wallet.grpcClient||!wallet.pkh||!wallet.irisWasm)return null;
+  const W=wallet.irisWasm;
+  let totalNicks=BigInt(0);
+  const allNotes=[];
+
+  // Query PKH lock balance
+  try{
+    const pkhLock=W.Pkh.single(wallet.pkh);
+    const pkhSc=W.SpendCondition.newPkh(pkhLock);
+    const firstName=pkhSc.firstName();
+    console.log('[wallet] Querying PKH balance, firstName:',firstName.value.substring(0,20)+'...');
+    const result=await wallet.grpcClient.getBalanceByFirstName(firstName.value);
+    pkhSc.free();
+    if(result&&result.notes&&result.notes.length>0){
+      for(const n of result.notes){
+        const note=W.Note.fromProtobuf(n.note);
+        const assets=note.assets;
+        let fn=n.firstName||'';
+        let ln=n.lastName||'';
+        if(!fn&&n.note&&n.note.note_version&&n.note.note_version.V1&&n.note.note_version.V1.name){
+          fn=n.note.note_version.V1.name.first||'';
+          ln=n.note.note_version.V1.name.last||'';
+        }
+        totalNicks+=assets;
+        allNotes.push({assets:Number(assets),firstName:fn,lastName:ln,lock:'pkh'});
+        note.free();
+      }
+    }
+    console.log('[wallet] PKH balance:',formatNock(totalNicks),'NOCK from',allNotes.length,'notes');
+  }catch(e){console.error('[wallet] PKH balance query failed:',e)}
+
+  // Query coinbase lock balance (PKH + coinbase timelock)
+  try{
+    const cbPkh=W.Pkh.single(wallet.pkh);
+    const cbTim=W.LockTim.coinbase();
+    const cbSc=new W.SpendCondition([
+      W.LockPrimitive.newPkh(cbPkh),
+      W.LockPrimitive.newTim(cbTim)
+    ]);
+    const cbFirst=cbSc.firstName();
+    console.log('[wallet] Querying coinbase balance...');
+    const cbResult=await wallet.grpcClient.getBalanceByFirstName(cbFirst.value);
+    cbSc.free();
+    if(cbResult&&cbResult.notes&&cbResult.notes.length>0){
+      for(const n of cbResult.notes){
+        const note=W.Note.fromProtobuf(n.note);
+        const assets=note.assets;
+        let fn=n.firstName||'';
+        let ln=n.lastName||'';
+        if(!fn&&n.note&&n.note.note_version&&n.note.note_version.V1&&n.note.note_version.V1.name){
+          fn=n.note.note_version.V1.name.first||'';
+          ln=n.note.note_version.V1.name.last||'';
+        }
+        totalNicks+=assets;
+        allNotes.push({assets:Number(assets),firstName:fn,lastName:ln,lock:'coinbase'});
+        note.free();
+      }
+    }
+    console.log('[wallet] Coinbase notes:',allNotes.filter(n=>n.lock==='coinbase').length);
+  }catch(e){console.log('[wallet] Coinbase query failed (may not have mined):',e)}
+
+  return{total:Number(totalNicks),notes:allNotes};
+}
+
+// --- UI ---
 function toggleWallet(){
-  const ov=document.getElementById('walletOverlay');
-  ov.classList.add('open');
+  const panel=document.getElementById('walletPanel');
+  const btn=document.getElementById('walletSidebarBtn');
+  const isOpen=panel.classList.contains('open');
+  if(isOpen){closeWallet();return}
+  panel.classList.add('open');
+  btn.style.display='none';
   if(wallet.connected){walletRefreshBalance()}
 }
-function closeWallet(){document.getElementById('walletOverlay').classList.remove('open')}
+function closeWallet(){
+  document.getElementById('walletPanel').classList.remove('open');
+  document.getElementById('walletSidebarBtn').style.display='';
+}
 
 function walletUpdateUI(){
-  const hdr=document.getElementById('walletHeaderBtn');
   const conn=document.getElementById('walletConnectSection');
   const main=document.getElementById('walletConnectedSection');
   if(wallet.connected){
     conn.style.display='none';
     main.style.display='';
-    hdr.classList.add('connected');
-    hdr.textContent='⛓ '+truncatePkh(wallet.pkh);
+    // Display name: use ship name if available, else truncated PKH
+    const shipEl=document.getElementById('shipDisplay');
+    const shipName=shipEl?shipEl.textContent.trim():'';
+    const nameEl=document.getElementById('walletDisplayName');
+    nameEl.textContent=shipName||truncatePkh(wallet.pkh);
+    nameEl.style.color=shipName?shipColor(shipName):'var(--text)';
     document.getElementById('walletPkh').textContent=wallet.pkh||'—';
     if(wallet.balance!==null){
       document.getElementById('walletBalance').textContent=formatNock(wallet.balance)+' $NOCK';
     }else{
-      document.getElementById('walletBalance').textContent='—';
+      document.getElementById('walletBalance').textContent='loading...';
     }
   }else{
     conn.style.display='';
     main.style.display='none';
-    hdr.classList.remove('connected');
-    hdr.textContent='⛓ WALLET';
   }
+  renderWalletNotes();
 }
 
+function renderWalletNotes(){
+  const el=document.getElementById('walletTxList');
+  if(!wallet.notes.length&&!wallet.transactions.length){
+    el.innerHTML='<div class="wallet-tx-empty">No notes or transactions</div>';
+    return;
+  }
+  let html='';
+  // Show UTXOs (notes) as balance breakdown
+  if(wallet.notes.length){
+    html+='<div style="font-size:.65rem;color:#555;margin-bottom:.3rem;letter-spacing:.08em">UTXOS ('+wallet.notes.length+')</div>';
+    html+=wallet.notes.map(n=>{
+      const lockLabel=n.lock==='coinbase'?'⛏':'⚷';
+      return '<div class="wallet-tx-item">'+
+        '<div class="wallet-tx-row">'+
+          '<span class="wallet-tx-who">'+lockLabel+' '+(n.firstName?n.firstName.slice(0,8)+'...':'note')+'</span>'+
+          '<span class="wallet-tx-amount received">'+formatNock(n.assets)+' $NOCK</span>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+  }
+  // Show local transaction log
+  if(wallet.transactions.length){
+    html+='<div style="font-size:.65rem;color:#555;margin:.5rem 0 .3rem;letter-spacing:.08em">ACTIVITY</div>';
+    html+=wallet.transactions.map(tx=>{
+      const sign=tx.type==='sent'?'-':tx.type==='received'?'+':'⟵';
+      const cls=tx.type==='sent'?'sent':tx.type==='received'?'received':'';
+      return '<div class="wallet-tx-item">'+
+        '<div class="wallet-tx-row">'+
+          '<span class="wallet-tx-who">'+(tx.type==='sent'?'To: ':'From: ')+tx.who+'</span>'+
+          '<span class="wallet-tx-amount '+cls+'">'+sign+tx.amount.toFixed(4)+' $NOCK</span>'+
+        '</div>'+
+        '<div class="wallet-tx-time">'+tx.time+(tx.txid?' • '+tx.txid.slice(0,12)+'...':'')+'</div>'+
+      '</div>';
+    }).join('');
+  }
+  el.innerHTML=html;
+}
+
+// --- Connect flow ---
 async function walletConnect(){
   if(!irisReady()){
     document.getElementById('walletConnectStatus').textContent='Iris wallet extension not detected';
@@ -1762,6 +1958,7 @@ async function walletConnect(){
   status.textContent='Connecting...';
   status.classList.remove('error');
   try{
+    // 1. Connect via Iris provider
     const r=await window.nockchain.request({method:'nock_connect',timeout:30000});
     wallet.connected=true;
     if(r){
@@ -1774,11 +1971,21 @@ async function walletConnect(){
       if(info){
         if(info.pkh)wallet.pkh=info.pkh;
         if(info.grpcEndpoint)wallet.grpc=info.grpcEndpoint;
-        if(info.balance!==undefined)wallet.balance=info.balance;
       }
-    }catch(e){console.log('getWalletInfo after connect:',e)}
-    status.textContent='';
+    }catch(e){console.log('[wallet] getWalletInfo:',e)}
+    status.textContent='Loading chain data...';
     walletUpdateUI();
+
+    // 2. Init WASM + gRPC for real balance
+    const wasmOk=await walletInitWasm();
+    if(wasmOk){
+      walletInitGrpc();
+      await walletRefreshBalance();
+    }else{
+      status.textContent='Connected (chain reads unavailable)';
+      console.warn('[wallet] WASM failed — balance from chain not available');
+    }
+    status.textContent='';
   }catch(e){
     const msg=typeof e==='object'?JSON.stringify(e):(e.message||String(e));
     status.textContent='Connection failed: '+msg;
@@ -1787,28 +1994,43 @@ async function walletConnect(){
   btn.disabled=false;
 }
 
+// --- Balance refresh ---
 async function walletRefreshBalance(){
-  if(!irisReady()||!wallet.connected)return;
-  try{
-    const r=await window.nockchain.request({method:'nock_getWalletInfo',timeout:10000});
-    if(r&&r.balance!==undefined){
-      wallet.balance=r.balance;
-    }
-    walletUpdateUI();
-  }catch(e){console.log('balance refresh:',e)}
+  if(!wallet.connected||!wallet.pkh)return;
+  // Try real chain query first
+  if(wallet.grpcClient){
+    try{
+      const result=await walletQueryBalance();
+      if(result){
+        wallet.balance=result.total;
+        wallet.notes=result.notes;
+        walletUpdateUI();
+        return;
+      }
+    }catch(e){console.error('[wallet] Chain balance failed:',e)}
+  }
+  // Fallback: try provider API (may not have balance)
+  if(irisReady()){
+    try{
+      const r=await window.nockchain.request({method:'nock_getWalletInfo',timeout:10000});
+      if(r&&r.balance!==undefined){wallet.balance=r.balance}
+      walletUpdateUI();
+    }catch(e){console.log('[wallet] Provider balance fallback:',e)}
+  }
 }
 
 function copyWalletAddress(){
   if(!wallet.pkh)return;
   navigator.clipboard.writeText(wallet.pkh).then(()=>{
-    const el=document.getElementById('walletPkh');
-    const orig=el.textContent;
-    el.textContent='Copied!';
-    setTimeout(()=>{el.textContent=orig},1200);
+    const btn=document.getElementById('walletCopyBtn');
+    btn.textContent='COPIED';
+    btn.style.borderColor='var(--urbit)';
+    btn.style.color='var(--urbit)';
+    setTimeout(()=>{btn.textContent='COPY';btn.style.borderColor='';btn.style.color=''},1200);
   }).catch(()=>{});
 }
 
-// Send modal
+// --- Send modal ---
 function openSendModal(){
   document.getElementById('sendTo').value='';
   document.getElementById('sendAmount').value='';
@@ -1826,13 +2048,8 @@ async function walletSend(){
   if(!irisReady()||!wallet.connected){alert('Wallet not connected');return}
 
   // Resolve @p to wallet address
-  // TODO: lookup recipient PKH from @p via Urbit scry or contacts
-  // For now, if input looks like a PKH (long alphanumeric), use directly
-  // Otherwise, mark as unresolved
   let recipientPkh=to;
   if(to.startsWith('~')){
-    // @p username — need resolution to PKH
-    // Placeholder: check if recipient has walletAddress in contacts
     const contact=Object.values(state.contacts||{}).find(c=>c.ship===to);
     if(contact&&contact.walletAddress){
       recipientPkh=contact.walletAddress;
@@ -1848,33 +2065,30 @@ async function walletSend(){
   btn.textContent='SIGNING...';
 
   try{
-    // Use nock_sendTransaction — Iris will prompt user to approve
     const r=await window.nockchain.request({
       method:'nock_sendTransaction',
       params:[{to:recipientPkh,amount:nicks.toString()}],
       timeout:60000
     });
-    console.log('sendTransaction result:',r);
-
-    // Record transaction locally
+    console.log('[wallet] sendTransaction result:',r);
     wallet.transactions.unshift({
       type:'sent',who:to,amount:amount,
       time:new Date().toLocaleString(),
       txid:r&&r.txId?r.txId:null
     });
-    renderWalletTransactions();
+    renderWalletNotes();
     closeSendModal();
     walletRefreshBalance();
   }catch(e){
     const msg=typeof e==='object'?JSON.stringify(e):(e.message||String(e));
-    console.error('send failed:',e);
+    console.error('[wallet] send failed:',e);
     alert('Send failed: '+msg);
   }
   btn.disabled=false;
   btn.textContent='SEND';
 }
 
-// Request modal
+// --- Request modal ---
 function openRequestModal(){
   document.getElementById('requestFrom').value='';
   document.getElementById('requestAmount').value='';
@@ -1888,79 +2102,20 @@ function walletRequest(){
   const amount=parseFloat(document.getElementById('requestAmount').value);
   if(!from){alert('Enter who to request from');return}
   if(!amount||amount<=0){alert('Enter a valid amount');return}
-
-  // Send request as a DM via noltbook chat
-  // TODO: wire to noltbook messaging — send a payment request message
-  // For now: record locally and show confirmation
   wallet.transactions.unshift({
     type:'requested',who:from,amount:amount,
     time:new Date().toLocaleString(),
     txid:null
   });
-  renderWalletTransactions();
+  renderWalletNotes();
   closeRequestModal();
   alert('Payment request for '+amount+' NOCK sent to '+from+'\n(Chat integration pending)');
-}
-
-function renderWalletTransactions(){
-  const el=document.getElementById('walletTxList');
-  if(!wallet.transactions.length){
-    el.innerHTML='<div class="wallet-tx-empty">No transactions yet</div>';
-    return;
-  }
-  el.innerHTML=wallet.transactions.map(tx=>{
-    const sign=tx.type==='sent'?'-':tx.type==='received'?'+':'⟵';
-    const cls=tx.type==='sent'?'sent':tx.type==='received'?'received':'';
-    return '<div class="wallet-tx-item">'+
-      '<div class="wallet-tx-row">'+
-        '<span class="wallet-tx-who">'+(tx.type==='sent'?'To: ':'From: ')+tx.who+'</span>'+
-        '<span class="wallet-tx-amount '+cls+'">'+sign+tx.amount.toFixed(4)+' $NOCK</span>'+
-      '</div>'+
-      '<div class="wallet-tx-time">'+tx.time+(tx.txid?' • '+tx.txid.slice(0,12)+'...':'')+'</div>'+
-    '</div>';
-  }).join('');
 }
 /* ========== END WALLET ========== */
 
 boot();
 </script>
-<!-- Wallet Panel (trusted top-level only) -->
-<div class="wallet-overlay" id="walletOverlay" onclick="closeWallet()">
-  <div class="wallet-panel" onclick="event.stopPropagation()">
-    <div class="wallet-header">
-      <span class="wallet-title">WALLET</span>
-      <button class="wallet-close" onclick="closeWallet()">✕</button>
-    </div>
-    <!-- Connect section (shown when not connected) -->
-    <div id="walletConnectSection" class="wallet-connect-section">
-      <div class="wallet-connect-msg">Connect your Iris wallet to send and receive $NOCK</div>
-      <button class="wallet-connect-btn" id="walletConnectBtn" onclick="walletConnect()">CONNECT WALLET</button>
-      <div class="wallet-connect-status" id="walletConnectStatus"></div>
-    </div>
-    <!-- Connected section (shown when connected) -->
-    <div id="walletConnectedSection" style="display:none">
-      <div class="wallet-address" onclick="copyWalletAddress()" title="Click to copy">
-        <span class="wallet-address-label">PKH</span>
-        <span class="wallet-address-value" id="walletPkh">—</span>
-      </div>
-      <div class="wallet-balance">
-        <span class="wallet-balance-label">Balance</span>
-        <span class="wallet-balance-amount" id="walletBalance">—</span>
-        <button class="wallet-refresh" onclick="walletRefreshBalance()" title="Refresh">↻</button>
-      </div>
-      <div class="wallet-actions">
-        <button class="wallet-action-btn" onclick="openSendModal()">SEND</button>
-        <button class="wallet-action-btn" onclick="openRequestModal()">REQUEST</button>
-      </div>
-      <div class="wallet-transactions">
-        <div class="wallet-tx-title">TRANSACTIONS</div>
-        <div class="wallet-tx-list" id="walletTxList">
-          <div class="wallet-tx-empty">No transactions yet</div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
+<!-- Wallet modals (trusted top-level only) -->
 
 <!-- Send Modal -->
 <div class="wallet-modal-overlay" id="sendModal">
