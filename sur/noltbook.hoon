@@ -124,6 +124,8 @@
       [%create-dm ship=@p]
       [%leave-note id=@ta]
       [%reparent-note id=@ta new-parent=@ta]
+      [%clear-mentions note-id=@ta]
+      [%clear-mention note-id=@ta msg-id=@da]
   ==
 ::  subscription updates (agent to client)
 +$  update
@@ -151,5 +153,6 @@
       [%rumor-message msg=message]
       [%note-redirect old-id=@ta new-id=@ta]
       [%note-users-updated id=@ta users=(list @p)]
+      [%mention-update note-id=@ta mentions=(list [id=@da author=@p])]
   ==
 --

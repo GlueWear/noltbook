@@ -11,6 +11,7 @@
       state-7
       state-8
       state-9
+      state-10
   ==
 ::  pre-edited-flag message shape — used by state-1..8 for on-load typing
 +$  message-legacy
@@ -158,6 +159,43 @@
       dial=@ud
       gossip-hops=(map @da @ud)
   ==
+::  state-10: adds mention tracking (bare msg-ids)
++$  state-10
+  $:  %10
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list @da))
+  ==
+::  state-11: mentions store [msg-id author] pairs
+::
++$  state-11
+  $:  %11
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da author=@p]))
+  ==
 +$  card  card:agent:gall
 ::
 ++  upgrade-8-to-9
@@ -186,6 +224,32 @@
       dial.s
       gossip-hops.s
   ==
+++  upgrade-9-to-10
+  |=  s=state-9
+  ^-  state-10
+  :*  %10
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      dial.s  gossip-hops.s  ~
+  ==
+++  upgrade-10-to-11
+  |=  s=state-10
+  ^-  state-11
+  :*  %11
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      dial.s  gossip-hops.s  ~
+  ==
+::  mention detection: check if text contains @~our
+++  has-our-mention
+  |=  [txt=@t us=@p]
+  ^-  ?
+  =/  needle=tape  (weld "@" (trip (scot %p us)))
+  =/  hay=tape  (trip txt)
+  !=(~ (find needle hay))
+::
 ::  root-uniqueness helpers
 ::  find-root: first non-cover root note whose users = target set
 ++  find-root
@@ -206,7 +270,7 @@
   (lth `@`id.a `@`id.b)
 --
 %-  agent:dbug
-=|  state-9
+=|  state-11
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -224,22 +288,29 @@
 ++  on-load
   |=  old=vase
   ^-  (quip card _this)
-  ?:  ?=([%9 *] q.old)
-    =/  loaded  !<(state-9 old)
-    ::  ensure ars-rumors note exists for existing ships
+  ?:  ?=([%11 *] q.old)
+    =/  loaded  !<(state-11 old)
     ?.  (~(has by notes.loaded) %ars-rumors)
       =/  rumors=note:noltbook  [%ars-rumors 'RUMORS' %cover our.bowl (sy ~[our.bowl]) ~ ~ ~ ~ %secret ~ &]
       `this(state loaded(notes (~(put by notes.loaded) %ars-rumors rumors), messages (~(put by messages.loaded) %ars-rumors *(list message:noltbook))))
     `this(state loaded)
+  ::  state-10 → state-11: mentions gain author field
+  ?:  ?=([%10 *] q.old)
+    =/  s10  !<(state-10 old)
+    `this(state (upgrade-10-to-11 s10))
+  ::  state-9 → state-10 → state-11
+  ?:  ?=([%9 *] q.old)
+    =/  s9  !<(state-9 old)
+    `this(state (upgrade-10-to-11 (upgrade-9-to-10 s9)))
   ::  state-8 → state-9: add edited flag to messages (default %.n)
   ?:  ?=([%8 *] q.old)
-    `this(state (upgrade-8-to-9 !<(state-8 old)))
-  ::  state-7 → state-8 → state-9
+    `this(state (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 !<(state-8 old)))))
+  ::  state-7 → state-8 → state-9 → state-10
   ?:  ?=([%7 *] q.old)
     =/  s7  !<(state-7 old)
     =/  s8=state-8
       [%8 notes.s7 messages.s7 artifacts.s7 profiles.s7 transactions.s7 current-note.s7 peers.s7 has-avatar.s7 pal-outgoing.s7 pal-incoming.s7 pal-blocked.s7 0 ~]
-    `this(state (upgrade-8-to-9 s8))
+    `this(state (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))
   ::  state-6 → state-7: add pal sets, auto-hey all existing peers
   ?:  ?=([%6 *] q.old)
     =/  s6  !<(state-6 old)
@@ -252,7 +323,7 @@
       [%pass /pal-hey/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-hey ~])]
     =/  s8=state-8
       [%8 notes.s6 messages.s6 artifacts.s6 profiles.s6 transactions.s6 current-note.s6 peers.s6 has-avatar.s6 peers.s6 ~ ~ 0 ~]
-    :_  this(state (upgrade-8-to-9 s8))
+    :_  this(state (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))
     hey-cards
   ?:  ?=([%5 *] q.old)
     =/  s5  !<(state-5 old)
@@ -263,7 +334,7 @@
       [display-name.p ~ wallet-address.p azimuth-address.p]
     =/  s8=state-8
       [%8 notes.s5 messages.s5 artifacts.s5 new-profiles transactions.s5 current-note.s5 peers.s5 %.n ~ ~ ~ 0 ~]
-    `this(state (upgrade-8-to-9 s8))
+    `this(state (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))
   ?:  ?=([%4 *] q.old)
     =/  s4  !<(state-4 old)
     =/  init-peers=(set @p)
@@ -278,7 +349,7 @@
       [display-name.p ~ wallet-address.p azimuth-address.p]
     =/  s8=state-8
       [%8 notes.s4 messages.s4 artifacts.s4 new-profiles transactions.s4 current-note.s4 init-peers %.n ~ ~ ~ 0 ~]
-    `this(state (upgrade-8-to-9 s8))
+    `this(state (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))
   ?:  ?=([%3 *] q.old)
     =/  s3  !<(state-3 old)
     =/  new-notes=(map @ta note:noltbook)
@@ -293,7 +364,7 @@
       [display-name.p ~ wallet-address.p azimuth-address.p]
     =/  s8=state-8
       [%8 new-notes messages.s3 artifacts.s3 new-profiles transactions.s3 current-note.s3 ~ %.n ~ ~ ~ 0 ~]
-    `this(state (upgrade-8-to-9 s8))
+    `this(state (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))
   ?:  ?=([%2 *] q.old)
     =/  s2  !<(state-2 old)
     =/  new-arts=(map @ta artifact:noltbook)
@@ -316,7 +387,7 @@
       [display-name.p ~ wallet-address.p azimuth-address.p]
     =/  s8=state-8
       [%8 new-notes messages.s2 new-arts new-profiles transactions.s2 current-note.s2 ~ %.n ~ ~ ~ 0 ~]
-    `this(state (upgrade-8-to-9 s8))
+    `this(state (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))
   =/  s1  !<(state-1 old)
   =/  cov  (~(get by notes.s1) %cover)
   =/  fixed-notes=(map @ta note-3:noltbook)
@@ -343,7 +414,7 @@
     [id.n name.n type.n creator.n users.n children.n parent.n last-author.n last-preview.n %secret ~ &]
   =/  s8=state-8
     [%8 new-notes messages.s1 new-arts new-profiles transactions.s1 current-note.s1 ~ %.n ~ ~ ~ 0 ~]
-  `this(state (upgrade-8-to-9 s8))
+  `this(state (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))
 ::
 ++  on-watch
   |=  =path
@@ -366,12 +437,19 @@
       %requesting  :: default for known peers not yet tracked
     =/  palupd=update:noltbook  [%pal-list pal-pairs]
     =/  dialupd=update:noltbook  [%dial-update dial]
+    ::  send all current mention states
+    =/  mention-cards=(list card)
+      %+  turn  ~(tap by mentions)
+      |=  [nid=@ta mns=(list [id=@da author=@p])]
+      [%give %fact ~ %noltbook-update !>(`update:noltbook`[%mention-update nid mns])]
+    =/  init-cards=(list card)
+      :~  [%give %fact ~ %noltbook-update !>(upd)]
+          [%give %fact ~ %noltbook-update !>(pupd)]
+          [%give %fact ~ %noltbook-update !>(palupd)]
+          [%give %fact ~ %noltbook-update !>(dialupd)]
+      ==
     :_  this
-    :~  [%give %fact ~ %noltbook-update !>(upd)]
-        [%give %fact ~ %noltbook-update !>(pupd)]
-        [%give %fact ~ %noltbook-update !>(palupd)]
-        [%give %fact ~ %noltbook-update !>(dialupd)]
-    ==
+    (weld init-cards mention-cards)
   ::
       [%notes @ ~]
     =/  nid=@ta  i.t.path
@@ -1008,6 +1086,20 @@
       :_  this(pal-blocked new-blocked)
       ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
     ::
+        %clear-mentions
+      ::  clear all unread mentions for a note
+      =.  mentions  (~(del by mentions) note-id.act)
+      `this
+    ::
+        %clear-mention
+      ::  clear a single mention by msg-id
+      =/  cur=(list [id=@da author=@p])  (fall (~(get by mentions) note-id.act) ~)
+      =/  new=(list [id=@da author=@p])  (skip cur |=([id=@da author=@p] =(id msg-id.act)))
+      =.  mentions
+        ?~  new  (~(del by mentions) note-id.act)
+        (~(put by mentions) note-id.act new)
+      `this
+    ::
         %set-dial
       ::  clamp dial to 0-3
       =/  new-dial=@ud  (min dial.act 3)
@@ -1212,8 +1304,18 @@
       =/  upd=update:noltbook  [%new-message msg.rem]
       =/  pax=path  ~[%notes note-id.rem]
       =/  upd-note=note:noltbook  u.old(last-author `author.msg.rem, last-preview `text.msg.rem)
-      :_  this(notes (~(put by notes) note-id.rem upd-note), messages (~(put by messages) note-id.rem (snoc cur msg.rem)))
-      ~[[%give %fact ~[pax] %noltbook-update !>(upd)]]
+      ::  mention detection: check if @~our appears in message text
+      =/  mentioned=?  (has-our-mention text.msg.rem our.bowl)
+      =/  mention-cards=(list card)
+        ?.  mentioned  ~
+        =/  mupd=update:noltbook  [%mention-update note-id.rem ~[[id.msg.rem author.msg.rem]]]
+        ~[[%give %fact ~[/notes] %noltbook-update !>(mupd)]]
+      =/  new-mentions=(map @ta (list [id=@da author=@p]))
+        ?.  mentioned  mentions
+        =/  cur-m=(list [id=@da author=@p])  (fall (~(get by mentions) note-id.rem) ~)
+        (~(put by mentions) note-id.rem (snoc cur-m [id.msg.rem author.msg.rem]))
+      :_  this(notes (~(put by notes) note-id.rem upd-note), messages (~(put by messages) note-id.rem (snoc cur msg.rem)), mentions new-mentions)
+      [[%give %fact ~[pax] %noltbook-update !>(upd)] mention-cards]
     ::
         %remote-ars
       ::  ARS NOTORIA gossip from a peer
@@ -1232,8 +1334,18 @@
         ?:  =(p src.bowl)  ~  :: don't relay back to sender
         ?:  =(p author.msg.rem)  ~  :: don't relay back to author
         `[%pass /ars-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-ars msg.rem my-hops])]
-      :_  this(messages (~(put by messages) %cover (snoc cur msg.rem)), gossip-hops (~(put by gossip-hops) id.msg.rem my-hops))
-      [[%give %fact ~[/notes/cover] %noltbook-update !>(upd)] relay]
+      ::  mention detection for cover/grimoire
+      =/  mentioned=?  (has-our-mention text.msg.rem our.bowl)
+      =/  mention-cards=(list card)
+        ?.  mentioned  ~
+        =/  mupd=update:noltbook  [%mention-update %cover ~[[id.msg.rem author.msg.rem]]]
+        ~[[%give %fact ~[/notes] %noltbook-update !>(mupd)]]
+      =/  new-mentions=(map @ta (list [id=@da author=@p]))
+        ?.  mentioned  mentions
+        =/  cur-m=(list [id=@da author=@p])  (fall (~(get by mentions) %cover) ~)
+        (~(put by mentions) %cover (snoc cur-m [id.msg.rem author.msg.rem]))
+      :_  this(messages (~(put by messages) %cover (snoc cur msg.rem)), gossip-hops (~(put by gossip-hops) id.msg.rem my-hops), mentions new-mentions)
+      :(weld [[%give %fact ~[/notes/cover] %noltbook-update !>(upd)] ~] relay mention-cards)
     ::
         %remote-rumor
       ::  RUMORS: anonymous gossip from a peer
@@ -1512,10 +1624,21 @@
         =/  note  (~(get by notes) nid)
         =?  notes  ?=(^ note)
           (~(put by notes) nid u.note(last-author `author.msg, last-preview `text.msg))
+        ::  mention detection for subscribed notes
+        =/  mentioned=?  &(!=(author.msg our.bowl) (has-our-mention text.msg our.bowl))
+        =?  mentions  mentioned
+          =/  cur-m=(list [id=@da author=@p])  (fall (~(get by mentions) nid) ~)
+          (~(put by mentions) nid (snoc cur-m [id.msg author.msg]))
+        =/  mention-cards=(list card)
+          ?.  mentioned  ~
+          =/  mupd=update:noltbook  [%mention-update nid ~[[id.msg author.msg]]]
+          ~[[%give %fact ~[/notes] %noltbook-update !>(mupd)]]
+        =/  base-cards=(list card)
+          :~  [%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]
+              [%give %fact ~[/notes] %noltbook-update !>([%note-list ~(val by notes)])]
+          ==
         :_  this
-        :~  [%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]
-            [%give %fact ~[/notes] %noltbook-update !>([%note-list ~(val by notes)])]
-        ==
+        (weld base-cards mention-cards)
       ::
           %message-edited
         =/  msgs=(list message:noltbook)  (fall (~(get by messages) note-id.upd) ~)
@@ -1600,8 +1723,15 @@
         =/  gupd=update:noltbook  [%gossip-message msg 1]
         =.  messages  (~(put by messages) %cover (snoc cur msg))
         =.  gossip-hops  (~(put by gossip-hops) id.msg 1)
+        =/  mentioned=?  &(!=(author.msg our.bowl) (has-our-mention text.msg our.bowl))
+        =?  mentions  mentioned
+          =/  cur-m=(list [id=@da author=@p])  (fall (~(get by mentions) %cover) ~)
+          (~(put by mentions) %cover (snoc cur-m [id.msg author.msg]))
+        =/  mention-cards=(list card)
+          ?.  mentioned  ~
+          ~[[%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%mention-update %cover ~[[id.msg author.msg]]])]]
         :_  this
-        ~[[%give %fact ~[/notes/cover] %noltbook-update !>(gupd)]]
+        [[%give %fact ~[/notes/cover] %noltbook-update !>(gupd)] mention-cards]
       ::
           %gossip-message
         ::  gossip with hop count from peer's cover subscription
@@ -1613,8 +1743,15 @@
         =/  gupd=update:noltbook  [%gossip-message msg my-hops]
         =.  messages  (~(put by messages) %cover (snoc cur msg))
         =.  gossip-hops  (~(put by gossip-hops) id.msg my-hops)
+        =/  mentioned=?  &(!=(author.msg our.bowl) (has-our-mention text.msg our.bowl))
+        =?  mentions  mentioned
+          =/  cur-m=(list [id=@da author=@p])  (fall (~(get by mentions) %cover) ~)
+          (~(put by mentions) %cover (snoc cur-m [id.msg author.msg]))
+        =/  mention-cards=(list card)
+          ?.  mentioned  ~
+          ~[[%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%mention-update %cover ~[[id.msg author.msg]]])]]
         :_  this
-        ~[[%give %fact ~[/notes/cover] %noltbook-update !>(gupd)]]
+        [[%give %fact ~[/notes/cover] %noltbook-update !>(gupd)] mention-cards]
       ::
           %message-list
         ::  initial sync of cover messages from peer

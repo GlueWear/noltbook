@@ -146,8 +146,11 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .attach-menu.open{display:block}
 .attach-item{display:block;width:100%;font-family:var(--font);font-size:.8rem;padding:.45rem .75rem;background:none;border:none;color:var(--text-muted);cursor:pointer;text-align:left}
 .attach-item:hover{background:var(--bg3);color:var(--text)}
-.chat-input{flex:1;font-family:var(--font);font-size:1rem;background:var(--bg2);border:1px solid var(--border2);color:#ddd;padding:.4rem .6rem;resize:none;outline:none;min-height:2.1rem;max-height:8rem;line-height:1.4}
-.chat-input:focus{border-color:var(--text-muted)}
+.chat-input-wrap{flex:1;position:relative;min-height:2.1rem;max-height:8rem}
+.chat-input-mirror{position:absolute;top:0;left:0;width:100%;height:100%;padding:.4rem .6rem;font-family:var(--font);font-size:1rem;line-height:1.4;color:#ddd;background:var(--bg2);border:1px solid var(--border2);white-space:pre-wrap;word-wrap:break-word;overflow:hidden;pointer-events:none;box-sizing:border-box}
+.chat-input{width:100%;box-sizing:border-box;font-family:var(--font);font-size:1rem;background:transparent;border:1px solid transparent;color:transparent;caret-color:#ddd;padding:.4rem .6rem;resize:none;outline:none;min-height:2.1rem;max-height:8rem;line-height:1.4;position:relative;z-index:1}
+.chat-input::placeholder{color:transparent}
+.chat-input:focus~.chat-input-mirror,.chat-input-wrap:focus-within .chat-input-mirror{border-color:var(--text-muted)}
 .send-btn{font-family:var(--font);font-size:.8rem;padding:.4rem .9rem;background:transparent;border:1px solid #ffaa00;color:#ffaa00;cursor:pointer;white-space:nowrap;flex-shrink:0}
 .send-btn:hover{background:rgba(255,170,0,.15)}
 .artifact-panel{width:0;border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:width .2s;flex-shrink:0}
@@ -410,8 +413,11 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
           <button class="reply-close" onclick="cancelReply()">✕</button>
         </div>
         <div class="chat-input-row">
+          <div class="chat-input-wrap">
           <textarea class="chat-input" id="chatInput" placeholder="message..." rows="1"
-            onkeydown="handleInputKey(event)" oninput="autoResize(this)"></textarea>
+            onkeydown="handleInputKey(event)" oninput="autoResize(this)" onscroll="syncMirrorScroll()"></textarea>
+          <div class="chat-input-mirror" id="chatInputMirror"></div>
+          </div>
           <div class="attach-wrap">
             <button class="attach-btn" onclick="toggleAttachMenu()">+</button>
             <div class="attach-menu" id="attachMenu">
@@ -564,7 +570,7 @@ const api = {
     this.reconnecting=false;
   }
 };
-const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},dial:0,gossipHops:{}};
+const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},dial:0,gossipHops:{},mentions:{}};
 let sigilFn=null;
 const sigilCache={};
 (async function loadSigil(){
@@ -669,6 +675,7 @@ function handleUpdate(upd){
   else if(upd['wallet-update']){wallet.transactions=upd['wallet-update'].map(tx=>({type:tx.type,who:tx.counterparty,amount:tx.amount,time:new Date(tx.timestamp).toLocaleString(),txid:tx.txHash}));renderWalletNotes()}
   else if(upd['gossip-message']){const{message,hops}=upd['gossip-message'];state.gossipHops[message.id]=hops;if(!state.messages['cover'])state.messages['cover']=[];state.messages['cover'].push(message);const visible=coverMsgVisible(message);if(visible&&state.notes['cover']){state.notes['cover'].lastAuthor=message.author;state.notes['cover'].lastPreview=message.text}if(state.currentNoteId==='cover'&&visible)appendMessage(message);else if(state.currentNoteId!=='cover'&&visible)state.notifications.add('cover');updateCoverPreview();scheduleNoteList()}
   else if(upd['rumor-message']){const msg=upd['rumor-message'].message;if(!state.messages['ars-rumors'])state.messages['ars-rumors']=[];const isDup=state.messages['ars-rumors'].some(m=>m.text===msg.text);if(!isDup){state.messages['ars-rumors'].unshift(msg);if(state.currentNoteId==='ars-rumors')renderMessages('ars-rumors');else state.notifications.add('ars-rumors');scheduleNoteList()}}
+  else if(upd['mention-update']){const{noteId,mentions}=upd['mention-update'];if(!state.mentions[noteId])state.mentions[noteId]=[];for(const m of mentions){if(!state.mentions[noteId].some(x=>x.id===m.id))state.mentions[noteId].push({id:m.id,author:m.author})}scheduleNoteList()}
 }
 function revealNoteInTree(id){
   // expand ancestors and open the containing section so the note is visible
@@ -694,9 +701,13 @@ function revealNoteInTree(id){
     document.getElementById(section+'Arrow').classList.add('open');
   }
 }
+let mentionObserver=null;
 async function openNote(id){
   if(state.currentNoteSub!==null){await api.unsubscribe(state.currentNoteSub);state.currentNoteSub=null}
+  // tear down previous mention observer
+  if(mentionObserver){mentionObserver.disconnect();mentionObserver=null}
   state.currentNoteId=id;state.notifications.delete(id);state.lastMsgAuthor=null;
+  state._mentionJumpDone=false;
   revealNoteInTree(id);
   document.getElementById('chatNoteName').textContent=id==='cover'?'%Grimoire':id==='ars-rumors'?'%Rumors':(state.notes[id]?noteDisplayName(state.notes[id]):id);
   document.getElementById('shareBtn').style.display=(id==='cover'||id==='ars-rumors')?'none':'block';
@@ -707,11 +718,12 @@ async function openNote(id){
   state.currentNoteSub=subId;
   if(state.messages[id])renderMessages(id);
   renderNoteList();
-  // scroll revealed note into view
-  requestAnimationFrame(()=>{
-    const el=document.querySelector(`[data-note-id="${id}"]`);
-    if(el&&el.scrollIntoView)el.scrollIntoView({block:'nearest',behavior:'smooth'});
-  });
+  if(!(state.mentions[id]&&state.mentions[id].length>0)){
+    requestAnimationFrame(()=>{
+      const el=document.querySelector(`[data-note-id="${id}"]`);
+      if(el&&el.scrollIntoView)el.scrollIntoView({block:'nearest',behavior:'smooth'});
+    });
+  }
 }
 function updateDialUI(){
   const boxes=document.querySelectorAll('.dial-box');
@@ -743,15 +755,20 @@ const arsEntries=[
 ];
 function makeArsItem(entry){
   const div=document.createElement('div');
-  div.className='note-item'+(entry.id===state.currentNoteId?' active':'');
+  const hasNotif=state.notifications.has(entry.id);
+  const hasMention=state.mentions[entry.id]&&state.mentions[entry.id].length>0;
+  div.className='note-item'+(entry.id===state.currentNoteId?' active':'')+((hasNotif||hasMention)?' has-notif':'');
   div.setAttribute('data-note-id',entry.id);
   const last=getLastMessage(entry.id);
   const source=entry.id==='ars-rumors'?(last?'Anonymous':''):(last?displayName(last.author):'');
-  const preview=last?last.text.replace(/\n/g,' '):'';
+  const rawPreview=last?last.text.replace(/\n/g,' '):'';
+  let previewHtml;
+  if(hasMention){previewHtml='<span style="color:#ffaa00">@you:</span> '+escHtml(rawPreview)}else{previewHtml=escHtml(rawPreview)}
   const bgStyle=entry.bgColor?`background:${entry.bgColor}`:entry.color?`background:${entry.color}`:'background:#000';
   const iconImg=entry.icon?`<img src="${entry.icon}" style="width:100%;height:100%;object-fit:contain">`:'';
   const arsSourceColor=entry.id==='ars-rumors'?(last?'#652287':''):(last?shipColor(last.author):'');
-  div.innerHTML=`<span class="note-arrow" style="visibility:hidden">&#9654;</span><div class="note-icon" style="${bgStyle};display:flex;align-items:center;justify-content:center;overflow:hidden">${iconImg}</div><div class="note-text"><span class="note-name">${escHtml(entry.name)}</span><span class="note-source"${arsSourceColor?' style="color:'+arsSourceColor+'"':''}>${escHtml(source)}</span><span class="note-preview">${escHtml(preview)}</span></div><span class="note-dot"></span>`;
+  const dotColor=hasMention?'#ffaa00':'var(--bot)';
+  div.innerHTML=`<span class="note-arrow" style="visibility:hidden">&#9654;</span><div class="note-icon" style="${bgStyle};display:flex;align-items:center;justify-content:center;overflow:hidden">${iconImg}</div><div class="note-text"><span class="note-name">${escHtml(entry.name)}</span><span class="note-source"${arsSourceColor?' style="color:'+arsSourceColor+'"':''}>${escHtml(source)}</span><span class="note-preview">${previewHtml}</span></div><span class="note-dot" style="background:${dotColor}"></span>`;
   div.onclick=()=>{openNote(entry.id)};
   return div;
 }
@@ -858,18 +875,22 @@ function makeNoteItem(n,depth){
   const hasChildren=n.children&&n.children.length>0;
   const isExpanded=state.expandedNotes.has(n.id);
   const hasNotif=state._trickleDotted?state._trickleDotted.has(n.id):state.notifications.has(n.id);
-  div.className='note-item'+(n.id===state.currentNoteId?' active':'')+(hasNotif?' has-notif':'')+(depth?` depth-${depth}`:'');
+  const hasMention=state.mentions[n.id]&&state.mentions[n.id].length>0;
+  div.className='note-item'+(n.id===state.currentNoteId?' active':'')+((hasNotif||hasMention)?' has-notif':'')+(depth?` depth-${depth}`:'');
   div.setAttribute('data-note-id',n.id);
   const last=getLastMessage(n.id);
   const iconContent=noteDisplayIconHtml(n);
   const displayNameStr=noteDisplayName(n);
   const rawSource=last?last.author:(n.lastAuthor||'');
   const source=rawSource?displayName(rawSource):'';
-  const preview=last?last.text.replace(/\n/g,' '):(n.lastPreview?n.lastPreview.replace(/\n/g,' '):'');
+  const rawPreview=last?last.text.replace(/\n/g,' '):(n.lastPreview?n.lastPreview.replace(/\n/g,' '):'');
+  let previewHtml;
+  if(hasMention){previewHtml='<span style="color:#ffaa00">@you:</span> '+escHtml(rawPreview)}else{previewHtml=escHtml(rawPreview)}
   const chevron=hasChildren?`<span class="note-arrow ${isExpanded?'open':''}" onclick="event.stopPropagation();toggleNoteExpand('${n.id}')">&#9654;</span>`:`<span class="note-arrow" style="visibility:hidden">&#9654;</span>`;
   const hasCustomIcon=!!n.iconUrl||!!dmCounterparty(n);
   const sourceColor=rawSource?shipColor(rawSource):'';
-  div.innerHTML=`${chevron}<div class="note-icon" ${hasCustomIcon?'style="display:flex"':''}>${iconContent}</div><div class="note-text"><span class="note-name">${escHtml(displayNameStr)}</span><span class="note-source"${sourceColor?' style="color:'+sourceColor+'"':''}>${escHtml(source)}</span><span class="note-preview">${escHtml(preview)}</span></div><span class="note-dot"></span>`;
+  const dotColor=hasMention?'#ffaa00':'var(--bot)';
+  div.innerHTML=`${chevron}<div class="note-icon" ${hasCustomIcon?'style="display:flex"':''}>${iconContent}</div><div class="note-text"><span class="note-name">${escHtml(displayNameStr)}</span><span class="note-source"${sourceColor?' style="color:'+sourceColor+'"':''}>${escHtml(source)}</span><span class="note-preview">${previewHtml}</span></div><span class="note-dot" style="background:${dotColor}"></span>`;
   let clickTimer=null;
   div.onclick=()=>{if(clickTimer)return;clickTimer=setTimeout(()=>{clickTimer=null;openNote(n.id)},250)};
   div.ondblclick=(e)=>{clearTimeout(clickTimer);clickTimer=null;e.preventDefault();toggleNoteExpand(n.id)};
@@ -1106,6 +1127,41 @@ function renderMessages(noteId){
       }
     }
   }
+  // set up mention observer on every render for current note
+  const curMentions=state.mentions[noteId]||[];
+  if(curMentions.length>0){
+    if(mentionObserver){mentionObserver.disconnect();mentionObserver=null}
+    mentionObserver=new IntersectionObserver((entries)=>{
+      for(const ent of entries){
+        if(!ent.isIntersecting)continue;
+        const mel=ent.target;
+        const mid=Number(mel.dataset.mentionId);
+        if(!mid)continue;
+        mentionObserver.unobserve(mel);
+        mel.style.outline='';
+        if(state.mentions[noteId]){
+          state.mentions[noteId]=state.mentions[noteId].filter(m=>m.id!==mid);
+          if(state.mentions[noteId].length===0)delete state.mentions[noteId];
+        }
+        api.poke('noltbook','noltbook-action',{action:'clear-mention',data:{noteId,msgId:mid}});
+        renderNoteList();
+      }
+    },{root:el,threshold:0.5});
+    for(const m of curMentions){
+      const msgEl=document.getElementById('msg-'+m.id);
+      if(msgEl){msgEl.style.outline='2px solid #ffaa00';msgEl.dataset.mentionId=m.id;mentionObserver.observe(msgEl)}
+    }
+    // jump to oldest mention only once per openNote
+    if(!state._mentionJumpDone){
+      state._mentionJumpDone=true;
+      const oldest=curMentions.slice().sort((a,b)=>a.id-b.id)[0];
+      if(oldest){
+        const jumpEl=document.getElementById('msg-'+oldest.id);
+        if(jumpEl){jumpEl.scrollIntoView({block:'center'});return}
+      }
+    }
+    return;
+  }
   el.scrollTop=noteId==='ars-rumors'?0:el.scrollHeight;
   if(window.twttr&&twttr.widgets)twttr.widgets.load(el);
 }
@@ -1215,7 +1271,7 @@ function renderAvatar(ship,element){
 function displayName(ship){const p=state.profiles[ship];return(p&&p.displayName)?p.displayName:ship}
 function userSearch(query){
   const me='~'+api.ship;
-  const q=query.toLowerCase().replace(/^~/,'');
+  const q=query.toLowerCase().replace(/^[@~]+/,'');
   if(!q)return[];
   const results=[];
   for(const [ship,prof] of Object.entries(state.profiles)){
@@ -1296,7 +1352,7 @@ function showUserDropdown(inputEl,containerEl,onSelect,opts){
   _activeDropdown={dd,update,inputEl};
   return{update,destroy:function(){dd.remove();inputEl.removeEventListener('input',update);inputEl.removeEventListener('keydown',handleKey)}};
 }
-function renderText(text){if(!text)return'';var out=escHtml(text);out=out.replace(/`([^`]+)`/g,'<code style="background:var(--bg3);padding:.1rem .3rem">$1</code>');out=out.replace(/(data:image\/[^\s"]+)/g,function(m){var raw=m.replace(/&amp;/g,'&').replace(/&quot;/g,'"');return '<div style="margin:.35rem 0"><img src="'+raw+'" style="max-width:100%;max-height:400px;border:1px solid var(--border);cursor:pointer" ondblclick="openImageFullscreen(this.src)"></div>'});out=out.replace(/(https?:\/\/[^\s]+)/g,function(url){var raw=url.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/[.,;:!?\)]+$/,'');if(/\.(png|jpe?g|gif|webp|svg|bmp|ico)(\?[^\s]*)?$/i.test(raw)){return '<div style="margin:.35rem 0"><img src="'+escAttr(raw)+'" style="max-width:100%;max-height:400px;border:1px solid var(--border);cursor:pointer" ondblclick="openImageFullscreen(this.src)"></div>'}var yt=raw.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/);if(yt){return '<div style="margin:.35rem 0;max-width:480px;aspect-ratio:16/9"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[1]+'" style="width:100%;height:100%;border:1px solid var(--border)" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe></div>'}var tw=raw.match(/(?:twitter\.com|x\.com)\/(\w+)\/status\/(\d+)/);if(tw){return '<div class="tweet-embed" style="margin:.35rem 0;max-width:480px"><blockquote class="twitter-tweet" data-theme="dark" data-conversation="none"><a href="https://twitter.com/'+tw[1]+'/status/'+tw[2]+'"></a></blockquote></div>'}return '<a href="'+escAttr(raw)+'" target="_blank" rel="noopener" style="color:#ffaa00">'+url+'</a>'});return out}
+function renderText(text){if(!text)return'';var out=escHtml(text);out=out.replace(/`([^`]+)`/g,'<code style="background:var(--bg3);padding:.1rem .3rem">$1</code>');out=out.replace(/(data:image\/[^\s"]+)/g,function(m){var raw=m.replace(/&amp;/g,'&').replace(/&quot;/g,'"');return '<div style="margin:.35rem 0"><img src="'+raw+'" style="max-width:100%;max-height:400px;border:1px solid var(--border);cursor:pointer" ondblclick="openImageFullscreen(this.src)"></div>'});out=out.replace(/(https?:\/\/[^\s]+)/g,function(url){var raw=url.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/[.,;:!?\)]+$/,'');if(/\.(png|jpe?g|gif|webp|svg|bmp|ico)(\?[^\s]*)?$/i.test(raw)){return '<div style="margin:.35rem 0"><img src="'+escAttr(raw)+'" style="max-width:100%;max-height:400px;border:1px solid var(--border);cursor:pointer" ondblclick="openImageFullscreen(this.src)"></div>'}var yt=raw.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/);if(yt){return '<div style="margin:.35rem 0;max-width:480px;aspect-ratio:16/9"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[1]+'" style="width:100%;height:100%;border:1px solid var(--border)" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe></div>'}var tw=raw.match(/(?:twitter\.com|x\.com)\/(\w+)\/status\/(\d+)/);if(tw){return '<div class="tweet-embed" style="margin:.35rem 0;max-width:480px"><blockquote class="twitter-tweet" data-theme="dark" data-conversation="none"><a href="https://twitter.com/'+tw[1]+'/status/'+tw[2]+'"></a></blockquote></div>'}return '<a href="'+escAttr(raw)+'" target="_blank" rel="noopener" style="color:#ffaa00">'+url+'</a>'});out=out.replace(/@(~[a-z][\w-]*)/g,function(m,ship){return '<span style="color:#ffaa00;font-weight:500">@'+ship+'</span>'});return out}
 function openImageFullscreen(url){var o=document.createElement('div');o.id='file-fullscreen';o.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.92);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer';o.innerHTML='<img src="'+url+'" style="max-width:95%;max-height:90vh">';o.onclick=function(){o.remove()};document.body.appendChild(o)}
 async function sendMessage(){
   const input=document.getElementById('chatInput');const text=input.value.trim();if(!text)return;
@@ -1307,10 +1363,10 @@ async function sendMessage(){
     const msg=msgs.find(m=>m.id===msgId);
     if(msg){msg.text=text;msg.edited=true}
     renderMessages(state.currentNoteId);
-    input.value='';input.style.height='';cancelEdit();
+    input.value='';input.style.height='';cancelEdit();updateInputMirror();
     return;
   }
-  const data={noteId:state.currentNoteId,text};if(state.replyingTo)data.replyTo=state.replyingTo;await api.poke('noltbook','noltbook-action',{action:'send-message',data});input.value='';input.style.height='';cancelReply()
+  const data={noteId:state.currentNoteId,text};if(state.replyingTo)data.replyTo=state.replyingTo;await api.poke('noltbook','noltbook-action',{action:'send-message',data});input.value='';input.style.height='';cancelReply();updateInputMirror()
 }
 let mentionState={active:false,startPos:0,idx:-1};
 function getMentionQuery(){
@@ -1339,8 +1395,13 @@ function updateMentionDropdown(){
   const results=userSearch(mq.query);
   dd.innerHTML='';
   mentionState.idx=-1;
-  if(results.length===0){dd.classList.remove('open');return}
-  for(const r of results){
+  // filter to note members (cover/grimoire = all profiles, regular notes = note.users)
+  const note=state.notes[state.currentNoteId];
+  const noteMembers=note?(note.users||[]):[];
+  const isCover=state.currentNoteId==='cover';
+  const filtered=isCover?results:results.filter(r=>noteMembers.includes(r.ship));
+  if(filtered.length===0){dd.classList.remove('open');return}
+  for(const r of filtered){
     const item=renderDropdownItem(r);
     item.addEventListener('mousedown',function(e){e.preventDefault();insertMention(r)});
     dd.appendChild(item);
@@ -1355,13 +1416,14 @@ function insertMention(r){
   if(!mq)return;
   const before=val.slice(0,mq.start);
   const after=val.slice(pos);
-  const mention=r.ship+' ';
+  const mention='@'+r.ship+' ';
   inp.value=before+mention+after;
   const newPos=mq.start+mention.length;
   inp.selectionStart=inp.selectionEnd=newPos;
   document.getElementById('mentionDropdown').classList.remove('open');
   mentionState.active=false;
   inp.focus();
+  updateInputMirror();
 }
 function handleInputKey(e){
   const dd=document.getElementById('mentionDropdown');
@@ -1375,7 +1437,18 @@ function handleInputKey(e){
   }
   if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage()}if(e.key==='Escape'){if(state.editingMsgId)cancelEdit();else if(state.replyingTo)cancelReply()}
 }
-function autoResize(el){el.style.height='';el.style.height=Math.min(el.scrollHeight,120)+'px';updateMentionDropdown()}
+function updateInputMirror(){
+  const inp=document.getElementById('chatInput');
+  const mirror=document.getElementById('chatInputMirror');
+  if(!inp||!mirror)return;
+  if(!inp.value){mirror.innerHTML='<span style="color:var(--text-muted)">'+escHtml(inp.placeholder)+'</span>';return}
+  let text=escHtml(inp.value);
+  text=text.replace(/@(~[a-z][\w-]*)/g,'<span style="color:#ffaa00;font-weight:500">@$1</span>');
+  mirror.innerHTML=text+'\n';
+  mirror.scrollTop=inp.scrollTop;
+}
+function syncMirrorScroll(){const inp=document.getElementById('chatInput');const mirror=document.getElementById('chatInputMirror');if(inp&&mirror)mirror.scrollTop=inp.scrollTop}
+function autoResize(el){el.style.height='';el.style.height=Math.min(el.scrollHeight,120)+'px';updateMentionDropdown();updateInputMirror()}
 function startReply(msgId,author){state.replyingTo=parseInt(msgId);document.getElementById('replyLabel').textContent='↩ replying to '+author;document.getElementById('replyBar').classList.add('visible');document.getElementById('chatInput').focus()}
 function cancelReply(){state.replyingTo=null;document.getElementById('replyBar').classList.remove('visible')}
 function editMessage(msgId){
@@ -1389,8 +1462,9 @@ function editMessage(msgId){
   input.placeholder='editing message... (Esc to cancel)';
   input.focus();
   autoResize(input);
+  updateInputMirror();
 }
-function cancelEdit(){state.editingMsgId=null;const input=document.getElementById('chatInput');input.value='';input.style.height='';input.placeholder='message...'}
+function cancelEdit(){state.editingMsgId=null;const input=document.getElementById('chatInput');input.value='';input.style.height='';input.placeholder='message...';updateInputMirror()}
 async function deleteMessage(msgId){
   if(!confirm('Delete this message?'))return;
   msgId=parseInt(msgId);

@@ -135,6 +135,13 @@
       :~  ['id' s+(crip (trip id.upd))]
           ['users' a+(turn users.upd |=(p=@p s+(scot %p p)))]
       ==
+    ::
+        %mention-update
+      %+  frond  'mention-update'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['mentions' a+(turn mentions.upd |=([id=@da author=@p] (pairs ~[['id' (numb (da-to-ms id))] ['author' s+(scot %p author)]])))]
+      ==
     ==
     ::
     ++  da-to-ms

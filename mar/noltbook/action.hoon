@@ -229,6 +229,19 @@
       =/  par-nd  (need (~(get by d) 'newParent'))
       ?>  ?=([%s *] par-nd)
       [%reparent-note `@ta`p.id-nd `@ta`p.par-nd]
+    ::  clear-mentions
+    ?:  =('clear-mentions' tag)
+      =/  nid-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] nid-nd)
+      [%clear-mentions `@ta`p.nid-nd]
+    ::  clear-mention (single)
+    ?:  =('clear-mention' tag)
+      =/  nid-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] nid-nd)
+      =/  mid-nd  (need (~(get by d) 'msgId'))
+      ?>  ?=([%n *] mid-nd)
+      =/  mid=@da  (add ~1970.1.1 (mul (rash p.mid-nd dem) (div ~s1 1.000)))
+      [%clear-mention `@ta`p.nid-nd mid]
     ::  set-dial (final case)
     ?>  =('set-dial' tag)
     =/  dial-nd  (need (~(get by d) 'dial'))
