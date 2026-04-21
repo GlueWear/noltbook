@@ -1,6 +1,6 @@
 |%
 ::  note types
-+$  note-type  ?(%notebook %dm %group %cover)
++$  note-type  ?(%notebook %dm %group %cover %gossip)
 +$  note-visibility  ?(%public %private %secret)
 ::
 +$  note
@@ -100,6 +100,7 @@
 ::  poke actions (client to agent)
 +$  action
   $%  [%create-note name=@t parent=(unit @ta)]
+      [%create-gossip-note name=@t]
       [%rename-note id=@ta name=@t]
       [%delete-note id=@ta]
       [%switch-note id=@ta]

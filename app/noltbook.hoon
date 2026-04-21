@@ -258,7 +258,7 @@
   =/  hits=(list note:noltbook)
     %+  skim  ~(val by nmap)
     |=  n=note:noltbook
-    &(?=(~ parent.n) =(users.n us) !=(%cover type.n))
+    &(?=(~ parent.n) =(users.n us) !=(%cover type.n) !=(%gossip type.n))
   ?~  hits  ~
   `i.hits
 ::  root-wins: does candidate a beat candidate b?
@@ -710,11 +710,6 @@
       ::  no parent: personal root note
       ?~  parent.act
         =/  self-set=(set @p)  (sy ~[our.bowl])
-        =/  dup  (find-root notes self-set)
-        ?^  dup
-          ::  already have personal root; focus it
-          :_  this
-          ~[[%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%note-created u.dup])]]
         =/  nid=@ta  (crip (weld "note-" (trip (scot %da now.bowl))))
         =/  new-note=note:noltbook
           :*  nid  name.act  %notebook  our.bowl  self-set  ~  ~  ~  ~  %secret  ~  &
@@ -748,6 +743,21 @@
         `[%pass /child-out/(scot %p p)/[nid] %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-child-note pid new-note])]
       :_  this(notes n2, messages (~(put by messages) nid *(list message:noltbook)))
       :(weld ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] broadcast)
+    ::
+        %create-gossip-note
+      =/  self-set=(set @p)  (sy ~[our.bowl])
+      =/  nid=@ta  (crip (weld "note-" (trip (scot %da now.bowl))))
+      =/  new-note=note:noltbook
+        :*  nid  name.act  %gossip  our.bowl  self-set  ~  ~  ~  ~  %secret  ~  &
+        ==
+      =/  upd=update:noltbook  [%note-created new-note]
+      =/  rem=remote:noltbook  [%remote-invite nid name.act %gossip our.bowl self-set %secret]
+      =/  broadcast=(list card)
+        %+  turn  ~(tap in peers)
+        |=  p=@p
+        [%pass /gossip-invite/(scot %p p)/[nid] %agent [p %noltbook] %poke %noltbook-remote !>(rem)]
+      :_  this(notes (~(put by notes) nid new-note), messages (~(put by messages) nid *(list message:noltbook)))
+      [[%give %fact ~[/notes] %noltbook-update !>(upd)] broadcast]
     ::
         %send-message
       =/  exists  (~(get by notes) note-id.act)
@@ -802,7 +812,9 @@
       =/  pax=path  ~[%notes note-id.act]
       =/  upd-note=note:noltbook  u.exists(last-author `our.bowl, last-preview `text.act)
       :_  this(notes (~(put by notes) note-id.act upd-note), messages (~(put by messages) note-id.act (snoc cur msg)))
-      ~[[%give %fact ~[pax] %noltbook-update !>(upd)]]
+      :~  [%give %fact ~[pax] %noltbook-update !>(upd)]
+          [%give %fact ~[/notes] %noltbook-update !>(upd)]
+      ==
     ::
         %edit-message
       =/  exists  (~(get by notes) note-id.act)
@@ -1092,9 +1104,15 @@
       `this
     ::
         %clear-mention
-      ::  clear a single mention by msg-id
+      ::  clear a single mention by msg-id (compare at ms precision
+      ::  since JSON round-trip truncates sub-ms from @da)
+      =/  ms-unit=@  (div ~s1 1.000)
+      =/  target-ms=@ud  (div (sub msg-id.act ~1970.1.1) ms-unit)
       =/  cur=(list [id=@da author=@p])  (fall (~(get by mentions) note-id.act) ~)
-      =/  new=(list [id=@da author=@p])  (skip cur |=([id=@da author=@p] =(id msg-id.act)))
+      =/  new=(list [id=@da author=@p])
+        %+  skip  cur
+        |=  [id=@da author=@p]
+        =(target-ms (div (sub id ~1970.1.1) ms-unit))
       =.  mentions
         ?~  new  (~(del by mentions) note-id.act)
         (~(put by mentions) note-id.act new)
@@ -1214,7 +1232,7 @@
       =/  new-note=note:noltbook
         [note-id.rem name.rem type.rem creator.rem users.rem ~ ~ ~ ~ visibility.rem ~ &]
       ::  root-uniqueness: only dedup non-cover roots
-      =/  dup  ?:(=(note-id.rem %cover) ~ (find-root notes users.rem))
+      =/  dup  ?:(|(=(note-id.rem %cover) =(%gossip type.rem)) ~ (find-root notes users.rem))
       ?^  dup
         ?:  =(id.u.dup note-id.rem)  `this  :: same note, no-op
         =/  local-wins=?
@@ -1315,7 +1333,10 @@
         =/  cur-m=(list [id=@da author=@p])  (fall (~(get by mentions) note-id.rem) ~)
         (~(put by mentions) note-id.rem (snoc cur-m [id.msg.rem author.msg.rem]))
       :_  this(notes (~(put by notes) note-id.rem upd-note), messages (~(put by messages) note-id.rem (snoc cur msg.rem)), mentions new-mentions)
-      [[%give %fact ~[pax] %noltbook-update !>(upd)] mention-cards]
+      :*  [%give %fact ~[pax] %noltbook-update !>(upd)]
+          [%give %fact ~[/notes] %noltbook-update !>(upd)]
+          mention-cards
+      ==
     ::
         %remote-ars
       ::  ARS NOTORIA gossip from a peer
@@ -1635,7 +1656,7 @@
           ~[[%give %fact ~[/notes] %noltbook-update !>(mupd)]]
         =/  base-cards=(list card)
           :~  [%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]
-              [%give %fact ~[/notes] %noltbook-update !>([%note-list ~(val by notes)])]
+              [%give %fact ~[/notes] %noltbook-update !>(upd)]
           ==
         :_  this
         (weld base-cards mention-cards)

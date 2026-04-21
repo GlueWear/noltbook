@@ -185,6 +185,22 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .modal-btn.save:hover{background:rgba(0,255,136,.15)}
 .modal-btn.cancel:hover{border-color:#ff4444;color:#ff4444;background:rgba(255,68,68,.15)}
 .modal-btn.clear:hover{border-color:#ffaa00;color:#ffaa00;background:rgba(255,170,0,.15)}
+.modal-btn.amber{border-color:#ffaa00;color:#ffaa00}
+.modal-btn.amber:hover{background:rgba(255,170,0,.15)}
+.modal-btn.cancel-red:hover{border-color:#ff4444;color:#ff4444;background:rgba(255,68,68,.15)}
+.modal-btn.amber-hover:hover{border-color:#ffaa00;color:#ffaa00;background:rgba(255,170,0,.15)}
+.vp-actions{display:flex;flex-direction:column;gap:.35rem;min-width:7rem}
+.vp-btn{font-family:var(--font);font-size:.7rem;padding:.3rem .5rem;border:1px solid #444;color:#888;cursor:pointer;text-align:center;background:transparent;letter-spacing:.05em;width:100%;box-sizing:border-box}
+.vp-btn:hover{border-color:#ffaa00;color:#ffaa00;background:rgba(255,170,0,.1)}
+.vp-btn.send-hover:hover{border-color:#00ff88;color:#00ff88;background:rgba(0,255,136,.1)}
+.vp-btn.danger-hover:hover{border-color:#ff4444;color:#ff4444;background:rgba(255,68,68,.1)}
+.vp-btn.pal-mutual{border-color:#2D6752;color:#4aba8a;background:rgba(45,103,82,.15)}
+.vp-btn.pal-requesting{border-color:#ffaa00;color:#ffaa00;background:rgba(255,170,0,.1)}
+.vp-btn.pal-requested{border-color:#3b82f6;color:#3b82f6;background:rgba(59,130,246,.1)}
+.vp-btn.pal-blocked{border-color:#ff4444;color:#ff4444;background:rgba(255,68,68,.1)}
+.gossip-toggle{display:flex;align-items:center;gap:.4rem}
+.gossip-toggle label{font-size:.7rem;color:var(--text-dim);letter-spacing:.05em;cursor:pointer}
+.gossip-toggle input[type=checkbox]{accent-color:#ffaa00;cursor:pointer}
 .profile-modal{background:var(--bg2);border:1px solid var(--border);width:400px;padding:1.25rem;display:flex;flex-direction:column;gap:1rem}
 .profile-top{display:flex;gap:1rem;align-items:flex-start}
 .profile-sigil{width:80px;height:80px;flex-shrink:0;background:#000;border-radius:3px;overflow:hidden;cursor:pointer;border:2px solid transparent;box-sizing:content-box}
@@ -445,13 +461,19 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
   <div class="modal">
     <span class="modal-title" id="noteModalTitle">NEW NOTE</span>
     <div class="modal-field">
-      <label class="modal-label">NAME</label>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <label class="modal-label" style="margin:0">NAME</label>
+        <div class="gossip-toggle" id="gossipToggleWrap" style="margin:0">
+          <label for="gossipCheck">%GOSSIP</label>
+          <input type="checkbox" id="gossipCheck">
+        </div>
+      </div>
       <input class="modal-input" id="noteNameInput" placeholder="note name" autocomplete="off"
         onkeydown="if(event.key==='Enter')submitNote()">
     </div>
     <div class="modal-actions">
-      <button class="modal-btn" onclick="closeNoteModal()">CANCEL</button>
-      <button class="modal-btn primary" onclick="submitNote()">CREATE</button>
+      <button class="modal-btn cancel-red" id="noteModalCancel" onclick="closeNoteModal()">CANCEL</button>
+      <button class="modal-btn amber" id="noteModalCreate" onclick="submitNote()">CREATE</button>
     </div>
   </div>
 </div>
@@ -503,8 +525,8 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
       <div class="profile-notes-list" id="profileNotesList">none available</div>
     </div>
     <div class="modal-actions">
-      <button class="modal-btn cancel" onclick="closeProfileModal()">CANCEL</button>
-      <button class="modal-btn save" onclick="saveProfile()">SAVE</button>
+      <button class="modal-btn cancel-red" onclick="closeProfileModal()">CANCEL</button>
+      <button class="modal-btn amber-hover" onclick="saveProfile()">SAVE</button>
     </div>
   </div>
 </div>
@@ -653,11 +675,11 @@ function scheduleNoteList(){if(_noteListTimer)clearTimeout(_noteListTimer);_note
 let _lastMsgHash={};
 function handleUpdate(upd){
   if(upd['note-list']){console.log('[note-list]',JSON.stringify(upd['note-list']));for(const n of upd['note-list'])state.notes[n.id]=n;renderNoteList()}
-  else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));state.notes[n.id]=n;if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id);state.expandedNotes.add(n.parent)}if(n.creator==='~'+api.ship)openNote(n.id);else{state.notifications.add(n.id);if(n.parent)state.notifications.add(n.parent)}renderNoteList()}
+  else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));state.notes[n.id]=n;if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id)}if(n.creator==='~'+api.ship){if(n.parent)state.expandedNotes.add(n.parent);openNote(n.id)}else{state.notifications.add(n.id)}renderNoteList()}
   else if(upd['note-renamed']){const{id,name}=upd['note-renamed'];if(state.notes[id]){state.notes[id].name=name;renderNoteList()}if(state.currentNoteId===id)document.getElementById('chatNoteName').textContent=name}
   else if(upd['note-deleted']){const{id}=upd['note-deleted'];delete state.notes[id];if(state.currentNoteId===id)openNote('cover');renderNoteList()}
   else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];const hash=noteId+':'+messages.length+':'+(messages.length?messages[messages.length-1].id:'');if(_lastMsgHash[noteId]===hash)return;_lastMsgHash[noteId]=hash;state.messages[noteId]=messages;for(const a of artifacts)state.artifacts[a.id]=a;if(state.currentNoteId===noteId)scheduleRender(noteId);updateCoverPreview();scheduleNoteList()}
-  else if(upd['new-message']){const msg=upd['new-message'];if(!state.messages[msg.noteId])state.messages[msg.noteId]=[];state.messages[msg.noteId].push(msg);if(state.notes[msg.noteId]){state.notes[msg.noteId].lastAuthor=msg.author;state.notes[msg.noteId].lastPreview=msg.text}if(state.currentNoteId===msg.noteId)appendMessage(msg);else state.notifications.add(msg.noteId);updateCoverPreview();scheduleNoteList()}
+  else if(upd['new-message']){const msg=upd['new-message'];if(!state.messages[msg.noteId])state.messages[msg.noteId]=[];if(state.messages[msg.noteId].some(m=>m.id===msg.id))return;state.messages[msg.noteId].push(msg);if(state.notes[msg.noteId]){state.notes[msg.noteId].lastAuthor=msg.author;state.notes[msg.noteId].lastPreview=msg.text}if(state.currentNoteId===msg.noteId)appendMessage(msg);else state.notifications.add(msg.noteId);updateCoverPreview();scheduleNoteList()}
   else if(upd['artifact-created']){const a=upd['artifact-created'];state.artifacts[a.id]=a;if(a.type==='app'||a.type==='file')scheduleRender()}
   else if(upd['artifact-updated']){const a=upd['artifact-updated'];state.artifacts[a.id]=a;if(state.activeAppBridge&&state.activeAppBridge.artifactId===a.id){const lastVer=a.versions[a.versions.length-1];if(lastVer){try{const meta=JSON.parse(lastVer.content);const iframe=document.getElementById(state.activeAppBridge.iframeId);if(iframe&&iframe.contentWindow){iframe.contentWindow.postMessage({source:'noltbook-host',type:'nb:state',payload:meta.state||{}},'*')}}catch(e){}}}else if(document.getElementById('artifactPanel').classList.contains('open')&&document.getElementById('artifactPanelTitle').textContent===a.name)openArtifactPanel(a.id)}
   else if(upd['artifact-deleted']){delete state.artifacts[upd['artifact-deleted'].id];closeArtifactPanel();scheduleRender()}
@@ -691,9 +713,10 @@ function revealNoteInTree(id){
   let section='notes';
   if(id==='cover'||id==='ars-rumors')section='ars';
   else if(node){
-    const others=(node.users||[]).filter(u=>u&&u!==me);
+    if(node.type==='gossip')section='ars';
+    else{const others=(node.users||[]).filter(u=>u&&u!==me);
     const isShared=node.type==='dm'||node.type==='group'||others.length>0||(node.creator&&node.creator!==me);
-    section=isShared?'shared':'notes';
+    section=isShared?'shared':'notes';}
   }
   if(!state.expandedSections[section]){
     state.expandedSections[section]=true;
@@ -709,6 +732,8 @@ async function openNote(id){
   state.currentNoteId=id;state.notifications.delete(id);state.lastMsgAuthor=null;
   state._mentionJumpDone=false;
   revealNoteInTree(id);
+  // if note has descendant notifications, expand tree to reveal them
+  if(state.notes[id]){expandToNotifications(id);state.expandedNotes.add(id)}
   document.getElementById('chatNoteName').textContent=id==='cover'?'%Grimoire':id==='ars-rumors'?'%Rumors':(state.notes[id]?noteDisplayName(state.notes[id]):id);
   document.getElementById('shareBtn').style.display=(id==='cover'||id==='ars-rumors')?'none':'block';
   document.getElementById('chatMessages').innerHTML='';
@@ -773,7 +798,7 @@ function makeArsItem(entry){
   return div;
 }
 function dmCounterparty(note){
-  if(!note)return null;
+  if(!note||note.type!=='dm')return null;
   const me='~'+api.ship;
   const users=note.users||[];
   if(users.length!==2)return null;
@@ -817,6 +842,7 @@ function computeTrickle(){
   function sectionOf(rootId){
     if(rootId==='cover'||rootId==='ars-rumors')return 'ars';
     const r=state.notes[rootId]; if(!r)return 'notes';
+    if(r.type==='gossip')return 'ars';
     const others=(r.users||[]).filter(u=>u&&u!==me);
     const isShared=r.type==='dm'||r.type==='group'||others.length>0||(r.creator&&r.creator!==me);
     return isShared?'shared':'notes';
@@ -863,6 +889,7 @@ function renderNoteList(){
     if(n.id==='cover'||(n.id+'').startsWith('ars-'))continue;
     if(n.parent)continue;
     const me='~'+api.ship;
+    if(n.type==='gossip'){renderTree(n.id,0,arsEl);continue}
     const others=(n.users||[]).filter(u=>u&&u!==me);
     const isShared=n.type==='dm'||n.type==='group'||others.length>0||(n.creator&&n.creator!==me);
     const target=isShared?sharedEl:notesEl;
@@ -897,8 +924,52 @@ function makeNoteItem(n,depth){
   div.oncontextmenu=(e)=>{e.preventDefault();showNoteContextMenu(e,n.id)};
   return div;
 }
-function toggleNoteExpand(id){if(state.expandedNotes.has(id))state.expandedNotes.delete(id);else state.expandedNotes.add(id);renderNoteList()}
-function toggleSection(name){state.expandedSections[name]=!state.expandedSections[name];document.getElementById(name+'Body').classList.toggle('open',state.expandedSections[name]);document.getElementById(name+'Arrow').classList.toggle('open',state.expandedSections[name]);renderNoteList()}
+function expandToNotifications(noteId){
+  // find all notification sources that are descendants of noteId
+  // and expand all nodes along paths from noteId down to them
+  function collectNotified(nid){
+    let found=[];
+    if(state.notifications.has(nid))found.push(nid);
+    const n=state.notes[nid];
+    if(n&&n.children){for(const cid of n.children)found=found.concat(collectNotified(cid))}
+    return found;
+  }
+  const targets=collectNotified(noteId);
+  if(!targets.length)return false;
+  // for each target, expand all ancestors from noteId down to it
+  for(const tid of targets){
+    let cur=tid;
+    while(cur&&cur!==noteId){
+      const p=state.notes[cur]?.parent;
+      if(p)state.expandedNotes.add(p);
+      cur=p;
+    }
+  }
+  return true;
+}
+function toggleNoteExpand(id){
+  if(state.expandedNotes.has(id)){state.expandedNotes.delete(id)}
+  else{state.expandedNotes.add(id);expandToNotifications(id)}
+  renderNoteList();
+}
+function toggleSection(name){
+  state.expandedSections[name]=!state.expandedSections[name];
+  document.getElementById(name+'Body').classList.toggle('open',state.expandedSections[name]);
+  document.getElementById(name+'Arrow').classList.toggle('open',state.expandedSections[name]);
+  // when opening section, expand paths to any notified notes in it
+  if(state.expandedSections[name]){
+    const me='~'+api.ship;
+    for(const n of Object.values(state.notes)){
+      if(n.id==='cover'||(n.id+'').startsWith('ars-')||n.parent)continue;
+      if(n.type==='gossip'){if(name==='ars')expandToNotifications(n.id);continue}
+      const others=(n.users||[]).filter(u=>u&&u!==me);
+      const isShared=n.type==='dm'||n.type==='group'||others.length>0||(n.creator&&n.creator!==me);
+      const sec=isShared?'shared':'notes';
+      if(sec===name)expandToNotifications(n.id);
+    }
+  }
+  renderNoteList();
+}
 function switchView(mode){
   state.palsView=mode==='contact';
   const notesBtn=document.getElementById('toggleNotes');
@@ -955,7 +1026,7 @@ function makeContactItem(ship){
   const isBlocked=status==='blocked';
   const blockInfo=isBlocked?{cls:'contact-tag blocked',label:'BLOCKED'}:{cls:'contact-tag',label:'BLOCK'};
   const palInfo=isBlocked?{cls:'contact-tag',label:'PALS'}:palStatusLabel(status);
-  div.innerHTML=`<div class="contact-avatar">${av}</div><div class="contact-info"><span class="contact-name">${escHtml(name)}</span><span class="contact-ship">${escHtml(ship)}</span><div class="contact-tags"><span class="${palInfo.cls} pal-slot" data-ship="${escAttr(ship)}" data-tag="pal" onclick="event.stopPropagation();toggleContactTag(this)">${palInfo.label}</span><span class="${blockInfo.cls} block-slot" data-ship="${escAttr(ship)}" data-tag="block" onclick="event.stopPropagation();toggleContactTag(this)">${blockInfo.label}</span></div></div>`;
+  div.innerHTML=`<div class="contact-avatar">${av}</div><div class="contact-info"><span class="contact-name">${escHtml(name)}</span><span class="contact-ship">${escHtml(ship)}</span><div class="contact-tags"><span class="${palInfo.cls} pal-slot" data-ship="${escAttr(ship)}" data-tag="pal" onclick="event.stopPropagation();toggleContactTag(this)">${palInfo.label}</span></div></div>`;
   div.onclick=()=>{viewProfile(ship)};
   return div;
 }
@@ -1565,9 +1636,9 @@ function openSharePrompt(){
   });
   inputEl.addEventListener('keydown',function(e){if(e.key==='Enter'&&!document.querySelector('.user-dropdown.open .user-drop-item.active')){document.getElementById('shareInviteBtn').click()}});
 }
-function createNote(parentId){state.pendingParent=parentId||null;document.getElementById('noteNameInput').value='';document.getElementById('noteModalTitle').textContent=parentId?'NEW CHILD NOTE':'NEW NOTE';document.getElementById('noteModal').classList.add('open');setTimeout(()=>document.getElementById('noteNameInput').focus(),50)}
+function createNote(parentId){state.pendingParent=parentId||null;document.getElementById('noteNameInput').value='';document.getElementById('gossipCheck').checked=false;document.getElementById('gossipToggleWrap').style.display=parentId?'none':'flex';document.getElementById('noteModalTitle').textContent=parentId?'NEW CHILD NOTE':'NEW NOTE';document.getElementById('noteModal').classList.add('open');setTimeout(()=>document.getElementById('noteNameInput').focus(),50)}
 function closeNoteModal(){document.getElementById('noteModal').classList.remove('open');state.pendingParent=null}
-async function submitNote(){const name=document.getElementById('noteNameInput').value.trim();if(!name)return;const data={name};if(state.pendingParent)data.parent=state.pendingParent;await api.poke('noltbook','noltbook-action',{action:'create-note',data});closeNoteModal()}
+async function submitNote(){const name=document.getElementById('noteNameInput').value.trim();if(!name)return;const isGossip=document.getElementById('gossipCheck').checked&&!state.pendingParent;if(isGossip){await api.poke('noltbook','noltbook-action',{action:'create-gossip-note',data:{name}})}else{const data={name};if(state.pendingParent)data.parent=state.pendingParent;await api.poke('noltbook','noltbook-action',{action:'create-note',data})}closeNoteModal()}
 function promptRenameNote(id){const note=state.notes[id];if(!note)return;const name=prompt('Rename note:',note.name);if(name&&name.trim()&&name.trim()!==note.name)api.poke('noltbook','noltbook-action',{action:'rename-note',data:{id,name:name.trim()}})}
 function promptNoteImage(id){
   const note=state.notes[id];if(!note)return;
@@ -1635,9 +1706,12 @@ function showNoteContextMenu(event,noteId){
   const ro=isCreator?'':' disabled';
   const userCount=(note.users||[]).length;
   const isShared=userCount>1;
-  const delItem=isShared
-    ?'<div class="context-menu-item danger" data-action="leave">Leave</div>'
-    :'<div class="context-menu-item danger" data-action="delete">Delete</div>';
+  const isGossip=note.type==='gossip';
+  const delItem=isCreator
+    ?'<div class="context-menu-item danger" data-action="delete">Delete</div>'
+    :(isShared||isGossip)
+      ?'<div class="context-menu-item danger" data-action="leave">Leave</div>'
+      :'<div class="context-menu-item danger" data-action="delete">Delete</div>';
   menu.innerHTML=`
     <div class="context-menu-item${ro}" data-action="visibility" data-val="public"><span class="context-radio ${vis==='public'?'selected':''}"></span> Public</div>
     <div class="context-menu-item${ro}" data-action="visibility" data-val="private"><span class="context-radio ${vis==='private'?'selected':''}"></span> Private</div>
@@ -1865,28 +1939,33 @@ async function viewProfile(ship){
       return '<div class="profile-note-entry"><div class="profile-note-icon">'+ic+'</div><div class="profile-note-text"><span class="profile-note-name">'+escHtml(n.name)+'</span><span class="profile-note-vis">'+vis+'</span></div></div>';
     }).join('');
   modal.innerHTML=`
-    <div class="profile-top">
-      <div class="profile-sigil"><div class="profile-sigil-inner">${avatarContent}</div></div>
-      <div class="profile-info">
-        <div class="profile-row"><span class="profile-field-label">User Name:</span><span style="color:${sc}">${escHtml(dn)}</span></div>
-        <div class="profile-row"><span class="profile-field-label">Urbit ID:</span><span style="color:${sc}">${escHtml(ship)}</span></div>
-        <div class="profile-row"><span class="profile-field-label">Point #:</span><span style="color:${sc}">${pt>=0?pt:''}</span></div>
+    <div style="display:flex;gap:1rem">
+      <div style="flex:1;display:flex;flex-direction:column;gap:.75rem">
+        <div class="profile-top">
+          <div class="profile-sigil"><div class="profile-sigil-inner">${avatarContent}</div></div>
+          <div class="profile-info">
+            <div class="profile-row"><span class="profile-field-label">User Name:</span><span style="color:${sc}">${escHtml(dn)}</span></div>
+            <div class="profile-row"><span class="profile-field-label">Urbit ID:</span><span style="color:${sc}">${escHtml(ship)}</span></div>
+            <div class="profile-row"><span class="profile-field-label">Point #:</span><span style="color:${sc}">${pt>=0?pt:''}</span></div>
+          </div>
+        </div>
+        <div class="profile-row"><span class="profile-field-label">Sponsors:</span><span id="viewProfileSponsors" style="color:var(--dim)">loading...</span></div>
+        ${p.azimuthAddress?'<div><span class="profile-field-label">Offline Azimuth:</span> <span style="color:var(--text)">'+escHtml(p.azimuthAddress)+'</span></div>':''}
+        <div>
+          <span class="profile-section-label">Notes</span>
+          <div class="profile-notes-list" id="viewProfileNotes">${notesHtml}</div>
+        </div>
+      </div>
+      <div class="vp-actions">
+        <button class="vp-btn" onclick="viewProfileDm('${escAttr(ship)}')">DM</button>
+        <button class="vp-btn send-hover" onclick="viewProfileSend('${escAttr(ship)}')">SEND</button>
+        <button class="vp-btn" id="viewProfilePal" onclick="viewProfileTogglePal('${escAttr(ship)}')"></button>
+        <button class="vp-btn danger-hover" onclick="viewProfileRemoveContact('${escAttr(ship)}')">REMOVE CONTACT</button>
+        <button class="vp-btn danger-hover" id="viewProfileBlock" onclick="viewProfileToggleBlock('${escAttr(ship)}')"></button>
       </div>
     </div>
-    <div class="profile-row"><span class="profile-field-label">Sponsors:</span><span id="viewProfileSponsors" style="color:var(--dim)">loading...</span></div>
-    <div class="contact-tags" style="padding:.25rem 0">
-      <span class="contact-tag pal-slot" id="viewProfilePal" onclick="viewProfileTogglePal('${escAttr(ship)}')"></span>
-      <span class="contact-tag block-slot" onclick="viewProfileDm('${escAttr(ship)}')">DM</span>
-      <span class="contact-tag block-slot" id="viewProfileBlock" onclick="viewProfileToggleBlock('${escAttr(ship)}')"></span>
-      <span class="contact-tag" style="border-color:#ff4444;color:#ff4444;margin-left:.35rem" onclick="viewProfileDeleteContact('${escAttr(ship)}')">DELETE CONTACT</span>
-    </div>
-    ${p.azimuthAddress?'<div><span class="profile-field-label">Offline Azimuth:</span> <span style="color:var(--text)">'+escHtml(p.azimuthAddress)+'</span></div>':''}
-    <div>
-      <span class="profile-section-label">Notes</span>
-      <div class="profile-notes-list" id="viewProfileNotes">${notesHtml}</div>
-    </div>
     <div class="modal-actions">
-      <button class="modal-btn cancel" id="viewProfileClose">CLOSE</button>
+      <button class="modal-btn amber-hover" id="viewProfileClose">CLOSE</button>
     </div>`;
   overlay.appendChild(modal);
   overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove()});
@@ -1956,11 +2035,18 @@ document.addEventListener('click',(e)=>{if(!e.target.closest('.attach-wrap'))doc
 function updateViewProfileTags(ship){
   const status=state.palStatus[ship]||'none';
   const isBlocked=status==='blocked';
-  const palInfo=isBlocked?{cls:'contact-tag pal-slot',label:'PALS'}:(function(){const p=palStatusLabel(status);return{cls:p.cls+' pal-slot',label:p.label}})();
-  const blockInfo=isBlocked?{cls:'contact-tag blocked block-slot',label:'BLOCKED'}:{cls:'contact-tag block-slot',label:'BLOCK'};
   const pe=document.getElementById('viewProfilePal');const be=document.getElementById('viewProfileBlock');
-  if(pe){pe.className=palInfo.cls;pe.textContent=palInfo.label}
-  if(be){be.className=blockInfo.cls;be.textContent=blockInfo.label}
+  if(pe){
+    if(status==='mutual'){pe.className='vp-btn pal-mutual';pe.textContent='PALS'}
+    else if(status==='requesting'){pe.className='vp-btn pal-requesting';pe.textContent='REQUESTING'}
+    else if(status==='requested'){pe.className='vp-btn pal-requested';pe.textContent='REQUESTED'}
+    else if(isBlocked){pe.className='vp-btn';pe.textContent='PALS'}
+    else{pe.className='vp-btn';pe.textContent='ADD PAL'}
+  }
+  if(be){
+    if(isBlocked){be.className='vp-btn pal-blocked';be.textContent='BLOCKED'}
+    else{be.className='vp-btn danger-hover';be.textContent='BLOCK'}
+  }
 }
 function viewProfileTogglePal(ship){
   const status=state.palStatus[ship]||'none';
@@ -1973,9 +2059,15 @@ function viewProfileToggleBlock(ship){
   be.classList.toggle('blocked');
   be.textContent=be.classList.contains('blocked')?'BLOCKED':'BLOCK';
 }
-function viewProfileDeleteContact(ship){
+function viewProfileRemoveContact(ship){
   // backend TBD
-  console.log('[delete-contact]',ship);
+  console.log('[remove-contact]',ship);
+}
+function viewProfileSend(ship){
+  const overlay=document.querySelector('.modal-overlay.open');
+  if(overlay)overlay.remove();
+  openSendModal();
+  setTimeout(()=>{const inp=document.getElementById('sendTo');if(inp)inp.value=ship},100);
 }
 async function viewProfileDm(ship){
   // close profile modal
@@ -1991,22 +2083,60 @@ async function viewProfileDm(ship){
 }
 function openGroupMembersModal(note){
   const me='~'+api.ship;
+  const isHost=note.creator===me;
   const overlay=document.createElement('div');
   overlay.className='modal-overlay open';
   overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center';
   const modal=document.createElement('div');
-  modal.style.cssText='background:var(--bg2);border:1px solid var(--border);min-width:320px;max-width:420px;max-height:80vh;overflow:auto;padding:1rem;display:flex;flex-direction:column;gap:.5rem';
+  modal.style.cssText='background:var(--bg2);border:1px solid var(--border);min-width:360px;max-width:440px;max-height:80vh;overflow:auto;padding:1rem;display:flex;flex-direction:column;gap:.5rem';
+  modal._noteId=note.id;modal._memberTags={};
   const members=(note.users||[]).slice().sort();
   const host=note.creator;
   const rows=members.map(m=>{
-    const hostTag=m===host?'<span style="color:var(--amber);font-size:.7rem;margin-left:.4rem">HOST</span>':'';
+    const prof=state.profiles[m]||{};
+    const name=prof.displayName||m;
+    const av=avatarHtml(m);
+    const hostTag=m===host?'<span style="color:#ffaa00;font-size:.65rem;border:1px solid #ffaa00;padding:0 .25rem;margin-left:.4rem">HOST</span>':'';
     const meTag=m===me?'<span style="color:var(--dim);font-size:.7rem;margin-left:.4rem">(you)</span>':'';
-    return `<div class="contact-item" style="display:flex;align-items:center;gap:.5rem;padding:.4rem;cursor:pointer" onclick="openGroupMembersModalClick('${escAttr(m)}')"><div style="width:2rem;height:2rem;flex-shrink:0">${avatarHtml(m)}</div><span style="flex:1">${escHtml(displayName(m))}</span>${hostTag}${meTag}</div>`;
+    return `<div class="contact-item" data-member="${escAttr(m)}"><div class="contact-avatar" style="width:2.5rem;height:2.5rem">${av}</div><div class="contact-info"><div style="display:flex;align-items:center"><span class="contact-name">${escHtml(name)}</span>${hostTag}${meTag}<span class="member-role-tag" data-member="${escAttr(m)}"></span></div><span class="contact-ship">${escHtml(m)}</span></div></div>`;
   }).join('');
-  modal.innerHTML=`<div style="font-size:.9rem;color:var(--text-dim);letter-spacing:.1em;margin-bottom:.25rem">MEMBERS (${members.length})</div>${rows}<div class="modal-actions" style="margin-top:.5rem"><button class="modal-btn cancel" onclick="this.closest('.modal-overlay').remove()">CLOSE</button></div>`;
+  modal.innerHTML=`<div style="font-size:.9rem;color:var(--text-dim);letter-spacing:.1em;margin-bottom:.25rem">MEMBERS (${members.length})</div>${rows}<div class="modal-actions" style="margin-top:.5rem"><button class="modal-btn amber-hover" onclick="this.closest('.modal-overlay').remove()">CLOSE</button></div>`;
   overlay.appendChild(modal);
+  const items=modal.querySelectorAll('.contact-item');
+  console.log('[members-modal] isHost=',isHost,'me=',me,'creator=',note.creator,'items=',items.length);
+  items.forEach(el=>{
+    const m=el.dataset.member;
+    el.onclick=()=>openGroupMembersModalClick(m);
+    if(isHost&&m!==me){
+      console.log('[members-modal] binding contextmenu on',m);
+      el.oncontextmenu=e=>{e.preventDefault();e.stopPropagation();console.log('[members-modal] right-click on',m);showMemberContextMenu(e,m,note.id)};
+    }
+  });
   overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove()});
   document.body.appendChild(overlay);
+}
+function showMemberContextMenu(event,ship,noteId){
+  const existing=document.getElementById('memberContextMenu');if(existing)existing.remove();
+  const menu=document.createElement('div');
+  menu.id='memberContextMenu';
+  menu.className='context-menu';
+  menu.style.left=event.pageX+'px';menu.style.top=event.pageY+'px';menu.style.zIndex='10001';
+  menu.innerHTML=`<div class="context-menu-item" data-action="admin">Admin</div><div class="context-menu-item" data-action="mute">Mute</div><div class="context-menu-item danger" data-action="remove">Remove</div>`;
+  menu.addEventListener('click',function(e){
+    const item=e.target.closest('.context-menu-item');if(!item)return;
+    const action=item.dataset.action;
+    const tag=document.querySelector('.member-role-tag[data-member="'+ship+'"]');
+    if(action==='admin'){
+      if(tag){tag.textContent=tag.textContent==='ADMIN'?'':'ADMIN';tag.style.cssText=tag.textContent?'color:var(--text);font-size:.65rem;border:1px solid var(--text);padding:0 .25rem;margin-left:.4rem':''}
+    }else if(action==='mute'){
+      if(tag){tag.textContent=tag.textContent==='MUTED'?'':'MUTED';tag.style.cssText=tag.textContent?'color:#ff4444;font-size:.65rem;border:1px solid #ff4444;padding:0 .25rem;margin-left:.4rem':''}
+    }else if(action==='remove'){
+      console.log('[remove-member]',ship,'from',noteId);
+    }
+    menu.remove();
+  });
+  document.body.appendChild(menu);
+  setTimeout(()=>document.addEventListener('click',function close(){menu.remove();document.removeEventListener('click',close)}),0);
 }
 function openGroupMembersModalClick(ship){
   const ov=document.querySelector('.modal-overlay.open');

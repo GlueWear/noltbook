@@ -24,6 +24,11 @@
         ?.  ?=([%s *] u.par-raw)  ~
         ``@ta`p.u.par-raw
       [%create-note p.nm-nd par]
+    ::  create-gossip-note
+    ?:  =('create-gossip-note' tag)
+      =/  nm-nd  (need (~(get by d) 'name'))
+      ?>  ?=([%s *] nm-nd)
+      [%create-gossip-note p.nm-nd]
     ::  rename-note
     ?:  =('rename-note' tag)
       =/  id-nd  (need (~(get by d) 'id'))
