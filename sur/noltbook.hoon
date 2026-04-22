@@ -96,6 +96,7 @@
       ::  root-uniqueness: tell loser to drop their root + adopt ours
       [%remote-root-exists losing-id=@ta canonical=note]
       [%remote-leave note-id=@ta]
+      [%remote-introduce ship=@p]
   ==
 ::  poke actions (client to agent)
 +$  action
