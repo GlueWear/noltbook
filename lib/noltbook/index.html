@@ -328,6 +328,42 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .user-chip-x:hover{color:#ff4444}
 .mention-dropdown{position:absolute;bottom:100%;left:0;right:0;background:var(--bg2);border:1px solid var(--border);max-height:180px;overflow-y:auto;z-index:600;display:none}
 .mention-dropdown.open{display:block}
+.call-btn{font-family:var(--font);font-size:.8rem;padding:.25rem .5rem;background:transparent;border:1px solid #00ff88;color:#00ff88;cursor:pointer;margin-left:.5rem}
+.call-btn:hover{background:rgba(0,255,136,.15)}
+.call-btn.in-call{border-color:#ff4444;color:#ff4444}
+.call-btn.in-call:hover{background:rgba(255,68,68,.15)}
+.call-indicator{display:none;align-items:center;gap:.4rem;margin-left:.5rem;font-size:.75rem;color:#00ff88}
+.call-indicator.active{display:flex}
+.call-indicator .call-dot{width:6px;height:6px;border-radius:50%;background:#00ff88;animation:callPulse 1.5s ease-in-out infinite}
+@keyframes callPulse{0%,100%{opacity:1}50%{opacity:.3}}
+.call-rail{width:0;border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:width .2s;flex-shrink:0}
+.call-rail.open{width:300px}
+.call-rail-header{display:flex;align-items:center;justify-content:space-between;padding:0 .75rem;height:42px;border-bottom:1px solid var(--border);flex-shrink:0}
+.call-rail-title{font-size:.85rem;color:#00ff88;letter-spacing:.1em}
+.call-rail-close{background:none;border:none;color:var(--text-dim);cursor:pointer;font-family:var(--font);font-size:.9rem}
+.call-rail-close:hover{color:var(--text)}
+.call-rail-body{flex:1;overflow-y:auto;padding:.75rem;display:flex;flex-direction:column;gap:.75rem}
+.call-participant{display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem;background:var(--bg2);border:1px solid var(--border)}
+.call-participant-name{font-size:.85rem;color:var(--text);flex:1}
+.call-participant-status{font-size:.7rem;color:#00ff88}
+.call-participant .video-container{width:100%;aspect-ratio:4/3;background:#000;display:none;margin-top:.4rem;border:1px solid var(--border)}
+.call-participant .video-container.active{display:block}
+.call-participant .video-container video{width:100%;height:100%;object-fit:cover}
+.call-controls{display:flex;gap:.5rem;padding:.75rem;border-top:1px solid var(--border);flex-shrink:0;justify-content:center}
+.call-ctrl-btn{font-family:var(--font);font-size:.7rem;padding:.35rem .6rem;background:transparent;cursor:pointer;letter-spacing:.05em}
+.call-ctrl-btn.mute{border:1px solid #ffaa00;color:#ffaa00}
+.call-ctrl-btn.mute:hover{background:rgba(255,170,0,.15)}
+.call-ctrl-btn.mute.active{background:rgba(255,170,0,.25);color:#ffaa00}
+.call-ctrl-btn.video{border:1px solid var(--visitor);color:var(--visitor)}
+.call-ctrl-btn.video:hover{background:rgba(86,156,214,.15)}
+.call-ctrl-btn.video.active{background:rgba(86,156,214,.25)}
+.call-ctrl-btn.screen{border:1px solid #bb77ff;color:#bb77ff}
+.call-ctrl-btn.screen:hover{background:rgba(187,119,255,.15)}
+.call-ctrl-btn.screen.active{background:rgba(187,119,255,.25)}
+.call-ctrl-btn.hang{border:1px solid #ff4444;color:#ff4444}
+.call-ctrl-btn.hang:hover{background:rgba(255,68,68,.25)}
+.note-call-badge{display:none;width:6px;height:6px;border-radius:50%;background:#00ff88;margin-left:auto;flex-shrink:0}
+.note-item.has-call .note-call-badge{display:block}
 </style>
 <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 </head>
@@ -419,6 +455,8 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
     <section class="chat">
       <div class="chat-header">
         <span class="chat-note-name" id="chatNoteName" onclick="openCurrentNoteMenu(event)">%Grimoire</span>
+        <span class="call-indicator" id="callIndicator"><span class="call-dot"></span><span id="callParticipantCount">0</span> in call</span>
+        <button class="call-btn" id="callBtn" onclick="toggleCall()">CALL</button>
         <button class="share-btn" id="shareBtn" onclick="openSharePrompt()">SHARE</button>
       </div>
       <div class="chat-messages" id="chatMessages"></div>
@@ -454,6 +492,21 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
       </div>
       <div class="artifact-body" id="artifactPanelBody"></div>
       <div class="artifact-meta" id="artifactPanelMeta"></div>
+    </aside>
+    <aside class="call-rail" id="callRail">
+      <div class="call-rail-header">
+        <span class="call-rail-title">CALL</span>
+        <button class="call-rail-close" onclick="closeCallRail()">✕</button>
+      </div>
+      <div class="call-rail-body" id="callRailBody">
+        <div style="font-size:.8rem;color:var(--text-dim)">No active call</div>
+      </div>
+      <div class="call-controls" id="callControls" style="display:none">
+        <button class="call-ctrl-btn mute" id="muteBtn" onclick="toggleMute()">MIC</button>
+        <button class="call-ctrl-btn video" id="videoBtn" onclick="toggleVideo()">CAM</button>
+        <button class="call-ctrl-btn screen" id="screenBtn" onclick="toggleScreen()">SCREEN</button>
+        <button class="call-ctrl-btn hang" onclick="hangUp()">END</button>
+      </div>
     </aside>
   </div>
 </div>
@@ -592,7 +645,7 @@ const api = {
     this.reconnecting=false;
   }
 };
-const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},dial:0,gossipHops:{},mentions:{}};
+const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},dial:0,gossipHops:{},mentions:{},activeCalls:{},inCall:null};
 let sigilFn=null;
 const sigilCache={};
 (async function loadSigil(){
@@ -698,6 +751,12 @@ function handleUpdate(upd){
   else if(upd['gossip-message']){const{message,hops}=upd['gossip-message'];state.gossipHops[message.id]=hops;if(!state.messages['cover'])state.messages['cover']=[];state.messages['cover'].push(message);const visible=coverMsgVisible(message);if(visible&&state.notes['cover']){state.notes['cover'].lastAuthor=message.author;state.notes['cover'].lastPreview=message.text}if(state.currentNoteId==='cover'&&visible)appendMessage(message);else if(state.currentNoteId!=='cover'&&visible)state.notifications.add('cover');updateCoverPreview();scheduleNoteList()}
   else if(upd['rumor-message']){const msg=upd['rumor-message'].message;if(!state.messages['ars-rumors'])state.messages['ars-rumors']=[];const isDup=state.messages['ars-rumors'].some(m=>m.text===msg.text);if(!isDup){state.messages['ars-rumors'].unshift(msg);if(state.currentNoteId==='ars-rumors')renderMessages('ars-rumors');else state.notifications.add('ars-rumors');scheduleNoteList()}}
   else if(upd['mention-update']){const{noteId,mentions}=upd['mention-update'];if(!state.mentions[noteId])state.mentions[noteId]=[];for(const m of mentions){if(!state.mentions[noteId].some(x=>x.id===m.id))state.mentions[noteId].push({id:m.id,author:m.author})}scheduleNoteList()}
+  else if(upd['call-state']){const{noteId,call}=upd['call-state'];console.log('[call-state]',noteId,call);if(call.status==='active'){state.activeCalls[noteId]=call}else{delete state.activeCalls[noteId]}updateCallUI()}
+  else if(upd['call-started']){const d=upd['call-started'];console.log('[call-started]',d);state.activeCalls[d.noteId]={callId:d.callId,noteId:d.noteId,startedBy:d.startedBy,participants:d.participants,status:'active'};updateCallUI()}
+  else if(upd['call-joined']){const{noteId,ship}=upd['call-joined'];console.log('[call-joined]',noteId,ship);const c=state.activeCalls[noteId];if(c){if(!c.participants.includes(ship))c.participants.push(ship);updateCallUI();if(state.inCall===noteId)rtcManager.onPeerJoined(ship)}}
+  else if(upd['call-left']){const{noteId,ship}=upd['call-left'];console.log('[call-left]',noteId,ship);const c=state.activeCalls[noteId];if(c){c.participants=c.participants.filter(p=>p!==ship);updateCallUI();if(state.inCall===noteId)rtcManager.onPeerLeft(ship)}}
+  else if(upd['call-ended']){const{noteId}=upd['call-ended'];console.log('[call-ended]',noteId);delete state.activeCalls[noteId];if(state.inCall===noteId){rtcManager.hangUp();state.inCall=null}updateCallUI()}
+  else if(upd['call-signal']){const{noteId,from,sigType,payload}=upd['call-signal'];console.log('[call-signal]',noteId,from,sigType);if(state.inCall===noteId)rtcManager.handleSignal(from,sigType,payload)}
 }
 function revealNoteInTree(id){
   // expand ancestors and open the containing section so the note is visible
@@ -743,6 +802,7 @@ async function openNote(id){
   state.currentNoteSub=subId;
   if(state.messages[id])renderMessages(id);
   renderNoteList();
+  updateCallUI();
   if(!(state.mentions[id]&&state.mentions[id].length>0)){
     requestAnimationFrame(()=>{
       const el=document.querySelector(`[data-note-id="${id}"]`);
@@ -2753,6 +2813,362 @@ function walletRequest(){
   alert('Payment request for '+amount+' NOCK sent to '+from+'\n(Chat integration pending)');
 }
 /* ========== END WALLET ========== */
+
+/* ========== CALL SYSTEM ========== */
+const ICE_SERVERS=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}];
+
+const rtcManager={
+  peers:{},        // ship -> {pc, audioTrack, videoTrack, stream}
+  localStream:null,
+  screenStream:null,
+  muted:false,
+  videoOn:false,
+  screenOn:false,
+
+  async getLocalStream(video){
+    if(this.localStream){
+      // add/remove video track
+      if(video&&!this.videoOn){
+        try{
+          const vs=await navigator.mediaDevices.getUserMedia({video:true});
+          const vt=vs.getVideoTracks()[0];
+          this.localStream.addTrack(vt);
+          for(const ship of Object.keys(this.peers)){
+            const pc=this.peers[ship].pc;
+            pc.addTrack(vt,this.localStream);
+          }
+        }catch(e){console.error('[rtc] video failed',e)}
+      }
+      return this.localStream;
+    }
+    try{
+      this.localStream=await navigator.mediaDevices.getUserMedia({audio:true,video:!!video});
+      this.videoOn=!!video;
+    }catch(e){
+      console.error('[rtc] getUserMedia failed',e);
+      this.localStream=new MediaStream();
+    }
+    return this.localStream;
+  },
+
+  createPeer(ship,initiator){
+    if(this.peers[ship])return this.peers[ship].pc;
+    const pc=new RTCPeerConnection({iceServers:ICE_SERVERS});
+    this.peers[ship]={pc,stream:new MediaStream()};
+
+    // add local tracks
+    if(this.localStream){
+      for(const track of this.localStream.getTracks()){
+        pc.addTrack(track,this.localStream);
+      }
+    }
+    if(this.screenStream){
+      for(const track of this.screenStream.getTracks()){
+        pc.addTrack(track,this.screenStream);
+      }
+    }
+
+    pc.onicecandidate=(e)=>{
+      if(e.candidate){
+        const payload=JSON.stringify(e.candidate.toJSON());
+        api.poke('noltbook','noltbook-action',{action:'call-signal',data:{noteId:state.inCall,to:ship,sigType:'ice',payload}});
+      }
+    };
+
+    pc.ontrack=(e)=>{
+      const p=this.peers[ship];
+      if(p){
+        p.stream.addTrack(e.track);
+        renderCallParticipant(ship,p.stream);
+      }
+    };
+
+    pc.oniceconnectionstatechange=()=>{
+      console.log('[rtc]',ship,'ice:',pc.iceConnectionState);
+      if(pc.iceConnectionState==='failed'||pc.iceConnectionState==='disconnected'){
+        renderCallParticipantStatus(ship,pc.iceConnectionState);
+      }
+    };
+
+    if(initiator){
+      pc.onnegotiationneeded=async()=>{
+        try{
+          const offer=await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          const payload=JSON.stringify({type:offer.type,sdp:offer.sdp});
+          api.poke('noltbook','noltbook-action',{action:'call-signal',data:{noteId:state.inCall,to:ship,sigType:'sdp-offer',payload}});
+        }catch(e){console.error('[rtc] offer failed',e)}
+      };
+    }
+
+    return pc;
+  },
+
+  async handleSignal(from,sigType,payload){
+    const data=JSON.parse(payload);
+    if(sigType==='sdp-offer'){
+      const pc=this.createPeer(from,false);
+      await pc.setRemoteDescription(new RTCSessionDescription(data));
+      const answer=await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      api.poke('noltbook','noltbook-action',{action:'call-signal',data:{noteId:state.inCall,to:from,sigType:'sdp-answer',payload:JSON.stringify({type:answer.type,sdp:answer.sdp})}});
+    }else if(sigType==='sdp-answer'){
+      const p=this.peers[from];
+      if(p)await p.pc.setRemoteDescription(new RTCSessionDescription(data));
+    }else if(sigType==='ice'){
+      const p=this.peers[from];
+      if(p){
+        try{await p.pc.addIceCandidate(new RTCIceCandidate(data))}
+        catch(e){console.warn('[rtc] ice candidate failed',e)}
+      }
+    }
+  },
+
+  onPeerJoined(ship){
+    if(ship==='~'+api.ship)return;
+    // we initiate to new peer
+    this.createPeer(ship,true);
+    renderCallRail();
+  },
+
+  onPeerLeft(ship){
+    const p=this.peers[ship];
+    if(p){
+      p.pc.close();
+      delete this.peers[ship];
+    }
+    renderCallRail();
+  },
+
+  hangUp(){
+    for(const ship of Object.keys(this.peers)){
+      this.peers[ship].pc.close();
+    }
+    this.peers={};
+    if(this.localStream){
+      this.localStream.getTracks().forEach(t=>t.stop());
+      this.localStream=null;
+    }
+    if(this.screenStream){
+      this.screenStream.getTracks().forEach(t=>t.stop());
+      this.screenStream=null;
+    }
+    this.muted=false;
+    this.videoOn=false;
+    this.screenOn=false;
+  }
+};
+
+function updateCallUI(){
+  const noteId=state.currentNoteId;
+  const call=state.activeCalls[noteId];
+  const btn=document.getElementById('callBtn');
+  const indicator=document.getElementById('callIndicator');
+  const countEl=document.getElementById('callParticipantCount');
+
+  // hide call button for cover/rumors
+  if(noteId==='cover'||noteId==='ars-rumors'){
+    btn.style.display='none';
+    indicator.classList.remove('active');
+    return;
+  }
+  btn.style.display='';
+
+  if(call){
+    indicator.classList.add('active');
+    countEl.textContent=call.participants.length;
+    if(state.inCall===noteId){
+      btn.textContent='END';
+      btn.classList.add('in-call');
+    }else{
+      btn.textContent='JOIN';
+      btn.classList.remove('in-call');
+    }
+  }else{
+    indicator.classList.remove('active');
+    if(state.inCall===noteId){
+      btn.textContent='END';
+      btn.classList.add('in-call');
+    }else{
+      btn.textContent='CALL';
+      btn.classList.remove('in-call');
+    }
+  }
+  renderCallRail();
+  renderNoteList();
+}
+
+function renderCallRail(){
+  const rail=document.getElementById('callRail');
+  const body=document.getElementById('callRailBody');
+  const controls=document.getElementById('callControls');
+  const noteId=state.inCall||state.currentNoteId;
+  const call=state.activeCalls[noteId];
+
+  if(!state.inCall&&!call){
+    if(rail.classList.contains('open')){
+      body.innerHTML='<div style="font-size:.8rem;color:var(--text-dim)">No active call</div>';
+      controls.style.display='none';
+    }
+    return;
+  }
+
+  const participants=call?call.participants:['~'+api.ship];
+  let html='';
+  for(const ship of participants){
+    const name=displayName(ship);
+    const isSelf=ship==='~'+api.ship;
+    const status=isSelf?(state.inCall?'connected':''):(rtcManager.peers[ship]?'connected':'...');
+    html+=`<div class="call-participant" data-ship="${escAttr(ship)}">
+      <div style="display:flex;align-items:center;gap:.5rem;width:100%">
+        <span class="call-participant-name">${escHtml(name)}</span>
+        <span class="call-participant-status">${status}</span>
+      </div>
+      <div class="video-container" id="video-${escAttr(ship)}"></div>
+    </div>`;
+  }
+  body.innerHTML=html;
+  controls.style.display=state.inCall?'flex':'none';
+
+  // update control button states
+  document.getElementById('muteBtn').classList.toggle('active',rtcManager.muted);
+  document.getElementById('videoBtn').classList.toggle('active',rtcManager.videoOn);
+  document.getElementById('screenBtn').classList.toggle('active',rtcManager.screenOn);
+
+  // attach remote streams to video elements
+  for(const ship of Object.keys(rtcManager.peers)){
+    const p=rtcManager.peers[ship];
+    if(p.stream.getTracks().length>0){
+      renderCallParticipant(ship,p.stream);
+    }
+  }
+  // local preview
+  if(rtcManager.localStream&&rtcManager.videoOn){
+    const el=document.getElementById('video-~'+api.ship);
+    if(el){
+      el.classList.add('active');
+      let vid=el.querySelector('video');
+      if(!vid){vid=document.createElement('video');vid.autoplay=true;vid.muted=true;vid.playsInline=true;el.appendChild(vid)}
+      vid.srcObject=rtcManager.localStream;
+    }
+  }
+}
+
+function renderCallParticipant(ship,stream){
+  const el=document.getElementById('video-'+ship);
+  if(!el)return;
+  if(stream.getVideoTracks().length>0){
+    el.classList.add('active');
+    let vid=el.querySelector('video');
+    if(!vid){vid=document.createElement('video');vid.autoplay=true;vid.playsInline=true;el.appendChild(vid)}
+    vid.srcObject=stream;
+  }
+}
+
+function renderCallParticipantStatus(ship,status){
+  const el=document.querySelector(`.call-participant[data-ship="${ship}"] .call-participant-status`);
+  if(el)el.textContent=status;
+}
+
+async function toggleCall(){
+  const noteId=state.currentNoteId;
+  if(noteId==='cover'||noteId==='ars-rumors')return;
+
+  if(state.inCall===noteId){
+    // leave call
+    await api.poke('noltbook','noltbook-action',{action:'leave-call',data:{noteId}});
+    rtcManager.hangUp();
+    state.inCall=null;
+    updateCallUI();
+    return;
+  }
+
+  // get mic before joining
+  await rtcManager.getLocalStream(false);
+
+  const call=state.activeCalls[noteId];
+  if(call){
+    // join existing call
+    await api.poke('noltbook','noltbook-action',{action:'join-call',data:{noteId}});
+    state.inCall=noteId;
+    // establish peer connections to existing participants
+    const me='~'+api.ship;
+    for(const ship of call.participants){
+      if(ship!==me)rtcManager.createPeer(ship,true);
+    }
+  }else{
+    // start new call
+    await api.poke('noltbook','noltbook-action',{action:'start-call',data:{noteId}});
+    state.inCall=noteId;
+  }
+
+  // open the call rail
+  document.getElementById('callRail').classList.add('open');
+  updateCallUI();
+}
+
+function closeCallRail(){
+  document.getElementById('callRail').classList.remove('open');
+}
+
+function toggleMute(){
+  rtcManager.muted=!rtcManager.muted;
+  if(rtcManager.localStream){
+    rtcManager.localStream.getAudioTracks().forEach(t=>{t.enabled=!rtcManager.muted});
+  }
+  document.getElementById('muteBtn').classList.toggle('active',rtcManager.muted);
+  document.getElementById('muteBtn').textContent=rtcManager.muted?'MUTED':'MIC';
+}
+
+async function toggleVideo(){
+  rtcManager.videoOn=!rtcManager.videoOn;
+  if(rtcManager.videoOn){
+    await rtcManager.getLocalStream(true);
+  }else if(rtcManager.localStream){
+    rtcManager.localStream.getVideoTracks().forEach(t=>{t.stop();rtcManager.localStream.removeTrack(t)});
+  }
+  document.getElementById('videoBtn').classList.toggle('active',rtcManager.videoOn);
+  renderCallRail();
+}
+
+async function toggleScreen(){
+  if(rtcManager.screenOn){
+    // stop screenshare
+    if(rtcManager.screenStream){
+      rtcManager.screenStream.getTracks().forEach(t=>t.stop());
+      rtcManager.screenStream=null;
+    }
+    rtcManager.screenOn=false;
+  }else{
+    try{
+      rtcManager.screenStream=await navigator.mediaDevices.getDisplayMedia({video:true});
+      rtcManager.screenOn=true;
+      // add screen tracks to all peers
+      for(const ship of Object.keys(rtcManager.peers)){
+        for(const track of rtcManager.screenStream.getTracks()){
+          rtcManager.peers[ship].pc.addTrack(track,rtcManager.screenStream);
+        }
+      }
+      rtcManager.screenStream.getVideoTracks()[0].onended=()=>{
+        rtcManager.screenOn=false;
+        rtcManager.screenStream=null;
+        document.getElementById('screenBtn').classList.remove('active');
+        renderCallRail();
+      };
+    }catch(e){console.error('[rtc] screenshare failed',e);return}
+  }
+  document.getElementById('screenBtn').classList.toggle('active',rtcManager.screenOn);
+  renderCallRail();
+}
+
+async function hangUp(){
+  if(!state.inCall)return;
+  await api.poke('noltbook','noltbook-action',{action:'leave-call',data:{noteId:state.inCall}});
+  rtcManager.hangUp();
+  state.inCall=null;
+  updateCallUI();
+}
+/* ========== END CALL SYSTEM ========== */
 
 boot();
 </script>

@@ -78,6 +78,17 @@
       tx-hash=@t
       timestamp=@da
   ==
+::  call types
++$  call-status  ?(%active %ended)
++$  call-info
+  $:  call-id=@ta
+      note-id=@ta
+      started-by=@p
+      started=@da
+      participants=(set @p)
+      status=call-status
+  ==
+::
 ::  ship-to-ship remote pokes
 +$  remote
   $%  [%remote-invite note-id=@ta name=@t type=note-type creator=@p users=(set @p) visibility=note-visibility]
@@ -97,6 +108,12 @@
       [%remote-root-exists losing-id=@ta canonical=note]
       [%remote-leave note-id=@ta]
       [%remote-introduce ship=@p]
+      ::  call signaling remotes
+      [%remote-call-start note-id=@ta call-id=@ta started-by=@p]
+      [%remote-call-join note-id=@ta ship=@p]
+      [%remote-call-leave note-id=@ta ship=@p]
+      [%remote-call-ended note-id=@ta]
+      [%remote-call-signal call-id=@ta from=@p sig-type=@t payload=@t]
   ==
 ::  poke actions (client to agent)
 +$  action
@@ -128,6 +145,11 @@
       [%reparent-note id=@ta new-parent=@ta]
       [%clear-mentions note-id=@ta]
       [%clear-mention note-id=@ta msg-id=@da]
+      ::  call actions
+      [%start-call note-id=@ta]
+      [%join-call note-id=@ta]
+      [%leave-call note-id=@ta]
+      [%call-signal note-id=@ta to=@p sig-type=@t payload=@t]
   ==
 ::  subscription updates (agent to client)
 +$  update
@@ -156,5 +178,12 @@
       [%note-redirect old-id=@ta new-id=@ta]
       [%note-users-updated id=@ta users=(list @p)]
       [%mention-update note-id=@ta mentions=(list [id=@da author=@p])]
+      ::  call updates
+      [%call-started note-id=@ta call-id=@ta started-by=@p participants=(list @p)]
+      [%call-joined note-id=@ta ship=@p]
+      [%call-left note-id=@ta ship=@p]
+      [%call-ended note-id=@ta]
+      [%call-signal note-id=@ta from=@p sig-type=@t payload=@t]
+      [%call-state note-id=@ta call=call-info]
   ==
 --

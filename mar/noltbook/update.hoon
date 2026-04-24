@@ -142,7 +142,60 @@
       :~  ['noteId' s+(crip (trip note-id.upd))]
           ['mentions' a+(turn mentions.upd |=([id=@da author=@p] (pairs ~[['id' (numb (da-to-ms id))] ['author' s+(scot %p author)]])))]
       ==
+    ::
+        %call-started
+      %+  frond  'call-started'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['callId' s+(crip (trip call-id.upd))]
+          ['startedBy' s+(scot %p started-by.upd)]
+          ['participants' a+(turn participants.upd |=(p=@p s+(scot %p p)))]
+      ==
+    ::
+        %call-joined
+      %+  frond  'call-joined'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['ship' s+(scot %p ship.upd)]
+      ==
+    ::
+        %call-left
+      %+  frond  'call-left'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['ship' s+(scot %p ship.upd)]
+      ==
+    ::
+        %call-ended
+      (frond 'call-ended' (frond 'noteId' s+(crip (trip note-id.upd))))
+    ::
+        %call-signal
+      %+  frond  'call-signal'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['from' s+(scot %p from.upd)]
+          ['sigType' s+sig-type.upd]
+          ['payload' s+payload.upd]
+      ==
+    ::
+        %call-state
+      %+  frond  'call-state'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['call' (call-to-json call.upd)]
+      ==
     ==
+    ::
+    ++  call-to-json
+      |=  c=call-info:noltbook
+      %-  pairs
+      :~  ['callId' s+(crip (trip call-id.c))]
+          ['noteId' s+(crip (trip note-id.c))]
+          ['startedBy' s+(scot %p started-by.c)]
+          ['started' (numb (da-to-ms started.c))]
+          ['participants' a+(turn ~(tap in participants.c) |=(p=@p s+(scot %p p)))]
+          ['status' s+(crip (trip (scot %tas status.c)))]
+      ==
     ::
     ++  da-to-ms
       |=  t=@da

@@ -247,6 +247,32 @@
       ?>  ?=([%n *] mid-nd)
       =/  mid=@da  (add ~1970.1.1 (mul (rash p.mid-nd dem) (div ~s1 1.000)))
       [%clear-mention `@ta`p.nid-nd mid]
+    ::  start-call
+    ?:  =('start-call' tag)
+      =/  nid-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] nid-nd)
+      [%start-call `@ta`p.nid-nd]
+    ::  join-call
+    ?:  =('join-call' tag)
+      =/  nid-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] nid-nd)
+      [%join-call `@ta`p.nid-nd]
+    ::  leave-call
+    ?:  =('leave-call' tag)
+      =/  nid-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] nid-nd)
+      [%leave-call `@ta`p.nid-nd]
+    ::  call-signal
+    ?:  =('call-signal' tag)
+      =/  nid-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] nid-nd)
+      =/  to-nd  (need (~(get by d) 'to'))
+      ?>  ?=([%s *] to-nd)
+      =/  st-nd  (need (~(get by d) 'sigType'))
+      ?>  ?=([%s *] st-nd)
+      =/  pl-nd  (need (~(get by d) 'payload'))
+      ?>  ?=([%s *] pl-nd)
+      [%call-signal `@ta`p.nid-nd (slav %p p.to-nd) p.st-nd p.pl-nd]
     ::  set-dial (final case)
     ?>  =('set-dial' tag)
     =/  dial-nd  (need (~(get by d) 'dial'))

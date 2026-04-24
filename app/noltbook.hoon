@@ -15,6 +15,7 @@
       state-11
       state-12
       state-13
+      state-14
   ==
 ::  pre-edited-flag message shape — used by state-1..8 for on-load typing
 +$  message-legacy
@@ -237,6 +238,26 @@
       gossip-hops=(map @da @ud)
       mentions=(map @ta (list [id=@da author=@p]))
   ==
+::  state-14: adds voice/video calling (note-scoped calls)
+::
++$  state-14
+  $:  %14
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+  ==
 +$  card  card:agent:gall
 ::
 ++  upgrade-8-to-9
@@ -301,6 +322,16 @@
       pal-outgoing.s  pal-incoming.s  pal-blocked.s
       dial.s  gossip-hops.s  mentions.s
   ==
+++  upgrade-13-to-14
+  |=  s=state-13
+  ^-  state-14
+  :*  %14
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      dial.s  gossip-hops.s  mentions.s
+      *(map @ta call-info:noltbook)
+  ==
 ::  mention detection: check if text contains @~our
 ++  has-our-mention
   |=  [txt=@t us=@p]
@@ -329,7 +360,7 @@
   (lth `@`id.a `@`id.b)
 --
 %-  agent:dbug
-=|  state-13
+=|  state-14
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -353,16 +384,20 @@
 ++  on-load
   |=  old=vase
   ^-  (quip card _this)
+  ?:  ?=([%14 *] q.old)
+    =/  loaded  !<(state-14 old)
+    `this(state loaded)
   ?:  ?=([%13 *] q.old)
     =/  loaded  !<(state-13 old)
-    ?.  (~(has by notes.loaded) %ars-rumors)
+    =/  s14  (upgrade-13-to-14 loaded)
+    ?.  (~(has by notes.s14) %ars-rumors)
       =/  rumors=note:noltbook  [%ars-rumors 'RUMORS' %cover our.bowl (sy ~[our.bowl]) ~ ~ ~ ~ %secret ~ &]
-      `this(state loaded(notes (~(put by notes.loaded) %ars-rumors rumors), messages (~(put by messages.loaded) %ars-rumors *(list message:noltbook))))
-    `this(state loaded)
+      `this(state s14(notes (~(put by notes.s14) %ars-rumors rumors), messages (~(put by messages.s14) %ars-rumors *(list message:noltbook))))
+    `this(state s14)
   ::  state-12 → state-13: fix mutual pal exchange with distributor
   ?:  ?=([%12 *] q.old)
     =/  s12  !<(state-12 old)
-    =/  s13  (upgrade-12-to-13 s12)
+    =/  s13  (upgrade-13-to-14 (upgrade-12-to-13 s12))
     =/  distro=@p  ~racmud-mipmet-disden-talhes
     ::  ensure ars-rumors note exists
     =/  s13  ?.  (~(has by notes.s13) %ars-rumors)
@@ -389,7 +424,7 @@
   ::  state-11 → state-13
   ?:  ?=([%11 *] q.old)
     =/  s11  !<(state-11 old)
-    =/  s13  (upgrade-12-to-13 (upgrade-11-to-12 s11))
+    =/  s13  (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 s11)))
     =/  distro=@p  ~racmud-mipmet-disden-talhes
     ?:  =(our.bowl distro)  `this(state s13)
     =/  new-peers=(set @p)  (~(put in peers.s13) distro)
@@ -401,21 +436,21 @@
   ::  state-10 → ... → state-13
   ?:  ?=([%10 *] q.old)
     =/  s10  !<(state-10 old)
-    `this(state (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 s10))))
-  ::  state-9 → ... → state-13
+    `this(state (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 s10)))))
+  ::  state-9 → ... → state-14
   ?:  ?=([%9 *] q.old)
     =/  s9  !<(state-9 old)
-    `this(state (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 s9)))))
-  ::  state-8 → ... → state-13
+    `this(state (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 s9))))))
+  ::  state-8 → ... → state-14
   ?:  ?=([%8 *] q.old)
-    `this(state (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 !<(state-8 old)))))))
-  ::  state-7 → ... → state-13
+    `this(state (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 !<(state-8 old))))))))
+  ::  state-7 → ... → state-14
   ?:  ?=([%7 *] q.old)
     =/  s7  !<(state-7 old)
     =/  s8=state-8
       [%8 notes.s7 messages.s7 artifacts.s7 profiles.s7 transactions.s7 current-note.s7 peers.s7 has-avatar.s7 pal-outgoing.s7 pal-incoming.s7 pal-blocked.s7 0 ~]
-    `this(state (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))
-  ::  state-6 → ... → state-13
+    `this(state (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))
+  ::  state-6 → ... → state-14
   ?:  ?=([%6 *] q.old)
     =/  s6  !<(state-6 old)
     =/  hey-cards=(list card)
@@ -424,7 +459,7 @@
       [%pass /pal-hey/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-hey ~])]
     =/  s8=state-8
       [%8 notes.s6 messages.s6 artifacts.s6 profiles.s6 transactions.s6 current-note.s6 peers.s6 has-avatar.s6 peers.s6 ~ ~ 0 ~]
-    :_  this(state (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))
+    :_  this(state (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))
     hey-cards
   ?:  ?=([%5 *] q.old)
     =/  s5  !<(state-5 old)
@@ -435,7 +470,7 @@
       [display-name.p ~ wallet-address.p azimuth-address.p]
     =/  s8=state-8
       [%8 notes.s5 messages.s5 artifacts.s5 new-profiles transactions.s5 current-note.s5 peers.s5 %.n ~ ~ ~ 0 ~]
-    `this(state (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))
+    `this(state (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))
   ?:  ?=([%4 *] q.old)
     =/  s4  !<(state-4 old)
     =/  init-peers=(set @p)
@@ -450,7 +485,7 @@
       [display-name.p ~ wallet-address.p azimuth-address.p]
     =/  s8=state-8
       [%8 notes.s4 messages.s4 artifacts.s4 new-profiles transactions.s4 current-note.s4 init-peers %.n ~ ~ ~ 0 ~]
-    `this(state (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))
+    `this(state (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))
   ?:  ?=([%3 *] q.old)
     =/  s3  !<(state-3 old)
     =/  new-notes=(map @ta note:noltbook)
@@ -465,7 +500,7 @@
       [display-name.p ~ wallet-address.p azimuth-address.p]
     =/  s8=state-8
       [%8 new-notes messages.s3 artifacts.s3 new-profiles transactions.s3 current-note.s3 ~ %.n ~ ~ ~ 0 ~]
-    `this(state (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))
+    `this(state (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))
   ?:  ?=([%2 *] q.old)
     =/  s2  !<(state-2 old)
     =/  new-arts=(map @ta artifact:noltbook)
@@ -488,7 +523,7 @@
       [display-name.p ~ wallet-address.p azimuth-address.p]
     =/  s8=state-8
       [%8 new-notes messages.s2 new-arts new-profiles transactions.s2 current-note.s2 ~ %.n ~ ~ ~ 0 ~]
-    `this(state (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))
+    `this(state (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))
   =/  s1  !<(state-1 old)
   =/  cov  (~(get by notes.s1) %cover)
   =/  fixed-notes=(map @ta note-3:noltbook)
@@ -515,7 +550,7 @@
     [id.n name.n type.n creator.n users.n children.n parent.n last-author.n last-preview.n %secret ~ &]
   =/  s8=state-8
     [%8 new-notes messages.s1 new-arts new-profiles transactions.s1 current-note.s1 ~ %.n ~ ~ ~ 0 ~]
-  `this(state (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))
+  `this(state (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))
 ::
 ++  on-watch
   |=  =path
@@ -543,6 +578,11 @@
       %+  turn  ~(tap by mentions)
       |=  [nid=@ta mns=(list [id=@da author=@p])]
       [%give %fact ~ %noltbook-update !>(`update:noltbook`[%mention-update nid mns])]
+    ::  send active call states
+    =/  call-cards=(list card)
+      %+  turn  ~(tap by active-calls)
+      |=  [nid=@ta ci=call-info:noltbook]
+      [%give %fact ~ %noltbook-update !>(`update:noltbook`[%call-state nid ci])]
     =/  init-cards=(list card)
       :~  [%give %fact ~ %noltbook-update !>(upd)]
           [%give %fact ~ %noltbook-update !>(pupd)]
@@ -550,7 +590,7 @@
           [%give %fact ~ %noltbook-update !>(dialupd)]
       ==
     :_  this
-    (weld init-cards mention-cards)
+    :(weld init-cards mention-cards call-cards)
   ::
       [%notes @ ~]
     =/  nid=@ta  i.t.path
@@ -607,8 +647,13 @@
     =/  new-outgoing=(set @p)
       ?.  is-new-remote  pal-outgoing
       (~(put in pal-outgoing) src.bowl)
+    ::  send active call state for this note if one exists
+    =/  call-cards=(list card)
+      =/  ci  (~(get by active-calls) nid)
+      ?~  ci  ~
+      ~[[%give %fact ~ %noltbook-update !>(`update:noltbook`[%call-state nid u.ci])]]
     :_  this(peers new-peers, pal-outgoing new-outgoing)
-    :(weld ~[[%give %fact ~ %noltbook-update !>(upd)]] ~[[%give %fact ~ %noltbook-update !>(pupd)]] intro-cards hey-back)
+    :(weld ~[[%give %fact ~ %noltbook-update !>(upd)]] ~[[%give %fact ~ %noltbook-update !>(pupd)]] intro-cards hey-back call-cards)
   ::
       [%http-response @ ~]
     `this
@@ -1347,6 +1392,94 @@
       =/  upd=update:noltbook  [%note-created new-note]
       :_  this(notes (~(put by notes) nid new-note), messages (~(put by messages) nid *(list message:noltbook)), peers new-peers, pal-outgoing new-outgoing)
       :(weld [poke-card [%give %fact ~[/notes] %noltbook-update !>(upd)] ~] ars-cards hey-cards pal-status-upd)
+    ::
+    ::  ===== CALL ACTIONS =====
+    ::
+        %start-call
+      =/  exists  (~(get by notes) note-id.act)
+      ?~  exists  `this
+      ::  already active call on this note? no-op
+      ?:  (~(has by active-calls) note-id.act)  `this
+      =/  cid=@ta  (crip (weld "call-" (trip (scot %da now.bowl))))
+      =/  ci=call-info:noltbook
+        [cid note-id.act our.bowl now.bowl (sy ~[our.bowl]) %active]
+      ::  record call-started system message
+      =/  sys-msg=message:noltbook
+        [now.bowl note-id.act our.bowl (crip (weld "\01SYS:call-started:" (trip (scot %p our.bowl)))) now.bowl ~ %.n]
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
+      =/  upd=update:noltbook  [%call-started note-id.act cid our.bowl ~[our.bowl]]
+      =/  msg-upd=update:noltbook  [%new-message sys-msg]
+      =/  pax=path  ~[%notes note-id.act]
+      ::  notify remote note members
+      =/  broadcast=(list card)
+        ?.  =(our.bowl creator.u.exists)  ~
+        %+  murn  ~(tap in users.u.exists)
+        |=  p=@p
+        ?:  =(p our.bowl)  ~
+        `[%pass /call-start/(scot %p p)/[note-id.act] %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-call-start note-id.act cid our.bowl])]
+      :_  this(active-calls (~(put by active-calls) note-id.act ci), messages (~(put by messages) note-id.act (snoc cur sys-msg)))
+      :(weld ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] ~[[%give %fact ~[pax] %noltbook-update !>(msg-upd)]] broadcast)
+    ::
+        %join-call
+      =/  exists  (~(get by notes) note-id.act)
+      ?~  exists  `this
+      =/  ci  (~(get by active-calls) note-id.act)
+      ?~  ci  `this
+      ::  already in call? no-op
+      ?:  (~(has in participants.u.ci) our.bowl)  `this
+      =/  new-ci=call-info:noltbook  u.ci(participants (~(put in participants.u.ci) our.bowl))
+      =/  sys-msg=message:noltbook
+        [now.bowl note-id.act our.bowl (crip (weld "\01SYS:call-joined:" (trip (scot %p our.bowl)))) now.bowl ~ %.n]
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
+      =/  upd=update:noltbook  [%call-joined note-id.act our.bowl]
+      =/  msg-upd=update:noltbook  [%new-message sys-msg]
+      =/  pax=path  ~[%notes note-id.act]
+      ::  notify host if we're not host
+      =/  broadcast=(list card)
+        ?:  =(our.bowl creator.u.exists)  ~
+        ~[[%pass /call-join/(scot %p creator.u.exists)/[note-id.act] %agent [creator.u.exists %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-call-join note-id.act our.bowl])]]
+      :_  this(active-calls (~(put by active-calls) note-id.act new-ci), messages (~(put by messages) note-id.act (snoc cur sys-msg)))
+      :(weld ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] ~[[%give %fact ~[pax] %noltbook-update !>(msg-upd)]] broadcast)
+    ::
+        %leave-call
+      =/  exists  (~(get by notes) note-id.act)
+      ?~  exists  `this
+      =/  ci  (~(get by active-calls) note-id.act)
+      ?~  ci  `this
+      ?.  (~(has in participants.u.ci) our.bowl)  `this
+      =/  new-parts=(set @p)  (~(del in participants.u.ci) our.bowl)
+      =/  sys-msg=message:noltbook
+        [now.bowl note-id.act our.bowl (crip (weld "\01SYS:call-left:" (trip (scot %p our.bowl)))) now.bowl ~ %.n]
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
+      =/  pax=path  ~[%notes note-id.act]
+      ::  if last participant, end call
+      ?:  =(0 ~(wyt in new-parts))
+        =/  end-upd=update:noltbook  [%call-ended note-id.act]
+        =/  end-msg=message:noltbook
+          [now.bowl note-id.act our.bowl '\01SYS:call-ended' now.bowl ~ %.n]
+        =/  broadcast=(list card)
+          ?:  =(our.bowl creator.u.exists)  ~
+          ~[[%pass /call-leave/(scot %p creator.u.exists)/[note-id.act] %agent [creator.u.exists %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-call-leave note-id.act our.bowl])]]
+        :_  this(active-calls (~(del by active-calls) note-id.act), messages (~(put by messages) note-id.act (snoc (snoc cur sys-msg) end-msg)))
+        :(weld ~[[%give %fact ~[pax] %noltbook-update !>(end-upd)]] ~[[%give %fact ~[/notes] %noltbook-update !>(end-upd)]] broadcast)
+      ::  not last: just leave
+      =/  new-ci=call-info:noltbook  u.ci(participants new-parts)
+      =/  upd=update:noltbook  [%call-left note-id.act our.bowl]
+      =/  broadcast=(list card)
+        ?:  =(our.bowl creator.u.exists)  ~
+        ~[[%pass /call-leave/(scot %p creator.u.exists)/[note-id.act] %agent [creator.u.exists %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-call-leave note-id.act our.bowl])]]
+      :_  this(active-calls (~(put by active-calls) note-id.act new-ci), messages (~(put by messages) note-id.act (snoc cur sys-msg)))
+      :(weld ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] broadcast)
+    ::
+        %call-signal
+      ::  relay WebRTC signal to target peer
+      =/  exists  (~(get by notes) note-id.act)
+      ?~  exists  `this
+      =/  ci  (~(get by active-calls) note-id.act)
+      ?~  ci  `this
+      ::  send signal directly to target peer
+      :_  this
+      ~[[%pass /call-sig/(scot %p to.act)/[note-id.act] %agent [to.act %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-call-signal call-id.u.ci our.bowl sig-type.act payload.act])]]
     ==
   ::
       %noltbook-remote
@@ -1725,6 +1858,118 @@
         ==
       :_  this
       (weld sub-cards tail-cards)
+    ::
+    ::  ===== REMOTE CALL HANDLERS =====
+    ::
+        %remote-call-start
+      ::  a peer started a call on a note we're in
+      =/  exists  (~(get by notes) note-id.rem)
+      ?~  exists  `this
+      ::  must come from the note's creator
+      ?.  =(src.bowl creator.u.exists)  `this
+      ::  already have active call on this note? no-op
+      ?:  (~(has by active-calls) note-id.rem)  `this
+      =/  ci=call-info:noltbook
+        [call-id.rem note-id.rem started-by.rem now.bowl (sy ~[started-by.rem]) %active]
+      =/  sys-msg=message:noltbook
+        [now.bowl note-id.rem started-by.rem (crip (weld "\01SYS:call-started:" (trip (scot %p started-by.rem)))) now.bowl ~ %.n]
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
+      =/  upd=update:noltbook  [%call-started note-id.rem call-id.rem started-by.rem ~[started-by.rem]]
+      =/  msg-upd=update:noltbook  [%new-message sys-msg]
+      =/  pax=path  ~[%notes note-id.rem]
+      :_  this(active-calls (~(put by active-calls) note-id.rem ci), messages (~(put by messages) note-id.rem (snoc cur sys-msg)))
+      :(weld ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] ~[[%give %fact ~[pax] %noltbook-update !>(msg-upd)]])
+    ::
+        %remote-call-join
+      ::  a peer joined a call on a note we host
+      =/  exists  (~(get by notes) note-id.rem)
+      ?~  exists  `this
+      ?.  =(our.bowl creator.u.exists)  `this
+      =/  ci  (~(get by active-calls) note-id.rem)
+      ?~  ci  `this
+      ?.  (~(has in users.u.exists) ship.rem)  `this
+      ::  already in call? no-op
+      ?:  (~(has in participants.u.ci) ship.rem)  `this
+      =/  new-ci=call-info:noltbook  u.ci(participants (~(put in participants.u.ci) ship.rem))
+      =/  sys-msg=message:noltbook
+        [now.bowl note-id.rem ship.rem (crip (weld "\01SYS:call-joined:" (trip (scot %p ship.rem)))) now.bowl ~ %.n]
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
+      =/  upd=update:noltbook  [%call-joined note-id.rem ship.rem]
+      =/  msg-upd=update:noltbook  [%new-message sys-msg]
+      =/  pax=path  ~[%notes note-id.rem]
+      ::  broadcast join to all other participants
+      =/  broadcast=(list card)
+        %+  murn  ~(tap in participants.u.ci)
+        |=  p=@p
+        ?:  =(p ship.rem)  ~
+        ?:  =(p our.bowl)  ~
+        `[%pass /call-join-relay/(scot %p p)/[note-id.rem] %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-call-join note-id.rem ship.rem])]
+      :_  this(active-calls (~(put by active-calls) note-id.rem new-ci), messages (~(put by messages) note-id.rem (snoc cur sys-msg)))
+      :(weld ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] ~[[%give %fact ~[pax] %noltbook-update !>(msg-upd)]] broadcast)
+    ::
+        %remote-call-leave
+      ::  a peer left a call on a note we host
+      =/  exists  (~(get by notes) note-id.rem)
+      ?~  exists  `this
+      ?.  =(our.bowl creator.u.exists)  `this
+      =/  ci  (~(get by active-calls) note-id.rem)
+      ?~  ci  `this
+      ?.  (~(has in participants.u.ci) ship.rem)  `this
+      =/  new-parts=(set @p)  (~(del in participants.u.ci) ship.rem)
+      =/  sys-msg=message:noltbook
+        [now.bowl note-id.rem ship.rem (crip (weld "\01SYS:call-left:" (trip (scot %p ship.rem)))) now.bowl ~ %.n]
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
+      =/  pax=path  ~[%notes note-id.rem]
+      ::  if no participants left, end the call
+      ?:  =(0 ~(wyt in new-parts))
+        =/  end-upd=update:noltbook  [%call-ended note-id.rem]
+        =/  end-msg=message:noltbook
+          [now.bowl note-id.rem ship.rem '\01SYS:call-ended' now.bowl ~ %.n]
+        :_  this(active-calls (~(del by active-calls) note-id.rem), messages (~(put by messages) note-id.rem (snoc (snoc cur sys-msg) end-msg)))
+        :~  [%give %fact ~[pax] %noltbook-update !>(end-upd)]
+            [%give %fact ~[/notes] %noltbook-update !>(end-upd)]
+        ==
+      ::  still has participants: update and broadcast leave
+      =/  new-ci=call-info:noltbook  u.ci(participants new-parts)
+      =/  upd=update:noltbook  [%call-left note-id.rem ship.rem]
+      =/  broadcast=(list card)
+        %+  murn  ~(tap in new-parts)
+        |=  p=@p
+        ?:  =(p our.bowl)  ~
+        `[%pass /call-leave-relay/(scot %p p)/[note-id.rem] %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-call-leave note-id.rem ship.rem])]
+      :_  this(active-calls (~(put by active-calls) note-id.rem new-ci), messages (~(put by messages) note-id.rem (snoc cur sys-msg)))
+      :(weld ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] broadcast)
+    ::
+        %remote-call-ended
+      ::  host says call is over
+      =/  ci  (~(get by active-calls) note-id.rem)
+      ?~  ci  `this
+      ::  must come from the call starter or note creator
+      =/  exists  (~(get by notes) note-id.rem)
+      ?~  exists  `this
+      ?.  |(=(src.bowl creator.u.exists) =(src.bowl started-by.u.ci))  `this
+      =/  end-msg=message:noltbook
+        [now.bowl note-id.rem src.bowl '\01SYS:call-ended' now.bowl ~ %.n]
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
+      =/  upd=update:noltbook  [%call-ended note-id.rem]
+      =/  pax=path  ~[%notes note-id.rem]
+      :_  this(active-calls (~(del by active-calls) note-id.rem), messages (~(put by messages) note-id.rem (snoc cur end-msg)))
+      :~  [%give %fact ~[pax] %noltbook-update !>(upd)]
+          [%give %fact ~[/notes] %noltbook-update !>(upd)]
+      ==
+    ::
+        %remote-call-signal
+      ::  incoming WebRTC signal from a peer; relay to local frontend
+      ::  find which note this call belongs to
+      =/  entries=(list [@ta call-info:noltbook])  ~(tap by active-calls)
+      =/  match=(list [@ta call-info:noltbook])
+        (skim entries |=([nid=@ta ci=call-info:noltbook] =(call-id.ci call-id.rem)))
+      ?~  match  `this
+      =/  note-id=@ta  -.i.match
+      =/  upd=update:noltbook  [%call-signal note-id from.rem sig-type.rem payload.rem]
+      =/  pax=path  ~[%notes note-id]
+      :_  this
+      ~[[%give %fact ~[pax] %noltbook-update !>(upd)]]
     ==
   ==
 ::
@@ -2027,6 +2272,39 @@
       ?~  p.sign  `this
       ~&  [%root-exists-failed wire u.p.sign]
       `this
+    ==
+  ::
+      [%call-start @ @ ~]
+    ?+  -.sign  `this
+        %poke-ack
+      ?~  p.sign  `this
+      ~&  [%call-start-failed wire]
+      `this
+    ==
+  ::
+      [%call-join @ @ ~]
+    ?+  -.sign  `this
+        %poke-ack  `this
+    ==
+  ::
+      [%call-join-relay @ @ ~]
+    ?+  -.sign  `this
+        %poke-ack  `this
+    ==
+  ::
+      [%call-leave @ @ ~]
+    ?+  -.sign  `this
+        %poke-ack  `this
+    ==
+  ::
+      [%call-leave-relay @ @ ~]
+    ?+  -.sign  `this
+        %poke-ack  `this
+    ==
+  ::
+      [%call-sig @ @ ~]
+    ?+  -.sign  `this
+        %poke-ack  `this
     ==
   ==
 ::
