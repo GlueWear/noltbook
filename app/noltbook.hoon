@@ -1431,7 +1431,6 @@
       =/  msg-upd=update:noltbook  [%new-message sys-msg]
       =/  pax=path  ~[%notes note-id.act]
       ::  notify all other note members
-      ~&  [%call-started-broadcasting-to members=~(tap in users.u.exists)]
       =/  broadcast=(list card)
         %+  murn  ~(tap in users.u.exists)
         |=  p=@p
@@ -1514,6 +1513,15 @@
       ::  send signal directly to target peer
       :_  this
       ~[[%pass /call-sig/(scot %p to.act)/[note-id.act] %agent [to.act %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-call-signal call-id.u.ci our.bowl sig-type.act payload.act])]]
+    ::
+        %clear-calls
+      ::  purge all active calls locally, notify frontend
+      =/  end-cards=(list card)
+        %+  turn  ~(tap by active-calls)
+        |=  [nid=@ta ci=call-info:noltbook]
+        [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%call-ended nid call-id.ci])]
+      :_  this(active-calls *(map @ta call-info:noltbook))
+      end-cards
     ==
   ::
       %noltbook-remote

@@ -273,6 +273,9 @@
       =/  pl-nd  (need (~(get by d) 'payload'))
       ?>  ?=([%s *] pl-nd)
       [%call-signal `@ta`p.nid-nd (slav %p p.to-nd) p.st-nd p.pl-nd]
+    ::  clear-calls
+    ?:  =('clear-calls' tag)
+      [%clear-calls ~]
     ::  set-dial (final case)
     ?>  =('set-dial' tag)
     =/  dial-nd  (need (~(get by d) 'dial'))

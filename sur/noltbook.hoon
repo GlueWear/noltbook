@@ -150,6 +150,7 @@
       [%join-call note-id=@ta]
       [%leave-call note-id=@ta]
       [%call-signal note-id=@ta to=@p sig-type=@t payload=@t]
+      [%clear-calls ~]
   ==
 ::  subscription updates (agent to client)
 +$  update
