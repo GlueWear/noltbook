@@ -201,7 +201,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .gossip-toggle{display:flex;align-items:center;gap:.4rem}
 .gossip-toggle label{font-size:.7rem;color:var(--text-dim);letter-spacing:.05em;cursor:pointer}
 .gossip-toggle input[type=checkbox]{accent-color:#ffaa00;cursor:pointer}
-.profile-modal{background:var(--bg2);border:1px solid var(--border);width:400px;padding:1.25rem;display:flex;flex-direction:column;gap:1rem}
+.profile-modal{background:var(--bg2);border:1px solid var(--border);width:min(560px,90vw);padding:1.25rem;display:flex;flex-direction:column;gap:1rem}
 .profile-top{display:flex;gap:1rem;align-items:flex-start}
 .profile-sigil{width:80px;height:80px;flex-shrink:0;background:#000;border-radius:3px;overflow:hidden;cursor:pointer;border:2px solid transparent;box-sizing:content-box}
 .profile-sigil:hover{border-color:#ffaa00}
@@ -231,7 +231,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .profile-note-desc input:focus{border-bottom-color:var(--text-muted)}
 .profile-note-vis{font-size:.8rem;color:var(--text-dim);line-height:1.3}
 .profile-sponsor-chain{font-size:.95rem;color:#ddd;padding:.2rem 0}
-.profile-row{display:flex;align-items:baseline;gap:.4rem}
+.profile-row{display:flex;align-items:baseline;gap:.4rem;word-break:break-all}
 .context-menu{position:fixed;background:#181818;border:1px solid #333;min-width:160px;z-index:1000;box-shadow:0 4px 12px rgba(0,0,0,.5)}
 .context-menu-item{padding:.5rem .75rem;color:#ccc;cursor:pointer;display:flex;align-items:center;gap:.5rem;font-size:.9rem}
 .context-menu-item:hover{background:#1a1a1a;color:#ffaa00}
@@ -350,18 +350,13 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .call-participant .video-container.active{display:block}
 .call-participant .video-container video{width:100%;height:100%;object-fit:cover}
 .call-controls{display:flex;gap:.5rem;padding:.75rem;border-top:1px solid var(--border);flex-shrink:0;justify-content:center}
-.call-ctrl-btn{font-family:var(--font);font-size:.7rem;padding:.35rem .6rem;background:transparent;cursor:pointer;letter-spacing:.05em}
-.call-ctrl-btn.mute{border:1px solid #ffaa00;color:#ffaa00}
-.call-ctrl-btn.mute:hover{background:rgba(255,170,0,.15)}
-.call-ctrl-btn.mute.active{background:rgba(255,170,0,.25);color:#ffaa00}
-.call-ctrl-btn.video{border:1px solid var(--visitor);color:var(--visitor)}
-.call-ctrl-btn.video:hover{background:rgba(86,156,214,.15)}
-.call-ctrl-btn.video.active{background:rgba(86,156,214,.25)}
-.call-ctrl-btn.screen{border:1px solid #bb77ff;color:#bb77ff}
-.call-ctrl-btn.screen:hover{background:rgba(187,119,255,.15)}
-.call-ctrl-btn.screen.active{background:rgba(187,119,255,.25)}
-.call-ctrl-btn.hang{border:1px solid #ff4444;color:#ff4444}
-.call-ctrl-btn.hang:hover{background:rgba(255,68,68,.25)}
+.call-ctrl-btn{font-family:var(--font);font-size:.7rem;padding:.35rem .6rem;background:transparent;cursor:pointer;letter-spacing:.05em;border:1px solid #666;color:#888;transition:all .15s}
+.call-ctrl-btn:hover{border-color:#ffaa00;color:#ffaa00;background:rgba(255,170,0,.1)}
+.call-ctrl-btn.active{border-color:#ffaa00;color:#ffaa00;box-shadow:0 0 8px rgba(255,170,0,.4),inset 0 0 6px rgba(255,170,0,.1)}
+.call-ctrl-btn.muted-state{color:#666;text-decoration:line-through}
+.call-ctrl-btn.muted-state:hover{border-color:#ffaa00;color:#ffaa00;text-decoration:none}
+.call-ctrl-btn.hang{border-color:#666;color:#888}
+.call-ctrl-btn.hang:hover{border-color:#ff4444;color:#ff4444;background:rgba(255,68,68,.15);box-shadow:0 0 8px rgba(255,68,68,.4)}
 .note-call-badge{display:none;width:6px;height:6px;border-radius:50%;background:#00ff88;margin-left:auto;flex-shrink:0}
 .note-item.has-call .note-call-badge{display:block}
 </style>
@@ -755,7 +750,7 @@ function handleUpdate(upd){
   else if(upd['call-started']){const d=upd['call-started'];console.log('[call-started]',d);state.activeCalls[d.noteId]={callId:d.callId,noteId:d.noteId,startedBy:d.startedBy,participants:d.participants,status:'active'};updateCallUI()}
   else if(upd['call-joined']){const{noteId,ship}=upd['call-joined'];console.log('[call-joined]',noteId,ship);const c=state.activeCalls[noteId];if(c){if(!c.participants.includes(ship))c.participants.push(ship);updateCallUI();if(state.inCall===noteId)rtcManager.onPeerJoined(ship)}}
   else if(upd['call-left']){const{noteId,ship}=upd['call-left'];console.log('[call-left]',noteId,ship);const c=state.activeCalls[noteId];if(c){c.participants=c.participants.filter(p=>p!==ship);updateCallUI();if(state.inCall===noteId)rtcManager.onPeerLeft(ship)}}
-  else if(upd['call-ended']){const{noteId}=upd['call-ended'];console.log('[call-ended]',noteId);delete state.activeCalls[noteId];if(state.inCall===noteId){rtcManager.hangUp();state.inCall=null}updateCallUI()}
+  else if(upd['call-ended']){const{noteId,callId}=upd['call-ended'];const c=state.activeCalls[noteId];if(!c){console.log('[call-ended] no active call, ignoring');return}if(callId&&c.callId&&callId!==c.callId){console.log('[call-ended] stale callId',callId,'vs active',c.callId,', ignoring');return}console.log('[call-ended]',noteId,callId);delete state.activeCalls[noteId];if(state.inCall===noteId){rtcManager.hangUp();state.inCall=null}updateCallUI()}
   else if(upd['call-signal']){const{noteId,from,sigType,payload}=upd['call-signal'];console.log('[call-signal]',noteId,from,sigType);if(state.inCall===noteId)rtcManager.handleSignal(from,sigType,payload)}
 }
 function revealNoteInTree(id){
@@ -2818,25 +2813,58 @@ function walletRequest(){
 const ICE_SERVERS=[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}];
 
 const rtcManager={
-  peers:{},        // ship -> {pc, audioTrack, videoTrack, stream}
+  peers:{},        // ship -> {pc, stream, makingOffer, audioEl}
   localStream:null,
   screenStream:null,
   muted:false,
   videoOn:false,
   screenOn:false,
 
+  // polite/impolite: lower ship name is "polite" (yields on collision)
+  isPolite(ship){
+    const me='~'+api.ship;
+    return me < ship;
+  },
+
+  async renegotiate(ship){
+    const peer=this.peers[ship];
+    if(!peer||peer.makingOffer)return;
+    const pc=peer.pc;
+    try{
+      peer.makingOffer=true;
+      const offer=await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      const payload=JSON.stringify({type:offer.type,sdp:offer.sdp});
+      console.log('[rtc] explicit renegotiate with',ship);
+      api.poke('noltbook','noltbook-action',{action:'call-signal',data:{noteId:state.inCall,to:ship,sigType:'sdp-offer',payload}});
+    }catch(e){console.error('[rtc] renegotiate failed',ship,e)}
+    finally{peer.makingOffer=false}
+  },
+
+  async renegotiateAll(){
+    for(const ship of Object.keys(this.peers)){
+      await this.renegotiate(ship);
+    }
+  },
+
   async getLocalStream(video){
     if(this.localStream){
-      // add/remove video track
-      if(video&&!this.videoOn){
+      if(video&&this.localStream.getVideoTracks().length===0){
+        // add video track to existing audio-only stream
         try{
+          console.log('[rtc] requesting camera...');
           const vs=await navigator.mediaDevices.getUserMedia({video:true});
           const vt=vs.getVideoTracks()[0];
+          console.log('[rtc] got camera track:',vt.label,'state:',vt.readyState);
           this.localStream.addTrack(vt);
           for(const ship of Object.keys(this.peers)){
             const pc=this.peers[ship].pc;
             pc.addTrack(vt,this.localStream);
+            console.log('[rtc] added video track to peer',ship);
           }
+          console.log('[rtc] renegotiating after video add...');
+          await this.renegotiateAll();
+          console.log('[rtc] renegotiation complete');
         }catch(e){console.error('[rtc] video failed',e)}
       }
       return this.localStream;
@@ -2851,10 +2879,12 @@ const rtcManager={
     return this.localStream;
   },
 
-  createPeer(ship,initiator){
+  createPeer(ship){
     if(this.peers[ship])return this.peers[ship].pc;
+    const polite=this.isPolite(ship);
     const pc=new RTCPeerConnection({iceServers:ICE_SERVERS});
-    this.peers[ship]={pc,stream:new MediaStream()};
+    const peer={pc,stream:new MediaStream(),makingOffer:false,audioEl:null};
+    this.peers[ship]=peer;
 
     // add local tracks
     if(this.localStream){
@@ -2876,64 +2906,124 @@ const rtcManager={
     };
 
     pc.ontrack=(e)=>{
-      const p=this.peers[ship];
-      if(p){
-        p.stream.addTrack(e.track);
-        renderCallParticipant(ship,p.stream);
-      }
+      const track=e.track;
+      console.log('[rtc] ontrack from',ship,'kind:',track.kind,'readyState:',track.readyState,'muted:',track.muted);
+      peer.stream.addTrack(track);
+      renderCallParticipant(ship,peer.stream);
+      // clean up when remote track ends (e.g. screenshare stopped)
+      track.onended=()=>{
+        peer.stream.removeTrack(track);
+        renderCallParticipant(ship,peer.stream);
+        renderCallRail();
+      };
+      track.onmute=()=>{
+        // some browsers fire mute instead of ended on track removal
+        setTimeout(()=>{
+          if(track.readyState==='ended'){
+            peer.stream.removeTrack(track);
+            renderCallParticipant(ship,peer.stream);
+            renderCallRail();
+          }
+        },500);
+      };
     };
 
     pc.oniceconnectionstatechange=()=>{
       console.log('[rtc]',ship,'ice:',pc.iceConnectionState);
-      if(pc.iceConnectionState==='failed'||pc.iceConnectionState==='disconnected'){
-        renderCallParticipantStatus(ship,pc.iceConnectionState);
+      if(pc.iceConnectionState==='failed'){
+        console.log('[rtc]',ship,'restarting ICE');
+        pc.restartIce();
       }
+      renderCallParticipantStatus(ship,pc.iceConnectionState);
     };
 
-    if(initiator){
-      pc.onnegotiationneeded=async()=>{
+    // negotiation — debounced to avoid rapid-fire from multiple addTrack calls
+    let negoTimer=null;
+    pc.onnegotiationneeded=()=>{
+      if(negoTimer)clearTimeout(negoTimer);
+      negoTimer=setTimeout(async()=>{
+        negoTimer=null;
+        if(peer.makingOffer)return;
         try{
+          peer.makingOffer=true;
           const offer=await pc.createOffer();
+          if(pc.signalingState!=='stable'){
+            console.log('[rtc] skipping auto-offer, state:',pc.signalingState);
+            return;
+          }
           await pc.setLocalDescription(offer);
           const payload=JSON.stringify({type:offer.type,sdp:offer.sdp});
+          console.log('[rtc] auto-negotiation with',ship);
           api.poke('noltbook','noltbook-action',{action:'call-signal',data:{noteId:state.inCall,to:ship,sigType:'sdp-offer',payload}});
         }catch(e){console.error('[rtc] offer failed',e)}
-      };
-    }
+        finally{peer.makingOffer=false}
+      },100);
+    };
 
     return pc;
   },
 
   async handleSignal(from,sigType,payload){
     const data=JSON.parse(payload);
+    const polite=this.isPolite(from);
+
     if(sigType==='sdp-offer'){
-      const pc=this.createPeer(from,false);
+      let peer=this.peers[from];
+      if(!peer){
+        this.createPeer(from);
+        peer=this.peers[from];
+      }
+      const pc=peer.pc;
+
+      // collision detection: we have a pending local offer too
+      const offerCollision=peer.makingOffer||pc.signalingState!=='stable';
+      if(offerCollision&&!polite){
+        // impolite side: ignore incoming offer
+        console.log('[rtc] impolite, ignoring colliding offer from',from);
+        return;
+      }
+      // polite side: rollback if we had a local offer pending
+      if(offerCollision){
+        console.log('[rtc] polite, rolling back for offer from',from);
+        await pc.setLocalDescription({type:'rollback'});
+      }
       await pc.setRemoteDescription(new RTCSessionDescription(data));
       const answer=await pc.createAnswer();
       await pc.setLocalDescription(answer);
       api.poke('noltbook','noltbook-action',{action:'call-signal',data:{noteId:state.inCall,to:from,sigType:'sdp-answer',payload:JSON.stringify({type:answer.type,sdp:answer.sdp})}});
+
     }else if(sigType==='sdp-answer'){
-      const p=this.peers[from];
-      if(p)await p.pc.setRemoteDescription(new RTCSessionDescription(data));
+      const peer=this.peers[from];
+      if(!peer)return;
+      // only apply answer if we're in have-local-offer state
+      if(peer.pc.signalingState!=='have-local-offer'){
+        console.log('[rtc] ignoring answer in state:',peer.pc.signalingState);
+        return;
+      }
+      try{
+        await peer.pc.setRemoteDescription(new RTCSessionDescription(data));
+      }catch(e){console.warn('[rtc] answer failed',from,e)}
+
     }else if(sigType==='ice'){
-      const p=this.peers[from];
-      if(p){
-        try{await p.pc.addIceCandidate(new RTCIceCandidate(data))}
-        catch(e){console.warn('[rtc] ice candidate failed',e)}
+      const peer=this.peers[from];
+      if(!peer)return;
+      try{await peer.pc.addIceCandidate(new RTCIceCandidate(data))}
+      catch(e){
+        if(!peer.makingOffer)console.warn('[rtc] ice candidate failed',e);
       }
     }
   },
 
   onPeerJoined(ship){
     if(ship==='~'+api.ship)return;
-    // we initiate to new peer
-    this.createPeer(ship,true);
+    this.createPeer(ship);
     renderCallRail();
   },
 
   onPeerLeft(ship){
     const p=this.peers[ship];
     if(p){
+      if(p.audioEl){p.audioEl.pause();p.audioEl.srcObject=null;p.audioEl.remove()}
       p.pc.close();
       delete this.peers[ship];
     }
@@ -2942,7 +3032,9 @@ const rtcManager={
 
   hangUp(){
     for(const ship of Object.keys(this.peers)){
-      this.peers[ship].pc.close();
+      const p=this.peers[ship];
+      if(p.audioEl){p.audioEl.pause();p.audioEl.srcObject=null;p.audioEl.remove()}
+      p.pc.close();
     }
     this.peers={};
     if(this.localStream){
@@ -3018,7 +3110,13 @@ function renderCallRail(){
   for(const ship of participants){
     const name=displayName(ship);
     const isSelf=ship==='~'+api.ship;
-    const status=isSelf?(state.inCall?'connected':''):(rtcManager.peers[ship]?'connected':'...');
+    let status='';
+    if(isSelf){
+      status=state.inCall?'local':'';
+    }else{
+      const peer=rtcManager.peers[ship];
+      status=peer?peer.pc.iceConnectionState:'waiting';
+    }
     html+=`<div class="call-participant" data-ship="${escAttr(ship)}">
       <div style="display:flex;align-items:center;gap:.5rem;width:100%">
         <span class="call-participant-name">${escHtml(name)}</span>
@@ -3027,22 +3125,36 @@ function renderCallRail(){
       <div class="video-container" id="video-${escAttr(ship)}"></div>
     </div>`;
   }
+  // screen share surface (shared by all — shows whoever is sharing)
+  html+='<div class="video-container" id="screen-share-display" style="display:none;width:100%;aspect-ratio:16/9;background:#000;border:1px solid var(--border);margin-top:.5rem"><video id="screen-share-video" autoplay playsinline style="width:100%;height:100%;object-fit:contain"></video></div>';
   body.innerHTML=html;
   controls.style.display=state.inCall?'flex':'none';
 
   // update control button states
-  document.getElementById('muteBtn').classList.toggle('active',rtcManager.muted);
+  const muteBtn=document.getElementById('muteBtn');
+  muteBtn.classList.toggle('active',!rtcManager.muted);
+  muteBtn.classList.toggle('muted-state',rtcManager.muted);
   document.getElementById('videoBtn').classList.toggle('active',rtcManager.videoOn);
   document.getElementById('screenBtn').classList.toggle('active',rtcManager.screenOn);
 
-  // attach remote streams to video elements
+  // attach remote streams to video/audio elements
   for(const ship of Object.keys(rtcManager.peers)){
     const p=rtcManager.peers[ship];
     if(p.stream.getTracks().length>0){
       renderCallParticipant(ship,p.stream);
     }
+    // if remote has >1 video track, second one is screen share
+    if(p.stream.getVideoTracks().length>1){
+      const screenTrack=p.stream.getVideoTracks()[1];
+      const ssd=document.getElementById('screen-share-display');
+      const ssv=document.getElementById('screen-share-video');
+      if(ssd&&ssv){
+        ssd.style.display='block';
+        ssv.srcObject=new MediaStream([screenTrack]);
+      }
+    }
   }
-  // local preview
+  // local camera preview
   if(rtcManager.localStream&&rtcManager.videoOn){
     const el=document.getElementById('video-~'+api.ship);
     if(el){
@@ -3052,16 +3164,40 @@ function renderCallRail(){
       vid.srcObject=rtcManager.localStream;
     }
   }
+  // local screen share preview
+  if(rtcManager.screenStream&&rtcManager.screenOn){
+    const ssd=document.getElementById('screen-share-display');
+    const ssv=document.getElementById('screen-share-video');
+    if(ssd&&ssv){
+      ssd.style.display='block';
+      ssv.srcObject=rtcManager.screenStream;
+    }
+  }
 }
 
 function renderCallParticipant(ship,stream){
+  const peer=rtcManager.peers[ship];
+  // always ensure audio is playing for remote peers
+  if(peer&&stream.getAudioTracks().length>0){
+    if(!peer.audioEl){
+      peer.audioEl=document.createElement('audio');
+      peer.audioEl.autoplay=true;
+      peer.audioEl.playsInline=true;
+      document.body.appendChild(peer.audioEl);
+    }
+    if(peer.audioEl.srcObject!==stream)peer.audioEl.srcObject=stream;
+  }
+  // video container (only shown if video tracks exist)
   const el=document.getElementById('video-'+ship);
   if(!el)return;
   if(stream.getVideoTracks().length>0){
     el.classList.add('active');
     let vid=el.querySelector('video');
-    if(!vid){vid=document.createElement('video');vid.autoplay=true;vid.playsInline=true;el.appendChild(vid)}
-    vid.srcObject=stream;
+    if(!vid){vid=document.createElement('video');vid.autoplay=true;vid.muted=true;vid.playsInline=true;el.appendChild(vid)}
+    if(vid.srcObject!==stream)vid.srcObject=stream;
+    vid.play().catch(()=>{});
+  }else{
+    el.classList.remove('active');
   }
 }
 
@@ -3072,10 +3208,12 @@ function renderCallParticipantStatus(ship,status){
 
 async function toggleCall(){
   const noteId=state.currentNoteId;
+  console.log('[toggleCall] noteId=',noteId,'inCall=',state.inCall,'activeCalls=',JSON.stringify(state.activeCalls[noteId]||null));
   if(noteId==='cover'||noteId==='ars-rumors')return;
 
   if(state.inCall===noteId){
     // leave call
+    console.log('[toggleCall] LEAVING call');
     await api.poke('noltbook','noltbook-action',{action:'leave-call',data:{noteId}});
     rtcManager.hangUp();
     state.inCall=null;
@@ -3083,23 +3221,29 @@ async function toggleCall(){
     return;
   }
 
-  // get mic before joining
-  await rtcManager.getLocalStream(false);
+  // get mic FIRST — blocks on permissions dialog, bail if denied
+  const stream=await rtcManager.getLocalStream(false);
+  if(!stream||stream.getAudioTracks().length===0){
+    console.error('[call] no mic access, aborting');
+    return;
+  }
 
   const call=state.activeCalls[noteId];
   if(call){
-    // join existing call
-    await api.poke('noltbook','noltbook-action',{action:'join-call',data:{noteId}});
+    // join existing call — set state BEFORE creating peers
+    console.log('[toggleCall] JOINING existing call, participants=',call.participants);
     state.inCall=noteId;
+    await api.poke('noltbook','noltbook-action',{action:'join-call',data:{noteId}});
     // establish peer connections to existing participants
     const me='~'+api.ship;
     for(const ship of call.participants){
-      if(ship!==me)rtcManager.createPeer(ship,true);
+      if(ship!==me)rtcManager.createPeer(ship);
     }
   }else{
-    // start new call
-    await api.poke('noltbook','noltbook-action',{action:'start-call',data:{noteId}});
+    // start new call — set state BEFORE poke so signals can be handled
+    console.log('[toggleCall] STARTING new call');
     state.inCall=noteId;
+    await api.poke('noltbook','noltbook-action',{action:'start-call',data:{noteId}});
   }
 
   // open the call rail
@@ -3116,29 +3260,60 @@ function toggleMute(){
   if(rtcManager.localStream){
     rtcManager.localStream.getAudioTracks().forEach(t=>{t.enabled=!rtcManager.muted});
   }
-  document.getElementById('muteBtn').classList.toggle('active',rtcManager.muted);
-  document.getElementById('muteBtn').textContent=rtcManager.muted?'MUTED':'MIC';
+  const btn=document.getElementById('muteBtn');
+  btn.classList.toggle('active',!rtcManager.muted);
+  btn.classList.toggle('muted-state',rtcManager.muted);
 }
 
 async function toggleVideo(){
-  rtcManager.videoOn=!rtcManager.videoOn;
-  if(rtcManager.videoOn){
-    await rtcManager.getLocalStream(true);
-  }else if(rtcManager.localStream){
-    rtcManager.localStream.getVideoTracks().forEach(t=>{t.stop();rtcManager.localStream.removeTrack(t)});
-  }
+  try{
+    console.log('[video] toggleVideo called, videoOn=',rtcManager.videoOn);
+    if(!rtcManager.videoOn){
+      await rtcManager.getLocalStream(true);
+      if(rtcManager.localStream&&rtcManager.localStream.getVideoTracks().length>0){
+        rtcManager.videoOn=true;
+      }else{
+        console.warn('[video] no camera device found');
+      }
+      console.log('[video] videoOn=',rtcManager.videoOn,'tracks:',rtcManager.localStream?rtcManager.localStream.getVideoTracks().length:0);
+    }else{
+      rtcManager.videoOn=false;
+      if(rtcManager.localStream){
+        const vts=rtcManager.localStream.getVideoTracks();
+        console.log('[video] stopping',vts.length,'video tracks');
+        vts.forEach(t=>{
+          t.stop();
+          rtcManager.localStream.removeTrack(t);
+          for(const ship of Object.keys(rtcManager.peers)){
+            const pc=rtcManager.peers[ship].pc;
+            const sender=pc.getSenders().find(s=>s.track===t);
+            if(sender)pc.removeTrack(sender);
+          }
+        });
+        await rtcManager.renegotiateAll();
+      }
+    }
+  }catch(e){console.error('[video] toggleVideo error:',e)}
   document.getElementById('videoBtn').classList.toggle('active',rtcManager.videoOn);
   renderCallRail();
 }
 
 async function toggleScreen(){
   if(rtcManager.screenOn){
-    // stop screenshare
+    // stop screenshare — remove senders from peers
     if(rtcManager.screenStream){
-      rtcManager.screenStream.getTracks().forEach(t=>t.stop());
+      rtcManager.screenStream.getTracks().forEach(t=>{
+        t.stop();
+        for(const ship of Object.keys(rtcManager.peers)){
+          const pc=rtcManager.peers[ship].pc;
+          const sender=pc.getSenders().find(s=>s.track===t);
+          if(sender)pc.removeTrack(sender);
+        }
+      });
       rtcManager.screenStream=null;
     }
     rtcManager.screenOn=false;
+    await rtcManager.renegotiateAll();
   }else{
     try{
       rtcManager.screenStream=await navigator.mediaDevices.getDisplayMedia({video:true});
@@ -3149,9 +3324,22 @@ async function toggleScreen(){
           rtcManager.peers[ship].pc.addTrack(track,rtcManager.screenStream);
         }
       }
-      rtcManager.screenStream.getVideoTracks()[0].onended=()=>{
+      // explicit renegotiation after adding screen tracks
+      await rtcManager.renegotiateAll();
+      rtcManager.screenStream.getVideoTracks()[0].onended=async()=>{
+        // user stopped sharing via browser chrome
+        if(rtcManager.screenStream){
+          rtcManager.screenStream.getTracks().forEach(t=>{
+            for(const ship of Object.keys(rtcManager.peers)){
+              const pc=rtcManager.peers[ship].pc;
+              const sender=pc.getSenders().find(s=>s.track===t);
+              if(sender)pc.removeTrack(sender);
+            }
+          });
+        }
         rtcManager.screenOn=false;
         rtcManager.screenStream=null;
+        await rtcManager.renegotiateAll();
         document.getElementById('screenBtn').classList.remove('active');
         renderCallRail();
       };
@@ -3168,6 +3356,22 @@ async function hangUp(){
   state.inCall=null;
   updateCallUI();
 }
+// leave call on tab close/refresh
+window.addEventListener('beforeunload',()=>{
+  if(state.inCall){
+    // sendBeacon for fire-and-forget leave poke
+    const body=JSON.stringify([{id:++api.msgId,action:'poke',ship:api.ship,app:'noltbook',mark:'noltbook-action',json:{action:'leave-call',data:{noteId:state.inCall}}}]);
+    navigator.sendBeacon(api.url,body);
+    rtcManager.hangUp();
+  }
+});
+window.addEventListener('pagehide',()=>{
+  if(state.inCall){
+    const body=JSON.stringify([{id:++api.msgId,action:'poke',ship:api.ship,app:'noltbook',mark:'noltbook-action',json:{action:'leave-call',data:{noteId:state.inCall}}}]);
+    navigator.sendBeacon(api.url,body);
+    rtcManager.hangUp();
+  }
+});
 /* ========== END CALL SYSTEM ========== */
 
 boot();

@@ -182,7 +182,7 @@
       [%call-started note-id=@ta call-id=@ta started-by=@p participants=(list @p)]
       [%call-joined note-id=@ta ship=@p]
       [%call-left note-id=@ta ship=@p]
-      [%call-ended note-id=@ta]
+      [%call-ended note-id=@ta call-id=@ta]
       [%call-signal note-id=@ta from=@p sig-type=@t payload=@t]
       [%call-state note-id=@ta call=call-info]
   ==

@@ -167,7 +167,11 @@
       ==
     ::
         %call-ended
-      (frond 'call-ended' (frond 'noteId' s+(crip (trip note-id.upd))))
+      %+  frond  'call-ended'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['callId' s+(crip (trip call-id.upd))]
+      ==
     ::
         %call-signal
       %+  frond  'call-signal'

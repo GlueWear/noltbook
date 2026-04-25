@@ -1398,8 +1398,18 @@
         %start-call
       =/  exists  (~(get by notes) note-id.act)
       ?~  exists  `this
-      ::  already active call on this note? no-op
-      ?:  (~(has by active-calls) note-id.act)  `this
+      ::  if stale call exists (0 participants), clean it up; if active, no-op
+      =/  old-call  (~(get by active-calls) note-id.act)
+      ?:  ?&  ?=(^ old-call)
+              (gth ~(wyt in participants.u.old-call) 0)
+          ==
+        `this
+      ::  non-creator: ask host to start the call, then join
+      ?.  =(our.bowl creator.u.exists)
+        :_  this
+        :~  [%pass /call-start/(scot %p creator.u.exists)/[note-id.act] %agent [creator.u.exists %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-call-start note-id.act (crip (weld "call-" (trip (scot %da now.bowl)))) our.bowl])]
+        ==
+      ::  we are the creator: create call locally and broadcast
       =/  cid=@ta  (crip (weld "call-" (trip (scot %da now.bowl))))
       =/  ci=call-info:noltbook
         [cid note-id.act our.bowl now.bowl (sy ~[our.bowl]) %active]
@@ -1410,9 +1420,9 @@
       =/  upd=update:noltbook  [%call-started note-id.act cid our.bowl ~[our.bowl]]
       =/  msg-upd=update:noltbook  [%new-message sys-msg]
       =/  pax=path  ~[%notes note-id.act]
-      ::  notify remote note members
+      ::  notify all other note members
+      ~&  [%call-started-broadcasting-to members=~(tap in users.u.exists)]
       =/  broadcast=(list card)
-        ?.  =(our.bowl creator.u.exists)  ~
         %+  murn  ~(tap in users.u.exists)
         |=  p=@p
         ?:  =(p our.bowl)  ~
@@ -1425,7 +1435,6 @@
       ?~  exists  `this
       =/  ci  (~(get by active-calls) note-id.act)
       ?~  ci  `this
-      ::  already in call? no-op
       ?:  (~(has in participants.u.ci) our.bowl)  `this
       =/  new-ci=call-info:noltbook  u.ci(participants (~(put in participants.u.ci) our.bowl))
       =/  sys-msg=message:noltbook
@@ -1434,9 +1443,14 @@
       =/  upd=update:noltbook  [%call-joined note-id.act our.bowl]
       =/  msg-upd=update:noltbook  [%new-message sys-msg]
       =/  pax=path  ~[%notes note-id.act]
-      ::  notify host if we're not host
+      ::  notify: if creator, tell existing participants directly;
+      ::  if non-creator, tell the host who relays
       =/  broadcast=(list card)
-        ?:  =(our.bowl creator.u.exists)  ~
+        ?:  =(our.bowl creator.u.exists)
+          %+  murn  ~(tap in participants.u.ci)
+          |=  p=@p
+          ?:  =(p our.bowl)  ~
+          `[%pass /call-join-relay/(scot %p p)/[note-id.act] %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-call-join note-id.act our.bowl])]
         ~[[%pass /call-join/(scot %p creator.u.exists)/[note-id.act] %agent [creator.u.exists %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-call-join note-id.act our.bowl])]]
       :_  this(active-calls (~(put by active-calls) note-id.act new-ci), messages (~(put by messages) note-id.act (snoc cur sys-msg)))
       :(weld ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] ~[[%give %fact ~[pax] %noltbook-update !>(msg-upd)]] broadcast)
@@ -1454,19 +1468,28 @@
       =/  pax=path  ~[%notes note-id.act]
       ::  if last participant, end call
       ?:  =(0 ~(wyt in new-parts))
-        =/  end-upd=update:noltbook  [%call-ended note-id.act]
+        =/  end-upd=update:noltbook  [%call-ended note-id.act call-id.u.ci]
         =/  end-msg=message:noltbook
           [now.bowl note-id.act our.bowl '\01SYS:call-ended' now.bowl ~ %.n]
+        ::  broadcast call-ended to all note members (not just host)
         =/  broadcast=(list card)
-          ?:  =(our.bowl creator.u.exists)  ~
-          ~[[%pass /call-leave/(scot %p creator.u.exists)/[note-id.act] %agent [creator.u.exists %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-call-leave note-id.act our.bowl])]]
+          %+  murn  ~(tap in users.u.exists)
+          |=  p=@p
+          ?:  =(p our.bowl)  ~
+          `[%pass /call-end/(scot %p p)/[note-id.act] %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-call-ended note-id.act])]
         :_  this(active-calls (~(del by active-calls) note-id.act), messages (~(put by messages) note-id.act (snoc (snoc cur sys-msg) end-msg)))
         :(weld ~[[%give %fact ~[pax] %noltbook-update !>(end-upd)]] ~[[%give %fact ~[/notes] %noltbook-update !>(end-upd)]] broadcast)
       ::  not last: just leave
       =/  new-ci=call-info:noltbook  u.ci(participants new-parts)
       =/  upd=update:noltbook  [%call-left note-id.act our.bowl]
+      ::  if creator, notify remaining participants directly;
+      ::  if non-creator, tell the host who relays
       =/  broadcast=(list card)
-        ?:  =(our.bowl creator.u.exists)  ~
+        ?:  =(our.bowl creator.u.exists)
+          %+  murn  ~(tap in new-parts)
+          |=  p=@p
+          ?:  =(p our.bowl)  ~
+          `[%pass /call-leave-relay/(scot %p p)/[note-id.act] %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-call-leave note-id.act our.bowl])]
         ~[[%pass /call-leave/(scot %p creator.u.exists)/[note-id.act] %agent [creator.u.exists %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-call-leave note-id.act our.bowl])]]
       :_  this(active-calls (~(put by active-calls) note-id.act new-ci), messages (~(put by messages) note-id.act (snoc cur sys-msg)))
       :(weld ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] broadcast)
@@ -1862,13 +1885,36 @@
     ::  ===== REMOTE CALL HANDLERS =====
     ::
         %remote-call-start
-      ::  a peer started a call on a note we're in
       =/  exists  (~(get by notes) note-id.rem)
       ?~  exists  `this
-      ::  must come from the note's creator
+      ?.  (~(has in users.u.exists) src.bowl)  `this
+      ::  if stale call (0 participants), allow replacement; if active, no-op
+      =/  old-call  (~(get by active-calls) note-id.rem)
+      ?:  ?&  ?=(^ old-call)
+              (gth ~(wyt in participants.u.old-call) 0)
+          ==
+        `this
+      ::  case 1: we are the creator and a member asked us to start
+      ?:  =(our.bowl creator.u.exists)
+        =/  cid=@ta  (crip (weld "call-" (trip (scot %da now.bowl))))
+        =/  ci=call-info:noltbook
+          [cid note-id.rem src.bowl now.bowl (sy ~[src.bowl]) %active]
+        =/  sys-msg=message:noltbook
+          [now.bowl note-id.rem src.bowl (crip (weld "\01SYS:call-started:" (trip (scot %p src.bowl)))) now.bowl ~ %.n]
+        =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
+        =/  upd=update:noltbook  [%call-started note-id.rem cid src.bowl ~[src.bowl]]
+        =/  msg-upd=update:noltbook  [%new-message sys-msg]
+        =/  pax=path  ~[%notes note-id.rem]
+        ::  broadcast to all members including the requester
+        =/  broadcast=(list card)
+          %+  murn  ~(tap in users.u.exists)
+          |=  p=@p
+          ?:  =(p our.bowl)  ~
+          `[%pass /call-start/(scot %p p)/[note-id.rem] %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-call-start note-id.rem cid src.bowl])]
+        :_  this(active-calls (~(put by active-calls) note-id.rem ci), messages (~(put by messages) note-id.rem (snoc cur sys-msg)))
+        :(weld ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] ~[[%give %fact ~[pax] %noltbook-update !>(msg-upd)]] broadcast)
+      ::  case 2: we are NOT creator; accept notification from creator only
       ?.  =(src.bowl creator.u.exists)  `this
-      ::  already have active call on this note? no-op
-      ?:  (~(has by active-calls) note-id.rem)  `this
       =/  ci=call-info:noltbook
         [call-id.rem note-id.rem started-by.rem now.bowl (sy ~[started-by.rem]) %active]
       =/  sys-msg=message:noltbook
@@ -1881,14 +1927,11 @@
       :(weld ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] ~[[%give %fact ~[pax] %noltbook-update !>(msg-upd)]])
     ::
         %remote-call-join
-      ::  a peer joined a call on a note we host
       =/  exists  (~(get by notes) note-id.rem)
       ?~  exists  `this
-      ?.  =(our.bowl creator.u.exists)  `this
       =/  ci  (~(get by active-calls) note-id.rem)
       ?~  ci  `this
       ?.  (~(has in users.u.exists) ship.rem)  `this
-      ::  already in call? no-op
       ?:  (~(has in participants.u.ci) ship.rem)  `this
       =/  new-ci=call-info:noltbook  u.ci(participants (~(put in participants.u.ci) ship.rem))
       =/  sys-msg=message:noltbook
@@ -1897,8 +1940,10 @@
       =/  upd=update:noltbook  [%call-joined note-id.rem ship.rem]
       =/  msg-upd=update:noltbook  [%new-message sys-msg]
       =/  pax=path  ~[%notes note-id.rem]
-      ::  broadcast join to all other participants
+      ::  case 1: we are creator — process + relay to other participants
+      ::  case 2: we are NOT creator — just process locally (notification from creator)
       =/  broadcast=(list card)
+        ?.  =(our.bowl creator.u.exists)  ~
         %+  murn  ~(tap in participants.u.ci)
         |=  p=@p
         ?:  =(p ship.rem)  ~
@@ -1908,10 +1953,8 @@
       :(weld ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] ~[[%give %fact ~[pax] %noltbook-update !>(msg-upd)]] broadcast)
     ::
         %remote-call-leave
-      ::  a peer left a call on a note we host
       =/  exists  (~(get by notes) note-id.rem)
       ?~  exists  `this
-      ?.  =(our.bowl creator.u.exists)  `this
       =/  ci  (~(get by active-calls) note-id.rem)
       ?~  ci  `this
       ?.  (~(has in participants.u.ci) ship.rem)  `this
@@ -1922,17 +1965,23 @@
       =/  pax=path  ~[%notes note-id.rem]
       ::  if no participants left, end the call
       ?:  =(0 ~(wyt in new-parts))
-        =/  end-upd=update:noltbook  [%call-ended note-id.rem]
+        =/  end-upd=update:noltbook  [%call-ended note-id.rem call-id.u.ci]
         =/  end-msg=message:noltbook
           [now.bowl note-id.rem ship.rem '\01SYS:call-ended' now.bowl ~ %.n]
+        ::  broadcast call-ended to all note members
+        =/  broadcast=(list card)
+          %+  murn  ~(tap in users.u.exists)
+          |=  p=@p
+          ?:  =(p our.bowl)  ~
+          `[%pass /call-end/(scot %p p)/[note-id.rem] %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-call-ended note-id.rem])]
         :_  this(active-calls (~(del by active-calls) note-id.rem), messages (~(put by messages) note-id.rem (snoc (snoc cur sys-msg) end-msg)))
-        :~  [%give %fact ~[pax] %noltbook-update !>(end-upd)]
-            [%give %fact ~[/notes] %noltbook-update !>(end-upd)]
-        ==
+        :(weld ~[[%give %fact ~[pax] %noltbook-update !>(end-upd)]] ~[[%give %fact ~[/notes] %noltbook-update !>(end-upd)]] broadcast)
       ::  still has participants: update and broadcast leave
       =/  new-ci=call-info:noltbook  u.ci(participants new-parts)
       =/  upd=update:noltbook  [%call-left note-id.rem ship.rem]
+      ::  only creator relays to other participants
       =/  broadcast=(list card)
+        ?.  =(our.bowl creator.u.exists)  ~
         %+  murn  ~(tap in new-parts)
         |=  p=@p
         ?:  =(p our.bowl)  ~
@@ -1951,12 +2000,10 @@
       =/  end-msg=message:noltbook
         [now.bowl note-id.rem src.bowl '\01SYS:call-ended' now.bowl ~ %.n]
       =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
-      =/  upd=update:noltbook  [%call-ended note-id.rem]
+      =/  upd=update:noltbook  [%call-ended note-id.rem call-id.u.ci]
       =/  pax=path  ~[%notes note-id.rem]
       :_  this(active-calls (~(del by active-calls) note-id.rem), messages (~(put by messages) note-id.rem (snoc cur end-msg)))
-      :~  [%give %fact ~[pax] %noltbook-update !>(upd)]
-          [%give %fact ~[/notes] %noltbook-update !>(upd)]
-      ==
+      ~[[%give %fact ~[pax] %noltbook-update !>(upd)] [%give %fact ~[/notes] %noltbook-update !>(upd)]]
     ::
         %remote-call-signal
       ::  incoming WebRTC signal from a peer; relay to local frontend
@@ -2303,6 +2350,11 @@
     ==
   ::
       [%call-sig @ @ ~]
+    ?+  -.sign  `this
+        %poke-ack  `this
+    ==
+  ::
+      [%call-end @ @ ~]
     ?+  -.sign  `this
         %poke-ack  `this
     ==
