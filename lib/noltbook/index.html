@@ -88,7 +88,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .chat-header{display:flex;align-items:center;justify-content:space-between;padding:0 1rem;height:42px;border-bottom:1px solid var(--border);flex-shrink:0}
 .chat-note-name{font-size:1.1rem;color:#ffaa00;cursor:pointer;text-decoration:underline;padding:.2rem .4rem}
 .chat-note-name:hover{background:var(--bg2)}
-.share-btn{font-family:var(--font);font-size:.8rem;padding:.25rem .5rem;background:transparent;border:1px solid #ffaa00;color:#ffaa00;cursor:pointer;display:none}
+.share-btn{font-family:var(--font);font-size:.8rem;padding:.25rem .5rem;background:transparent;border:1px solid #ffaa00;color:#ffaa00;cursor:pointer;display:none;min-width:3.2rem;text-align:center;box-sizing:border-box;margin-left:auto}
 .share-btn:hover{background:rgba(255,170,0,.15)}
 .dial-wrap{display:none;align-items:center;gap:.3rem;margin-left:auto;margin-right:.5rem}
 .dial-label{font-size:.65rem;color:var(--text-dim);letter-spacing:.1em}
@@ -328,9 +328,10 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .user-chip-x:hover{color:#ff4444}
 .mention-dropdown{position:absolute;bottom:100%;left:0;right:0;background:var(--bg2);border:1px solid var(--border);max-height:180px;overflow-y:auto;z-index:600;display:none}
 .mention-dropdown.open{display:block}
-.call-btn{font-family:var(--font);font-size:.8rem;padding:.25rem .5rem;background:transparent;border:1px solid #00ff88;color:#00ff88;cursor:pointer;margin-left:.5rem}
-.call-btn:hover{background:rgba(0,255,136,.15)}
-.call-btn.in-call{border-color:#ff4444;color:#ff4444}
+.call-btn{font-family:var(--font);font-size:.8rem;padding:.25rem .5rem;background:transparent;border:1px solid #666;color:#888;cursor:pointer;min-width:3.2rem;text-align:center;box-sizing:border-box;margin-left:.35rem}
+.call-btn:hover{border-color:#00ff88;color:#00ff88;background:rgba(0,255,136,.1)}
+.call-btn.joinable{border-color:#00ff88;color:#00ff88}
+.call-btn.in-call{border-color:#ff4444;color:#ff4444;min-width:3.2rem}
 .call-btn.in-call:hover{background:rgba(255,68,68,.15)}
 .call-indicator{display:none;align-items:center;gap:.4rem;margin-left:.5rem;font-size:.75rem;color:#00ff88}
 .call-indicator.active{display:flex}
@@ -357,8 +358,10 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .call-ctrl-btn.muted-state:hover{border-color:#ffaa00;color:#ffaa00;text-decoration:none}
 .call-ctrl-btn.hang{border-color:#666;color:#888}
 .call-ctrl-btn.hang:hover{border-color:#ff4444;color:#ff4444;background:rgba(255,68,68,.15);box-shadow:0 0 8px rgba(255,68,68,.4)}
-.note-call-badge{display:none;width:6px;height:6px;border-radius:50%;background:#00ff88;margin-left:auto;flex-shrink:0}
-.note-item.has-call .note-call-badge{display:block}
+.note-call-badge{display:none;align-items:center;gap:3px;margin-left:auto;flex-shrink:0;font-size:.65rem;color:#00ff88}
+.note-call-badge .call-pip{width:6px;height:6px;border-radius:50%;background:#00ff88;animation:callPulse 1.5s ease-in-out infinite}
+.note-item.has-call .note-call-badge{display:flex}
+.note-item.has-call .note-dot{display:none}
 </style>
 <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 </head>
@@ -450,9 +453,9 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
     <section class="chat">
       <div class="chat-header">
         <span class="chat-note-name" id="chatNoteName" onclick="openCurrentNoteMenu(event)">%Grimoire</span>
-        <span class="call-indicator" id="callIndicator"><span class="call-dot"></span><span id="callParticipantCount">0</span> in call</span>
-        <button class="call-btn" id="callBtn" onclick="toggleCall()">CALL</button>
+        <span class="call-indicator" id="callIndicator" onclick="toggleCallRail()" style="cursor:pointer"><span class="call-dot"></span><span id="callParticipantCount">0</span> in call</span>
         <button class="share-btn" id="shareBtn" onclick="openSharePrompt()">SHARE</button>
+        <button class="call-btn" id="callBtn" onclick="toggleCall()">CALL</button>
       </div>
       <div class="chat-messages" id="chatMessages"></div>
       <div class="chat-input-area" style="position:relative">
@@ -958,7 +961,8 @@ function makeNoteItem(n,depth){
   const isExpanded=state.expandedNotes.has(n.id);
   const hasNotif=state._trickleDotted?state._trickleDotted.has(n.id):state.notifications.has(n.id);
   const hasMention=state.mentions[n.id]&&state.mentions[n.id].length>0;
-  div.className='note-item'+(n.id===state.currentNoteId?' active':'')+((hasNotif||hasMention)?' has-notif':'')+(depth?` depth-${depth}`:'');
+  const hasCall=!!state.activeCalls[n.id];
+  div.className='note-item'+(n.id===state.currentNoteId?' active':'')+((hasNotif||hasMention)?' has-notif':'')+(hasCall?' has-call':'')+(depth?` depth-${depth}`:'');
   div.setAttribute('data-note-id',n.id);
   const last=getLastMessage(n.id);
   const iconContent=noteDisplayIconHtml(n);
@@ -972,7 +976,8 @@ function makeNoteItem(n,depth){
   const hasCustomIcon=!!n.iconUrl||!!dmCounterparty(n);
   const sourceColor=rawSource?shipColor(rawSource):'';
   const dotColor=hasMention?'#ffaa00':'var(--bot)';
-  div.innerHTML=`${chevron}<div class="note-icon" ${hasCustomIcon?'style="display:flex"':''}>${iconContent}</div><div class="note-text"><span class="note-name">${escHtml(displayNameStr)}</span><span class="note-source"${sourceColor?' style="color:'+sourceColor+'"':''}>${escHtml(source)}</span><span class="note-preview">${previewHtml}</span></div><span class="note-dot" style="background:${dotColor}"></span>`;
+  const callBadge=hasCall?`<span class="note-call-badge"><span class="call-pip"></span>${state.activeCalls[n.id].participants.length}</span>`:'<span class="note-call-badge"></span>';
+  div.innerHTML=`${chevron}<div class="note-icon" ${hasCustomIcon?'style="display:flex"':''}>${iconContent}</div><div class="note-text"><span class="note-name">${escHtml(displayNameStr)}</span><span class="note-source"${sourceColor?' style="color:'+sourceColor+'"':''}>${escHtml(source)}</span><span class="note-preview">${previewHtml}</span></div>${callBadge}<span class="note-dot" style="background:${dotColor}"></span>`;
   let clickTimer=null;
   div.onclick=()=>{if(clickTimer)return;clickTimer=setTimeout(()=>{clickTimer=null;openNote(n.id)},250)};
   div.ondblclick=(e)=>{clearTimeout(clickTimer);clickTimer=null;e.preventDefault();toggleNoteExpand(n.id)};
@@ -1776,7 +1781,7 @@ function showNoteContextMenu(event,noteId){
     <div class="context-menu-item${ro}" data-action="writable" data-val="false"><span class="context-radio ${!wr?'selected':''}"></span> Read Only</div>
     <div class="context-menu-divider"></div>
     <div class="context-menu-item" data-action="child">+ Child</div>
-    <div class="context-menu-item" data-action="img">+ Img</div>
+    <div class="context-menu-item${ro}" data-action="img">+ Img</div>
     <div class="context-menu-item" data-action="duplicate">Duplicate</div>
     <div class="context-menu-item" data-action="rename">Rename</div>
     ${delItem}`;
@@ -2857,14 +2862,23 @@ const rtcManager={
           const vt=vs.getVideoTracks()[0];
           console.log('[rtc] got camera track:',vt.label,'state:',vt.readyState);
           this.localStream.addTrack(vt);
+          let needsRenegotiate=false;
           for(const ship of Object.keys(this.peers)){
-            const pc=this.peers[ship].pc;
-            pc.addTrack(vt,this.localStream);
-            console.log('[rtc] added video track to peer',ship);
+            const peer=this.peers[ship];
+            if(peer.videoSender){
+              await peer.videoSender.replaceTrack(vt);
+              console.log('[rtc] replaced video track for peer',ship);
+            }else{
+              peer.videoSender=peer.pc.addTrack(vt,this.localStream);
+              needsRenegotiate=true;
+              console.log('[rtc] added video track to peer',ship);
+            }
           }
-          console.log('[rtc] renegotiating after video add...');
-          await this.renegotiateAll();
-          console.log('[rtc] renegotiation complete');
+          if(needsRenegotiate){
+            console.log('[rtc] renegotiating after video add...');
+            await this.renegotiateAll();
+            console.log('[rtc] renegotiation complete');
+          }
         }catch(e){console.error('[rtc] video failed',e)}
       }
       return this.localStream;
@@ -2883,18 +2897,20 @@ const rtcManager={
     if(this.peers[ship])return this.peers[ship].pc;
     const polite=this.isPolite(ship);
     const pc=new RTCPeerConnection({iceServers:ICE_SERVERS});
-    const peer={pc,stream:new MediaStream(),makingOffer:false,audioEl:null};
+    const peer={pc,stream:new MediaStream(),makingOffer:false,audioEl:null,videoSender:null,screenSender:null};
     this.peers[ship]=peer;
 
-    // add local tracks
+    // add local tracks, tracking video/screen senders for replaceTrack
     if(this.localStream){
       for(const track of this.localStream.getTracks()){
-        pc.addTrack(track,this.localStream);
+        const sender=pc.addTrack(track,this.localStream);
+        if(track.kind==='video')peer.videoSender=sender;
       }
     }
     if(this.screenStream){
       for(const track of this.screenStream.getTracks()){
-        pc.addTrack(track,this.screenStream);
+        const sender=pc.addTrack(track,this.screenStream);
+        if(track.kind==='video')peer.screenSender=sender;
       }
     }
 
@@ -3072,18 +3088,22 @@ function updateCallUI(){
     if(state.inCall===noteId){
       btn.textContent='END';
       btn.classList.add('in-call');
+      btn.classList.remove('joinable');
     }else{
       btn.textContent='JOIN';
       btn.classList.remove('in-call');
+      btn.classList.add('joinable');
     }
   }else{
     indicator.classList.remove('active');
     if(state.inCall===noteId){
       btn.textContent='END';
       btn.classList.add('in-call');
+      btn.classList.remove('joinable');
     }else{
       btn.textContent='CALL';
       btn.classList.remove('in-call');
+      btn.classList.remove('joinable');
     }
   }
   renderCallRail();
@@ -3221,6 +3241,15 @@ async function toggleCall(){
     return;
   }
 
+  // enforce single-call: leave current call before joining another
+  if(state.inCall){
+    console.log('[toggleCall] leaving previous call',state.inCall,'before joining',noteId);
+    await api.poke('noltbook','noltbook-action',{action:'leave-call',data:{noteId:state.inCall}});
+    rtcManager.hangUp();
+    state.inCall=null;
+    updateCallUI();
+  }
+
   // get mic FIRST — blocks on permissions dialog, bail if denied
   const stream=await rtcManager.getLocalStream(false);
   if(!stream||stream.getAudioTracks().length===0){
@@ -3255,6 +3284,10 @@ function closeCallRail(){
   document.getElementById('callRail').classList.remove('open');
 }
 
+function toggleCallRail(){
+  document.getElementById('callRail').classList.toggle('open');
+}
+
 function toggleMute(){
   rtcManager.muted=!rtcManager.muted;
   if(rtcManager.localStream){
@@ -3284,13 +3317,14 @@ async function toggleVideo(){
         vts.forEach(t=>{
           t.stop();
           rtcManager.localStream.removeTrack(t);
+          // replaceTrack(null) keeps transceiver alive for restart
           for(const ship of Object.keys(rtcManager.peers)){
-            const pc=rtcManager.peers[ship].pc;
-            const sender=pc.getSenders().find(s=>s.track===t);
-            if(sender)pc.removeTrack(sender);
+            const peer=rtcManager.peers[ship];
+            if(peer.videoSender){
+              peer.videoSender.replaceTrack(null);
+            }
           }
         });
-        await rtcManager.renegotiateAll();
       }
     }
   }catch(e){console.error('[video] toggleVideo error:',e)}
@@ -3300,46 +3334,42 @@ async function toggleVideo(){
 
 async function toggleScreen(){
   if(rtcManager.screenOn){
-    // stop screenshare — remove senders from peers
+    // stop screenshare — replaceTrack(null) keeps transceiver alive
     if(rtcManager.screenStream){
-      rtcManager.screenStream.getTracks().forEach(t=>{
-        t.stop();
-        for(const ship of Object.keys(rtcManager.peers)){
-          const pc=rtcManager.peers[ship].pc;
-          const sender=pc.getSenders().find(s=>s.track===t);
-          if(sender)pc.removeTrack(sender);
+      rtcManager.screenStream.getTracks().forEach(t=>t.stop());
+      for(const ship of Object.keys(rtcManager.peers)){
+        const peer=rtcManager.peers[ship];
+        if(peer.screenSender){
+          peer.screenSender.replaceTrack(null);
         }
-      });
+      }
       rtcManager.screenStream=null;
     }
     rtcManager.screenOn=false;
-    await rtcManager.renegotiateAll();
   }else{
     try{
       rtcManager.screenStream=await navigator.mediaDevices.getDisplayMedia({video:true});
       rtcManager.screenOn=true;
-      // add screen tracks to all peers
+      const screenTrack=rtcManager.screenStream.getVideoTracks()[0];
+      let needsRenegotiate=false;
       for(const ship of Object.keys(rtcManager.peers)){
-        for(const track of rtcManager.screenStream.getTracks()){
-          rtcManager.peers[ship].pc.addTrack(track,rtcManager.screenStream);
+        const peer=rtcManager.peers[ship];
+        if(peer.screenSender){
+          await peer.screenSender.replaceTrack(screenTrack);
+        }else{
+          peer.screenSender=peer.pc.addTrack(screenTrack,rtcManager.screenStream);
+          needsRenegotiate=true;
         }
       }
-      // explicit renegotiation after adding screen tracks
-      await rtcManager.renegotiateAll();
-      rtcManager.screenStream.getVideoTracks()[0].onended=async()=>{
+      if(needsRenegotiate)await rtcManager.renegotiateAll();
+      screenTrack.onended=async()=>{
         // user stopped sharing via browser chrome
-        if(rtcManager.screenStream){
-          rtcManager.screenStream.getTracks().forEach(t=>{
-            for(const ship of Object.keys(rtcManager.peers)){
-              const pc=rtcManager.peers[ship].pc;
-              const sender=pc.getSenders().find(s=>s.track===t);
-              if(sender)pc.removeTrack(sender);
-            }
-          });
+        for(const ship of Object.keys(rtcManager.peers)){
+          const peer=rtcManager.peers[ship];
+          if(peer.screenSender)peer.screenSender.replaceTrack(null);
         }
         rtcManager.screenOn=false;
         rtcManager.screenStream=null;
-        await rtcManager.renegotiateAll();
         document.getElementById('screenBtn').classList.remove('active');
         renderCallRail();
       };

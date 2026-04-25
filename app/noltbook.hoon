@@ -386,7 +386,14 @@
   ^-  (quip card _this)
   ?:  ?=([%14 *] q.old)
     =/  loaded  !<(state-14 old)
-    `this(state loaded)
+    ::  broadcast our profile to all peers so contacts stay in sync
+    =/  prof  (fall (~(get by profiles.loaded) our.bowl) *profile:noltbook)
+    =/  prof-cards=(list card)
+      %+  turn  ~(tap in peers.loaded)
+      |=  p=@p
+      ^-  card
+      [%pass /prof-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-profile our.bowl prof])]
+    [prof-cards this(state loaded(active-calls *(map @ta call-info:noltbook)))]
   ?:  ?=([%13 *] q.old)
     =/  loaded  !<(state-13 old)
     =/  s14  (upgrade-13-to-14 loaded)
@@ -1221,16 +1228,19 @@
       ?:  =(ship.act our.bowl)  `this
       ::  unblock if blocked
       =/  new-blocked=(set @p)  (~(del in pal-blocked) ship.act)
-      ::  add to outgoing, send %remote-hey
+      ::  add to outgoing, send %remote-hey + our profile
       =/  new-outgoing=(set @p)  (~(put in pal-outgoing) ship.act)
       =/  hey-card=card
         [%pass /pal-hey/(scot %p ship.act) %agent [ship.act %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-hey ~])]
+      =/  prof  (fall (~(get by profiles) our.bowl) *profile:noltbook)
+      =/  prof-card=card
+        [%pass /prof-out/(scot %p ship.act) %agent [ship.act %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-profile our.bowl prof])]
       =/  status=pal-status:noltbook
         ?:  (~(has in pal-incoming) ship.act)  %mutual
         %requesting
       =/  upd=update:noltbook  [%pal-update ship.act status]
       :_  this(pal-outgoing new-outgoing, pal-blocked new-blocked)
-      [hey-card [%give %fact ~[/notes] %noltbook-update !>(upd)] ~]
+      [hey-card prof-card [%give %fact ~[/notes] %noltbook-update !>(upd)] ~]
     ::
         %remove-pal
       ?:  =(ship.act our.bowl)  `this
@@ -1491,8 +1501,9 @@
           ?:  =(p our.bowl)  ~
           `[%pass /call-leave-relay/(scot %p p)/[note-id.act] %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-call-leave note-id.act our.bowl])]
         ~[[%pass /call-leave/(scot %p creator.u.exists)/[note-id.act] %agent [creator.u.exists %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-call-leave note-id.act our.bowl])]]
+      =/  msg-upd=update:noltbook  [%new-message sys-msg]
       :_  this(active-calls (~(put by active-calls) note-id.act new-ci), messages (~(put by messages) note-id.act (snoc cur sys-msg)))
-      :(weld ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] broadcast)
+      :(weld ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] ~[[%give %fact ~[pax] %noltbook-update !>(msg-upd)]] broadcast)
     ::
         %call-signal
       ::  relay WebRTC signal to target peer
@@ -1709,8 +1720,12 @@
         ?:  (~(has in pal-outgoing) src.bowl)  %mutual
         %requested
       =/  upd=update:noltbook  [%pal-update src.bowl status]
+      ::  send our profile back so they have our display name + avatar
+      =/  prof  (fall (~(get by profiles) our.bowl) *profile:noltbook)
+      =/  prof-card=card
+        [%pass /prof-out/(scot %p src.bowl) %agent [src.bowl %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-profile our.bowl prof])]
       :_  this(pal-incoming new-incoming)
-      ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
+      [prof-card [%give %fact ~[/notes] %noltbook-update !>(upd)] ~]
     ::
         %remote-bye
       ::  a ship no longer wants to be pals
@@ -1733,9 +1748,12 @@
       =/  status=pal-status:noltbook
         ?:  (~(has in pal-incoming) target)  %mutual
         %requesting
+      ::  send our profile to the new peer
+      =/  prof  (fall (~(get by profiles) our.bowl) *profile:noltbook)
       :_  this(peers new-peers, pal-outgoing new-outgoing)
       :~  [%pass /ars/(scot %p target) %agent [target %noltbook] %watch /notes/cover]
           [%pass /pal-hey/(scot %p target) %agent [target %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-hey ~])]
+          [%pass /prof-out/(scot %p target) %agent [target %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-profile our.bowl prof])]
           [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%pal-update target status])]
       ==
     ::
@@ -1993,10 +2011,10 @@
       ::  host says call is over
       =/  ci  (~(get by active-calls) note-id.rem)
       ?~  ci  `this
-      ::  must come from the call starter or note creator
+      ::  must come from a note member
       =/  exists  (~(get by notes) note-id.rem)
       ?~  exists  `this
-      ?.  |(=(src.bowl creator.u.exists) =(src.bowl started-by.u.ci))  `this
+      ?.  (~(has in users.u.exists) src.bowl)  `this
       =/  end-msg=message:noltbook
         [now.bowl note-id.rem src.bowl '\01SYS:call-ended' now.bowl ~ %.n]
       =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
