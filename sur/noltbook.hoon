@@ -114,6 +114,8 @@
       [%remote-call-leave note-id=@ta ship=@p]
       [%remote-call-ended note-id=@ta]
       [%remote-call-signal call-id=@ta from=@p sig-type=@t payload=@t]
+      ::  block: host kicked you from a note
+      [%remote-kick note-id=@ta note-name=@t]
   ==
 ::  poke actions (client to agent)
 +$  action
@@ -186,5 +188,7 @@
       [%call-ended note-id=@ta call-id=@ta]
       [%call-signal note-id=@ta from=@p sig-type=@t payload=@t]
       [%call-state note-id=@ta call=call-info]
+      ::  block: you were kicked from a note
+      [%kick-notification note-id=@ta note-name=@t from=@p]
   ==
 --

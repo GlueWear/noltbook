@@ -1265,8 +1265,22 @@
         ?.  was-outgoing  ~
         ~[[%pass /pal-bye/(scot %p ship.act) %agent [ship.act %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-bye ~])]]
       =/  upd=update:noltbook  [%pal-update ship.act %blocked]
-      :_  this(pal-outgoing new-outgoing, pal-incoming new-incoming, pal-blocked new-blocked)
-      [[%give %fact ~[/notes] %noltbook-update !>(upd)] bye-cards]
+      ::  remove blocked ship from all hosted group notes + notify them
+      =/  removal-result=[new-notes=(map @ta note:noltbook) cards=(list card)]
+        =/  nn=(map @ta note:noltbook)  notes
+        =/  cc=(list card)  ~
+        %-  ~(rep by notes)
+        |=  [[nid=@ta n=note:noltbook] acc=[nn=(map @ta note:noltbook) cc=(list card)]]
+        ?.  =(our.bowl creator.n)  acc
+        ?.  (~(has in users.n) ship.act)  acc
+        =/  new-users=(set @p)  (~(del in users.n) ship.act)
+        =/  upd-note=note:noltbook  n(users new-users)
+        =/  users-upd=update:noltbook  [%note-users-updated nid ~(tap in new-users)]
+        =/  kick-card=card
+          [%pass /kick/(scot %p ship.act)/[nid] %agent [ship.act %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-kick nid name.n])]
+        [nn=(~(put by nn.acc) nid upd-note) cc=[kick-card [%give %fact ~[/notes] %noltbook-update !>(users-upd)] cc.acc]]
+      :_  this(notes new-notes.removal-result, pal-outgoing new-outgoing, pal-incoming new-incoming, pal-blocked new-blocked)
+      :(weld [[%give %fact ~[/notes] %noltbook-update !>(upd)] ~] bye-cards cards.removal-result)
     ::
         %unblock-pal
       ?:  =(ship.act our.bowl)  `this
@@ -1530,6 +1544,8 @@
     ::
         %remote-invite
       ::  someone invited us to their note
+      ::  reject invites from blocked ships
+      ?:  (~(has in pal-blocked) src.bowl)  `this
       =/  new-note=note:noltbook
         [note-id.rem name.rem type.rem creator.rem users.rem ~ ~ ~ ~ visibility.rem ~ &]
       ::  root-uniqueness: only dedup non-cover roots
@@ -1614,6 +1630,8 @@
     ::
         %remote-message
       ::  a remote user sent a message to a note we host
+      ::  reject if sender is blocked
+      ?:  (~(has in pal-blocked) src.bowl)  `this
       =/  old  (~(get by notes) note-id.rem)
       ?~  old  `this
       ::  verify: we must be creator, sender must be in users
@@ -1767,6 +1785,7 @@
     ::
         %remote-edit-msg
       ::  remote user editing their own message in a note we host
+      ?:  (~(has in pal-blocked) src.bowl)  `this
       =/  old  (~(get by notes) note-id.rem)
       ?~  old  `this
       ?.  =(our.bowl creator.u.old)  `this
@@ -1907,6 +1926,19 @@
         ==
       :_  this
       (weld sub-cards tail-cards)
+    ::
+        %remote-kick
+      ::  host removed us from a note (due to blocking)
+      =/  old  (~(get by notes) note-id.rem)
+      ?~  old  `this
+      ::  must come from the note's creator
+      ?.  =(src.bowl creator.u.old)  `this
+      =/  del-upd=update:noltbook  [%note-deleted note-id.rem]
+      =/  kick-upd=update:noltbook  [%kick-notification note-id.rem note-name.rem src.bowl]
+      :_  this(notes (~(del by notes) note-id.rem), messages (~(del by messages) note-id.rem))
+      :~  [%give %fact ~[/notes] %noltbook-update !>(del-upd)]
+          [%give %fact ~[/notes] %noltbook-update !>(kick-upd)]
+      ==
     ::
     ::  ===== REMOTE CALL HANDLERS =====
     ::

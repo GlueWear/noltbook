@@ -188,6 +188,14 @@
       :~  ['noteId' s+(crip (trip note-id.upd))]
           ['call' (call-to-json call.upd)]
       ==
+    ::
+        %kick-notification
+      %+  frond  'kick-notification'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['noteName' s+note-name.upd]
+          ['from' s+(scot %p from.upd)]
+      ==
     ==
     ::
     ++  call-to-json

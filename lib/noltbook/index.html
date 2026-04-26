@@ -20,8 +20,10 @@
 html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg);color:var(--text);overflow:hidden}
 .app{display:flex;flex-direction:column;height:100vh}
 .app-header{display:flex;align-items:center;justify-content:space-between;padding:0 1rem 0 1rem;height:42px;border-bottom:1px solid var(--border);flex-shrink:0}
-.logo{font-size:1.5rem;letter-spacing:.3em;color:#ffaa00;margin-left:.3em;cursor:pointer;padding:.2rem .4rem}
+.logo{font-size:1.5rem;letter-spacing:.3em;color:#ffaa00;margin-left:.3em;cursor:pointer;padding:.2rem .4rem;position:relative}
 .logo:hover{background:var(--bg2)}
+.logo-badge{position:absolute;top:2px;right:-2px;width:8px;height:8px;border-radius:50%;background:#ff4444;display:none}
+.logo.has-notif .logo-badge{display:block}
 .user-info{display:flex;align-items:center;gap:.75rem;margin-right:48px}
 .ship-name{font-size:1.5rem;cursor:pointer;padding:.2rem .4rem}
 .ship-name:hover{background:var(--bg2)}
@@ -368,7 +370,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 <body>
 <div class="app">
   <header class="app-header">
-    <span class="logo" onclick="openGrimoireMenu()" style="font-family:'Share Tech Mono',monospace">NOLTBOOK</span>
+    <span class="logo" id="noltbookLogo" onclick="openGrimoireMenu()" style="font-family:'Share Tech Mono',monospace">NOLTBOOK<span class="logo-badge"></span></span>
     <div class="header-dial" id="dialWrap">
       <span class="dial-label">DIAL</span>
       <div class="dial-box active" onclick="setDial(0)">0</div>
@@ -659,7 +661,7 @@ const api = {
     this.reconnecting=false;
   }
 };
-const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},dial:0,gossipHops:{},mentions:{},activeCalls:{},inCall:null};
+const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},dial:0,gossipHops:{},mentions:{},activeCalls:{},inCall:null,blockNotifications:[]};
 let sigilFn=null;
 const sigilCache={};
 (async function loadSigil(){
@@ -757,7 +759,7 @@ function handleUpdate(upd){
   else if(upd['profile-updated']){const{ship,profile}=upd['profile-updated'];state.profiles[ship]=profile;if(ship==='~'+api.ship){document.getElementById('shipDisplay').textContent=profile.displayName||'~'+api.ship;updateSidebarSigil()}if(state.palsView)renderPalsList();if(state.currentNoteId)scheduleRender()}
   else if(upd['remote-note-list']){const{ship,notes}=upd['remote-note-list'];const el=document.getElementById('viewProfileNotes');if(el){const pubNotes=notes.filter(n=>n.visibility==='public').sort((a,b)=>a.name.localeCompare(b.name));const privNotes=notes.filter(n=>n.visibility==='private').sort((a,b)=>a.name.localeCompare(b.name));const all=[...pubNotes,...privNotes];if(all.length===0){el.innerHTML='<span style="color:var(--dim)">none available</span>'}else{el.innerHTML=all.map(n=>{const ic=n.iconUrl?'<img src="'+escAttr(n.iconUrl)+'">':noteInitials(n.name);const vis=n.visibility==='public'?'public':'private';return '<div class="profile-note-entry"><div class="profile-note-icon">'+ic+'</div><div class="profile-note-text"><span class="profile-note-name">'+escHtml(n.name)+'</span><span class="profile-note-vis">'+vis+'</span></div></div>'}).join('')}}}
   else if(upd['pal-list']){for(const entry of upd['pal-list']){state.palStatus[entry.ship]=entry.status}if(state.palsView)renderPalsList()}
-  else if(upd['pal-update']){const{ship,status}=upd['pal-update'];state.palStatus[ship]=status;if(state.palsView)renderPalsList()}
+  else if(upd['pal-update']){const{ship,status}=upd['pal-update'];state.palStatus[ship]=status;if(state.palsView)renderPalsList();renderNoteList()}
   else if(upd['dial-update']){state.dial=upd['dial-update'];updateDialUI();if(state.currentNoteId==='cover')scheduleRender('cover');scheduleNoteList()}
   else if(upd['note-users-updated']){const{id,users}=upd['note-users-updated'];console.log('[note-users-updated]',id,users);if(state.notes[id]){state.notes[id].users=users;renderNoteList();if(state.currentNoteId===id)scheduleRender(id)}}
   else if(upd['note-redirect']){const{oldId,newId}=upd['note-redirect'];console.log('[note-redirect]',oldId,'->',newId);delete state.notes[oldId];delete state.messages[oldId];state.notifications.delete(oldId);if(state.currentNoteId===oldId){if(state.notes[newId])openNote(newId);else openNote('cover')}renderNoteList()}
@@ -771,6 +773,7 @@ function handleUpdate(upd){
   else if(upd['call-left']){const{noteId,ship}=upd['call-left'];console.log('[call-left]',noteId,ship);const c=state.activeCalls[noteId];if(c){c.participants=c.participants.filter(p=>p!==ship);updateCallUI();if(state.inCall===noteId)rtcManager.onPeerLeft(ship)}}
   else if(upd['call-ended']){const{noteId,callId}=upd['call-ended'];const c=state.activeCalls[noteId];if(!c){console.log('[call-ended] no active call, ignoring');return}if(callId&&c.callId&&callId!==c.callId){console.log('[call-ended] stale callId',callId,'vs active',c.callId,', ignoring');return}console.log('[call-ended]',noteId,callId);delete state.activeCalls[noteId];if(state.inCall===noteId){rtcManager.hangUp();state.inCall=null}updateCallUI()}
   else if(upd['call-signal']){const{noteId,from,sigType,payload}=upd['call-signal'];console.log('[call-signal]',noteId,from,sigType);if(state.inCall===noteId)rtcManager.handleSignal(from,sigType,payload)}
+  else if(upd['kick-notification']){const{noteId,noteName,from}=upd['kick-notification'];state.blockNotifications.push({noteId,noteName,from,time:Date.now()});updateLogoBadge()}
 }
 function revealNoteInTree(id){
   // expand ancestors and open the containing section so the note is visible
@@ -879,6 +882,13 @@ function dmCounterparty(note){
   if(!users.includes(me))return null;
   return users.find(u=>u!==me);
 }
+function isNoteBlocked(note){
+  if(!note)return false;
+  const me='~'+api.ship;
+  if(note.type==='dm'){const cp=dmCounterparty(note);return cp&&state.palStatus[cp]==='blocked'}
+  const others=(note.users||[]).filter(u=>u&&u!==me);
+  return others.some(u=>state.palStatus[u]==='blocked');
+}
 function noteDisplayName(note){
   const cp=dmCounterparty(note);
   if(cp)return displayName(cp);
@@ -959,16 +969,23 @@ function renderNoteList(){
       for(const cid of n.children)renderTree(cid,depth+1,container);
     }
   }
+  const me='~'+api.ship;
+  const myNotes=[],sharedNotes=[];
   for(const n of Object.values(state.notes)){
     if(n.id==='cover'||(n.id+'').startsWith('ars-'))continue;
     if(n.parent)continue;
-    const me='~'+api.ship;
     if(n.type==='gossip'){renderTree(n.id,0,arsEl);continue}
     const others=(n.users||[]).filter(u=>u&&u!==me);
     const isShared=n.type==='dm'||n.type==='group'||others.length>0||(n.creator&&n.creator!==me);
-    const target=isShared?sharedEl:notesEl;
-    renderTree(n.id,0,target);
+    if(isShared)sharedNotes.push(n);else myNotes.push(n);
   }
+  for(const n of myNotes)renderTree(n.id,0,notesEl);
+  sharedNotes.sort((a,b)=>{
+    const aBlocked=isNoteBlocked(a)?1:0;
+    const bBlocked=isNoteBlocked(b)?1:0;
+    return aBlocked-bBlocked;
+  });
+  for(const n of sharedNotes)renderTree(n.id,0,sharedEl);
   updateCoverPreview();
 }
 function makeNoteItem(n,depth){
@@ -1074,6 +1091,9 @@ function renderPalsList(){
   el.innerHTML='';
   const me='~'+api.ship;
   const ships=Object.keys(state.profiles).filter(s=>s!==me).sort((a,b)=>{
+    const aBlocked=state.palStatus[a]==='blocked'?1:0;
+    const bBlocked=state.palStatus[b]==='blocked'?1:0;
+    if(aBlocked!==bBlocked)return aBlocked-bBlocked;
     const na=displayName(a).toLowerCase(),nb=displayName(b).toLowerCase();
     return na.localeCompare(nb);
   });
@@ -1102,7 +1122,7 @@ function makeContactItem(ship){
   const isBlocked=status==='blocked';
   const blockInfo=isBlocked?{cls:'contact-tag blocked',label:'BLOCKED'}:{cls:'contact-tag',label:'BLOCK'};
   const palInfo=isBlocked?{cls:'contact-tag',label:'PALS'}:palStatusLabel(status);
-  div.innerHTML=`<div class="contact-avatar">${av}</div><div class="contact-info"><span class="contact-name">${escHtml(name)}</span><span class="contact-ship">${escHtml(ship)}</span><div class="contact-tags"><span class="${palInfo.cls} pal-slot" data-ship="${escAttr(ship)}" data-tag="pal" onclick="event.stopPropagation();toggleContactTag(this)">${palInfo.label}</span></div></div>`;
+  div.innerHTML=`<div class="contact-avatar">${av}</div><div class="contact-info"><span class="contact-name">${escHtml(name)}</span><span class="contact-ship">${escHtml(ship)}</span><div class="contact-tags"><span class="${palInfo.cls} pal-slot" data-ship="${escAttr(ship)}" data-tag="pal" onclick="event.stopPropagation();toggleContactTag(this)">${palInfo.label}</span><span class="${blockInfo.cls} block-slot" data-ship="${escAttr(ship)}" data-tag="block" onclick="event.stopPropagation();toggleContactTag(this)">${blockInfo.label}</span></div></div>`;
   div.onclick=()=>{viewProfile(ship)};
   return div;
 }
@@ -1110,10 +1130,12 @@ function toggleContactTag(el){
   const ship=el.dataset.ship;
   const tag=el.dataset.tag;
   if(tag==='block'){
-    // NOTE: block is UI-only for now. Will be wired to backend later
-    // to hide a ship from your timeline and prevent their content from appearing.
-    el.classList.toggle('blocked');
-    el.textContent=el.classList.contains('blocked')?'BLOCKED':'BLOCK';
+    const status=state.palStatus[ship]||'none';
+    if(status==='blocked'){
+      api.poke('noltbook','noltbook-action',{action:'unblock-pal',data:{ship}});
+    }else{
+      api.poke('noltbook','noltbook-action',{action:'block-pal',data:{ship}});
+    }
     return;
   }
   if(tag==='pal'){
@@ -1318,6 +1340,7 @@ function expandThread(rootId){
   renderMessages(state.currentNoteId);
 }
 function jumpToOriginal(msgId){const orig=document.getElementById('msg-'+msgId);if(orig){orig.scrollIntoView({behavior:'smooth'});orig.style.background='rgba(255,170,0,.12)';setTimeout(function(){orig.style.background=''},1500)}}
+const _revealedBlockedMsgs=new Set();
 function renderMsg(el,msg,depth,isThreadAnchor){
   if(msg.text&&msg.text.charCodeAt(0)===1){
     const parts=msg.text.slice(1).split(':');
@@ -1339,6 +1362,16 @@ function renderMsg(el,msg,depth,isThreadAnchor){
     div.className='rumor-post';
     div.id='msg-'+msg.id;
     div.innerHTML=`<div class="rumor-text">${msgDisplay}</div><div class="rumor-sep"></div>`;
+    el.appendChild(div);
+    state.lastMsgAuthor=null;state.lastMsgDepth=-1;
+    return;
+  }
+  // blocked user check: show banner if author is blocked and not revealed
+  if(state.palStatus[msg.author]==='blocked'&&!_revealedBlockedMsgs.has(msg.id)){
+    const div=document.createElement('div');
+    div.className='msg';
+    div.id='msg-'+msg.id;
+    div.innerHTML=`<div style="padding:.5rem 1rem;color:#ff4444;font-size:.8rem;display:flex;align-items:center;gap:.5rem"><span>[you have this user blocked]</span><button style="font-family:var(--font);font-size:.7rem;padding:.15rem .4rem;background:transparent;border:1px solid #ff4444;color:#ff4444;cursor:pointer" onclick="revealBlockedMsg('${msg.id}')">VIEW</button></div>`;
     el.appendChild(div);
     state.lastMsgAuthor=null;state.lastMsgDepth=-1;
     return;
@@ -1374,6 +1407,10 @@ function renderMsg(el,msg,depth,isThreadAnchor){
     div.innerHTML=`<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar" style="cursor:pointer" onclick="event.stopPropagation();viewProfile('${escAttr(msg.author)}')">${avatarHtml(msg.author)}</div><div class="msg-body"><div class="msg-header"><span class="msg-author" style="color:${authorColor};cursor:pointer" onclick="event.stopPropagation();viewProfile('${escAttr(msg.author)}')">${escHtml(displayName(msg.author))}</span><span class="msg-time">${timeStr}</span>${actions}</div><div class="msg-text${nockSendClass}">${msgDisplay}${editedStamp}</div></div></div>`;
   }
   el.appendChild(div);
+}
+function revealBlockedMsg(msgId){
+  _revealedBlockedMsgs.add(parseInt(msgId));
+  scheduleRender(state.currentNoteId);
 }
 function appendMessage(msg){
   if(state.expandedThreads){const byId={};(state.messages[state.currentNoteId]||[]).forEach(m=>byId[m.id]=m);const root=findThreadRoot(msg.id,byId);state.expandedThreads.delete(root)}
@@ -2033,9 +2070,9 @@ async function viewProfile(ship){
         </div>
       </div>
       <div class="vp-actions">
+        <button class="vp-btn" id="viewProfilePal" onclick="viewProfileTogglePal('${escAttr(ship)}')"></button>
         <button class="vp-btn" onclick="viewProfileDm('${escAttr(ship)}')">DM</button>
         <button class="vp-btn send-hover" onclick="viewProfileSend('${escAttr(ship)}')">SEND</button>
-        <button class="vp-btn" id="viewProfilePal" onclick="viewProfileTogglePal('${escAttr(ship)}')"></button>
         <button class="vp-btn danger-hover" onclick="viewProfileRemoveContact('${escAttr(ship)}')">REMOVE CONTACT</button>
         <button class="vp-btn danger-hover" id="viewProfileBlock" onclick="viewProfileToggleBlock('${escAttr(ship)}')"></button>
       </div>
@@ -2131,9 +2168,13 @@ function viewProfileTogglePal(ship){
   setTimeout(()=>updateViewProfileTags(ship),100);
 }
 function viewProfileToggleBlock(ship){
-  const be=document.getElementById('viewProfileBlock');
-  be.classList.toggle('blocked');
-  be.textContent=be.classList.contains('blocked')?'BLOCKED':'BLOCK';
+  const status=state.palStatus[ship]||'none';
+  if(status==='blocked'){
+    api.poke('noltbook','noltbook-action',{action:'unblock-pal',data:{ship}});
+  }else{
+    api.poke('noltbook','noltbook-action',{action:'block-pal',data:{ship}});
+  }
+  setTimeout(()=>updateViewProfileTags(ship),100);
 }
 function viewProfileRemoveContact(ship){
   // backend TBD
@@ -2239,10 +2280,21 @@ document.addEventListener('click',(e)=>{
   document.querySelectorAll('.msg.show-actions').forEach(x=>x.classList.remove('show-actions'));
   if(!isOpen)m.classList.add('show-actions');
 });
+function updateLogoBadge(){const el=document.getElementById('noltbookLogo');if(el)el.classList.toggle('has-notif',state.blockNotifications.length>0)}
 function openGrimoireMenu(){
   const existing=document.getElementById('grimoireMenu');if(existing){existing.remove();return}
   const menu=document.createElement('div');menu.id='grimoireMenu';menu.className='context-menu';
-  menu.innerHTML='<div class="context-menu-item">Menu (coming soon)</div>';
+  let html='';
+  if(state.blockNotifications.length>0){
+    html+='<div style="padding:.4rem .6rem;font-size:.65rem;color:var(--text-dim);letter-spacing:.05em;border-bottom:1px solid var(--border)">NOTIFICATIONS</div>';
+    for(const bn of state.blockNotifications){
+      html+=`<div class="context-menu-item" style="font-size:.75rem;color:#ff4444">Removed from ${escHtml(bn.noteName)}</div>`;
+    }
+    html+=`<div class="context-menu-item" style="font-size:.7rem;color:var(--text-dim);cursor:pointer" onclick="state.blockNotifications=[];updateLogoBadge();openGrimoireMenu();openGrimoireMenu()">CLEAR</div>`;
+  }else{
+    html='<div class="context-menu-item" style="color:var(--text-dim)">No notifications</div>';
+  }
+  menu.innerHTML=html;
   const logo=document.querySelector('.logo');const r=logo.getBoundingClientRect();
   menu.style.left=r.left+'px';menu.style.top=(r.bottom+4)+'px';
   document.body.appendChild(menu);
