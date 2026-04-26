@@ -1149,7 +1149,8 @@
       =/  new-type=note-type:noltbook
         ?:  &(=(%dm type.u.old) (gth ~(wyt in new-users) 2))  %group
         type.u.old
-      =/  new-note=note:noltbook  u.old(users new-users, type new-type)
+      =/  new-removed=(set @p)  (~(del in removed.u.old) ship.act)
+      =/  new-note=note:noltbook  u.old(users new-users, type new-type, removed new-removed)
       ::  poke remote ship with invite
       =/  rem=remote:noltbook  [%remote-invite id.act name.u.old new-type our.bowl users.new-note visibility.u.old]
       =/  poke-card=card
@@ -1313,8 +1314,8 @@
       =/  new-outgoing=(set @p)  (~(del in pal-outgoing) ship.act)
       =/  new-incoming=(set @p)  (~(del in pal-incoming) ship.act)
       =/  new-blocked=(set @p)  (~(put in pal-blocked) ship.act)
+      ::  always send bye so remote clears us from pal-incoming
       =/  bye-cards=(list card)
-        ?.  was-outgoing  ~
         ~[[%pass /pal-bye/(scot %p ship.act) %agent [ship.act %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-bye ~])]]
       =/  upd=update:noltbook  [%pal-update ship.act %blocked]
       ::  remove blocked ship from all hosted group notes + notify them
@@ -1834,8 +1835,14 @@
       =/  prof  (fall (~(get by profiles) our.bowl) *profile:noltbook)
       =/  prof-card=card
         [%pass /prof-out/(scot %p src.bowl) %agent [src.bowl %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-profile our.bowl prof])]
+      ::  if we already have them in outgoing and this is a fresh hey
+      ::  (not already in incoming), echo hey back so they see mutual
+      =/  hey-back=(list card)
+        ?:  (~(has in pal-incoming) src.bowl)  ~
+        ?.  (~(has in pal-outgoing) src.bowl)  ~
+        ~[[%pass /pal-hey/(scot %p src.bowl) %agent [src.bowl %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-hey ~])]]
       :_  this(pal-incoming new-incoming)
-      [prof-card [%give %fact ~[/notes] %noltbook-update !>(upd)] ~]
+      :(weld [prof-card [%give %fact ~[/notes] %noltbook-update !>(upd)] ~] hey-back)
     ::
         %remote-bye
       ::  a ship no longer wants to be pals
