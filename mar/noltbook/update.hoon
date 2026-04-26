@@ -134,6 +134,7 @@
       %-  pairs
       :~  ['id' s+(crip (trip id.upd))]
           ['users' a+(turn users.upd |=(p=@p s+(scot %p p)))]
+          ['removed' a+(turn removed.upd |=(p=@p s+(scot %p p)))]
       ==
     ::
         %mention-update
@@ -229,6 +230,7 @@
           ['visibility' s+(crip (trip (scot %tas visibility.n)))]
           ['iconUrl' ?~(icon-url.n ~ s+u.icon-url.n)]
           ['writable' b+writable.n]
+          ['removed' a+(turn ~(tap in removed.n) |=(p=@p s+(scot %p p)))]
       ==
     ::
     ++  msg-to-json

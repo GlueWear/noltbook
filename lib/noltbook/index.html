@@ -761,7 +761,7 @@ function handleUpdate(upd){
   else if(upd['pal-list']){for(const entry of upd['pal-list']){state.palStatus[entry.ship]=entry.status}if(state.palsView)renderPalsList()}
   else if(upd['pal-update']){const{ship,status}=upd['pal-update'];state.palStatus[ship]=status;if(state.palsView)renderPalsList();renderNoteList()}
   else if(upd['dial-update']){state.dial=upd['dial-update'];updateDialUI();if(state.currentNoteId==='cover')scheduleRender('cover');scheduleNoteList()}
-  else if(upd['note-users-updated']){const{id,users}=upd['note-users-updated'];console.log('[note-users-updated]',id,users);if(state.notes[id]){state.notes[id].users=users;renderNoteList();if(state.currentNoteId===id)scheduleRender(id)}}
+  else if(upd['note-users-updated']){const{id,users,removed}=upd['note-users-updated'];console.log('[note-users-updated]',id,users,removed);if(state.notes[id]){state.notes[id].users=users;state.notes[id].removed=removed||[];renderNoteList();if(state.currentNoteId===id)scheduleRender(id)}}
   else if(upd['note-redirect']){const{oldId,newId}=upd['note-redirect'];console.log('[note-redirect]',oldId,'->',newId);delete state.notes[oldId];delete state.messages[oldId];state.notifications.delete(oldId);if(state.currentNoteId===oldId){if(state.notes[newId])openNote(newId);else openNote('cover')}renderNoteList()}
   else if(upd['wallet-update']){wallet.transactions=upd['wallet-update'].map(tx=>({type:tx.type,who:tx.counterparty,amount:tx.amount,time:new Date(tx.timestamp).toLocaleString(),txid:tx.txHash}));renderWalletNotes()}
   else if(upd['gossip-message']){const{message,hops}=upd['gossip-message'];state.gossipHops[message.id]=hops;if(!state.messages['cover'])state.messages['cover']=[];state.messages['cover'].push(message);const visible=coverMsgVisible(message);if(visible&&state.notes['cover']){state.notes['cover'].lastAuthor=message.author;state.notes['cover'].lastPreview=message.text}if(state.currentNoteId==='cover'&&visible)appendMessage(message);else if(state.currentNoteId!=='cover'&&visible)state.notifications.add('cover');updateCoverPreview();scheduleNoteList()}
@@ -2208,6 +2208,7 @@ function openGroupMembersModal(note){
   modal.style.cssText='background:var(--bg2);border:1px solid var(--border);min-width:360px;max-width:440px;max-height:80vh;overflow:auto;padding:1rem;display:flex;flex-direction:column;gap:.5rem';
   modal._noteId=note.id;modal._memberTags={};
   const members=(note.users||[]).slice().sort();
+  const removed=(note.removed||[]).slice().sort();
   const host=note.creator;
   const rows=members.map(m=>{
     const prof=state.profiles[m]||{};
@@ -2217,7 +2218,13 @@ function openGroupMembersModal(note){
     const meTag=m===me?'<span style="color:var(--dim);font-size:.7rem;margin-left:.4rem">(you)</span>':'';
     return `<div class="contact-item" data-member="${escAttr(m)}"><div class="contact-avatar" style="width:2.5rem;height:2.5rem">${av}</div><div class="contact-info"><div style="display:flex;align-items:center"><span class="contact-name">${escHtml(name)}</span>${hostTag}${meTag}<span class="member-role-tag" data-member="${escAttr(m)}"></span></div><span class="contact-ship">${escHtml(m)}</span></div></div>`;
   }).join('');
-  modal.innerHTML=`<div style="font-size:.9rem;color:var(--text-dim);letter-spacing:.1em;margin-bottom:.25rem">MEMBERS (${members.length})</div>${rows}<div class="modal-actions" style="margin-top:.5rem"><button class="modal-btn amber-hover" onclick="this.closest('.modal-overlay').remove()">CLOSE</button></div>`;
+  const removedRows=removed.map(m=>{
+    const prof=state.profiles[m]||{};
+    const name=prof.displayName||m;
+    const av=avatarHtml(m);
+    return `<div class="contact-item" data-member="${escAttr(m)}" style="opacity:.5"><div class="contact-avatar" style="width:2.5rem;height:2.5rem">${av}</div><div class="contact-info"><div style="display:flex;align-items:center"><span class="contact-name">${escHtml(name)}</span><span style="color:#ff4444;font-size:.65rem;border:1px solid #ff4444;padding:0 .25rem;margin-left:.4rem">REMOVED</span></div><span class="contact-ship">${escHtml(m)}</span></div></div>`;
+  }).join('');
+  modal.innerHTML=`<div style="font-size:.9rem;color:var(--text-dim);letter-spacing:.1em;margin-bottom:.25rem">MEMBERS (${members.length})</div>${rows}${removedRows?'<div style="font-size:.75rem;color:var(--text-dim);letter-spacing:.1em;margin-top:.5rem;border-top:1px solid var(--border);padding-top:.5rem">REMOVED</div>'+removedRows:''}<div class="modal-actions" style="margin-top:.5rem"><button class="modal-btn amber-hover" onclick="this.closest('.modal-overlay').remove()">CLOSE</button></div>`;
   overlay.appendChild(modal);
   const items=modal.querySelectorAll('.contact-item');
   console.log('[members-modal] isHost=',isHost,'me=',me,'creator=',note.creator,'items=',items.length);
@@ -2249,6 +2256,8 @@ function showMemberContextMenu(event,ship,noteId){
       if(tag){tag.textContent=tag.textContent==='MUTED'?'':'MUTED';tag.style.cssText=tag.textContent?'color:#ff4444;font-size:.65rem;border:1px solid #ff4444;padding:0 .25rem;margin-left:.4rem':''}
     }else if(action==='remove'){
       console.log('[remove-member]',ship,'from',noteId);
+      api.poke('noltbook','noltbook-action',{action:'remove-member',data:{id:noteId,ship}});
+      const ov=document.querySelector('.modal-overlay.open');if(ov)ov.remove();
     }
     menu.remove();
   });

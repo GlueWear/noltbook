@@ -239,6 +239,13 @@
       =/  nid-nd  (need (~(get by d) 'noteId'))
       ?>  ?=([%s *] nid-nd)
       [%clear-mentions `@ta`p.nid-nd]
+    ::  remove-member
+    ?:  =('remove-member' tag)
+      =/  id-nd  (need (~(get by d) 'id'))
+      ?>  ?=([%s *] id-nd)
+      =/  ship-nd  (need (~(get by d) 'ship'))
+      ?>  ?=([%s *] ship-nd)
+      [%remove-member `@ta`p.id-nd (slav %p p.ship-nd)]
     ::  clear-mention (single)
     ?:  =('clear-mention' tag)
       =/  nid-nd  (need (~(get by d) 'noteId'))

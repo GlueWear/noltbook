@@ -16,6 +16,7 @@
       visibility=note-visibility
       icon-url=(unit @t)
       writable=?
+      removed=(set @p)
   ==
 ::
 +$  note-3
@@ -145,6 +146,7 @@
       [%create-dm ship=@p]
       [%leave-note id=@ta]
       [%reparent-note id=@ta new-parent=@ta]
+      [%remove-member id=@ta ship=@p]
       [%clear-mentions note-id=@ta]
       [%clear-mention note-id=@ta msg-id=@da]
       ::  call actions
@@ -179,7 +181,7 @@
       [%gossip-message msg=message hops=@ud]
       [%rumor-message msg=message]
       [%note-redirect old-id=@ta new-id=@ta]
-      [%note-users-updated id=@ta users=(list @p)]
+      [%note-users-updated id=@ta users=(list @p) removed=(list @p)]
       [%mention-update note-id=@ta mentions=(list [id=@da author=@p])]
       ::  call updates
       [%call-started note-id=@ta call-id=@ta started-by=@p participants=(list @p)]
