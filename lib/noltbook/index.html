@@ -1727,8 +1727,10 @@ function openSharePrompt(){
     // check for existing root with same user set
     const newUsers=new Set(note.users||[]);
     for(const s of selected)newUsers.add(s);
+    const noteType=note.type||(newUsers.size===2?'dm':'notebook');
     const existing=Object.values(state.notes).find(n=>
       !n.parent&&n.id!=='cover'&&n.id!==noteId&&
+      n.type===noteType&&
       n.users&&n.users.length===newUsers.size&&
       n.users.every(u=>newUsers.has(u))
     );

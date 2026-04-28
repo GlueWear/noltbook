@@ -389,14 +389,14 @@
   !=(~ (find needle hay))
 ::
 ::  root-uniqueness helpers
-::  find-root: first non-cover root note whose users = target set
+::  find-root: first non-cover root note whose users AND type match
 ++  find-root
-  |=  [nmap=(map @ta note:noltbook) us=(set @p)]
+  |=  [nmap=(map @ta note:noltbook) us=(set @p) ty=note-type:noltbook]
   ^-  (unit note:noltbook)
   =/  hits=(list note:noltbook)
     %+  skim  ~(val by nmap)
     |=  n=note:noltbook
-    &(?=(~ parent.n) =(users.n us) !=(%cover type.n) !=(%gossip type.n))
+    &(?=(~ parent.n) =(users.n us) =(type.n ty) !=(%cover type.n) !=(%gossip type.n))
   ?~  hits  ~
   `i.hits
 ::  root-wins: does candidate a beat candidate b?
@@ -1127,13 +1127,15 @@
       ?>  =(our.bowl creator.u.old)
       ::  compute new user set
       =/  new-users=(set @p)  (~(put in users.u.old) ship.act)
-      ::  dedup: if any root note (local OR remote-hosted) already has these users, focus it
+      ::  dedup: only for DMs — one DM root per user pair
       =/  dup-id=(unit @ta)
+        ?.  &(=(%dm type.u.old) =(~(wyt in new-users) 2))
+          ~
         %-  ~(rep by notes)
         |=  [[k=@ta v=note:noltbook] acc=(unit @ta)]
         ?^  acc  acc
         ?:  ?&  ?=(~ parent.v)
-                !=(%cover type.v)
+                =(%dm type.v)
                 !=(k id.act)
                 =(users.v new-users)
             ==
@@ -1631,8 +1633,10 @@
       ?:  (~(has in pal-blocked) src.bowl)  `this
       =/  new-note=note:noltbook
         [note-id.rem name.rem type.rem creator.rem users.rem ~ ~ ~ ~ visibility.rem ~ & ~]
-      ::  root-uniqueness: only dedup non-cover roots
-      =/  dup  ?:(|(=(note-id.rem %cover) =(%gossip type.rem)) ~ (find-root notes users.rem))
+      ::  root-uniqueness: only dedup DMs (one DM per user pair)
+      =/  dup
+        ?.  =(%dm type.rem)  ~
+        ?:(|(=(note-id.rem %cover) =(%gossip type.rem)) ~ (find-root notes users.rem type.rem))
       ?^  dup
         ?:  =(id.u.dup note-id.rem)  `this  :: same note, no-op
         =/  local-wins=?
