@@ -116,6 +116,23 @@
           ['hops' (numb hops.upd)]
       ==
     ::
+        %gossip-envelope
+      %+  frond  'gossip-envelope'
+      %-  pairs
+      :~  ['envelope' (env-to-json env.upd)]
+          ['hops' (numb hops.upd)]
+      ==
+    ::
+        %envelope-list
+      %+  frond  'envelope-list'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['envelopes' a+(turn envelopes.upd env-to-json)]
+      ==
+    ::
+        %cover-msg-content
+      (frond 'cover-msg-content' (msg-to-json msg.upd))
+    ::
         %rumor-message
       %+  frond  'rumor-message'
       %-  pairs
@@ -243,6 +260,15 @@
           ['timestamp' (numb (da-to-ms timestamp.m))]
           ['replyTo' ?~(reply-to.m ~ (numb (da-to-ms u.reply-to.m)))]
           ['edited' b+edited.m]
+      ==
+    ::
+    ++  env-to-json
+      |=  e=envelope:noltbook
+      %-  pairs
+      :~  ['id' (numb (da-to-ms msg-id.e))]
+          ['author' s+(scot %p author.e)]
+          ['timestamp' (numb (da-to-ms timestamp.e))]
+          ['replyTo' ?~(reply-to.e ~ (numb (da-to-ms u.reply-to.e)))]
       ==
     ::
     ++  art-to-json

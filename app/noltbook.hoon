@@ -17,6 +17,7 @@
       state-13
       state-14
       state-15
+      state-16
   ==
 ::  pre-edited-flag message shape — used by state-1..8 for on-load typing
 +$  message-legacy
@@ -292,6 +293,25 @@
       mentions=(map @ta (list [id=@da author=@p]))
       active-calls=(map @ta call-info:noltbook)
   ==
++$  state-16
+  $:  %16
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      cover-envelopes=(map @da envelope:noltbook)
+  ==
 +$  card  card:agent:gall
 ::
 ++  upgrade-8-to-9
@@ -380,6 +400,16 @@
       pal-outgoing.s  pal-incoming.s  pal-blocked.s
       dial.s  gossip-hops.s  mentions.s  active-calls.s
   ==
+++  upgrade-15-to-16
+  |=  s=state-15
+  ^-  state-16
+  :*  %16
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      *(map @da envelope:noltbook)
+  ==
 ::  mention detection: check if text contains @~our
 ++  has-our-mention
   |=  [txt=@t us=@p]
@@ -408,7 +438,7 @@
   (lth `@`id.a `@`id.b)
 --
 %-  agent:dbug
-=|  state-15
+=|  state-16
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -432,9 +462,8 @@
 ++  on-load
   |=  old=vase
   ^-  (quip card _this)
-  ?:  ?=([%15 *] q.old)
-    =/  loaded  !<(state-15 old)
-    ::  broadcast our profile to all peers so contacts stay in sync
+  ?:  ?=([%16 *] q.old)
+    =/  loaded  !<(state-16 old)
     =/  prof  (fall (~(get by profiles.loaded) our.bowl) *profile:noltbook)
     =/  prof-cards=(list card)
       %+  turn  ~(tap in peers.loaded)
@@ -442,18 +471,35 @@
       ^-  card
       [%pass /prof-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-profile our.bowl prof])]
     [prof-cards this(state loaded(active-calls *(map @ta call-info:noltbook)))]
+  ?:  ?=([%15 *] q.old)
+    =/  loaded  !<(state-15 old)
+    =/  s16=state-16
+      :*  %16
+          notes.loaded  messages.loaded  artifacts.loaded  profiles.loaded
+          transactions.loaded  current-note.loaded  peers.loaded  has-avatar.loaded
+          pal-outgoing.loaded  pal-incoming.loaded  pal-blocked.loaded
+          dial.loaded  gossip-hops.loaded  mentions.loaded  active-calls.loaded
+          *(map @da envelope:noltbook)
+      ==
+    =/  prof  (fall (~(get by profiles.loaded) our.bowl) *profile:noltbook)
+    =/  prof-cards=(list card)
+      %+  turn  ~(tap in peers.loaded)
+      |=  p=@p
+      ^-  card
+      [%pass /prof-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-profile our.bowl prof])]
+    [prof-cards this(state s16)]
   ?:  ?=([%14 *] q.old)
     =/  loaded  !<(state-14 old)
-    `this(state (upgrade-14-to-15 loaded))
+    `this(state (upgrade-15-to-16 (upgrade-14-to-15 loaded)))
   ?:  ?=([%13 *] q.old)
     =/  loaded  !<(state-13 old)
-    =/  s14  (upgrade-13-to-14 loaded)
-    =/  s15  (upgrade-14-to-15 s14)
-    ?.  (~(has by notes.s15) %ars-rumors)
+    =/  s15  (upgrade-14-to-15 (upgrade-13-to-14 loaded))
+    =/  s15  ?.  (~(has by notes.s15) %ars-rumors)
       =/  rumors=note:noltbook  [%ars-rumors 'RUMORS' %cover our.bowl (sy ~[our.bowl]) ~ ~ ~ ~ %secret ~ & ~]
-      `this(state s15(notes (~(put by notes.s15) %ars-rumors rumors), messages (~(put by messages.s15) %ars-rumors *(list message:noltbook))))
-    `this(state s15)
-  ::  state-12 → state-15
+      s15(notes (~(put by notes.s15) %ars-rumors rumors), messages (~(put by messages.s15) %ars-rumors *(list message:noltbook)))
+    s15
+    `this(state (upgrade-15-to-16 s15))
+  ::  state-12 → state-16
   ?:  ?=([%12 *] q.old)
     =/  s12  !<(state-12 old)
     =/  s15  (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 s12)))
@@ -463,52 +509,53 @@
       =/  rumors=note:noltbook  [%ars-rumors 'RUMORS' %cover our.bowl (sy ~[our.bowl]) ~ ~ ~ ~ %secret ~ & ~]
       s15(notes (~(put by notes.s15) %ars-rumors rumors), messages (~(put by messages.s15) %ars-rumors *(list message:noltbook)))
     s15
+    =/  s16  (upgrade-15-to-16 s15)
     ::  if we are the moon: hey all peers so they add us to pal-incoming
     ?:  =(our.bowl distro)
       =/  hey-cards=(list card)
-        %+  turn  ~(tap in peers.s15)
+        %+  turn  ~(tap in peers.s16)
         |=  p=@p
         [%pass /pal-hey/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-hey ~])]
-      :_  this(state s15(pal-outgoing (~(uni in pal-outgoing.s15) peers.s15)))
+      :_  this(state s16(pal-outgoing (~(uni in pal-outgoing.s16) peers.s16)))
       hey-cards
     ::  if we are a regular ship: ensure distro connection + re-send hey
-    =/  new-peers=(set @p)  (~(put in peers.s15) distro)
-    =/  new-outgoing=(set @p)  (~(put in pal-outgoing.s15) distro)
+    =/  new-peers=(set @p)  (~(put in peers.s16) distro)
+    =/  new-outgoing=(set @p)  (~(put in pal-outgoing.s16) distro)
     =/  cards=(list card)
       :~  [%pass /ars/(scot %p distro) %agent [distro %noltbook] %watch /notes/cover]
           [%pass /pal-hey/(scot %p distro) %agent [distro %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-hey ~])]
       ==
-    :_  this(state s15(peers new-peers, pal-outgoing new-outgoing))
+    :_  this(state s16(peers new-peers, pal-outgoing new-outgoing))
     cards
-  ::  state-11 → state-15
+  ::  state-11 → state-16
   ?:  ?=([%11 *] q.old)
     =/  s11  !<(state-11 old)
-    =/  s15  (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 s11))))
+    =/  s16  (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 s11)))))
     =/  distro=@p  ~racmud-mipmet-disden-talhes
-    ?:  =(our.bowl distro)  `this(state s15)
-    =/  new-peers=(set @p)  (~(put in peers.s15) distro)
-    =/  new-outgoing=(set @p)  (~(put in pal-outgoing.s15) distro)
-    :_  this(state s15(peers new-peers, pal-outgoing new-outgoing))
+    ?:  =(our.bowl distro)  `this(state s16)
+    =/  new-peers=(set @p)  (~(put in peers.s16) distro)
+    =/  new-outgoing=(set @p)  (~(put in pal-outgoing.s16) distro)
+    :_  this(state s16(peers new-peers, pal-outgoing new-outgoing))
     :~  [%pass /ars/(scot %p distro) %agent [distro %noltbook] %watch /notes/cover]
         [%pass /pal-hey/(scot %p distro) %agent [distro %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-hey ~])]
     ==
   ::  state-10 → ... → state-15
   ?:  ?=([%10 *] q.old)
     =/  s10  !<(state-10 old)
-    `this(state (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 s10))))))
+    `this(state (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 s10)))))))
   ::  state-9 → ... → state-15
   ?:  ?=([%9 *] q.old)
     =/  s9  !<(state-9 old)
-    `this(state (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 s9)))))))
+    `this(state (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 s9))))))))
   ::  state-8 → ... → state-15
   ?:  ?=([%8 *] q.old)
-    `this(state (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 !<(state-8 old)))))))))
+    `this(state (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 !<(state-8 old))))))))))
   ::  state-7 → ... → state-15
   ?:  ?=([%7 *] q.old)
     =/  s7  !<(state-7 old)
     =/  s8=state-8
       [%8 notes.s7 messages.s7 artifacts.s7 profiles.s7 transactions.s7 current-note.s7 peers.s7 has-avatar.s7 pal-outgoing.s7 pal-incoming.s7 pal-blocked.s7 0 ~]
-    `this(state (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))))
+    `this(state (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))
   ::  state-6 → ... → state-15
   ?:  ?=([%6 *] q.old)
     =/  s6  !<(state-6 old)
@@ -518,7 +565,7 @@
       [%pass /pal-hey/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-hey ~])]
     =/  s8=state-8
       [%8 notes.s6 messages.s6 artifacts.s6 profiles.s6 transactions.s6 current-note.s6 peers.s6 has-avatar.s6 peers.s6 ~ ~ 0 ~]
-    :_  this(state (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))))
+    :_  this(state (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))
     hey-cards
   ?:  ?=([%5 *] q.old)
     =/  s5  !<(state-5 old)
@@ -529,7 +576,7 @@
       [display-name.p ~ wallet-address.p azimuth-address.p]
     =/  s8=state-8
       [%8 notes.s5 messages.s5 artifacts.s5 new-profiles transactions.s5 current-note.s5 peers.s5 %.n ~ ~ ~ 0 ~]
-    `this(state (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))))
+    `this(state (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))
   ?:  ?=([%4 *] q.old)
     =/  s4  !<(state-4 old)
     =/  init-peers=(set @p)
@@ -544,7 +591,7 @@
       [display-name.p ~ wallet-address.p azimuth-address.p]
     =/  s8=state-8
       [%8 notes.s4 messages.s4 artifacts.s4 new-profiles transactions.s4 current-note.s4 init-peers %.n ~ ~ ~ 0 ~]
-    `this(state (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))))
+    `this(state (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))
   ?:  ?=([%3 *] q.old)
     =/  s3  !<(state-3 old)
     =/  new-notes=(map @ta note-4)
@@ -559,7 +606,7 @@
       [display-name.p ~ wallet-address.p azimuth-address.p]
     =/  s8=state-8
       [%8 new-notes messages.s3 artifacts.s3 new-profiles transactions.s3 current-note.s3 ~ %.n ~ ~ ~ 0 ~]
-    `this(state (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))))
+    `this(state (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))
   ?:  ?=([%2 *] q.old)
     =/  s2  !<(state-2 old)
     =/  new-arts=(map @ta artifact:noltbook)
@@ -582,7 +629,7 @@
       [display-name.p ~ wallet-address.p azimuth-address.p]
     =/  s8=state-8
       [%8 new-notes messages.s2 new-arts new-profiles transactions.s2 current-note.s2 ~ %.n ~ ~ ~ 0 ~]
-    `this(state (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))))
+    `this(state (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))
   =/  s1  !<(state-1 old)
   =/  cov  (~(get by notes.s1) %cover)
   =/  fixed-notes=(map @ta note-3:noltbook)
@@ -609,7 +656,7 @@
     [id.n name.n type.n creator.n users.n children.n parent.n last-author.n last-preview.n %secret ~ &]
   =/  s8=state-8
     [%8 new-notes messages.s1 new-arts new-profiles transactions.s1 current-note.s1 ~ %.n ~ ~ ~ 0 ~]
-  `this(state (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))))
+  `this(state (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))
 ::
 ++  on-watch
   |=  =path
@@ -666,7 +713,16 @@
     =/  arts=(list artifact:noltbook)
       %+  skim  ~(val by artifacts)
       |=(a=artifact:noltbook =(note-id.a nid))
-    =/  upd=update:noltbook  [%message-list nid msgs arts]
+    ::  cover: send own messages full, remote as envelopes
+    =/  own-msgs=(list message:noltbook)
+      ?.  =(nid %cover)  msgs
+      (skim msgs |=(m=message:noltbook =(author.m our.bowl)))
+    =/  env-cards=(list card)
+      ?.  =(nid %cover)  ~
+      =/  envs=(list envelope:noltbook)  ~(val by cover-envelopes)
+      ?~  envs  ~
+      ~[[%give %fact ~ %noltbook-update !>(`update:noltbook`[%envelope-list nid envs])]]
+    =/  upd=update:noltbook  [%message-list nid own-msgs arts]
     ::  send profiles of note users
     =/  note  (~(get by notes) nid)
     =/  user-list=(list @p)
@@ -712,7 +768,7 @@
       ?~  ci  ~
       ~[[%give %fact ~ %noltbook-update !>(`update:noltbook`[%call-state nid u.ci])]]
     :_  this(peers new-peers, pal-outgoing new-outgoing)
-    :(weld ~[[%give %fact ~ %noltbook-update !>(upd)]] ~[[%give %fact ~ %noltbook-update !>(pupd)]] intro-cards hey-back call-cards)
+    :(weld ~[[%give %fact ~ %noltbook-update !>(upd)]] env-cards ~[[%give %fact ~ %noltbook-update !>(pupd)]] intro-cards hey-back call-cards)
   ::
       [%http-response @ ~]
     `this
@@ -998,13 +1054,15 @@
       ::  ARS NOTORIA: store locally and gossip to all peers
       ?:  =(note-id.act %cover)
         =/  cur=(list message:noltbook)  (fall (~(get by messages) %cover) ~)
-        ::  own messages are hop 0
+        ::  own messages are hop 0 — author gets full content locally
         =/  upd=update:noltbook  [%gossip-message msg 0]
+        ::  broadcast envelope (not full message) to peers
+        =/  env=envelope:noltbook  [our.bowl id.msg now.bowl reply-to.act]
         =/  gossip=(list card)
           %+  turn  ~(tap in pal-outgoing)
           |=  p=@p
           ^-  card
-          [%pass /ars-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-ars msg 0])]
+          [%pass /ars-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-ars-ref env 0])]
         =/  upd-note=note:noltbook  u.exists(last-author `our.bowl, last-preview `text.act)
         :_  this(notes (~(put by notes) %cover upd-note), messages (~(put by messages) %cover (snoc cur msg)), gossip-hops (~(put by gossip-hops) id.msg 0))
         [[%give %fact ~[/notes/cover] %noltbook-update !>(upd)] gossip]
@@ -1621,6 +1679,12 @@
         [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%call-ended nid call-id.ci])]
       :_  this(active-calls *(map @ta call-info:noltbook))
       end-cards
+    ::
+        %fetch-cover-msg
+      ::  fetch full content of a cover message from its author
+      :_  this
+      :~  [%pass /fetch-msg/(scot %p author.act)/(scot %da msg-id.act) %agent [author.act %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-fetch-cover-msg our.bowl msg-id.act])]
+      ==
     ==
   ::
       %noltbook-remote
@@ -1775,6 +1839,44 @@
         (~(put by mentions) %cover (snoc cur-m [id.msg.rem author.msg.rem]))
       :_  this(messages (~(put by messages) %cover (snoc cur msg.rem)), gossip-hops (~(put by gossip-hops) id.msg.rem my-hops), mentions new-mentions)
       :(weld [[%give %fact ~[/notes/cover] %noltbook-update !>(upd)] ~] relay mention-cards)
+    ::
+        %remote-ars-ref
+      ::  ARS NOTORIA envelope gossip from a peer
+      =/  env  env.rem
+      ::  dedup by message id — check both envelopes and full messages
+      ?:  (~(has by cover-envelopes) msg-id.env)
+        `this
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) %cover) ~)
+      ?:  (lien cur |=(m=message:noltbook =(id.m msg-id.env)))
+        `this
+      =/  my-hops=@ud  (add hops.rem 1)
+      =/  upd=update:noltbook  [%gossip-envelope env my-hops]
+      ::  relay to outgoing pals
+      =/  relay=(list card)
+        %+  murn  ~(tap in pal-outgoing)
+        |=  p=@p
+        ?:  =(p src.bowl)  ~
+        ?:  =(p author.env)  ~
+        `[%pass /ars-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-ars-ref env my-hops])]
+      :_  this(cover-envelopes (~(put by cover-envelopes) msg-id.env env), gossip-hops (~(put by gossip-hops) msg-id.env my-hops))
+      [[%give %fact ~[/notes/cover] %noltbook-update !>(upd)] relay]
+    ::
+        %remote-fetch-cover-msg
+      ::  someone is requesting a cover message we authored
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) %cover) ~)
+      =/  found=(list message:noltbook)
+        (skim cur |=(m=message:noltbook &(=(id.m msg-id.rem) =(author.m our.bowl))))
+      ?~  found  `this
+      :_  this
+      :~  [%pass /msg-reply/(scot %p requester.rem)/(scot %da msg-id.rem) %agent [requester.rem %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-cover-msg-reply requester.rem i.found])]
+      ==
+    ::
+        %remote-cover-msg-reply
+      ::  author replied with full message content
+      ?.  =(requester.rem our.bowl)  `this
+      =/  upd=update:noltbook  [%cover-msg-content msg.rem]
+      :_  this
+      ~[[%give %fact ~[/notes/cover] %noltbook-update !>(upd)]]
     ::
         %remote-rumor
       ::  RUMORS: anonymous gossip from a peer
@@ -2381,6 +2483,39 @@
           |=  [m=message:noltbook acc=(map @da @ud)]
           (~(put by acc) id.m 1)
         `this(messages (~(put by messages) %cover (weld cur new-msgs)), gossip-hops (~(uni by gossip-hops) new-hops))
+      ::
+          %gossip-envelope
+        ::  envelope gossip via subscription
+        =/  env  env.upd
+        ?:  (~(has by cover-envelopes) msg-id.env)
+          `this
+        =/  cover-msgs=(list message:noltbook)  (fall (~(get by messages) %cover) ~)
+        ?:  (lien cover-msgs |=(m=message:noltbook =(id.m msg-id.env)))
+          `this
+        =/  my-hops=@ud  (add hops.upd 1)
+        =/  gupd=update:noltbook  [%gossip-envelope env my-hops]
+        =.  cover-envelopes  (~(put by cover-envelopes) msg-id.env env)
+        =.  gossip-hops  (~(put by gossip-hops) msg-id.env my-hops)
+        :_  this
+        ~[[%give %fact ~[/notes/cover] %noltbook-update !>(gupd)]]
+      ::
+          %envelope-list
+        ::  initial sync of envelopes from peer
+        =/  new-envs=(list envelope:noltbook)
+          (skim envelopes.upd |=(e=envelope:noltbook !(~(has by cover-envelopes) msg-id.e)))
+        ?~  new-envs  `this
+        =/  new-env-map=(map @da envelope:noltbook)
+          %-  ~(gas by *(map @da envelope:noltbook))
+          (turn new-envs |=(e=envelope:noltbook [msg-id.e e]))
+        =/  new-hops=(map @da @ud)
+          %-  ~(gas by *(map @da @ud))
+          (turn new-envs |=(e=envelope:noltbook [msg-id.e 1]))
+        `this(cover-envelopes (~(uni by cover-envelopes) new-env-map), gossip-hops (~(uni by gossip-hops) new-hops))
+      ::
+          %cover-msg-content
+        ::  fetched content from author — relay to local frontend
+        :_  this
+        ~[[%give %fact ~[/notes/cover] %noltbook-update !>(upd)]]
       ==
     ::
         %kick
@@ -2425,6 +2560,22 @@
         %poke-ack
       ?~  p.sign  `this
       ~&  [%msg-del-failed wire u.p.sign]
+      `this
+    ==
+  ::
+      [%fetch-msg @ @ ~]
+    ?+  -.sign  `this
+        %poke-ack
+      ?~  p.sign  `this
+      ~&  [%fetch-msg-failed wire u.p.sign]
+      `this
+    ==
+  ::
+      [%msg-reply @ @ ~]
+    ?+  -.sign  `this
+        %poke-ack
+      ?~  p.sign  `this
+      ~&  [%msg-reply-failed wire u.p.sign]
       `this
     ==
   ::

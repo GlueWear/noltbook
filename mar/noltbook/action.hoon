@@ -283,6 +283,14 @@
     ::  clear-calls
     ?:  =('clear-calls' tag)
       [%clear-calls ~]
+    ::  fetch-cover-msg
+    ?:  =('fetch-cover-msg' tag)
+      =/  author-nd  (need (~(get by d) 'author'))
+      ?>  ?=([%s *] author-nd)
+      =/  mid-nd  (need (~(get by d) 'msgId'))
+      ?>  ?=([%n *] mid-nd)
+      =/  mid=@da  (add ~1970.1.1 (mul (rash p.mid-nd dem) (div ~s1 1.000)))
+      [%fetch-cover-msg (slav %p p.author-nd) mid]
     ::  set-dial (final case)
     ?>  =('set-dial' tag)
     =/  dial-nd  (need (~(get by d) 'dial'))

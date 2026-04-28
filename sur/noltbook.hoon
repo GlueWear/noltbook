@@ -41,6 +41,13 @@
       edited=?
   ==
 ::
++$  envelope
+  $:  author=@p
+      msg-id=@da
+      timestamp=@da
+      reply-to=(unit @da)
+  ==
+::
 +$  artifact-type  ?(%code %app %file)
 ::
 +$  artifact-version
@@ -95,6 +102,9 @@
   $%  [%remote-invite note-id=@ta name=@t type=note-type creator=@p users=(set @p) visibility=note-visibility]
       [%remote-message note-id=@ta msg=message]
       [%remote-ars msg=message hops=@ud]
+      [%remote-ars-ref env=envelope hops=@ud]
+      [%remote-fetch-cover-msg requester=@p msg-id=@da]
+      [%remote-cover-msg-reply requester=@p msg=message]
       [%remote-rumor msg=message hops=@ud]
       [%remote-profile ship=@p profile=profile]
       [%remote-note-request requester=@p]
@@ -155,6 +165,7 @@
       [%leave-call note-id=@ta]
       [%call-signal note-id=@ta to=@p sig-type=@t payload=@t]
       [%clear-calls ~]
+      [%fetch-cover-msg author=@p msg-id=@da]
   ==
 ::  subscription updates (agent to client)
 +$  update
@@ -179,6 +190,9 @@
       [%pal-update ship=@p status=pal-status]
       [%dial-update dial=@ud]
       [%gossip-message msg=message hops=@ud]
+      [%gossip-envelope env=envelope hops=@ud]
+      [%envelope-list note-id=@ta envelopes=(list envelope)]
+      [%cover-msg-content msg=message]
       [%rumor-message msg=message]
       [%note-redirect old-id=@ta new-id=@ta]
       [%note-users-updated id=@ta users=(list @p) removed=(list @p)]
