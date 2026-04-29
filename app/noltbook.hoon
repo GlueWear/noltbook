@@ -464,6 +464,35 @@
   ^-  (quip card _this)
   ?:  ?=([%16 *] q.old)
     =/  loaded  !<(state-16 old)
+    ::  fix: ensure cover note exists and is keyed as %cover
+    =/  loaded
+      ?:  (~(has by notes.loaded) %cover)  loaded
+      ::  search for gossip/cover-type note with wrong id
+      =/  cover-hit=(unit [id=@ta n=note:noltbook])
+        %-  ~(rep by notes.loaded)
+        |=  [[k=@ta v=note:noltbook] out=(unit [id=@ta n=note:noltbook])]
+        ?^  out  out
+        ?.  |(=(type.v %cover) =(type.v %gossip))  out
+        ?:  =(k %ars-rumors)  out
+        `[k v]
+      ?~  cover-hit
+        ::  no cover note at all — create fresh
+        ~&  [%creating-missing-cover our=our.bowl]
+        =/  cover=note:noltbook  [%cover 'ARS NOTORIA' %cover our.bowl (sy ~[our.bowl]) ~ ~ ~ ~ %secret ~ & ~]
+        loaded(notes (~(put by notes.loaded) %cover cover), messages (~(put by messages.loaded) %cover (fall (~(get by messages.loaded) %cover) ~)))
+      ~&  [%fixing-cover-id from=id.u.cover-hit]
+      =/  old-id=@ta  id.u.cover-hit
+      =/  fixed=note:noltbook  n.u.cover-hit(id %cover)
+      =/  new-notes  (~(put by (~(del by notes.loaded) old-id)) %cover fixed)
+      =/  old-msgs=(list message:noltbook)  (fall (~(get by messages.loaded) old-id) ~)
+      =/  new-msgs  (~(put by (~(del by messages.loaded) old-id)) %cover old-msgs)
+      loaded(notes new-notes, messages new-msgs)
+    ::  ensure ars-rumors note exists
+    =/  loaded
+      ?:  (~(has by notes.loaded) %ars-rumors)  loaded
+      ~&  [%creating-missing-rumors our=our.bowl]
+      =/  rumors=note:noltbook  [%ars-rumors 'RUMORS' %cover our.bowl (sy ~[our.bowl]) ~ ~ ~ ~ %secret ~ & ~]
+      loaded(notes (~(put by notes.loaded) %ars-rumors rumors), messages (~(put by messages.loaded) %ars-rumors (fall (~(get by messages.loaded) %ars-rumors) ~)))
     =/  prof  (fall (~(get by profiles.loaded) our.bowl) *profile:noltbook)
     =/  prof-cards=(list card)
       %+  turn  ~(tap in peers.loaded)
@@ -800,6 +829,18 @@
     =/  upd=update:noltbook  [%message-list nid msgs arts]
     ``[%noltbook-update !>(upd)]
   ::
+      [%x %peers ~]
+    =/  peer-list=(list @p)  ~(tap in peers)
+    =/  out-list=(list @p)  ~(tap in pal-outgoing)
+    ``[%noun !>([peer-list out-list])]
+  ::
+      [%x %note-ids ~]
+    =/  ids=(list [@ta note-type:noltbook])
+      %+  turn  ~(tap by notes)
+      |=  [k=@ta v=note:noltbook]
+      [k type.v]
+    ``[%noun !>(ids)]
+  ::
       [%x %sponsors ~]
     =/  chain=(list @p)
       =/  cur=@p  our.bowl
@@ -1066,6 +1107,7 @@
         =/  upd=update:noltbook  [%gossip-message msg 0]
         ::  broadcast envelope (not full message) to peers
         =/  env=envelope:noltbook  [our.bowl id.msg now.bowl reply-to.act]
+        ~&  [%cover-send-gossip our=our.bowl pal-count=~(wyt in pal-outgoing) targets=~(tap in pal-outgoing)]
         =/  gossip=(list card)
           %+  turn  ~(tap in pal-outgoing)
           |=  p=@p
@@ -1852,8 +1894,10 @@
         %remote-ars-ref
       ::  ARS NOTORIA envelope gossip from a peer
       =/  env  env.rem
+      ~&  [%ars-ref-received our=our.bowl from=src.bowl author=author.env]
       ::  dedup by message id — check both envelopes and full messages
       ?:  (~(has by cover-envelopes) msg-id.env)
+        ~&  [%ars-ref-dedup-envelope msg-id=msg-id.env]
         `this
       =/  cur=(list message:noltbook)  (fall (~(get by messages) %cover) ~)
       ?:  (lien cur |=(m=message:noltbook =(id.m msg-id.env)))
@@ -2619,7 +2663,10 @@
       [%ars-out @ ~]
     ::  ack/nack for ars notoria gossip pokes
     ?+  -.sign  `this
-        %poke-ack  `this
+        %poke-ack
+      ?~  p.sign  `this
+      ~&  [%ars-poke-failed wire u.p.sign]
+      `this
     ==
   ::
       [%rum-out @ ~]
