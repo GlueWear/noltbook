@@ -749,8 +749,12 @@
         ::  non-cover: always send full messages
         ~[[%give %fact ~ %noltbook-update !>(`update:noltbook`[%message-list nid msgs arts])]]
       ?:  is-local
-        ::  local frontend: send full messages
-        ~[[%give %fact ~ %noltbook-update !>(`update:noltbook`[%message-list nid msgs arts])]]
+        ::  local frontend: send full messages + any pending envelopes for re-fetch
+        =/  env-cards=(list card)
+          =/  pending=(list envelope:noltbook)  ~(val by cover-envelopes)
+          ?~  pending  ~
+          ~[[%give %fact ~ %noltbook-update !>(`update:noltbook`[%envelope-list nid pending])]]
+        [[%give %fact ~ %noltbook-update !>(`update:noltbook`[%message-list nid msgs arts])] env-cards]
       ::  remote peer: send envelopes for everything
       =/  msg-envs=(list envelope:noltbook)
         (turn msgs |=(m=message:noltbook [author.m id.m timestamp.m reply-to.m]))
@@ -1927,11 +1931,15 @@
       ==
     ::
         %remote-cover-msg-reply
-      ::  author replied with full message content
+      ::  author replied with full message content — persist and notify
       ?.  =(requester.rem our.bowl)  `this
-      =/  upd=update:noltbook  [%cover-msg-content msg.rem]
-      :_  this
-      ~[[%give %fact ~[/notes/cover] %noltbook-update !>(upd)]]
+      =/  msg  msg.rem
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) %cover) ~)
+      ?:  (lien cur |=(m=message:noltbook =(id.m id.msg)))
+        `this
+      =/  upd=update:noltbook  [%cover-msg-content msg]
+      :_  this(messages (~(put by messages) %cover (snoc cur msg)), cover-envelopes (~(del by cover-envelopes) id.msg))
+      ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
     ::
         %remote-rumor
       ::  RUMORS: anonymous gossip from a peer
