@@ -269,6 +269,7 @@
           ['author' s+(scot %p author.e)]
           ['timestamp' (numb (da-to-ms timestamp.e))]
           ['replyTo' ?~(reply-to.e ~ (numb (da-to-ms u.reply-to.e)))]
+          ['contentHash' s+(scot %uv content-hash.e)]
       ==
     ::
     ++  art-to-json

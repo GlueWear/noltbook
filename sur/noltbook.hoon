@@ -46,6 +46,7 @@
       msg-id=@da
       timestamp=@da
       reply-to=(unit @da)
+      content-hash=@uv
   ==
 ::
 +$  artifact-type  ?(%code %app %file)
