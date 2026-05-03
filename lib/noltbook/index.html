@@ -471,6 +471,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
           <textarea class="chat-input" id="chatInput" placeholder="message..." rows="1"
             onkeydown="handleInputKey(event)" oninput="autoResize(this)" onscroll="syncMirrorScroll()"></textarea>
           <div class="chat-input-mirror" id="chatInputMirror"></div>
+          <div id="gossipLoadingBar" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:2;display:none;padding:.4rem .6rem;font-size:.85rem;color:var(--text-dim);letter-spacing:.03em;box-sizing:border-box">loading messages<span id="gossipLoadingDots">...</span></div>
           </div>
           <div class="attach-wrap">
             <button class="attach-btn" onclick="toggleAttachMenu()">+</button>
@@ -659,7 +660,7 @@ const api = {
     this.reconnecting=false;
   }
 };
-const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},dial:0,gossipHops:{},mentions:{},activeCalls:{},inCall:null,blockNotifications:[],coverEnvelopes:{},coverFetching:new Set()};
+const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},dial:0,gossipHops:{},mentions:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{}};
 let sigilFn=null;
 const sigilCache={};
 (async function loadSigil(){
@@ -703,7 +704,7 @@ function getSigilSvg(ship){
 function getLastMessage(noteId){
   let msgs=state.messages[noteId];
   if(!msgs||!msgs.length)return null;
-  if(noteId==='cover')msgs=msgs.filter(coverMsgVisible);
+  if(isGossipNote(noteId))msgs=msgs.filter(coverMsgVisible);
   if(!msgs.length)return null;
   return msgs[msgs.length-1];
 }
@@ -736,7 +737,7 @@ function updateSidebarSigil(){
   renderAvatar(ship,document.getElementById('profileSigil'));
 }
 let _renderTimer=null;
-function scheduleRender(noteId){if(_renderTimer)clearTimeout(_renderTimer);_renderTimer=setTimeout(()=>{_renderTimer=null;renderMessages(noteId||state.currentNoteId)},50)}
+function scheduleRender(noteId){const nid=noteId||state.currentNoteId;const delay=isGossipNote(nid)?150:50;if(_renderTimer)clearTimeout(_renderTimer);_renderTimer=setTimeout(()=>{_renderTimer=null;renderMessages(nid)},delay)}
 let _noteListTimer=null;
 function scheduleNoteList(){if(_noteListTimer)clearTimeout(_noteListTimer);_noteListTimer=setTimeout(()=>{_noteListTimer=null;renderNoteList()},50)}
 let _lastMsgHash={};
@@ -751,21 +752,22 @@ function handleUpdate(upd){
   else if(upd['artifact-updated']){const a=upd['artifact-updated'];state.artifacts[a.id]=a;if(state.activeAppBridge&&state.activeAppBridge.artifactId===a.id){const lastVer=a.versions[a.versions.length-1];if(lastVer){try{const meta=JSON.parse(lastVer.content);const iframe=document.getElementById(state.activeAppBridge.iframeId);if(iframe&&iframe.contentWindow){iframe.contentWindow.postMessage({source:'noltbook-host',type:'nb:state',payload:meta.state||{}},'*')}}catch(e){}}}else if(document.getElementById('artifactPanel').classList.contains('open')&&document.getElementById('artifactPanelTitle').textContent===a.name)openArtifactPanel(a.id)}
   else if(upd['artifact-deleted']){delete state.artifacts[upd['artifact-deleted'].id];closeArtifactPanel();scheduleRender()}
   else if(upd['note-meta-updated']){const d=upd['note-meta-updated'];const n=state.notes[d.id];if(n){n.visibility=d.visibility;n.iconUrl=d.iconUrl||null;n.writable=d.writable;renderNoteList()}}
+  else if(upd['headline-updated']){const d=upd['headline-updated'];const n=state.notes[d.id];if(n){n.headline=d.headline||null;renderNoteList()}}
   else if(upd['message-edited']){const{noteId,message}=upd['message-edited'];const msgs=state.messages[noteId]||[];const idx=msgs.findIndex(m=>m.id===message.id);if(idx>=0){msgs[idx]=message}if(state.currentNoteId===noteId)scheduleRender(noteId)}
   else if(upd['message-deleted']){const{noteId,msgId}=upd['message-deleted'];const msgs=state.messages[noteId]||[];const idx=msgs.findIndex(m=>m.id===msgId);if(idx>=0)msgs.splice(idx,1);if(state.currentNoteId===noteId)scheduleRender(noteId)}
   else if(upd['profile-list']){for(const entry of upd['profile-list']){state.profiles[entry.ship]=entry.profile}const me=state.profiles['~'+api.ship];if(me){if(me.displayName)document.getElementById('shipDisplay').textContent=me.displayName;updateSidebarSigil()}if(state.palsView)renderPalsList();if(state.currentNoteId)scheduleRender()}
   else if(upd['profile-updated']){const{ship,profile}=upd['profile-updated'];state.profiles[ship]=profile;if(ship==='~'+api.ship){document.getElementById('shipDisplay').textContent=profile.displayName||'~'+api.ship;updateSidebarSigil()}if(state.palsView)renderPalsList();if(state.currentNoteId)scheduleRender()}
   else if(upd['remote-note-list']){const{ship,notes}=upd['remote-note-list'];const el=document.getElementById('viewProfileNotes');if(el){const pubNotes=notes.filter(n=>n.visibility==='public').sort((a,b)=>a.name.localeCompare(b.name));const privNotes=notes.filter(n=>n.visibility==='private').sort((a,b)=>a.name.localeCompare(b.name));const all=[...pubNotes,...privNotes];if(all.length===0){el.innerHTML='<span style="color:var(--dim)">none available</span>'}else{el.innerHTML=all.map(n=>{const ic=n.iconUrl?'<img src="'+escAttr(n.iconUrl)+'">':noteInitials(n.name);const vis=n.visibility==='public'?'public':'private';return '<div class="profile-note-entry"><div class="profile-note-icon">'+ic+'</div><div class="profile-note-text"><span class="profile-note-name">'+escHtml(n.name)+'</span><span class="profile-note-vis">'+vis+'</span></div></div>'}).join('')}}}
   else if(upd['pal-list']){for(const entry of upd['pal-list']){state.palStatus[entry.ship]=entry.status}if(state.palsView)renderPalsList();fetchVisibleEnvelopes()}
-  else if(upd['pal-update']){const{ship,status}=upd['pal-update'];state.palStatus[ship]=status;if(state.palsView)renderPalsList();renderNoteList();fetchVisibleEnvelopes()}
-  else if(upd['dial-update']){state.dial=upd['dial-update'];updateDialUI();if(state.currentNoteId==='cover')scheduleRender('cover');scheduleNoteList();fetchVisibleEnvelopes()}
+  else if(upd['pal-update']){const{ship,status}=upd['pal-update'];state.palStatus[ship]=status;if(state.palsView)renderPalsList();renderNoteList();fetchVisibleEnvelopes();if(isGossipNote(state.currentNoteId))scheduleRender(state.currentNoteId)}
+  else if(upd['dial-update']){state.dial=upd['dial-update'];updateDialUI();if(isGossipNote(state.currentNoteId))scheduleRender(state.currentNoteId);scheduleNoteList();fetchVisibleEnvelopes()}
   else if(upd['note-users-updated']){const{id,users,removed}=upd['note-users-updated'];console.log('[note-users-updated]',id,users,removed);if(state.notes[id]){state.notes[id].users=users;state.notes[id].removed=removed||[];renderNoteList();if(state.currentNoteId===id)scheduleRender(id)}}
   else if(upd['note-redirect']){const{oldId,newId}=upd['note-redirect'];console.log('[note-redirect]',oldId,'->',newId);delete state.notes[oldId];delete state.messages[oldId];state.notifications.delete(oldId);if(state.currentNoteId===oldId){if(state.notes[newId])openNote(newId);else openNote('cover')}renderNoteList()}
   else if(upd['wallet-update']){wallet.transactions=upd['wallet-update'].map(tx=>({type:tx.type,who:tx.counterparty,amount:tx.amount,time:new Date(tx.timestamp).toLocaleString(),txid:tx.txHash}));renderWalletNotes()}
-  else if(upd['gossip-message']){const{message,hops}=upd['gossip-message'];state.gossipHops[message.id]=hops;if(!state.messages['cover'])state.messages['cover']=[];delete state.coverEnvelopes[message.id];state.coverFetching.delete(message.id);if(!(state.messages['cover'].some(m=>m.id===message.id))){state.messages['cover'].push(message);const visible=coverMsgVisible(message);if(state.currentNoteId==='cover'&&visible)appendMessage(message);else if(state.currentNoteId!=='cover'&&visible)state.notifications.add('cover')}const visible=coverMsgVisible(message);if(visible&&state.notes['cover']){state.notes['cover'].lastAuthor=message.author;state.notes['cover'].lastPreview=message.text}scheduleNoteList()}
-  else if(upd['gossip-envelope']){const{envelope,hops}=upd['gossip-envelope'];if((state.messages['cover']||[]).some(m=>m.id===envelope.id))return;if(state.coverEnvelopes[envelope.id])return;state.coverEnvelopes[envelope.id]=envelope;state.gossipHops[envelope.id]=hops;const shell={id:envelope.id,noteId:'cover',author:envelope.author,text:null};if(coverMsgVisible(shell))fetchCoverContent(envelope.id,envelope.author);if(state.currentNoteId!=='cover'&&coverMsgVisible(shell))state.notifications.add('cover');scheduleNoteList()}
-  else if(upd['envelope-list']){const{noteId,envelopes}=upd['envelope-list'];const existingIds=new Set((state.messages[noteId]||[]).map(m=>m.id));let fetched=0;for(const env of envelopes){if(existingIds.has(env.id)||state.coverEnvelopes[env.id])continue;state.coverEnvelopes[env.id]=env;const shell={id:env.id,noteId:'cover',author:env.author,text:null};if(coverMsgVisible(shell)){fetchCoverContent(env.id,env.author);fetched++}}if(fetched>0)scheduleNoteList()}
-  else if(upd['cover-msg-content']){const msg=upd['cover-msg-content'];state.coverFetching.delete(msg.id);delete state.coverEnvelopes[msg.id];if(!state.messages['cover'])state.messages['cover']=[];if(!(state.messages['cover'].some(m=>m.id===msg.id))){state.messages['cover'].push(msg);const visible=coverMsgVisible(msg);if(state.currentNoteId==='cover'&&visible)scheduleRender('cover');else if(state.currentNoteId!=='cover'&&visible)state.notifications.add('cover')}if(state.notes['cover']){state.notes['cover'].lastPreview=msg.text;scheduleNoteList()}}
+  else if(upd['gossip-message']){const{message,hops}=upd['gossip-message'];const nid=message.noteId||'cover';state.gossipHops[message.id]=hops;if(!state.messages[nid])state.messages[nid]=[];const nenvs=state.gossipEnvelopes[nid]||{};delete nenvs[message.id];state.gossipEnvelopes[nid]=nenvs;const nfetch=state.gossipFetching[nid];if(nfetch)nfetch.delete(message.id);if(!(state.messages[nid].some(m=>m.id===message.id))){state.messages[nid].push(message);const visible=coverMsgVisible(message);if(state.currentNoteId===nid&&visible)appendMessage(message);else if(state.currentNoteId!==nid&&visible)state.notifications.add(nid)}const visible=coverMsgVisible(message);if(visible&&state.notes[nid]){state.notes[nid].lastAuthor=message.author;state.notes[nid].lastPreview=message.text}scheduleNoteList()}
+  else if(upd['gossip-envelope']){const{noteId,envelope,hops}=upd['gossip-envelope'];const nid=noteId||'cover';if((state.messages[nid]||[]).some(m=>m.id===envelope.id))return;const nenvs=state.gossipEnvelopes[nid]||{};if(nenvs[envelope.id])return;nenvs[envelope.id]=envelope;state.gossipEnvelopes[nid]=nenvs;state.gossipHops[envelope.id]=hops;const shell={id:envelope.id,noteId:nid,author:envelope.author,text:null};if(coverMsgVisible(shell))fetchGossipContent(nid,envelope.id,envelope.author);if(state.currentNoteId!==nid&&coverMsgVisible(shell))state.notifications.add(nid);scheduleNoteList()}
+  else if(upd['envelope-list']){const{noteId,envelopes}=upd['envelope-list'];const existingIds=new Set((state.messages[noteId]||[]).map(m=>m.id));const nenvs=state.gossipEnvelopes[noteId]||{};let fetched=0;for(const env of envelopes){if(existingIds.has(env.id)||nenvs[env.id])continue;nenvs[env.id]=env;const shell={id:env.id,noteId:noteId,author:env.author,text:null};if(coverMsgVisible(shell)){fetchGossipContent(noteId,env.id,env.author);fetched++}}state.gossipEnvelopes[noteId]=nenvs;if(fetched>0)scheduleNoteList()}
+  else if(upd['cover-msg-content']){const{noteId,message:msg}=upd['cover-msg-content'];const nid=noteId||'cover';const nfetch=state.gossipFetching[nid];if(nfetch)nfetch.delete(msg.id);const nenvs=state.gossipEnvelopes[nid]||{};delete nenvs[msg.id];state.gossipEnvelopes[nid]=nenvs;if(!state.messages[nid])state.messages[nid]=[];if(!(state.messages[nid].some(m=>m.id===msg.id))){state.messages[nid].push(msg);const visible=coverMsgVisible(msg);if(state.currentNoteId!==nid&&visible)state.notifications.add(nid)}state.gossipPending[nid]=Math.max(0,(state.gossipPending[nid]||1)-1);if(state.gossipPending[nid]===0){hideGossipLoading();if(state.currentNoteId===nid)scheduleRender(nid);if(state.notes[nid]){const msgs=state.messages[nid]||[];if(msgs.length){const newest=msgs.reduce((a,b)=>b.timestamp>a.timestamp?b:a);state.notes[nid].lastPreview=newest.text;state.notes[nid].lastAuthor=newest.author}}scheduleNoteList()}}
   else if(upd['rumor-message']){const msg=upd['rumor-message'].message;if(!state.messages['ars-rumors'])state.messages['ars-rumors']=[];const isDup=state.messages['ars-rumors'].some(m=>m.text===msg.text);if(!isDup){state.messages['ars-rumors'].unshift(msg);if(state.currentNoteId==='ars-rumors')renderMessages('ars-rumors');else state.notifications.add('ars-rumors');scheduleNoteList()}}
   else if(upd['mention-update']){const{noteId,mentions}=upd['mention-update'];if(!state.mentions[noteId])state.mentions[noteId]=[];for(const m of mentions){if(!state.mentions[noteId].some(x=>x.id===m.id))state.mentions[noteId].push({id:m.id,author:m.author})}scheduleNoteList()}
   else if(upd['call-state']){const{noteId,call}=upd['call-state'];console.log('[call-state]',noteId,call);if(call.status==='active'){state.activeCalls[noteId]=call}else{delete state.activeCalls[noteId]}updateCallUI()}
@@ -806,7 +808,7 @@ async function openNote(id){
   if(state.currentNoteSub!==null){await api.unsubscribe(state.currentNoteSub);state.currentNoteSub=null}
   // tear down previous mention observer
   if(mentionObserver){mentionObserver.disconnect();mentionObserver=null}
-  state.currentNoteId=id;state.notifications.delete(id);state.lastMsgAuthor=null;
+  hideGossipLoading();state.currentNoteId=id;state.notifications.delete(id);state.lastMsgAuthor=null;
   state._mentionJumpDone=false;
   revealNoteInTree(id);
   // if note has descendant notifications, expand tree to reveal them
@@ -835,13 +837,51 @@ function updateDialUI(){
 async function setDial(n){
   state.dial=n;updateDialUI();
   await api.poke('noltbook','noltbook-action',{action:'set-dial',data:{dial:n}});
-  if(state.currentNoteId==='cover')scheduleRender('cover');
+  if(isGossipNote(state.currentNoteId))scheduleRender(state.currentNoteId);
   scheduleNoteList();
 }
-function fetchCoverContent(msgId,author){
-  if(state.coverFetching.has(msgId))return;
-  state.coverFetching.add(msgId);
-  api.poke('noltbook','noltbook-action',{action:'fetch-cover-msg',data:{author:author,msgId:msgId}});
+function isGossipNote(noteId){
+  if(noteId==='cover')return true;
+  const n=state.notes[noteId];
+  return n&&n.type==='gossip';
+}
+function fetchGossipContent(noteId,msgId,author){
+  if(!state.gossipFetching[noteId])state.gossipFetching[noteId]=new Set();
+  if(state.gossipFetching[noteId].has(msgId))return;
+  state.gossipFetching[noteId].add(msgId);
+  state.gossipPending[noteId]=(state.gossipPending[noteId]||0)+1;
+  if(state.gossipPending[noteId]>1&&state.currentNoteId===noteId)showGossipLoading(noteId);
+  api.poke('noltbook','noltbook-action',{action:'fetch-cover-msg',data:{noteId:noteId,author:author,msgId:msgId}});
+}
+let _gossipDotsTimer=null;
+let _gossipTimeoutTimer=null;
+function showGossipLoading(noteId){
+  const bar=document.getElementById('gossipLoadingBar');
+  if(!bar)return;
+  bar.style.display='block';
+  const inp=document.getElementById('chatInput');
+  if(inp)inp.style.opacity='0';
+  const dots=document.getElementById('gossipLoadingDots');
+  if(dots&&!_gossipDotsTimer){
+    let n=0;
+    _gossipDotsTimer=setInterval(()=>{n=(n+1)%4;dots.textContent='.'.repeat(n||1)},300);
+  }
+  if(_gossipTimeoutTimer)clearTimeout(_gossipTimeoutTimer);
+  _gossipTimeoutTimer=setTimeout(()=>{
+    _gossipTimeoutTimer=null;
+    state.gossipPending={};
+    hideGossipLoading();
+    if(state.currentNoteId&&isGossipNote(state.currentNoteId))scheduleRender(state.currentNoteId);
+    scheduleNoteList();
+  },5000);
+}
+function hideGossipLoading(){
+  const bar=document.getElementById('gossipLoadingBar');
+  if(bar)bar.style.display='none';
+  const inp=document.getElementById('chatInput');
+  if(inp)inp.style.opacity='';
+  if(_gossipDotsTimer){clearInterval(_gossipDotsTimer);_gossipDotsTimer=null}
+  if(_gossipTimeoutTimer){clearTimeout(_gossipTimeoutTimer);_gossipTimeoutTimer=null}
 }
 function coverMsgVisible(m){
   var me='~'+api.ship;
@@ -855,11 +895,13 @@ function coverMsgVisible(m){
   return h<=state.dial+1;
 }
 function fetchVisibleEnvelopes(){
-  const resolved=new Set((state.messages['cover']||[]).map(m=>m.id));
-  for(const[id,env]of Object.entries(state.coverEnvelopes)){
-    if(resolved.has(env.id))continue;
-    const shell={id:env.id,noteId:'cover',author:env.author,text:null};
-    if(coverMsgVisible(shell))fetchCoverContent(env.id,env.author);
+  for(const[nid,envMap]of Object.entries(state.gossipEnvelopes)){
+    const resolved=new Set((state.messages[nid]||[]).map(m=>m.id));
+    for(const[id,env]of Object.entries(envMap)){
+      if(resolved.has(env.id))continue;
+      const shell={id:env.id,noteId:nid,author:env.author,text:null};
+      if(coverMsgVisible(shell))fetchGossipContent(nid,env.id,env.author);
+    }
   }
 }
 const arsEntries=[
@@ -1190,7 +1232,7 @@ function renderMessages(noteId){
     el.appendChild(hdr);
   }
   let msgs=state.messages[noteId]||[];
-  if(noteId==='cover'){msgs=msgs.filter(coverMsgVisible)}
+  if(isGossipNote(noteId)){msgs=msgs.filter(coverMsgVisible)}
   const byId={};msgs.forEach(m=>byId[m.id]=m);
   const children={};msgs.forEach(m=>{if(m.replyTo){if(!children[m.replyTo])children[m.replyTo]=[];children[m.replyTo].push(m)}});
   const threadMap={};const threads={};
@@ -1595,8 +1637,8 @@ function updateMentionDropdown(){
   // filter to note members (cover/grimoire = all profiles, regular notes = note.users)
   const note=state.notes[state.currentNoteId];
   const noteMembers=note?(note.users||[]):[];
-  const isCover=state.currentNoteId==='cover';
-  const filtered=isCover?results:results.filter(r=>noteMembers.includes(r.ship));
+  const isGoss=isGossipNote(state.currentNoteId);
+  const filtered=isGoss?results:results.filter(r=>noteMembers.includes(r.ship));
   if(filtered.length===0){dd.classList.remove('open');return}
   for(const r of filtered){
     const item=renderDropdownItem(r);
@@ -1766,7 +1808,7 @@ function openSharePrompt(){
 }
 function createNote(parentId){state.pendingParent=parentId||null;document.getElementById('noteNameInput').value='';document.getElementById('gossipCheck').checked=false;document.getElementById('gossipToggleWrap').style.display=parentId?'none':'flex';document.getElementById('noteModalTitle').textContent=parentId?'NEW CHILD NOTE':'NEW NOTE';document.getElementById('noteModal').classList.add('open');setTimeout(()=>document.getElementById('noteNameInput').focus(),50)}
 function closeNoteModal(){document.getElementById('noteModal').classList.remove('open');state.pendingParent=null}
-async function submitNote(){const name=document.getElementById('noteNameInput').value.trim();if(!name)return;const isGossip=document.getElementById('gossipCheck').checked&&!state.pendingParent;if(isGossip){await api.poke('noltbook','noltbook-action',{action:'create-gossip-note',data:{name}})}else{const data={name};if(state.pendingParent)data.parent=state.pendingParent;await api.poke('noltbook','noltbook-action',{action:'create-note',data})}closeNoteModal()}
+async function submitNote(){const name=document.getElementById('noteNameInput').value.trim();if(!name)return;const isGossip=document.getElementById('gossipCheck').checked&&!state.pendingParent;if(isGossip){await api.poke('noltbook','noltbook-action',{action:'create-gossip-note',data:{name,headline:''}})}else{const data={name};if(state.pendingParent)data.parent=state.pendingParent;await api.poke('noltbook','noltbook-action',{action:'create-note',data})}closeNoteModal()}
 function promptRenameNote(id){const note=state.notes[id];if(!note)return;const name=prompt('Rename note:',note.name);if(name&&name.trim()&&name.trim()!==note.name)api.poke('noltbook','noltbook-action',{action:'rename-note',data:{id,name:name.trim()}})}
 function promptNoteImage(id){
   const note=state.notes[id];if(!note)return;
@@ -1851,7 +1893,7 @@ function showNoteContextMenu(event,noteId){
     <div class="context-menu-item" data-action="child">+ Child</div>
     <div class="context-menu-item${ro}" data-action="img">+ Img</div>
     <div class="context-menu-item" data-action="duplicate">Duplicate</div>
-    <div class="context-menu-item" data-action="rename">Rename</div>
+    ${isCreator?'<div class="context-menu-item" data-action="rename">Rename</div>':''}
     ${delItem}`;
   menu.style.left=event.pageX+'px';
   menu.style.top=event.pageY+'px';
@@ -2329,9 +2371,63 @@ function openCurrentNoteMenu(event){
   const id=state.currentNoteId;
   if(!id||id==='cover'||(id+'').startsWith('ars-'))return;
   const note=state.notes[id]; if(!note)return;
-  if((note.users||[]).length>2){openGroupMembersModal(note);return}
-  const el=document.getElementById('chatNoteName');const r=el.getBoundingClientRect();
-  showNoteContextMenu({preventDefault(){},pageX:r.left,pageY:r.bottom+4},id);
+  openNoteInfoModal(note);
+}
+function openNoteInfoModal(note){
+  const me='~'+api.ship;
+  const isCreator=note.creator===me;
+  const isMember=(note.users||[]).includes(me);
+  const isGossip=note.type==='gossip';
+  const overlay=document.createElement('div');
+  overlay.className='modal-overlay open';
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center';
+  const modal=document.createElement('div');
+  modal.style.cssText='background:var(--bg2);border:1px solid var(--border);min-width:360px;max-width:440px;max-height:80vh;overflow:auto;padding:1rem;display:flex;flex-direction:column;gap:.75rem';
+  const members=(note.users||[]).slice().sort();
+  const memberCount=members.length;
+  const titleRo=isCreator?'':'readonly';
+  const descRo=isCreator?'':'readonly';
+  const descVal=note.headline||'';
+  modal.innerHTML=`
+    <div style="font-size:.75rem;color:var(--text-dim);letter-spacing:.1em">NOTE INFO</div>
+    <div class="modal-field">
+      <label class="modal-label" style="font-size:.65rem">TITLE</label>
+      <input class="modal-input" id="noteInfoTitle" value="${escAttr(note.name)}" ${titleRo} style="font-size:.85rem">
+    </div>
+    <div class="modal-field">
+      <label class="modal-label" style="font-size:.65rem">DESCRIPTION</label>
+      <textarea class="modal-textarea" id="noteInfoDesc" rows="3" placeholder="purpose, rules, intent..." ${descRo} style="font-size:.8rem;resize:vertical;min-height:3rem">${escHtml(descVal)}</textarea>
+    </div>
+    <div style="display:flex;align-items:center;gap:.5rem;font-size:.75rem;color:var(--text-dim)">
+      <span>${memberCount} member${memberCount!==1?'s':''}</span>
+      ${memberCount>1?'<span style="cursor:pointer;color:#ffaa00;text-decoration:underline" id="noteInfoViewMembers">view</span>':''}
+      <span style="margin-left:auto;font-size:.65rem;opacity:.6">${note.type}</span>
+    </div>
+    <div class="modal-actions" style="margin-top:.25rem">
+      <button class="modal-btn cancel-red" id="noteInfoClose">CLOSE</button>
+      ${isCreator?'<button class="modal-btn amber" id="noteInfoSave">SAVE</button>':''}
+    </div>`;
+  overlay.appendChild(modal);
+  overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove()});
+  document.body.appendChild(overlay);
+  const closeBtn=modal.querySelector('#noteInfoClose');
+  closeBtn.onclick=()=>overlay.remove();
+  const viewBtn=modal.querySelector('#noteInfoViewMembers');
+  if(viewBtn)viewBtn.onclick=()=>{overlay.remove();openGroupMembersModal(note)};
+  const saveBtn=modal.querySelector('#noteInfoSave');
+  if(saveBtn){
+    saveBtn.onclick=async()=>{
+      const newTitle=modal.querySelector('#noteInfoTitle').value.trim();
+      const newDesc=modal.querySelector('#noteInfoDesc').value.trim();
+      if(newTitle&&newTitle!==note.name){
+        await api.poke('noltbook','noltbook-action',{action:'rename-note',data:{id:note.id,name:newTitle}});
+      }
+      if(newDesc!==(note.headline||'')){
+        await api.poke('noltbook','noltbook-action',{action:'set-headline',data:{id:note.id,headline:newDesc}});
+      }
+      overlay.remove();
+    };
+  }
 }
 /* ========== WALLET ========== */
 // Iris provider: window.nockchain.request({method, params, timeout})
@@ -3196,8 +3292,8 @@ function updateCallUI(){
   const indicator=document.getElementById('callIndicator');
   const countEl=document.getElementById('callParticipantCount');
 
-  // hide call button for cover/rumors
-  if(noteId==='cover'||noteId==='ars-rumors'){
+  // hide call button for cover/rumors/gossip
+  if(noteId==='cover'||noteId==='ars-rumors'||isGossipNote(noteId)){
     btn.style.display='none';
     indicator.classList.remove('active');
     return;
@@ -3357,7 +3453,7 @@ async function toggleCall(){
 async function _toggleCallInner(){
   const noteId=state.currentNoteId;
   console.log('[toggleCall] noteId=',noteId,'inCall=',state.inCall,'activeCalls=',JSON.stringify(state.activeCalls[noteId]||null));
-  if(noteId==='cover'||noteId==='ars-rumors')return;
+  if(noteId==='cover'||noteId==='ars-rumors'||isGossipNote(noteId))return;
 
   if(state.inCall===noteId){
     // leave call

@@ -1,4 +1,17 @@
 |%
+::  entry-meta: reusable primitive separating identity/order/version/time
+::  eid: stable identity hash — never changes after creation
+::  seq: monotonic sequence number, scoped per [author note-id]
+::  rev: revision counter (0 = original, incremented on edit)
+::  created: display timestamp — when entry was first created
+::  updated: display timestamp — when entry was last modified
++$  entry-meta
+  $:  eid=@uv
+      seq=@ud
+      rev=@ud
+      created=@da
+      updated=@da
+  ==
 ::  note types
 +$  note-type  ?(%notebook %dm %group %cover %gossip)
 +$  note-visibility  ?(%public %private %secret)
@@ -17,6 +30,7 @@
       icon-url=(unit @t)
       writable=?
       removed=(set @p)
+      headline=(unit @t)
   ==
 ::
 +$  note-3
@@ -39,6 +53,7 @@
       timestamp=@da
       reply-to=(unit @da)
       edited=?
+      meta=(unit entry-meta)
   ==
 ::
 +$  envelope
@@ -106,6 +121,10 @@
       [%remote-ars-ref env=envelope hops=@ud]
       [%remote-fetch-cover-msg requester=@p msg-id=@da]
       [%remote-cover-msg-reply requester=@p msg=message]
+      [%remote-gossip-invite note-id=@ta name=@t creator=@p users=(set @p) headline=(unit @t)]
+      [%remote-gossip-ref note-id=@ta env=envelope hops=@ud]
+      [%remote-fetch-gossip-msg note-id=@ta requester=@p msg-id=@da]
+      [%remote-gossip-msg-reply note-id=@ta requester=@p msg=message]
       [%remote-rumor msg=message hops=@ud]
       [%remote-profile ship=@p profile=profile]
       [%remote-note-request requester=@p]
@@ -132,7 +151,7 @@
 ::  poke actions (client to agent)
 +$  action
   $%  [%create-note name=@t parent=(unit @ta)]
-      [%create-gossip-note name=@t]
+      [%create-gossip-note name=@t headline=@t]
       [%rename-note id=@ta name=@t]
       [%delete-note id=@ta]
       [%switch-note id=@ta]
@@ -166,7 +185,8 @@
       [%leave-call note-id=@ta]
       [%call-signal note-id=@ta to=@p sig-type=@t payload=@t]
       [%clear-calls ~]
-      [%fetch-cover-msg author=@p msg-id=@da]
+      [%fetch-cover-msg note-id=@ta author=@p msg-id=@da]
+      [%set-headline id=@ta headline=@t]
   ==
 ::  subscription updates (agent to client)
 +$  update
@@ -191,9 +211,9 @@
       [%pal-update ship=@p status=pal-status]
       [%dial-update dial=@ud]
       [%gossip-message msg=message hops=@ud]
-      [%gossip-envelope env=envelope hops=@ud]
+      [%gossip-envelope note-id=@ta env=envelope hops=@ud]
       [%envelope-list note-id=@ta envelopes=(list envelope)]
-      [%cover-msg-content msg=message]
+      [%cover-msg-content note-id=@ta msg=message]
       [%rumor-message msg=message]
       [%note-redirect old-id=@ta new-id=@ta]
       [%note-users-updated id=@ta users=(list @p) removed=(list @p)]
@@ -206,6 +226,7 @@
       [%call-signal note-id=@ta from=@p sig-type=@t payload=@t]
       [%call-state note-id=@ta call=call-info]
       ::  block: you were kicked from a note
+      [%headline-updated id=@ta headline=(unit @t)]
       [%kick-notification note-id=@ta note-name=@t from=@p]
   ==
 --

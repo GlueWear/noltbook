@@ -37,6 +37,13 @@
           ['writable' b+writable.upd]
       ==
     ::
+        %headline-updated
+      %+  frond  'headline-updated'
+      %-  pairs
+      :~  ['id' s+(crip (trip id.upd))]
+          ['headline' ?~(headline.upd ~ s+u.headline.upd)]
+      ==
+    ::
         %message-list
       %+  frond  'message-list'
       %-  pairs
@@ -119,7 +126,8 @@
         %gossip-envelope
       %+  frond  'gossip-envelope'
       %-  pairs
-      :~  ['envelope' (env-to-json env.upd)]
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['envelope' (env-to-json env.upd)]
           ['hops' (numb hops.upd)]
       ==
     ::
@@ -131,7 +139,11 @@
       ==
     ::
         %cover-msg-content
-      (frond 'cover-msg-content' (msg-to-json msg.upd))
+      %+  frond  'cover-msg-content'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['message' (msg-to-json msg.upd)]
+      ==
     ::
         %rumor-message
       %+  frond  'rumor-message'
@@ -248,6 +260,7 @@
           ['iconUrl' ?~(icon-url.n ~ s+u.icon-url.n)]
           ['writable' b+writable.n]
           ['removed' a+(turn ~(tap in removed.n) |=(p=@p s+(scot %p p)))]
+          ['headline' ?~(headline.n ~ s+u.headline.n)]
       ==
     ::
     ++  msg-to-json
@@ -260,6 +273,17 @@
           ['timestamp' (numb (da-to-ms timestamp.m))]
           ['replyTo' ?~(reply-to.m ~ (numb (da-to-ms u.reply-to.m)))]
           ['edited' b+edited.m]
+          ['meta' ?~(meta.m ~ (meta-to-json u.meta.m))]
+      ==
+    ::
+    ++  meta-to-json
+      |=  m=entry-meta:noltbook
+      %-  pairs
+      :~  ['eid' s+(scot %uv eid.m)]
+          ['seq' (numb seq.m)]
+          ['rev' (numb rev.m)]
+          ['created' (numb (da-to-ms created.m))]
+          ['updated' (numb (da-to-ms updated.m))]
       ==
     ::
     ++  env-to-json

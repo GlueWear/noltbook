@@ -28,7 +28,12 @@
     ?:  =('create-gossip-note' tag)
       =/  nm-nd  (need (~(get by d) 'name'))
       ?>  ?=([%s *] nm-nd)
-      [%create-gossip-note p.nm-nd]
+      =/  hl-raw  (~(get by d) 'headline')
+      =/  hl=@t
+        ?~  hl-raw  ''
+        ?.  ?=([%s *] u.hl-raw)  ''
+        p.u.hl-raw
+      [%create-gossip-note p.nm-nd hl]
     ::  rename-note
     ?:  =('rename-note' tag)
       =/  id-nd  (need (~(get by d) 'id'))
@@ -285,12 +290,24 @@
       [%clear-calls ~]
     ::  fetch-cover-msg
     ?:  =('fetch-cover-msg' tag)
+      =/  nid-nd  (~(get by d) 'noteId')
+      =/  nid=@ta
+        ?~  nid-nd  %cover
+        ?.  ?=([%s *] u.nid-nd)  %cover
+        `@ta`p.u.nid-nd
       =/  author-nd  (need (~(get by d) 'author'))
       ?>  ?=([%s *] author-nd)
       =/  mid-nd  (need (~(get by d) 'msgId'))
       ?>  ?=([%n *] mid-nd)
       =/  mid=@da  (add ~1970.1.1 (mul (rash p.mid-nd dem) (div ~s1 1.000)))
-      [%fetch-cover-msg (slav %p p.author-nd) mid]
+      [%fetch-cover-msg nid (slav %p p.author-nd) mid]
+    ::  set-headline
+    ?:  =('set-headline' tag)
+      =/  id-nd  (need (~(get by d) 'id'))
+      ?>  ?=([%s *] id-nd)
+      =/  hl-nd  (need (~(get by d) 'headline'))
+      ?>  ?=([%s *] hl-nd)
+      [%set-headline `@ta`p.id-nd p.hl-nd]
     ::  set-dial (final case)
     ?>  =('set-dial' tag)
     =/  dial-nd  (need (~(get by d) 'dial'))
