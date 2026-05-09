@@ -21,6 +21,8 @@
       state-17
       state-18
       state-19
+      state-20
+      state-21
   ==
 ::  pre-entry-meta message shape — used by state-18 for on-load typing
 +$  message-18
@@ -89,6 +91,25 @@
       icon-url=(unit @t)
       writable=?
       removed=(set @p)
+  ==
+::  entry-meta-20: pre-reply-to-eid entry-meta shape (5 fields)
++$  entry-meta-20
+  $:  eid=@uv
+      seq=@ud
+      rev=@ud
+      created=@da
+      updated=@da
+  ==
+::  message-20: message with old 5-field entry-meta (no reply-to-eid)
++$  message-20
+  $:  id=@da
+      note-id=@ta
+      author=@p
+      text=@t
+      timestamp=@da
+      reply-to=(unit @da)
+      edited=?
+      meta=(unit entry-meta-20)
   ==
 +$  artifact-type-2  ?(%code %markdown %canvas)
 +$  artifact-2
@@ -390,7 +411,7 @@
 +$  state-19
   $:  %19
       notes=(map @ta note:noltbook)
-      messages=(map @ta (list message:noltbook))
+      messages=(map @ta (list message-20))
       artifacts=(map @ta artifact:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
@@ -407,6 +428,49 @@
       gossip-envelopes=(map @ta (map @da envelope:noltbook))
       headlines=(map @ta @t)
       seq-counters=(map [@p @ta] @ud)
+  ==
++$  state-20
+  $:  %20
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message-20))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+  ==
+::  state-21: messages use entry-meta with reply-to-eid
++$  state-21
+  $:  %21
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
   ==
 +$  card  card:agent:gall
 ::
@@ -582,17 +646,17 @@
       dial.s  gossip-hops.s  mentions.s  active-calls.s
       new-gossip-envs  ~
   ==
-::  upgrade-18-to-19: add meta=(unit entry-meta) to messages, add seq-counters
+::  upgrade-18-to-19: add meta=(unit entry-meta-20) to messages, add seq-counters
 ++  upgrade-18-to-19
   |=  s=state-18
   ^-  state-19
-  =/  new-msgs=(map @ta (list message:noltbook))
+  =/  new-msgs=(map @ta (list message-20))
     %-  ~(run by messages.s)
     |=  msgs=(list message-18)
-    ^-  (list message:noltbook)
+    ^-  (list message-20)
     %+  turn  msgs
     |=  m=message-18
-    ^-  message:noltbook
+    ^-  message-20
     [id.m note-id.m author.m text.m timestamp.m reply-to.m edited.m ~]
   :*  %19
       notes.s  new-msgs  artifacts.s  profiles.s
@@ -601,6 +665,67 @@
       dial.s  gossip-hops.s  mentions.s  active-calls.s
       gossip-envelopes.s  headlines.s
       *(map [@p @ta] @ud)
+  ==
+::  upgrade-19-to-20: collapse per-author seq-counters to per-note
+::  chains through upgrade-20-to-21 so all callers get state-21
+++  upgrade-19-to-20
+  |=  s=state-19
+  ^-  state-21
+  =/  new-seq=(map @ta @ud)
+    %-  ~(rep by seq-counters.s)
+    |=  [[[a=@p n=@ta] v=@ud] acc=(map @ta @ud)]
+    =/  cur=@ud  (fall (~(get by acc) n) 0)
+    (~(put by acc) n (max v cur))
+  =/  s20=state-20
+    :*  %20
+        notes.s  messages.s  artifacts.s  profiles.s
+        transactions.s  current-note.s  peers.s  has-avatar.s
+        pal-outgoing.s  pal-incoming.s  pal-blocked.s
+        dial.s  gossip-hops.s  mentions.s  active-calls.s
+        gossip-envelopes.s  headlines.s
+        new-seq
+    ==
+  (upgrade-20-to-21 s20)
+::  upgrade-20-to-21: add reply-to-eid to entry-meta in messages
+::  walks all messages, converts 5-field meta to 6-field, backfills reply-to-eid
+++  upgrade-20-to-21
+  |=  s=state-20
+  ^-  state-21
+  =/  new-msgs=(map @ta (list message:noltbook))
+    %-  ~(run by messages.s)
+    |=  msgs=(list message-20)
+    ^-  (list message:noltbook)
+    ::  first pass: convert meta shape (add reply-to-eid=~)
+    =/  converted=(list message:noltbook)
+      %+  turn  msgs
+      |=  m=message-20
+      ^-  message:noltbook
+      =/  new-meta=(unit entry-meta:noltbook)
+        ?~  meta.m  ~
+        `[eid.u.meta.m seq.u.meta.m rev.u.meta.m created.u.meta.m updated.u.meta.m ~]
+      [id.m note-id.m author.m text.m timestamp.m reply-to.m edited.m new-meta]
+    ::  build eid-by-id map for backfill
+    =/  eid-map=(map @da @uv)
+      %-  ~(rep in (sy converted))
+      |=  [m=message:noltbook acc=(map @da @uv)]
+      ?~  meta.m  acc
+      (~(put by acc) id.m eid.u.meta.m)
+    ::  second pass: backfill reply-to-eid from parent's eid
+    %+  turn  converted
+    |=  m=message:noltbook
+    ^-  message:noltbook
+    ?~  meta.m  m
+    ?~  reply-to.m  m
+    =/  parent-eid=(unit @uv)  (~(get by eid-map) u.reply-to.m)
+    ?~  parent-eid  m
+    m(reply-to-eid.u.meta `u.parent-eid)
+  :*  %21
+      notes.s  new-msgs  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s
   ==
 ::  mention detection: check if text contains @~our
 ++  has-our-mention
@@ -630,7 +755,7 @@
   (lth `@`id.a `@`id.b)
 --
 %-  agent:dbug
-=|  state-19
+=|  state-21
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -654,8 +779,8 @@
 ++  on-load
   |=  old=vase
   ^-  (quip card _this)
-  ?:  ?=([%19 *] q.old)
-    =/  loaded  !<(state-19 old)
+  ?:  ?=([%21 *] q.old)
+    =/  loaded  !<(state-21 old)
     ::  fix: ensure cover note exists and is keyed as %cover
     =/  loaded
       ?:  (~(has by notes.loaded) %cover)  loaded
@@ -690,9 +815,29 @@
       ^-  card
       [%pass /prof-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-profile our.bowl prof])]
     [prof-cards this(state loaded(active-calls *(map @ta call-info:noltbook)))]
+  ?:  ?=([%20 *] q.old)
+    =/  s20  !<(state-20 old)
+    =/  loaded  (upgrade-20-to-21 s20)
+    =/  prof  (fall (~(get by profiles.loaded) our.bowl) *profile:noltbook)
+    =/  prof-cards=(list card)
+      %+  turn  ~(tap in peers.loaded)
+      |=  p=@p
+      ^-  card
+      [%pass /prof-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-profile our.bowl prof])]
+    [prof-cards this(state loaded(active-calls *(map @ta call-info:noltbook)))]
+  ?:  ?=([%19 *] q.old)
+    =/  s19  !<(state-19 old)
+    =/  loaded  (upgrade-19-to-20 s19)
+    =/  prof  (fall (~(get by profiles.loaded) our.bowl) *profile:noltbook)
+    =/  prof-cards=(list card)
+      %+  turn  ~(tap in peers.loaded)
+      |=  p=@p
+      ^-  card
+      [%pass /prof-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-profile our.bowl prof])]
+    [prof-cards this(state loaded(active-calls *(map @ta call-info:noltbook)))]
   ?:  ?=([%18 *] q.old)
     =/  s18  !<(state-18 old)
-    =/  loaded  (upgrade-18-to-19 s18)
+    =/  loaded  (upgrade-19-to-20 (upgrade-18-to-19 s18))
     =/  prof  (fall (~(get by profiles.loaded) our.bowl) *profile:noltbook)
     =/  prof-cards=(list card)
       %+  turn  ~(tap in peers.loaded)
@@ -729,9 +874,9 @@
       ~&  [%creating-missing-rumors our=our.bowl]
       =/  rumors=note-17  [%ars-rumors 'RUMORS' %cover our.bowl (sy ~[our.bowl]) ~ ~ ~ ~ %secret ~ & ~]
       s17(notes (~(put by notes.s17) %ars-rumors rumors), messages (~(put by messages.s17) %ars-rumors (fall (~(get by messages.s17) %ars-rumors) ~)))
-    ::  upgrade 17 → 18 → 19
+    ::  upgrade 17 → 18 → 19 → 20
     =/  s18  (upgrade-17-to-18 s17)
-    =/  loaded  (upgrade-18-to-19 s18)
+    =/  loaded  (upgrade-19-to-20 (upgrade-18-to-19 s18))
     =/  prof  (fall (~(get by profiles.loaded) our.bowl) *profile:noltbook)
     =/  prof-cards=(list card)
       %+  turn  ~(tap in peers.loaded)
@@ -785,7 +930,7 @@
       ~&  [%creating-missing-rumors our=our.bowl]
       =/  rumors=note-17  [%ars-rumors 'RUMORS' %cover our.bowl (sy ~[our.bowl]) ~ ~ ~ ~ %secret ~ & ~]
       s17(notes (~(put by notes.s17) %ars-rumors rumors), messages (~(put by messages.s17) %ars-rumors (fall (~(get by messages.s17) %ars-rumors) ~)))
-    =/  loaded  (upgrade-18-to-19 (upgrade-17-to-18 s17))
+    =/  loaded  (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 s17)))
     =/  prof  (fall (~(get by profiles.loaded) our.bowl) *profile:noltbook)
     =/  prof-cards=(list card)
       %+  turn  ~(tap in peers.loaded)
@@ -809,10 +954,10 @@
       |=  p=@p
       ^-  card
       [%pass /prof-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-profile our.bowl prof])]
-    [prof-cards this(state (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 s16))))]
+    [prof-cards this(state (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 s16)))))]
   ?:  ?=([%14 *] q.old)
     =/  loaded  !<(state-14 old)
-    `this(state (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 loaded))))))
+    `this(state (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 loaded)))))))
   ?:  ?=([%13 *] q.old)
     =/  loaded  !<(state-13 old)
     =/  s15  (upgrade-14-to-15 (upgrade-13-to-14 loaded))
@@ -820,7 +965,7 @@
       =/  rumors=note-17  [%ars-rumors 'RUMORS' %cover our.bowl (sy ~[our.bowl]) ~ ~ ~ ~ %secret ~ & ~]
       s15(notes (~(put by notes.s15) %ars-rumors rumors), messages (~(put by messages.s15) %ars-rumors *(list message-18)))
     s15
-    `this(state (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 s15)))))
+    `this(state (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 s15))))))
   ::  state-12 → state-18
   ?:  ?=([%12 *] q.old)
     =/  s12  !<(state-12 old)
@@ -831,7 +976,7 @@
       =/  rumors=note-17  [%ars-rumors 'RUMORS' %cover our.bowl (sy ~[our.bowl]) ~ ~ ~ ~ %secret ~ & ~]
       s15(notes (~(put by notes.s15) %ars-rumors rumors), messages (~(put by messages.s15) %ars-rumors *(list message-18)))
     s15
-    =/  s19  (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 s15))))
+    =/  s19  (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 s15)))))
     ::  if we are the moon: hey all peers so they add us to pal-incoming
     ?:  =(our.bowl distro)
       =/  hey-cards=(list card)
@@ -852,7 +997,7 @@
   ::  state-11 → state-19
   ?:  ?=([%11 *] q.old)
     =/  s11  !<(state-11 old)
-    =/  s19  (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 s11))))))))
+    =/  s19  (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 s11)))))))))
     =/  distro=@p  ~racmud-mipmet-disden-talhes
     ?:  =(our.bowl distro)  `this(state s19)
     =/  new-peers=(set @p)  (~(put in peers.s19) distro)
@@ -864,20 +1009,20 @@
   ::  state-10 → ... → state-19
   ?:  ?=([%10 *] q.old)
     =/  s10  !<(state-10 old)
-    `this(state (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 s10))))))))))
+    `this(state (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 s10)))))))))))
   ::  state-9 → ... → state-19
   ?:  ?=([%9 *] q.old)
     =/  s9  !<(state-9 old)
-    `this(state (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 s9)))))))))))
-  ::  state-8 → ... → state-19
+    `this(state (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 s9))))))))))))
+  ::  state-8 → ... → state-20
   ?:  ?=([%8 *] q.old)
-    `this(state (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 !<(state-8 old)))))))))))))
-  ::  state-7 → ... → state-19
+    `this(state (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 !<(state-8 old))))))))))))))
+  ::  state-7 → ... → state-20
   ?:  ?=([%7 *] q.old)
     =/  s7  !<(state-7 old)
     =/  s8=state-8
       [%8 notes.s7 messages.s7 artifacts.s7 profiles.s7 transactions.s7 current-note.s7 peers.s7 has-avatar.s7 pal-outgoing.s7 pal-incoming.s7 pal-blocked.s7 0 ~]
-    `this(state (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))))))))
+    `this(state (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))))))
   ::  state-6 → ... → state-19
   ?:  ?=([%6 *] q.old)
     =/  s6  !<(state-6 old)
@@ -887,7 +1032,8 @@
       [%pass /pal-hey/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-hey ~])]
     =/  s8=state-8
       [%8 notes.s6 messages.s6 artifacts.s6 profiles.s6 transactions.s6 current-note.s6 peers.s6 has-avatar.s6 peers.s6 ~ ~ 0 ~]
-    :_  this(state (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))))))))
+    :_  this(state (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))))))
+
     hey-cards
   ?:  ?=([%5 *] q.old)
     =/  s5  !<(state-5 old)
@@ -898,7 +1044,7 @@
       [display-name.p ~ wallet-address.p azimuth-address.p]
     =/  s8=state-8
       [%8 notes.s5 messages.s5 artifacts.s5 new-profiles transactions.s5 current-note.s5 peers.s5 %.n ~ ~ ~ 0 ~]
-    `this(state (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))))))))
+    `this(state (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))))))
   ?:  ?=([%4 *] q.old)
     =/  s4  !<(state-4 old)
     =/  init-peers=(set @p)
@@ -913,7 +1059,7 @@
       [display-name.p ~ wallet-address.p azimuth-address.p]
     =/  s8=state-8
       [%8 notes.s4 messages.s4 artifacts.s4 new-profiles transactions.s4 current-note.s4 init-peers %.n ~ ~ ~ 0 ~]
-    `this(state (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))))))))
+    `this(state (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))))))
   ?:  ?=([%3 *] q.old)
     =/  s3  !<(state-3 old)
     =/  new-notes=(map @ta note-4)
@@ -928,7 +1074,7 @@
       [display-name.p ~ wallet-address.p azimuth-address.p]
     =/  s8=state-8
       [%8 new-notes messages.s3 artifacts.s3 new-profiles transactions.s3 current-note.s3 ~ %.n ~ ~ ~ 0 ~]
-    `this(state (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))))))))
+    `this(state (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))))))
   ?:  ?=([%2 *] q.old)
     =/  s2  !<(state-2 old)
     =/  new-arts=(map @ta artifact:noltbook)
@@ -951,7 +1097,7 @@
       [display-name.p ~ wallet-address.p azimuth-address.p]
     =/  s8=state-8
       [%8 new-notes messages.s2 new-arts new-profiles transactions.s2 current-note.s2 ~ %.n ~ ~ ~ 0 ~]
-    `this(state (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))))))))
+    `this(state (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))))))
   =/  s1  !<(state-1 old)
   =/  cov  (~(get by notes.s1) %cover)
   =/  fixed-notes=(map @ta note-3:noltbook)
@@ -978,7 +1124,7 @@
     [id.n name.n type.n creator.n users.n children.n parent.n last-author.n last-preview.n %secret ~ &]
   =/  s8=state-8
     [%8 new-notes messages.s1 new-arts new-profiles transactions.s1 current-note.s1 ~ %.n ~ ~ ~ 0 ~]
-  `this(state (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))))))))
+  `this(state (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))))))
 ::
 ++  on-watch
   |=  =path
@@ -1001,11 +1147,21 @@
       %requesting  :: default for known peers not yet tracked
     =/  palupd=update:noltbook  [%pal-list pal-pairs]
     =/  dialupd=update:noltbook  [%dial-update dial]
-    ::  send all current mention states
+    ::  send all current mention states (enrich with eid from message meta)
     =/  mention-cards=(list card)
       %+  turn  ~(tap by mentions)
       |=  [nid=@ta mns=(list [id=@da author=@p])]
-      [%give %fact ~ %noltbook-update !>(`update:noltbook`[%mention-update nid mns])]
+      =/  note-msgs=(list message:noltbook)  (fall (~(get by messages) nid) ~)
+      =/  enriched=(list [id=@da eid=(unit @uv) author=@p])
+        %+  turn  mns
+        |=  [mid=@da auth=@p]
+        =/  found=(list message:noltbook)  (skim note-msgs |=(m=message:noltbook =(id.m mid)))
+        =/  m-eid=(unit @uv)
+          ?~  found  ~
+          ?~  meta.i.found  ~
+          `eid.u.meta.i.found
+        [mid m-eid auth]
+      [%give %fact ~ %noltbook-update !>(`update:noltbook`[%mention-update nid enriched])]
     ::  send active call states
     =/  call-cards=(list card)
       %+  turn  ~(tap by active-calls)
@@ -1424,11 +1580,20 @@
             !=(%gossip type.u.exists)
             !=(note-id.act %ars-rumors)
         ==
-      =/  cur-seq=@ud  (fall (~(get by seq-counters) [our.bowl note-id.act]) 0)
+      =/  cur-seq=@ud  (fall (~(get by seq-counters) note-id.act) 0)
       =/  nxt-seq=@ud  ?:(is-regular +(cur-seq) 0)
+      ::  resolve reply-to-eid: look up parent message's eid
+      =/  reply-eid=(unit @uv)
+        ?.  is-regular  ~
+        ?~  reply-to.act  ~
+        =/  cur-msgs=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
+        =/  parent=(list message:noltbook)  (skim cur-msgs |=(m=message:noltbook =(id.m u.reply-to.act)))
+        ?~  parent  ~
+        ?~  meta.i.parent  ~
+        `eid.u.meta.i.parent
       =/  em=(unit entry-meta:noltbook)
         ?.  is-regular  ~
-        `[(sham [our.bowl now.bowl nxt-seq]) nxt-seq 0 now.bowl now.bowl]
+        `[(sham [our.bowl now.bowl nxt-seq]) nxt-seq 0 now.bowl now.bowl reply-eid]
       =/  msg=message:noltbook
         :*  now.bowl  note-id.act  our.bowl  text.act  now.bowl  reply-to.act  %.n  em
         ==
@@ -1507,8 +1672,8 @@
       =/  upd=update:noltbook  [%new-message msg]
       =/  pax=path  ~[%notes note-id.act]
       =/  upd-note=note:noltbook  u.exists(last-author `our.bowl, last-preview `text.act)
-      =/  new-seq-counters=(map [@p @ta] @ud)
-        ?:(is-regular (~(put by seq-counters) [our.bowl note-id.act] nxt-seq) seq-counters)
+      =/  new-seq-counters=(map @ta @ud)
+        ?:(is-regular (~(put by seq-counters) note-id.act nxt-seq) seq-counters)
       :_  this(notes (~(put by notes) note-id.act upd-note), messages (~(put by messages) note-id.act (snoc cur msg)), seq-counters new-seq-counters)
       :~  [%give %fact ~[pax] %noltbook-update !>(upd)]
           [%give %fact ~[/notes] %noltbook-update !>(upd)]
@@ -1520,22 +1685,36 @@
       ::  non-creator forwards to creator
       ?.  =(our.bowl creator.u.exists)
         :_  this
-        ~[[%pass /msg-edit/[note-id.act] %agent [creator.u.exists %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-edit-msg note-id.act msg-id.act text.act])]]
-      ::  creator: verify author is us (only author can edit own)
+        ~[[%pass /msg-edit/[note-id.act] %agent [creator.u.exists %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-edit-msg note-id.act msg-id.act eid.act text.act])]]
+      ::  creator: find message by eid (preferred) or msg-id (fallback)
       =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
-      =/  found  (skim cur |=(m=message:noltbook =(id.m msg-id.act)))
+      =/  found=(list message:noltbook)
+        ?~  eid.act
+          (skim cur |=(m=message:noltbook =(id.m msg-id.act)))
+        =/  by-eid  (skim cur |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.eid.act))))
+        ?~  by-eid
+          (skim cur |=(m=message:noltbook =(id.m msg-id.act)))
+        by-eid
       ?~  found  `this
+      ::  only author can edit own
       ?.  =(our.bowl author.i.found)  `this
+      ::  update meta: increment rev, update updated timestamp, preserve eid/seq/created
+      =/  new-meta=(unit entry-meta:noltbook)
+        ?~  meta.i.found  ~
+        `u.meta.i.found(rev +(rev.u.meta.i.found), updated now.bowl)
+      =/  target-id=@da  id.i.found
       =/  new-msgs=(list message:noltbook)
         %+  turn  cur
         |=  m=message:noltbook
-        ?.  =(id.m msg-id.act)  m
-        m(text text.act, edited &)
-      =/  edited=message:noltbook  i.found(text text.act, edited &)
+        ?.  =(id.m target-id)  m
+        m(text text.act, edited &, meta new-meta)
+      =/  edited=message:noltbook  i.found(text text.act, edited &, meta new-meta)
       =/  upd=update:noltbook  [%message-edited note-id.act edited]
       =/  pax=path  ~[%notes note-id.act]
       :_  this(messages (~(put by messages) note-id.act new-msgs))
-      ~[[%give %fact ~[pax] %noltbook-update !>(upd)]]
+      :~  [%give %fact ~[pax] %noltbook-update !>(upd)]
+          [%give %fact ~[/notes] %noltbook-update !>(upd)]
+      ==
     ::
         %delete-message
       =/  exists  (~(get by notes) note-id.act)
@@ -1543,18 +1722,25 @@
       ::  non-creator forwards to creator
       ?.  =(our.bowl creator.u.exists)
         :_  this
-        ~[[%pass /msg-del/[note-id.act] %agent [creator.u.exists %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-delete-msg note-id.act msg-id.act])]]
-      ::  creator: allow if our==author, or group-host (creator in >2-user note)
+        ~[[%pass /msg-del/[note-id.act] %agent [creator.u.exists %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-delete-msg note-id.act msg-id.act eid.act])]]
+      ::  creator: find message by eid (preferred) or msg-id (fallback)
       =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
-      =/  found  (skim cur |=(m=message:noltbook =(id.m msg-id.act)))
+      =/  found=(list message:noltbook)
+        ?~  eid.act
+          (skim cur |=(m=message:noltbook =(id.m msg-id.act)))
+        =/  by-eid  (skim cur |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.eid.act))))
+        ?~  by-eid
+          (skim cur |=(m=message:noltbook =(id.m msg-id.act)))
+        by-eid
       ?~  found  `this
       =/  is-group=?  (gth ~(wyt in users.u.exists) 2)
       ?.  ?|  =(our.bowl author.i.found)
               is-group
           ==
         `this
+      =/  target-id=@da  id.i.found
       =/  kept=(list message:noltbook)
-        (skim cur |=(m=message:noltbook !=(id.m msg-id.act)))
+        (skim cur |=(m=message:noltbook !=(id.m target-id)))
       =/  is-host-del=?  &(is-group !=(our.bowl author.i.found))
       =/  sys-msg=(unit message:noltbook)
         ?.  is-host-del  ~
@@ -1564,13 +1750,20 @@
       =/  new-msgs=(list message:noltbook)
         ?~  sys-msg  kept
         (weld kept ~[u.sys-msg])
-      =/  del-upd=update:noltbook  [%message-deleted note-id.act msg-id.act]
+      =/  del-eid=(unit @uv)
+        ?~  meta.i.found  ~
+        `eid.u.meta.i.found
+      =/  del-upd=update:noltbook  [%message-deleted note-id.act target-id del-eid]
       =/  pax=path  ~[%notes note-id.act]
       =/  facts=(list card)
         ?~  sys-msg
-          ~[[%give %fact ~[pax] %noltbook-update !>(del-upd)]]
+          :~  [%give %fact ~[pax] %noltbook-update !>(del-upd)]
+              [%give %fact ~[/notes] %noltbook-update !>(del-upd)]
+          ==
         :~  [%give %fact ~[pax] %noltbook-update !>(del-upd)]
+            [%give %fact ~[/notes] %noltbook-update !>(del-upd)]
             [%give %fact ~[pax] %noltbook-update !>(`update:noltbook`[%new-message u.sys-msg])]
+            [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%new-message u.sys-msg])]
         ==
       :_  this(messages (~(put by messages) note-id.act new-msgs))
       facts
@@ -1618,9 +1811,11 @@
         :~  [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%note-created ex])]
             [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%note-redirect id.act u.dup-id])]
         ==
+      ::  promote notebook → dm when root note reaches exactly 2 users
       ::  promote dm → group if adding 3rd+ user
       =/  new-type=note-type:noltbook
         ?:  &(=(%dm type.u.old) (gth ~(wyt in new-users) 2))  %group
+        ?:  &(=(%notebook type.u.old) =(~(wyt in new-users) 2) ?=(~ parent.u.old))  %dm
         type.u.old
       =/  new-removed=(set @p)  (~(del in removed.u.old) ship.act)
       =/  new-note=note:noltbook  u.old(users new-users, type new-type, removed new-removed)
@@ -1829,15 +2024,28 @@
       `this
     ::
         %clear-mention
-      ::  clear a single mention by msg-id (compare at ms precision
-      ::  since JSON round-trip truncates sub-ms from @da)
-      =/  ms-unit=@  (div ~s1 1.000)
-      =/  target-ms=@ud  (div (sub msg-id.act ~1970.1.1) ms-unit)
+      ::  clear a single mention by eid (preferred) or msg-id (fallback)
       =/  cur=(list [id=@da author=@p])  (fall (~(get by mentions) note-id.act) ~)
       =/  new=(list [id=@da author=@p])
-        %+  skip  cur
-        |=  [id=@da author=@p]
-        =(target-ms (div (sub id ~1970.1.1) ms-unit))
+        ?~  eid.act
+          ::  no eid: fallback to ms-precision msg-id matching
+          =/  ms-unit=@  (div ~s1 1.000)
+          =/  target-ms=@ud  (div (sub msg-id.act ~1970.1.1) ms-unit)
+          %+  skip  cur
+          |=  [id=@da author=@p]
+          =(target-ms (div (sub id ~1970.1.1) ms-unit))
+        ::  eid-first: find the message with this eid, match its id
+        =/  note-msgs=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
+        =/  found=(list message:noltbook)  (skim note-msgs |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.eid.act))))
+        ?~  found
+          ::  eid not found, fall back to ms-precision
+          =/  ms-unit=@  (div ~s1 1.000)
+          =/  target-ms=@ud  (div (sub msg-id.act ~1970.1.1) ms-unit)
+          %+  skip  cur
+          |=  [id=@da author=@p]
+          =(target-ms (div (sub id ~1970.1.1) ms-unit))
+        =/  target-id=@da  id.i.found
+        (skip cur |=([id=@da author=@p] =(id target-id)))
       =.  mentions
         ?~  new  (~(del by mentions) note-id.act)
         (~(put by mentions) note-id.act new)
@@ -1926,11 +2134,31 @@
         =/  upd=update:noltbook  [%note-deleted id.act]
         :_  this(notes (~(del by trimmed) id.act), messages (~(del by messages) id.act))
         ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
-      ::  host leaving shared note: drop locally (orphans note for others until handoff)
-      ?:  is-host
+      ::  dm: symmetric leave — either user sends %remote-leave, no kick
+      ?:  =(%dm type.u.old)
+        =/  others=(list @p)
+          %+  skim  ~(tap in users.u.old)
+          |=(p=@p !=(p our.bowl))
+        =/  leave-cards=(list card)
+          %+  turn  others
+          |=  p=@p
+          [%pass /leave-out/(scot %p p)/[id.act] %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-leave id.act])]
         =/  upd=update:noltbook  [%note-deleted id.act]
         :_  this(notes (~(del by notes) id.act), messages (~(del by messages) id.act))
+        %+  weld  leave-cards
+        ^-  (list card)
         ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
+      ::  host leaving shared note: notify other users via kick, then drop locally
+      ?:  is-host
+        =/  upd=update:noltbook  [%note-deleted id.act]
+        =/  pax=path  ~[%notes id.act]
+        =/  kick-cards=(list card)
+          %+  murn  ~(tap in users.u.old)
+          |=  p=@p
+          ?:  =(p our.bowl)  ~
+          `[%pass /kick-out/(scot %p p)/[id.act] %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-kick id.act name.u.old])]
+        :_  this(notes (~(del by notes) id.act), messages (~(del by messages) id.act))
+        :(weld ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] kick-cards)
       ::  non-host leaving shared note: poke host, drop locally
       =/  host=@p  creator.u.old
       =/  leave-card=card
@@ -2249,21 +2477,47 @@
       ::  verify: we must be creator, sender must be in users
       ?.  =(our.bowl creator.u.old)  `this
       ?.  (~(has in users.u.old) src.bowl)  `this
+      ::  host assigns authoritative entry-meta for regular notes
+      =/  is-regular=?
+        ?&  !=(%cover type.u.old)
+            !=(%gossip type.u.old)
+            !=(note-id.rem %ars-rumors)
+        ==
+      =/  cur-seq=@ud  (fall (~(get by seq-counters) note-id.rem) 0)
+      =/  nxt-seq=@ud  ?:(is-regular +(cur-seq) 0)
+      ::  resolve reply-to-eid: look up parent message's eid
       =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
-      =/  upd=update:noltbook  [%new-message msg.rem]
+      =/  reply-eid=(unit @uv)
+        ?.  is-regular  ~
+        ?~  reply-to.msg.rem  ~
+        =/  parent=(list message:noltbook)  (skim cur |=(m=message:noltbook =(id.m u.reply-to.msg.rem)))
+        ?~  parent  ~
+        ?~  meta.i.parent  ~
+        `eid.u.meta.i.parent
+      =/  host-meta=(unit entry-meta:noltbook)
+        ?.  is-regular  ~
+        `[(sham [src.bowl now.bowl nxt-seq]) nxt-seq 0 timestamp.msg.rem now.bowl reply-eid]
+      ::  override sender meta with host-assigned meta
+      =/  stamped=message:noltbook  msg.rem(meta host-meta)
+      =/  upd=update:noltbook  [%new-message stamped]
       =/  pax=path  ~[%notes note-id.rem]
       =/  upd-note=note:noltbook  u.old(last-author `author.msg.rem, last-preview `text.msg.rem)
       ::  mention detection: check if @~our appears in message text
       =/  mentioned=?  (has-our-mention text.msg.rem our.bowl)
+      =/  stamped-eid=(unit @uv)
+        ?~  meta.stamped  ~
+        `eid.u.meta.stamped
       =/  mention-cards=(list card)
         ?.  mentioned  ~
-        =/  mupd=update:noltbook  [%mention-update note-id.rem ~[[id.msg.rem author.msg.rem]]]
+        =/  mupd=update:noltbook  [%mention-update note-id.rem ~[[id.stamped stamped-eid author.msg.rem]]]
         ~[[%give %fact ~[/notes] %noltbook-update !>(mupd)]]
       =/  new-mentions=(map @ta (list [id=@da author=@p]))
         ?.  mentioned  mentions
         =/  cur-m=(list [id=@da author=@p])  (fall (~(get by mentions) note-id.rem) ~)
-        (~(put by mentions) note-id.rem (snoc cur-m [id.msg.rem author.msg.rem]))
-      :_  this(notes (~(put by notes) note-id.rem upd-note), messages (~(put by messages) note-id.rem (snoc cur msg.rem)), mentions new-mentions)
+        (~(put by mentions) note-id.rem (snoc cur-m [id.stamped author.msg.rem]))
+      =/  new-seq=(map @ta @ud)
+        ?:(is-regular (~(put by seq-counters) note-id.rem nxt-seq) seq-counters)
+      :_  this(notes (~(put by notes) note-id.rem upd-note), messages (~(put by messages) note-id.rem (snoc cur stamped)), mentions new-mentions, seq-counters new-seq)
       :*  [%give %fact ~[pax] %noltbook-update !>(upd)]
           [%give %fact ~[/notes] %noltbook-update !>(upd)]
           mention-cards
@@ -2282,7 +2536,7 @@
       =/  mentioned=?  &(!=(author.msg.rem our.bowl) (has-our-mention text.msg.rem our.bowl))
       =/  mention-cards=(list card)
         ?.  mentioned  ~
-        =/  mupd=update:noltbook  [%mention-update %cover ~[[id.msg.rem author.msg.rem]]]
+        =/  mupd=update:noltbook  [%mention-update %cover ~[[id.msg.rem ~ author.msg.rem]]]
         ~[[%give %fact ~[/notes] %noltbook-update !>(mupd)]]
       =/  new-mentions=(map @ta (list [id=@da author=@p]))
         ?.  mentioned  mentions
@@ -2361,7 +2615,7 @@
       =/  mentioned=?  &(!=(author.msg our.bowl) (has-our-mention text.msg our.bowl))
       =/  mention-cards=(list card)
         ?.  mentioned  ~
-        =/  mupd=update:noltbook  [%mention-update %cover ~[[id.msg author.msg]]]
+        =/  mupd=update:noltbook  [%mention-update %cover ~[[id.msg ~ author.msg]]]
         ~[[%give %fact ~[/notes] %noltbook-update !>(mupd)]]
       =/  new-mentions=(map @ta (list [id=@da author=@p]))
         ?.  mentioned  mentions
@@ -2433,7 +2687,7 @@
       =/  mentioned=?  &(!=(author.msg our.bowl) (has-our-mention text.msg our.bowl))
       =/  mention-cards=(list card)
         ?.  mentioned  ~
-        =/  mupd=update:noltbook  [%mention-update nid ~[[id.msg author.msg]]]
+        =/  mupd=update:noltbook  [%mention-update nid ~[[id.msg ~ author.msg]]]
         ~[[%give %fact ~[/notes] %noltbook-update !>(mupd)]]
       =/  new-mentions=(map @ta (list [id=@da author=@p]))
         ?.  mentioned  mentions
@@ -2554,20 +2808,33 @@
       ?.  =(our.bowl creator.u.old)  `this
       ?.  (~(has in users.u.old) src.bowl)  `this
       =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
-      =/  found  (skim cur |=(m=message:noltbook =(id.m msg-id.rem)))
+      ::  eid-first lookup, fall back to msg-id
+      =/  found=(list message:noltbook)
+        ?^  eid.rem
+          =/  by-eid  (skim cur |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.eid.rem))))
+          ?^  by-eid  by-eid
+          (skim cur |=(m=message:noltbook =(id.m msg-id.rem)))
+        (skim cur |=(m=message:noltbook =(id.m msg-id.rem)))
       ?~  found  `this
       ::  only the author can edit their own msg
       ?.  =(src.bowl author.i.found)  `this
+      ::  host updates meta: increment rev, set updated timestamp
+      =/  new-meta=(unit entry-meta:noltbook)
+        ?~  meta.i.found  ~
+        `u.meta.i.found(rev +(rev.u.meta.i.found), updated now.bowl)
+      =/  target-id=@da  id.i.found
       =/  new-msgs=(list message:noltbook)
         %+  turn  cur
         |=  m=message:noltbook
-        ?.  =(id.m msg-id.rem)  m
-        m(text text.rem, edited &)
-      =/  edited=message:noltbook  i.found(text text.rem, edited &)
+        ?.  =(id.m target-id)  m
+        m(text text.rem, edited &, meta new-meta)
+      =/  edited=message:noltbook  i.found(text text.rem, edited &, meta new-meta)
       =/  upd=update:noltbook  [%message-edited note-id.rem edited]
       =/  pax=path  ~[%notes note-id.rem]
       :_  this(messages (~(put by messages) note-id.rem new-msgs))
-      ~[[%give %fact ~[pax] %noltbook-update !>(upd)]]
+      :~  [%give %fact ~[pax] %noltbook-update !>(upd)]
+          [%give %fact ~[/notes] %noltbook-update !>(upd)]
+      ==
     ::
         %remote-create-child
       ::  a user in our shared note asked us to create a child
@@ -2614,38 +2881,42 @@
       ?.  =(our.bowl creator.u.old)  `this
       ?.  (~(has in users.u.old) src.bowl)  `this
       =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
-      =/  found  (skim cur |=(m=message:noltbook =(id.m msg-id.rem)))
+      ::  eid-first lookup, fall back to msg-id
+      =/  found=(list message:noltbook)
+        ?^  eid.rem
+          =/  by-eid  (skim cur |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.eid.rem))))
+          ?^  by-eid  by-eid
+          (skim cur |=(m=message:noltbook =(id.m msg-id.rem)))
+        (skim cur |=(m=message:noltbook =(id.m msg-id.rem)))
       ?~  found  `this
       ::  only the author can delete their own msg via remote
       ?.  =(src.bowl author.i.found)  `this
+      =/  target-id=@da  id.i.found
       =/  new-msgs=(list message:noltbook)
-        (skim cur |=(m=message:noltbook !=(id.m msg-id.rem)))
-      =/  upd=update:noltbook  [%message-deleted note-id.rem msg-id.rem]
+        (skim cur |=(m=message:noltbook !=(id.m target-id)))
+      =/  del-eid=(unit @uv)
+        ?~  meta.i.found  ~
+        `eid.u.meta.i.found
+      =/  upd=update:noltbook  [%message-deleted note-id.rem target-id del-eid]
       =/  pax=path  ~[%notes note-id.rem]
       :_  this(messages (~(put by messages) note-id.rem new-msgs))
-      ~[[%give %fact ~[pax] %noltbook-update !>(upd)]]
+      :~  [%give %fact ~[pax] %noltbook-update !>(upd)]
+          [%give %fact ~[/notes] %noltbook-update !>(upd)]
+      ==
     ::
         %remote-leave
       ::  a user left a note we host
       =/  old  (~(get by notes) note-id.rem)
       ?~  old  `this
-      ?.  =(our.bowl creator.u.old)  `this
+      ::  accept from creator (normal) or from any member of a %dm note
+      ?.  ?|  =(our.bowl creator.u.old)
+              =(%dm type.u.old)
+          ==
+        `this
       ?.  (~(has in users.u.old) src.bowl)  `this
       =/  new-users=(set @p)  (~(del in users.u.old) src.bowl)
       =/  pax=path  ~[%notes note-id.rem]
-      ::  if host is alone after this, delete entirely (except gossip — creator keeps container)
-      ?:  &(=(~(wyt in new-users) 1) !=(%gossip type.u.old))
-        =/  del-upd=update:noltbook  [%note-deleted note-id.rem]
-        =/  trimmed=(map @ta note:noltbook)
-          ?~  parent.u.old  notes
-          =/  par  (~(get by notes) u.parent.u.old)
-          ?~  par  notes
-          (~(put by notes) u.parent.u.old u.par(children (skim children.u.par |=(c=@ta !=(c note-id.rem)))))
-        :_  this(notes (~(del by trimmed) note-id.rem), messages (~(del by messages) note-id.rem))
-        :~  [%give %fact ~[/notes] %noltbook-update !>(del-upd)]
-            [%give %fact ~[pax] %noltbook-update !>(del-upd)]
-        ==
-      ::  remaining users: shrink set, fan out update
+      ::  keep note for remaining user — just remove the leaver
       =/  new-note=note:noltbook  u.old(users new-users)
       =/  users-upd=update:noltbook
         [%note-users-updated note-id.rem ~(tap in new-users) ~(tap in removed.u.old)]
@@ -3013,9 +3284,12 @@
         =?  mentions  mentioned
           =/  cur-m=(list [id=@da author=@p])  (fall (~(get by mentions) nid) ~)
           (~(put by mentions) nid (snoc cur-m [id.msg author.msg]))
+        =/  msg-eid=(unit @uv)
+          ?~  meta.msg  ~
+          `eid.u.meta.msg
         =/  mention-cards=(list card)
           ?.  mentioned  ~
-          =/  mupd=update:noltbook  [%mention-update nid ~[[id.msg author.msg]]]
+          =/  mupd=update:noltbook  [%mention-update nid ~[[id.msg msg-eid author.msg]]]
           ~[[%give %fact ~[/notes] %noltbook-update !>(mupd)]]
         =/  base-cards=(list card)
           :~  [%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]
@@ -3026,22 +3300,38 @@
       ::
           %message-edited
         =/  msgs=(list message:noltbook)  (fall (~(get by messages) note-id.upd) ~)
+        ::  find by eid first, fall back to old id
+        =/  edit-eid=(unit @uv)  ?~(meta.msg.upd ~ `eid.u.meta.msg.upd)
         =/  new-msgs=(list message:noltbook)
           %+  turn  msgs
           |=  m=message:noltbook
+          ?:  ?~  edit-eid  %.n
+              ?~(meta.m %.n =(eid.u.meta.m u.edit-eid))
+            msg.upd
           ?.  =(id.m id.msg.upd)  m
           msg.upd
         =.  messages  (~(put by messages) note-id.upd new-msgs)
         :_  this
-        ~[[%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]]
+        :~  [%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]
+            [%give %fact ~[/notes] %noltbook-update !>(upd)]
+        ==
       ::
           %message-deleted
         =/  msgs=(list message:noltbook)  (fall (~(get by messages) note-id.upd) ~)
+        ::  find by eid first, fall back to old id
+        =/  del-eid  eid.upd
         =/  new-msgs=(list message:noltbook)
-          (skim msgs |=(m=message:noltbook !=(id.m msg-id.upd)))
+          %+  skim  msgs
+          |=  m=message:noltbook
+          ?:  ?~  del-eid  %.n
+              ?~(meta.m %.n =(eid.u.meta.m u.del-eid))
+            %.n
+          !=(id.m msg-id.upd)
         =.  messages  (~(put by messages) note-id.upd new-msgs)
         :_  this
-        ~[[%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]]
+        :~  [%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]
+            [%give %fact ~[/notes] %noltbook-update !>(upd)]
+        ==
       ::
           %note-meta-updated
         ::  relay visibility changes from remote creator to local frontend
@@ -3113,7 +3403,7 @@
           (~(put by mentions) %cover (snoc cur-m [id.msg author.msg]))
         =/  mention-cards=(list card)
           ?.  mentioned  ~
-          ~[[%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%mention-update %cover ~[[id.msg author.msg]]])]]
+          ~[[%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%mention-update %cover ~[[id.msg ~ author.msg]]])]]
         ::  author persists full message; non-author stores envelope only
         ?:  =(author.msg our.bowl)
           =.  messages  (~(put by messages) %cover (cap-msgs (snoc cur msg) %.y))
@@ -3144,7 +3434,7 @@
           (~(put by mentions) %cover (snoc cur-m [id.msg author.msg]))
         =/  mention-cards=(list card)
           ?.  mentioned  ~
-          ~[[%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%mention-update %cover ~[[id.msg author.msg]]])]]
+          ~[[%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%mention-update %cover ~[[id.msg ~ author.msg]]])]]
         ::  author persists; non-author stores envelope only
         ?:  =(author.msg our.bowl)
           =.  messages  (~(put by messages) %cover (cap-msgs (snoc cur msg) %.y))

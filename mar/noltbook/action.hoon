@@ -72,7 +72,12 @@
       =/  txt-nd  (need (~(get by d) 'text'))
       ?>  ?=([%s *] txt-nd)
       =/  mid=@da  (add ~1970.1.1 (mul (rash p.mid-nd dem) (div ~s1 1.000)))
-      [%edit-message `@ta`p.nid-nd mid p.txt-nd]
+      =/  eid-raw  (~(get by d) 'eid')
+      =/  eid=(unit @uv)
+        ?~  eid-raw  ~
+        ?.  ?=([%s *] u.eid-raw)  ~
+        `(slav %uv p.u.eid-raw)
+      [%edit-message `@ta`p.nid-nd mid eid p.txt-nd]
     ::  delete-message
     ?:  =('delete-message' tag)
       =/  nid-nd  (need (~(get by d) 'noteId'))
@@ -80,7 +85,12 @@
       =/  mid-nd  (need (~(get by d) 'msgId'))
       ?>  ?=([%n *] mid-nd)
       =/  mid=@da  (add ~1970.1.1 (mul (rash p.mid-nd dem) (div ~s1 1.000)))
-      [%delete-message `@ta`p.nid-nd mid]
+      =/  eid-raw  (~(get by d) 'eid')
+      =/  eid=(unit @uv)
+        ?~  eid-raw  ~
+        ?.  ?=([%s *] u.eid-raw)  ~
+        `(slav %uv p.u.eid-raw)
+      [%delete-message `@ta`p.nid-nd mid eid]
     ::  set-note-meta
     ?:  =('set-note-meta' tag)
       =/  id-nd  (need (~(get by d) 'id'))
@@ -258,7 +268,12 @@
       =/  mid-nd  (need (~(get by d) 'msgId'))
       ?>  ?=([%n *] mid-nd)
       =/  mid=@da  (add ~1970.1.1 (mul (rash p.mid-nd dem) (div ~s1 1.000)))
-      [%clear-mention `@ta`p.nid-nd mid]
+      =/  eid-raw  (~(get by d) 'eid')
+      =/  eid=(unit @uv)
+        ?~  eid-raw  ~
+        ?.  ?=([%s *] u.eid-raw)  ~
+        `(slav %uv p.u.eid-raw)
+      [%clear-mention `@ta`p.nid-nd mid eid]
     ::  start-call
     ?:  =('start-call' tag)
       =/  nid-nd  (need (~(get by d) 'noteId'))

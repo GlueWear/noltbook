@@ -11,6 +11,7 @@
       rev=@ud
       created=@da
       updated=@da
+      reply-to-eid=(unit @uv)
   ==
 ::  note types
 +$  note-type  ?(%notebook %dm %group %cover %gossip)
@@ -131,8 +132,8 @@
       [%remote-note-list notes=(list note)]
       [%remote-hey ~]
       [%remote-bye ~]
-      [%remote-edit-msg note-id=@ta msg-id=@da text=@t]
-      [%remote-delete-msg note-id=@ta msg-id=@da]
+      [%remote-edit-msg note-id=@ta msg-id=@da eid=(unit @uv) text=@t]
+      [%remote-delete-msg note-id=@ta msg-id=@da eid=(unit @uv)]
       [%remote-create-child parent-id=@ta name=@t]
       [%remote-child-note parent-id=@ta note=note]
       ::  root-uniqueness: tell loser to drop their root + adopt ours
@@ -156,8 +157,8 @@
       [%delete-note id=@ta]
       [%switch-note id=@ta]
       [%send-message note-id=@ta text=@t reply-to=(unit @da)]
-      [%edit-message note-id=@ta msg-id=@da text=@t]
-      [%delete-message note-id=@ta msg-id=@da]
+      [%edit-message note-id=@ta msg-id=@da eid=(unit @uv) text=@t]
+      [%delete-message note-id=@ta msg-id=@da eid=(unit @uv)]
       [%set-note-meta id=@ta visibility=note-visibility icon-url=(unit @t) writable=?]
       [%invite-to-note id=@ta ship=@p]
       [%create-artifact note-id=@ta name=@t type=artifact-type content=@t]
@@ -178,7 +179,7 @@
       [%reparent-note id=@ta new-parent=@ta]
       [%remove-member id=@ta ship=@p]
       [%clear-mentions note-id=@ta]
-      [%clear-mention note-id=@ta msg-id=@da]
+      [%clear-mention note-id=@ta msg-id=@da eid=(unit @uv)]
       ::  call actions
       [%start-call note-id=@ta]
       [%join-call note-id=@ta]
@@ -198,7 +199,7 @@
       [%message-list note-id=@ta messages=(list message) artifacts=(list artifact)]
       [%new-message msg=message]
       [%message-edited note-id=@ta msg=message]
-      [%message-deleted note-id=@ta msg-id=@da]
+      [%message-deleted note-id=@ta msg-id=@da eid=(unit @uv)]
       [%artifact-created artifact=artifact]
       [%artifact-updated artifact=artifact]
       [%artifact-deleted id=@ta]
@@ -217,7 +218,7 @@
       [%rumor-message msg=message]
       [%note-redirect old-id=@ta new-id=@ta]
       [%note-users-updated id=@ta users=(list @p) removed=(list @p)]
-      [%mention-update note-id=@ta mentions=(list [id=@da author=@p])]
+      [%mention-update note-id=@ta mentions=(list [id=@da eid=(unit @uv) author=@p])]
       ::  call updates
       [%call-started note-id=@ta call-id=@ta started-by=@p participants=(list @p)]
       [%call-joined note-id=@ta ship=@p]

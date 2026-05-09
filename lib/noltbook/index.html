@@ -638,6 +638,7 @@ const api = {
     const oldMeta=Object.values(this.subMeta);
     this.subs={};this.subMeta={};
     this.newChannel();
+    _lastMsgHash={};  // clear BEFORE re-subscribing so no stale hash can race incoming snapshots
     const batch=[];
     for(const m of oldMeta){
       const id=++this.msgId;
@@ -746,15 +747,15 @@ function handleUpdate(upd){
   else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));state.notes[n.id]=n;if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id)}if(n.creator==='~'+api.ship){if(n.parent)state.expandedNotes.add(n.parent);openNote(n.id)}else{state.notifications.add(n.id)}renderNoteList()}
   else if(upd['note-renamed']){const{id,name}=upd['note-renamed'];if(state.notes[id]){state.notes[id].name=name;renderNoteList()}if(state.currentNoteId===id)document.getElementById('chatNoteName').textContent=name}
   else if(upd['note-deleted']){const{id}=upd['note-deleted'];delete state.notes[id];if(state.currentNoteId===id)openNote('cover');renderNoteList()}
-  else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];const hash=noteId+':'+messages.length+':'+(messages.length?messages[messages.length-1].id:'');if(_lastMsgHash[noteId]===hash)return;_lastMsgHash[noteId]=hash;state.messages[noteId]=messages;for(const a of artifacts)state.artifacts[a.id]=a;if(state.currentNoteId===noteId)scheduleRender(noteId);updateCoverPreview();scheduleNoteList()}
-  else if(upd['new-message']){const msg=upd['new-message'];if(!state.messages[msg.noteId])state.messages[msg.noteId]=[];if(state.messages[msg.noteId].some(m=>m.id===msg.id))return;state.messages[msg.noteId].push(msg);if(state.notes[msg.noteId]){state.notes[msg.noteId].lastAuthor=msg.author;state.notes[msg.noteId].lastPreview=msg.text}if(state.currentNoteId===msg.noteId)appendMessage(msg);else state.notifications.add(msg.noteId);updateCoverPreview();scheduleNoteList()}
+  else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];let maxSeq=0,revSum=0;for(const m of messages){if(m.meta){if(m.meta.seq>maxSeq)maxSeq=m.meta.seq;revSum+=m.meta.rev}}const hash=noteId+':'+messages.length+':'+maxSeq+':'+revSum;if(_lastMsgHash[noteId]===hash)return;_lastMsgHash[noteId]=hash;state.messages[noteId]=messages;for(const a of artifacts)state.artifacts[a.id]=a;if(state.currentNoteId===noteId)scheduleRender(noteId);updateCoverPreview();scheduleNoteList()}
+  else if(upd['new-message']){const msg=upd['new-message'];if(!state.messages[msg.noteId])state.messages[msg.noteId]=[];if(state.messages[msg.noteId].some(m=>(msg.meta&&msg.meta.eid&&m.meta&&m.meta.eid===msg.meta.eid)||m.id===msg.id))return;state.messages[msg.noteId].push(msg);if(state.notes[msg.noteId]){state.notes[msg.noteId].lastAuthor=msg.author;state.notes[msg.noteId].lastPreview=msg.text}if(state.currentNoteId===msg.noteId)appendMessage(msg);else state.notifications.add(msg.noteId);updateCoverPreview();scheduleNoteList()}
   else if(upd['artifact-created']){const a=upd['artifact-created'];state.artifacts[a.id]=a;if(a.type==='app'||a.type==='file')scheduleRender()}
   else if(upd['artifact-updated']){const a=upd['artifact-updated'];state.artifacts[a.id]=a;if(state.activeAppBridge&&state.activeAppBridge.artifactId===a.id){const lastVer=a.versions[a.versions.length-1];if(lastVer){try{const meta=JSON.parse(lastVer.content);const iframe=document.getElementById(state.activeAppBridge.iframeId);if(iframe&&iframe.contentWindow){iframe.contentWindow.postMessage({source:'noltbook-host',type:'nb:state',payload:meta.state||{}},'*')}}catch(e){}}}else if(document.getElementById('artifactPanel').classList.contains('open')&&document.getElementById('artifactPanelTitle').textContent===a.name)openArtifactPanel(a.id)}
   else if(upd['artifact-deleted']){delete state.artifacts[upd['artifact-deleted'].id];closeArtifactPanel();scheduleRender()}
   else if(upd['note-meta-updated']){const d=upd['note-meta-updated'];const n=state.notes[d.id];if(n){n.visibility=d.visibility;n.iconUrl=d.iconUrl||null;n.writable=d.writable;renderNoteList()}}
   else if(upd['headline-updated']){const d=upd['headline-updated'];const n=state.notes[d.id];if(n){n.headline=d.headline||null;renderNoteList()}}
-  else if(upd['message-edited']){const{noteId,message}=upd['message-edited'];const msgs=state.messages[noteId]||[];const idx=msgs.findIndex(m=>m.id===message.id);if(idx>=0){msgs[idx]=message}if(state.currentNoteId===noteId)scheduleRender(noteId)}
-  else if(upd['message-deleted']){const{noteId,msgId}=upd['message-deleted'];const msgs=state.messages[noteId]||[];const idx=msgs.findIndex(m=>m.id===msgId);if(idx>=0)msgs.splice(idx,1);if(state.currentNoteId===noteId)scheduleRender(noteId)}
+  else if(upd['message-edited']){const{noteId,message}=upd['message-edited'];const msgs=state.messages[noteId]||[];const eid=message.meta&&message.meta.eid;const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===message.id);if(fi>=0){msgs[fi]=message}if(state.currentNoteId===noteId)scheduleRender(noteId)}
+  else if(upd['message-deleted']){const{noteId,msgId,eid}=upd['message-deleted'];const msgs=state.messages[noteId]||[];const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===msgId);if(fi>=0)msgs.splice(fi,1);if(state.currentNoteId===noteId)scheduleRender(noteId)}
   else if(upd['profile-list']){for(const entry of upd['profile-list']){state.profiles[entry.ship]=entry.profile}const me=state.profiles['~'+api.ship];if(me){if(me.displayName)document.getElementById('shipDisplay').textContent=me.displayName;updateSidebarSigil()}if(state.palsView)renderPalsList();if(state.currentNoteId)scheduleRender()}
   else if(upd['profile-updated']){const{ship,profile}=upd['profile-updated'];state.profiles[ship]=profile;if(ship==='~'+api.ship){document.getElementById('shipDisplay').textContent=profile.displayName||'~'+api.ship;updateSidebarSigil()}if(state.palsView)renderPalsList();if(state.currentNoteId)scheduleRender()}
   else if(upd['remote-note-list']){const{ship,notes}=upd['remote-note-list'];const el=document.getElementById('viewProfileNotes');if(el){const pubNotes=notes.filter(n=>n.visibility==='public').sort((a,b)=>a.name.localeCompare(b.name));const privNotes=notes.filter(n=>n.visibility==='private').sort((a,b)=>a.name.localeCompare(b.name));const all=[...pubNotes,...privNotes];if(all.length===0){el.innerHTML='<span style="color:var(--dim)">none available</span>'}else{el.innerHTML=all.map(n=>{const ic=n.iconUrl?'<img src="'+escAttr(n.iconUrl)+'">':noteInitials(n.name);const vis=n.visibility==='public'?'public':'private';return '<div class="profile-note-entry"><div class="profile-note-icon">'+ic+'</div><div class="profile-note-text"><span class="profile-note-name">'+escHtml(n.name)+'</span><span class="profile-note-vis">'+vis+'</span></div></div>'}).join('')}}}
@@ -769,7 +770,7 @@ function handleUpdate(upd){
   else if(upd['envelope-list']){const{noteId,envelopes}=upd['envelope-list'];const existingIds=new Set((state.messages[noteId]||[]).map(m=>m.id));const nenvs=state.gossipEnvelopes[noteId]||{};let fetched=0;for(const env of envelopes){if(existingIds.has(env.id)||nenvs[env.id])continue;nenvs[env.id]=env;const shell={id:env.id,noteId:noteId,author:env.author,text:null};if(coverMsgVisible(shell)){fetchGossipContent(noteId,env.id,env.author);fetched++}}state.gossipEnvelopes[noteId]=nenvs;if(fetched>0)scheduleNoteList()}
   else if(upd['cover-msg-content']){const{noteId,message:msg}=upd['cover-msg-content'];const nid=noteId||'cover';const nfetch=state.gossipFetching[nid];if(nfetch)nfetch.delete(msg.id);const nenvs=state.gossipEnvelopes[nid]||{};delete nenvs[msg.id];state.gossipEnvelopes[nid]=nenvs;if(!state.messages[nid])state.messages[nid]=[];if(!(state.messages[nid].some(m=>m.id===msg.id))){state.messages[nid].push(msg);const visible=coverMsgVisible(msg);if(state.currentNoteId!==nid&&visible)state.notifications.add(nid)}state.gossipPending[nid]=Math.max(0,(state.gossipPending[nid]||1)-1);if(state.gossipPending[nid]===0){hideGossipLoading();if(state.currentNoteId===nid)scheduleRender(nid);if(state.notes[nid]){const msgs=state.messages[nid]||[];if(msgs.length){const newest=msgs.reduce((a,b)=>b.timestamp>a.timestamp?b:a);state.notes[nid].lastPreview=newest.text;state.notes[nid].lastAuthor=newest.author}}scheduleNoteList()}}
   else if(upd['rumor-message']){const msg=upd['rumor-message'].message;if(!state.messages['ars-rumors'])state.messages['ars-rumors']=[];const isDup=state.messages['ars-rumors'].some(m=>m.text===msg.text);if(!isDup){state.messages['ars-rumors'].unshift(msg);if(state.currentNoteId==='ars-rumors')renderMessages('ars-rumors');else state.notifications.add('ars-rumors');scheduleNoteList()}}
-  else if(upd['mention-update']){const{noteId,mentions}=upd['mention-update'];if(!state.mentions[noteId])state.mentions[noteId]=[];for(const m of mentions){if(!state.mentions[noteId].some(x=>x.id===m.id))state.mentions[noteId].push({id:m.id,author:m.author})}scheduleNoteList()}
+  else if(upd['mention-update']){const{noteId,mentions}=upd['mention-update'];if(!state.mentions[noteId])state.mentions[noteId]=[];for(const m of mentions){const mEid=m.eid||null;const dup=state.mentions[noteId].some(x=>(mEid&&x.eid&&x.eid===mEid)||x.id===m.id);if(!dup)state.mentions[noteId].push({id:m.id,eid:mEid,author:m.author})}scheduleNoteList()}
   else if(upd['call-state']){const{noteId,call}=upd['call-state'];console.log('[call-state]',noteId,call);if(call.status==='active'){state.activeCalls[noteId]=call}else{delete state.activeCalls[noteId]}updateCallUI()}
   else if(upd['call-started']){const d=upd['call-started'];console.log('[call-started]',d);state.activeCalls[d.noteId]={callId:d.callId,noteId:d.noteId,startedBy:d.startedBy,participants:d.participants,status:'active'};updateCallUI()}
   else if(upd['call-joined']){const{noteId,ship}=upd['call-joined'];console.log('[call-joined]',noteId,ship);const c=state.activeCalls[noteId];if(c){if(!c.participants.includes(ship))c.participants.push(ship);updateCallUI();if(state.inCall===noteId)rtcManager.onPeerJoined(ship)}}
@@ -808,6 +809,7 @@ async function openNote(id){
   if(state.currentNoteSub!==null){await api.unsubscribe(state.currentNoteSub);state.currentNoteSub=null}
   // tear down previous mention observer
   if(mentionObserver){mentionObserver.disconnect();mentionObserver=null}
+  delete _lastMsgHash[id];  // clear so fresh snapshot on subscribe is always accepted
   hideGossipLoading();state.currentNoteId=id;state.notifications.delete(id);state.lastMsgAuthor=null;
   state._mentionJumpDone=false;
   revealNoteInTree(id);
@@ -1200,9 +1202,21 @@ function toggleContactTag(el){
     }
   }
 }
-function findThreadRoot(msgId,byId){
+function getParent(m,byId,byEid){
+  // eid-first: use replyToEid from meta if available
+  if(m.meta&&m.meta.replyToEid&&byEid[m.meta.replyToEid])return byEid[m.meta.replyToEid];
+  // fallback: timestamp-based replyTo
+  if(m.replyTo&&byId[m.replyTo])return byId[m.replyTo];
+  return null;
+}
+function getMsgEid(m){return m.meta&&m.meta.eid?m.meta.eid:null}
+// canonical order key: seq for hosted notes with meta, timestamp id for legacy/cover
+function msgOrder(m){return m.meta&&m.meta.seq?m.meta.seq:m.id}
+// authored display time: created from meta, or timestamp id for legacy
+function msgTime(m){return m.meta&&m.meta.created?m.meta.created:m.id}
+function findThreadRoot(msgId,byId,byEid){
   let cur=byId[msgId];
-  while(cur&&cur.replyTo&&byId[cur.replyTo])cur=byId[cur.replyTo];
+  while(cur){const p=getParent(cur,byId,byEid||{});if(!p)break;cur=p}
   return cur?cur.id:msgId;
 }
 function collectThreadFlat(rootId,children,byId,depth){
@@ -1212,14 +1226,14 @@ function collectThreadFlat(rootId,children,byId,depth){
   for(const r of replies){all.push({msg:r,depth});all=all.concat(collectThreadFlat(r.id,children,byId,depth+1))}
   return all;
 }
-function getAncestorChain(msgId,byId){
+function getAncestorChain(msgId,byId,byEid){
   const chain=[];let cur=byId[msgId];
-  while(cur&&cur.replyTo&&byId[cur.replyTo]){cur=byId[cur.replyTo];chain.unshift(cur.id)}
+  while(cur){const p=getParent(cur,byId,byEid||{});if(!p)break;cur=p;chain.unshift(cur.id)}
   return chain;
 }
-function msgDepth(msgId,byId){
+function msgDepth(msgId,byId,byEid){
   let d=0,cur=byId[msgId];
-  while(cur&&cur.replyTo&&byId[cur.replyTo]){cur=byId[cur.replyTo];d++}
+  while(cur){const p=getParent(cur,byId,byEid||{});if(!p)break;cur=p;d++}
   return d;
 }
 function renderMessages(noteId){
@@ -1233,31 +1247,47 @@ function renderMessages(noteId){
   }
   let msgs=state.messages[noteId]||[];
   if(isGossipNote(noteId)){msgs=msgs.filter(coverMsgVisible)}
-  const byId={};msgs.forEach(m=>byId[m.id]=m);
-  const children={};msgs.forEach(m=>{if(m.replyTo){if(!children[m.replyTo])children[m.replyTo]=[];children[m.replyTo].push(m)}});
+  const byId={};const byEid={};msgs.forEach(m=>{byId[m.id]=m;const eid=getMsgEid(m);if(eid)byEid[eid]=m});
+  // determine if note uses seq ordering (all messages have meta with seq)
+  const useSeq=!isGossipNote(noteId)&&msgs.length>0&&msgs.every(m=>m.meta&&m.meta.seq);
+  const orderKey=useSeq?(m=>m.meta.seq):(m=>m.id);
+  const children={};msgs.forEach(m=>{const p=getParent(m,byId,byEid);if(p){if(!children[p.id])children[p.id]=[];children[p.id].push(m)}});
+  // canonical reply order inside threads: sort by orderKey so expanded threads are deterministic
+  for(const k in children)children[k].sort((a,b)=>orderKey(a)-orderKey(b));
   const threadMap={};const threads={};
   for(const m of msgs){
-    const root=findThreadRoot(m.id,byId);
+    const root=findThreadRoot(m.id,byId,byEid);
     threadMap[m.id]=root;
-    if(!threads[root])threads[root]={root,replies:[],lastTime:0,newestId:null};
+    if(!threads[root])threads[root]={root,replies:[],lastOrder:0,newestId:null};
     if(m.id!==root)threads[root].replies.push(m);
-    if(m.id>threads[root].lastTime){threads[root].lastTime=m.id;threads[root].newestId=m.id}
+    const mOrd=orderKey(m);
+    if(mOrd>threads[root].lastOrder){threads[root].lastOrder=mOrd;threads[root].newestId=m.id}
   }
   const items=[];
   for(const tid in threads){
     const t=threads[tid];
     const rootMsg=byId[tid];
-    // original message always at its own timestamp
-    items.push({type:'msg',msg:rootMsg,time:rootMsg.id});
+    // original message at its canonical order position
+    items.push({type:'msg',msg:rootMsg,order:orderKey(rootMsg)});
     // separate thread container only if replies exist, sorted by newest reply
     if(t.replies.length>0){
-      items.push({type:'thread',anchorId:parseInt(tid),time:t.lastTime,newestId:t.newestId});
+      items.push({type:'thread',anchorId:parseInt(tid),order:t.lastOrder,newestId:t.newestId});
     }
   }
   // merge artifacts into the timeline so they appear in chronological order with messages
   const noteArts=Object.values(state.artifacts).filter(a=>a.noteId===noteId&&(a.type==='app'||a.type==='file'));
-  for(const art of noteArts){const lv=art.versions.length?art.versions[art.versions.length-1]:null;items.push({type:'artifact',art,time:lv?lv.timestamp:0})}
-  items.sort((a,b)=>noteId==='ars-rumors'?b.time-a.time:a.time-b.time);
+  for(const art of noteArts){
+    const lv=art.versions.length?art.versions[art.versions.length-1]:null;
+    let artOrd=lv?lv.timestamp:0;
+    if(useSeq&&lv){
+      // map artifact timestamp into seq space: find highest seq with created <= art timestamp
+      let bestSeq=0;
+      for(const m of msgs){if(m.meta&&m.meta.seq&&(m.meta.created||m.id)<=lv.timestamp&&m.meta.seq>bestSeq)bestSeq=m.meta.seq}
+      artOrd=bestSeq+0.5;
+    }
+    items.push({type:'artifact',art,order:artOrd});
+  }
+  items.sort((a,b)=>noteId==='ars-rumors'?b.order-a.order:a.order-b.order);
   for(const item of items){
     if(item.type==='msg'){
       renderMsg(el,item.msg,0);
@@ -1275,12 +1305,12 @@ function renderMessages(noteId){
         for(const f of flat)renderMsg(wrap,f.msg,f.depth);
       }else{
         const newest=byId[item.newestId];
-        const newestDepth=msgDepth(item.newestId,byId);
-        const parentOfNewest=newest.replyTo?byId[newest.replyTo]:null;
+        const newestDepth=msgDepth(item.newestId,byId,byEid);
+        const parentOfNewest=getParent(newest,byId,byEid);
         const visibleIds=new Set();
         if(parentOfNewest&&parentOfNewest.id!==anchorId)visibleIds.add(parentOfNewest.id);
         visibleIds.add(newest.id);
-        if(parentOfNewest){const chain=getAncestorChain(parentOfNewest.id,byId);chain.forEach(id=>{if(id!==anchorId)visibleIds.add(id)})}
+        if(parentOfNewest){const chain=getAncestorChain(parentOfNewest.id,byId,byEid);chain.forEach(id=>{if(id!==anchorId)visibleIds.add(id)})}
         const hiddenCount=flat.filter(f=>!visibleIds.has(f.msg.id)).length;
         let shownMore=false;
         for(const f of flat){
@@ -1361,11 +1391,15 @@ function renderMessages(noteId){
         if(!mid)continue;
         mentionObserver.unobserve(mel);
         mel.style.outline='';
+        const mentionEntry=state.mentions[noteId]&&state.mentions[noteId].find(m=>m.id===mid);
+        const mentionEid=mentionEntry&&mentionEntry.eid?mentionEntry.eid:null;
         if(state.mentions[noteId]){
           state.mentions[noteId]=state.mentions[noteId].filter(m=>m.id!==mid);
           if(state.mentions[noteId].length===0)delete state.mentions[noteId];
         }
-        api.poke('noltbook','noltbook-action',{action:'clear-mention',data:{noteId,msgId:mid}});
+        const clearData={noteId,msgId:mid};
+        if(mentionEid)clearData.eid=mentionEid;
+        api.poke('noltbook','noltbook-action',{action:'clear-mention',data:clearData});
         renderNoteList();
       }
     },{root:el,threshold:0.5});
@@ -1434,8 +1468,9 @@ function renderMsg(el,msg,depth,isThreadAnchor){
   const grouped=msg.author===state.lastMsgAuthor&&depth===state.lastMsgDepth;
   state.lastMsgAuthor=msg.author;state.lastMsgDepth=depth;
   const isUrbit=msg.author.startsWith('~');
-  const timeStr=new Date(msg.id).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-  const editedStamp=msg.edited?'<span class="msg-edited">(edited)</span>':'';
+  const timeSource=msg.meta&&msg.meta.created?msg.meta.created:msg.id;
+  const timeStr=new Date(timeSource).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  const editedStamp=msg.edited?(msg.meta&&msg.meta.rev>0?`<span class="msg-edited" title="updated ${new Date(msg.meta.updated).toLocaleString()}">(edited r${msg.meta.rev})</span>`:'<span class="msg-edited">(edited)</span>'):'';
   const me='~'+api.ship;
   const note=state.notes[msg.noteId]||state.notes[state.currentNoteId]||{};
   const isAuthor=msg.author===me;
@@ -1468,7 +1503,7 @@ function revealBlockedMsg(msgId){
   scheduleRender(state.currentNoteId);
 }
 function appendMessage(msg){
-  if(state.expandedThreads){const byId={};(state.messages[state.currentNoteId]||[]).forEach(m=>byId[m.id]=m);const root=findThreadRoot(msg.id,byId);state.expandedThreads.delete(root)}
+  if(state.expandedThreads){const byId={};const byEid={};(state.messages[state.currentNoteId]||[]).forEach(m=>{byId[m.id]=m;const eid=getMsgEid(m);if(eid)byEid[eid]=m});const root=findThreadRoot(msg.id,byId,byEid);state.expandedThreads.delete(root)}
   renderMessages(state.currentNoteId);
 }
 let ownAvatarBlobUrl=null;
@@ -1597,11 +1632,12 @@ async function sendMessage(){
   const input=document.getElementById('chatInput');const text=input.value.trim();if(!text)return;
   if(state.editingMsgId){
     const msgId=state.editingMsgId;
-    await api.poke('noltbook','noltbook-action',{action:'edit-message',data:{noteId:state.currentNoteId,msgId,text}});
     const msgs=state.messages[state.currentNoteId]||[];
     const msg=msgs.find(m=>m.id===msgId);
-    if(msg){msg.text=text;msg.edited=true}
-    renderMessages(state.currentNoteId);
+    const eid=msg&&msg.meta&&msg.meta.eid?msg.meta.eid:null;
+    const editData={noteId:state.currentNoteId,msgId,text};
+    if(eid)editData.eid=eid;
+    await api.poke('noltbook','noltbook-action',{action:'edit-message',data:editData});
     input.value='';input.style.height='';cancelEdit();updateInputMirror();
     return;
   }
@@ -1707,12 +1743,12 @@ function cancelEdit(){state.editingMsgId=null;const input=document.getElementByI
 async function deleteMessage(msgId){
   if(!confirm('Delete this message?'))return;
   msgId=parseInt(msgId);
-  await api.poke('noltbook','noltbook-action',{action:'delete-message',data:{noteId:state.currentNoteId,msgId}});
   const msgs=state.messages[state.currentNoteId]||[];
-  const idx=msgs.findIndex(m=>m.id===msgId);
-  if(idx>=0)msgs.splice(idx,1);
-  const el=document.getElementById('msg-'+msgId);
-  if(el)el.remove();
+  const msg=msgs.find(m=>m.id===msgId);
+  const eid=msg&&msg.meta&&msg.meta.eid?msg.meta.eid:null;
+  const delData={noteId:state.currentNoteId,msgId};
+  if(eid)delData.eid=eid;
+  await api.poke('noltbook','noltbook-action',{action:'delete-message',data:delData});
   if(state.editingMsgId===msgId)cancelEdit();
 }
 async function deleteArtifact(artId){
@@ -1877,11 +1913,9 @@ function showNoteContextMenu(event,noteId){
   const userCount=(note.users||[]).length;
   const isShared=userCount>1;
   const isGossip=note.type==='gossip';
-  const delItem=isCreator
-    ?'<div class="context-menu-item danger" data-action="delete">Delete</div>'
-    :(isShared||isGossip)
-      ?'<div class="context-menu-item danger" data-action="leave">Leave</div>'
-      :'<div class="context-menu-item danger" data-action="delete">Delete</div>';
+  const delItem=(isShared||isGossip)
+    ?'<div class="context-menu-item danger" data-action="leave">Leave</div>'
+    :'<div class="context-menu-item danger" data-action="delete">Delete</div>';
   menu.innerHTML=`
     <div class="context-menu-item${ro}" data-action="visibility" data-val="public"><span class="context-radio ${vis==='public'?'selected':''}"></span> Public</div>
     <div class="context-menu-item${ro}" data-action="visibility" data-val="private"><span class="context-radio ${vis==='private'?'selected':''}"></span> Private</div>

@@ -67,6 +67,7 @@
       %-  pairs
       :~  ['noteId' s+(crip (trip note-id.upd))]
           ['msgId' (numb (da-to-ms msg-id.upd))]
+          ['eid' ?~(eid.upd ~ s+(scot %uv u.eid.upd))]
       ==
     ::
         %artifact-created
@@ -170,7 +171,7 @@
       %+  frond  'mention-update'
       %-  pairs
       :~  ['noteId' s+(crip (trip note-id.upd))]
-          ['mentions' a+(turn mentions.upd |=([id=@da author=@p] (pairs ~[['id' (numb (da-to-ms id))] ['author' s+(scot %p author)]])))]
+          ['mentions' a+(turn mentions.upd |=([id=@da eid=(unit @uv) author=@p] (pairs ~[['id' (numb (da-to-ms id))] ['eid' ?~(eid ~ s+(scot %uv u.eid))] ['author' s+(scot %p author)]])))]
       ==
     ::
         %call-started
@@ -284,6 +285,7 @@
           ['rev' (numb rev.m)]
           ['created' (numb (da-to-ms created.m))]
           ['updated' (numb (da-to-ms updated.m))]
+          ['replyToEid' ?~(reply-to-eid.m ~ s+(scot %uv u.reply-to-eid.m))]
       ==
     ::
     ++  env-to-json
