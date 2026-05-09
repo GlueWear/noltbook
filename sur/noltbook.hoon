@@ -63,6 +63,7 @@
       timestamp=@da
       reply-to=(unit @da)
       content-hash=@uv
+      meta=(unit entry-meta)
   ==
 ::
 +$  artifact-type  ?(%code %app %file)
@@ -120,11 +121,11 @@
       [%remote-message note-id=@ta msg=message]
       [%remote-ars msg=message hops=@ud]
       [%remote-ars-ref env=envelope hops=@ud]
-      [%remote-fetch-cover-msg requester=@p msg-id=@da]
+      [%remote-fetch-cover-msg requester=@p msg-id=@da eid=(unit @uv)]
       [%remote-cover-msg-reply requester=@p msg=message]
       [%remote-gossip-invite note-id=@ta name=@t creator=@p users=(set @p) headline=(unit @t)]
       [%remote-gossip-ref note-id=@ta env=envelope hops=@ud]
-      [%remote-fetch-gossip-msg note-id=@ta requester=@p msg-id=@da]
+      [%remote-fetch-gossip-msg note-id=@ta requester=@p msg-id=@da eid=(unit @uv)]
       [%remote-gossip-msg-reply note-id=@ta requester=@p msg=message]
       [%remote-rumor msg=message hops=@ud]
       [%remote-profile ship=@p profile=profile]
@@ -156,7 +157,7 @@
       [%rename-note id=@ta name=@t]
       [%delete-note id=@ta]
       [%switch-note id=@ta]
-      [%send-message note-id=@ta text=@t reply-to=(unit @da)]
+      [%send-message note-id=@ta text=@t reply-to=(unit @da) reply-to-eid=(unit @uv)]
       [%edit-message note-id=@ta msg-id=@da eid=(unit @uv) text=@t]
       [%delete-message note-id=@ta msg-id=@da eid=(unit @uv)]
       [%set-note-meta id=@ta visibility=note-visibility icon-url=(unit @t) writable=?]
@@ -186,7 +187,7 @@
       [%leave-call note-id=@ta]
       [%call-signal note-id=@ta to=@p sig-type=@t payload=@t]
       [%clear-calls ~]
-      [%fetch-cover-msg note-id=@ta author=@p msg-id=@da]
+      [%fetch-cover-msg note-id=@ta author=@p msg-id=@da eid=(unit @uv)]
       [%set-headline id=@ta headline=@t]
   ==
 ::  subscription updates (agent to client)

@@ -661,7 +661,7 @@ const api = {
     this.reconnecting=false;
   }
 };
-const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},dial:0,gossipHops:{},mentions:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{}};
+const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},dial:0,gossipHops:{},mentions:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{}};
 let sigilFn=null;
 const sigilCache={};
 (async function loadSigil(){
@@ -765,10 +765,10 @@ function handleUpdate(upd){
   else if(upd['note-users-updated']){const{id,users,removed}=upd['note-users-updated'];console.log('[note-users-updated]',id,users,removed);if(state.notes[id]){state.notes[id].users=users;state.notes[id].removed=removed||[];renderNoteList();if(state.currentNoteId===id)scheduleRender(id)}}
   else if(upd['note-redirect']){const{oldId,newId}=upd['note-redirect'];console.log('[note-redirect]',oldId,'->',newId);delete state.notes[oldId];delete state.messages[oldId];state.notifications.delete(oldId);if(state.currentNoteId===oldId){if(state.notes[newId])openNote(newId);else openNote('cover')}renderNoteList()}
   else if(upd['wallet-update']){wallet.transactions=upd['wallet-update'].map(tx=>({type:tx.type,who:tx.counterparty,amount:tx.amount,time:new Date(tx.timestamp).toLocaleString(),txid:tx.txHash}));renderWalletNotes()}
-  else if(upd['gossip-message']){const{message,hops}=upd['gossip-message'];const nid=message.noteId||'cover';state.gossipHops[message.id]=hops;if(!state.messages[nid])state.messages[nid]=[];const nenvs=state.gossipEnvelopes[nid]||{};delete nenvs[message.id];state.gossipEnvelopes[nid]=nenvs;const nfetch=state.gossipFetching[nid];if(nfetch)nfetch.delete(message.id);if(!(state.messages[nid].some(m=>m.id===message.id))){state.messages[nid].push(message);const visible=coverMsgVisible(message);if(state.currentNoteId===nid&&visible)appendMessage(message);else if(state.currentNoteId!==nid&&visible)state.notifications.add(nid)}const visible=coverMsgVisible(message);if(visible&&state.notes[nid]){state.notes[nid].lastAuthor=message.author;state.notes[nid].lastPreview=message.text}scheduleNoteList()}
-  else if(upd['gossip-envelope']){const{noteId,envelope,hops}=upd['gossip-envelope'];const nid=noteId||'cover';if((state.messages[nid]||[]).some(m=>m.id===envelope.id))return;const nenvs=state.gossipEnvelopes[nid]||{};if(nenvs[envelope.id])return;nenvs[envelope.id]=envelope;state.gossipEnvelopes[nid]=nenvs;state.gossipHops[envelope.id]=hops;const shell={id:envelope.id,noteId:nid,author:envelope.author,text:null};if(coverMsgVisible(shell))fetchGossipContent(nid,envelope.id,envelope.author);if(state.currentNoteId!==nid&&coverMsgVisible(shell))state.notifications.add(nid);scheduleNoteList()}
-  else if(upd['envelope-list']){const{noteId,envelopes}=upd['envelope-list'];const existingIds=new Set((state.messages[noteId]||[]).map(m=>m.id));const nenvs=state.gossipEnvelopes[noteId]||{};let fetched=0;for(const env of envelopes){if(existingIds.has(env.id)||nenvs[env.id])continue;nenvs[env.id]=env;const shell={id:env.id,noteId:noteId,author:env.author,text:null};if(coverMsgVisible(shell)){fetchGossipContent(noteId,env.id,env.author);fetched++}}state.gossipEnvelopes[noteId]=nenvs;if(fetched>0)scheduleNoteList()}
-  else if(upd['cover-msg-content']){const{noteId,message:msg}=upd['cover-msg-content'];const nid=noteId||'cover';const nfetch=state.gossipFetching[nid];if(nfetch)nfetch.delete(msg.id);const nenvs=state.gossipEnvelopes[nid]||{};delete nenvs[msg.id];state.gossipEnvelopes[nid]=nenvs;if(!state.messages[nid])state.messages[nid]=[];if(!(state.messages[nid].some(m=>m.id===msg.id))){state.messages[nid].push(msg);const visible=coverMsgVisible(msg);if(state.currentNoteId!==nid&&visible)state.notifications.add(nid)}state.gossipPending[nid]=Math.max(0,(state.gossipPending[nid]||1)-1);if(state.gossipPending[nid]===0){hideGossipLoading();if(state.currentNoteId===nid)scheduleRender(nid);if(state.notes[nid]){const msgs=state.messages[nid]||[];if(msgs.length){const newest=msgs.reduce((a,b)=>b.timestamp>a.timestamp?b:a);state.notes[nid].lastPreview=newest.text;state.notes[nid].lastAuthor=newest.author}}scheduleNoteList()}}
+  else if(upd['gossip-message']){const{message,hops}=upd['gossip-message'];const nid=message.noteId||'cover';const msgEid=message.meta&&message.meta.eid||null;state.gossipHops[message.id]=hops;if(!state.messages[nid])state.messages[nid]=[];const nenvs=state.gossipEnvelopes[nid]||{};delete nenvs[message.id];if(msgEid)delete nenvs[msgEid];state.gossipEnvelopes[nid]=nenvs;const nfetch=state.gossipFetching[nid];if(nfetch){nfetch.delete(message.id);if(msgEid)nfetch.delete(msgEid)}const isDup=state.messages[nid].some(m=>(msgEid&&m.meta&&m.meta.eid===msgEid)||m.id===message.id);if(!isDup){state.messages[nid].push(message);const visible=coverMsgVisible(message);if(state.currentNoteId===nid&&visible)appendMessage(message);else if(state.currentNoteId!==nid&&visible)state.notifications.add(nid)}const visible=coverMsgVisible(message);if(visible&&state.notes[nid]){state.notes[nid].lastAuthor=message.author;state.notes[nid].lastPreview=message.text}scheduleNoteList()}
+  else if(upd['gossip-envelope']){const{noteId,envelope,hops}=upd['gossip-envelope'];const nid=noteId||'cover';const envEid=envelope.meta&&envelope.meta.eid||null;if((state.messages[nid]||[]).some(m=>(envEid&&m.meta&&m.meta.eid===envEid)||m.id===envelope.id))return;const nenvs=state.gossipEnvelopes[nid]||{};const envKey=envEid||envelope.id;if(nenvs[envKey])return;envelope._eid=envEid;nenvs[envKey]=envelope;state.gossipEnvelopes[nid]=nenvs;state.gossipHops[envelope.id]=hops;const shell={id:envelope.id,noteId:nid,author:envelope.author,text:null};if(coverMsgVisible(shell))fetchGossipContent(nid,envelope.id,envelope.author,envEid);if(state.currentNoteId!==nid&&coverMsgVisible(shell))state.notifications.add(nid);scheduleNoteList()}
+  else if(upd['envelope-list']){const{noteId,envelopes}=upd['envelope-list'];const existingMsgs=state.messages[noteId]||[];const existingIds=new Set(existingMsgs.map(m=>m.id));const existingEids=new Set(existingMsgs.filter(m=>m.meta&&m.meta.eid).map(m=>m.meta.eid));const nenvs=state.gossipEnvelopes[noteId]||{};let fetched=0;for(const env of envelopes){const eeid=env.meta&&env.meta.eid||null;const envKey=eeid||env.id;if(existingIds.has(env.id)||(eeid&&existingEids.has(eeid))||nenvs[envKey])continue;env._eid=eeid;nenvs[envKey]=env;const shell={id:env.id,noteId:noteId,author:env.author,text:null};if(coverMsgVisible(shell)){fetchGossipContent(noteId,env.id,env.author,eeid);fetched++}}state.gossipEnvelopes[noteId]=nenvs;if(fetched>0)scheduleNoteList()}
+  else if(upd['cover-msg-content']){const{noteId,message:msg}=upd['cover-msg-content'];const nid=noteId||'cover';const msgEid=msg.meta&&msg.meta.eid||null;const nfetch=state.gossipFetching[nid];if(nfetch){nfetch.delete(msg.id);if(msgEid)nfetch.delete(msgEid)}const nenvs=state.gossipEnvelopes[nid]||{};delete nenvs[msg.id];if(msgEid)delete nenvs[msgEid];state.gossipEnvelopes[nid]=nenvs;if(!state.messages[nid])state.messages[nid]=[];const isDup=state.messages[nid].some(m=>(msgEid&&m.meta&&m.meta.eid===msgEid)||m.id===msg.id);if(!isDup){state.messages[nid].push(msg);const visible=coverMsgVisible(msg);if(state.currentNoteId!==nid&&visible)state.notifications.add(nid)}state.gossipPending[nid]=Math.max(0,(state.gossipPending[nid]||1)-1);if(state.gossipPending[nid]===0){hideGossipLoading();if(state.currentNoteId===nid)scheduleRender(nid);if(state.notes[nid]){const msgs=state.messages[nid]||[];if(msgs.length){const newest=msgs.reduce((a,b)=>b.timestamp>a.timestamp?b:a);state.notes[nid].lastPreview=newest.text;state.notes[nid].lastAuthor=newest.author}}scheduleNoteList()}}
   else if(upd['rumor-message']){const msg=upd['rumor-message'].message;if(!state.messages['ars-rumors'])state.messages['ars-rumors']=[];const isDup=state.messages['ars-rumors'].some(m=>m.text===msg.text);if(!isDup){state.messages['ars-rumors'].unshift(msg);if(state.currentNoteId==='ars-rumors')renderMessages('ars-rumors');else state.notifications.add('ars-rumors');scheduleNoteList()}}
   else if(upd['mention-update']){const{noteId,mentions}=upd['mention-update'];if(!state.mentions[noteId])state.mentions[noteId]=[];for(const m of mentions){const mEid=m.eid||null;const dup=state.mentions[noteId].some(x=>(mEid&&x.eid&&x.eid===mEid)||x.id===m.id);if(!dup)state.mentions[noteId].push({id:m.id,eid:mEid,author:m.author})}scheduleNoteList()}
   else if(upd['call-state']){const{noteId,call}=upd['call-state'];console.log('[call-state]',noteId,call);if(call.status==='active'){state.activeCalls[noteId]=call}else{delete state.activeCalls[noteId]}updateCallUI()}
@@ -847,13 +847,16 @@ function isGossipNote(noteId){
   const n=state.notes[noteId];
   return n&&n.type==='gossip';
 }
-function fetchGossipContent(noteId,msgId,author){
+function fetchGossipContent(noteId,msgId,author,eid){
   if(!state.gossipFetching[noteId])state.gossipFetching[noteId]=new Set();
-  if(state.gossipFetching[noteId].has(msgId))return;
-  state.gossipFetching[noteId].add(msgId);
+  const dedup=eid||msgId;
+  if(state.gossipFetching[noteId].has(dedup))return;
+  state.gossipFetching[noteId].add(dedup);
   state.gossipPending[noteId]=(state.gossipPending[noteId]||0)+1;
   if(state.gossipPending[noteId]>1&&state.currentNoteId===noteId)showGossipLoading(noteId);
-  api.poke('noltbook','noltbook-action',{action:'fetch-cover-msg',data:{noteId:noteId,author:author,msgId:msgId}});
+  const data={noteId:noteId,author:author,msgId:msgId};
+  if(eid)data.eid=eid;
+  api.poke('noltbook','noltbook-action',{action:'fetch-cover-msg',data:data});
 }
 let _gossipDotsTimer=null;
 let _gossipTimeoutTimer=null;
@@ -902,7 +905,7 @@ function fetchVisibleEnvelopes(){
     for(const[id,env]of Object.entries(envMap)){
       if(resolved.has(env.id))continue;
       const shell={id:env.id,noteId:nid,author:env.author,text:null};
-      if(coverMsgVisible(shell))fetchGossipContent(nid,env.id,env.author);
+      if(coverMsgVisible(shell))fetchGossipContent(nid,env.id,env.author,env._eid||null);
     }
   }
 }
@@ -1641,7 +1644,7 @@ async function sendMessage(){
     input.value='';input.style.height='';cancelEdit();updateInputMirror();
     return;
   }
-  const data={noteId:state.currentNoteId,text};if(state.replyingTo)data.replyTo=state.replyingTo;await api.poke('noltbook','noltbook-action',{action:'send-message',data});input.value='';input.style.height='';cancelReply();updateInputMirror()
+  const data={noteId:state.currentNoteId,text};if(state.replyingTo){data.replyTo=state.replyingTo;if(state.replyingToEid)data.replyToEid=state.replyingToEid}await api.poke('noltbook','noltbook-action',{action:'send-message',data});input.value='';input.style.height='';cancelReply();updateInputMirror()
 }
 let mentionState={active:false,startPos:0,idx:-1};
 function getMentionQuery(){
@@ -1724,8 +1727,8 @@ function updateInputMirror(){
 }
 function syncMirrorScroll(){const inp=document.getElementById('chatInput');const mirror=document.getElementById('chatInputMirror');if(inp&&mirror)mirror.scrollTop=inp.scrollTop}
 function autoResize(el){el.style.height='';el.style.height=Math.min(el.scrollHeight,120)+'px';updateMentionDropdown();updateInputMirror()}
-function startReply(msgId,author){state.replyingTo=parseInt(msgId);document.getElementById('replyLabel').textContent='↩ replying to '+author;document.getElementById('replyBar').classList.add('visible');document.getElementById('chatInput').focus()}
-function cancelReply(){state.replyingTo=null;document.getElementById('replyBar').classList.remove('visible')}
+function startReply(msgId,author){state.replyingTo=parseInt(msgId);const msgs=state.messages[state.currentNoteId]||[];const rm=msgs.find(m=>m.id===parseInt(msgId));state.replyingToEid=rm&&rm.meta&&rm.meta.eid?rm.meta.eid:null;document.getElementById('replyLabel').textContent='↩ replying to '+author;document.getElementById('replyBar').classList.add('visible');document.getElementById('chatInput').focus()}
+function cancelReply(){state.replyingTo=null;state.replyingToEid=null;document.getElementById('replyBar').classList.remove('visible')}
 function editMessage(msgId){
   cancelReply();
   const msgs=state.messages[state.currentNoteId]||[];

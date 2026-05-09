@@ -62,7 +62,12 @@
         ?~  rt-raw  ~
         ?.  ?=([%n *] u.rt-raw)  ~
         ``@da`(add ~1970.1.1 (mul (rash p.u.rt-raw dem) (div ~s1 1.000)))
-      [%send-message `@ta`p.nid-nd p.txt-nd rt]
+      =/  rte-raw  (~(get by d) 'replyToEid')
+      =/  rte=(unit @uv)
+        ?~  rte-raw  ~
+        ?.  ?=([%s *] u.rte-raw)  ~
+        `(slav %uv p.u.rte-raw)
+      [%send-message `@ta`p.nid-nd p.txt-nd rt rte]
     ::  edit-message
     ?:  =('edit-message' tag)
       =/  nid-nd  (need (~(get by d) 'noteId'))
@@ -315,7 +320,12 @@
       =/  mid-nd  (need (~(get by d) 'msgId'))
       ?>  ?=([%n *] mid-nd)
       =/  mid=@da  (add ~1970.1.1 (mul (rash p.mid-nd dem) (div ~s1 1.000)))
-      [%fetch-cover-msg nid (slav %p p.author-nd) mid]
+      =/  eid-raw  (~(get by d) 'eid')
+      =/  eid=(unit @uv)
+        ?~  eid-raw  ~
+        ?.  ?=([%s *] u.eid-raw)  ~
+        `(slav %uv p.u.eid-raw)
+      [%fetch-cover-msg nid (slav %p p.author-nd) mid eid]
     ::  set-headline
     ?:  =('set-headline' tag)
       =/  id-nd  (need (~(get by d) 'id'))

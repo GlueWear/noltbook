@@ -23,6 +23,8 @@
       state-19
       state-20
       state-21
+      state-22
+      state-23
   ==
 ::  pre-entry-meta message shape — used by state-18 for on-load typing
 +$  message-18
@@ -40,6 +42,14 @@
       msg-id=@da
       timestamp=@da
       reply-to=(unit @da)
+  ==
+::  pre-meta envelope shape — used by state-21 for on-load typing
++$  envelope-21
+  $:  author=@p
+      msg-id=@da
+      timestamp=@da
+      reply-to=(unit @da)
+      content-hash=@uv
   ==
 ::  pre-edited-flag message shape — used by state-1..8 for on-load typing
 +$  message-legacy
@@ -386,7 +396,7 @@
       gossip-hops=(map @da @ud)
       mentions=(map @ta (list [id=@da author=@p]))
       active-calls=(map @ta call-info:noltbook)
-      cover-envelopes=(map @da envelope:noltbook)
+      cover-envelopes=(map @da envelope-21)
   ==
 +$  state-18
   $:  %18
@@ -405,7 +415,7 @@
       gossip-hops=(map @da @ud)
       mentions=(map @ta (list [id=@da author=@p]))
       active-calls=(map @ta call-info:noltbook)
-      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      gossip-envelopes=(map @ta (map @da envelope-21))
       headlines=(map @ta @t)
   ==
 +$  state-19
@@ -425,7 +435,7 @@
       gossip-hops=(map @da @ud)
       mentions=(map @ta (list [id=@da author=@p]))
       active-calls=(map @ta call-info:noltbook)
-      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      gossip-envelopes=(map @ta (map @da envelope-21))
       headlines=(map @ta @t)
       seq-counters=(map [@p @ta] @ud)
   ==
@@ -446,7 +456,7 @@
       gossip-hops=(map @da @ud)
       mentions=(map @ta (list [id=@da author=@p]))
       active-calls=(map @ta call-info:noltbook)
-      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      gossip-envelopes=(map @ta (map @da envelope-21))
       headlines=(map @ta @t)
       seq-counters=(map @ta @ud)
   ==
@@ -467,6 +477,50 @@
       dial=@ud
       gossip-hops=(map @da @ud)
       mentions=(map @ta (list [id=@da author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope-21))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+  ==
+::  state-22: envelopes carry entry-meta; cover/gossip use eid identity
++$  state-22
+  $:  %22
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+  ==
+::  state-23: mentions store stable identity [id eid author]
++$  state-23
+  $:  %23
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
       active-calls=(map @ta call-info:noltbook)
       gossip-envelopes=(map @ta (map @da envelope:noltbook))
       headlines=(map @ta @t)
@@ -616,10 +670,10 @@
 ++  upgrade-16-to-17
   |=  s=state-16
   ^-  state-17
-  =/  new-envs=(map @da envelope:noltbook)
+  =/  new-envs=(map @da envelope-21)
     %-  ~(run by cover-envelopes.s)
     |=  e=envelope-16
-    ^-  envelope:noltbook
+    ^-  envelope-21
     [author.e msg-id.e timestamp.e reply-to.e *@uv]
   :*  %17
       notes.s  messages.s  artifacts.s  profiles.s
@@ -636,9 +690,9 @@
     |=  n=note-17
     ^-  note:noltbook
     [id.n name.n type.n creator.n users.n children.n parent.n last-author.n last-preview.n visibility.n icon-url.n writable.n removed.n ~]
-  =/  new-gossip-envs=(map @ta (map @da envelope:noltbook))
+  =/  new-gossip-envs=(map @ta (map @da envelope-21))
     ?:  =(cover-envelopes.s ~)  ~
-    (~(put by *(map @ta (map @da envelope:noltbook))) %cover cover-envelopes.s)
+    (~(put by *(map @ta (map @da envelope-21))) %cover cover-envelopes.s)
   :*  %18
       new-notes  messages.s  artifacts.s  profiles.s
       transactions.s  current-note.s  peers.s  has-avatar.s
@@ -667,10 +721,10 @@
       *(map [@p @ta] @ud)
   ==
 ::  upgrade-19-to-20: collapse per-author seq-counters to per-note
-::  chains through upgrade-20-to-21 so all callers get state-21
+::  chains through upgrade-20-to-21 → ... → upgrade-22-to-23
 ++  upgrade-19-to-20
   |=  s=state-19
-  ^-  state-21
+  ^-  state-23
   =/  new-seq=(map @ta @ud)
     %-  ~(rep by seq-counters.s)
     |=  [[[a=@p n=@ta] v=@ud] acc=(map @ta @ud)]
@@ -687,10 +741,10 @@
     ==
   (upgrade-20-to-21 s20)
 ::  upgrade-20-to-21: add reply-to-eid to entry-meta in messages
-::  walks all messages, converts 5-field meta to 6-field, backfills reply-to-eid
+::  chains through upgrade-21-to-22 → upgrade-22-to-23
 ++  upgrade-20-to-21
   |=  s=state-20
-  ^-  state-21
+  ^-  state-23
   =/  new-msgs=(map @ta (list message:noltbook))
     %-  ~(run by messages.s)
     |=  msgs=(list message-20)
@@ -719,11 +773,60 @@
     =/  parent-eid=(unit @uv)  (~(get by eid-map) u.reply-to.m)
     ?~  parent-eid  m
     m(reply-to-eid.u.meta `u.parent-eid)
-  :*  %21
-      notes.s  new-msgs  artifacts.s  profiles.s
+  =/  s21=state-21
+    :*  %21
+        notes.s  new-msgs  artifacts.s  profiles.s
+        transactions.s  current-note.s  peers.s  has-avatar.s
+        pal-outgoing.s  pal-incoming.s  pal-blocked.s
+        dial.s  gossip-hops.s  mentions.s  active-calls.s
+        gossip-envelopes.s  headlines.s
+        seq-counters.s
+    ==
+  (upgrade-21-to-22 s21)
+::  upgrade-21-to-22: add meta=(unit entry-meta) to envelopes
+++  upgrade-21-to-22
+  |=  s=state-21
+  ^-  state-23
+  =/  new-envs=(map @ta (map @da envelope:noltbook))
+    %-  ~(run by gossip-envelopes.s)
+    |=  envs=(map @da envelope-21)
+    ^-  (map @da envelope:noltbook)
+    %-  ~(run by envs)
+    |=  e=envelope-21
+    ^-  envelope:noltbook
+    [author.e msg-id.e timestamp.e reply-to.e content-hash.e ~]
+  =/  s22=state-22
+    :*  %22
+        notes.s  messages.s  artifacts.s  profiles.s
+        transactions.s  current-note.s  peers.s  has-avatar.s
+        pal-outgoing.s  pal-incoming.s  pal-blocked.s
+        dial.s  gossip-hops.s  mentions.s  active-calls.s
+        new-envs  headlines.s
+        seq-counters.s
+    ==
+  (upgrade-22-to-23 s22)
+::  upgrade-22-to-23: enrich mention storage with stable eid
+++  upgrade-22-to-23
+  |=  s=state-22
+  ^-  state-23
+  =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+    %-  ~(urn by mentions.s)
+    |=  [nid=@ta mns=(list [id=@da author=@p])]
+    ^-  (list [id=@da eid=(unit @uv) author=@p])
+    =/  note-msgs=(list message:noltbook)  (fall (~(get by messages.s) nid) ~)
+    %+  turn  mns
+    |=  [mid=@da auth=@p]
+    =/  found=(list message:noltbook)  (skim note-msgs |=(m=message:noltbook =(id.m mid)))
+    =/  m-eid=(unit @uv)
+      ?~  found  ~
+      ?~  meta.i.found  ~
+      `eid.u.meta.i.found
+    [mid m-eid auth]
+  :*  %23
+      notes.s  messages.s  artifacts.s  profiles.s
       transactions.s  current-note.s  peers.s  has-avatar.s
       pal-outgoing.s  pal-incoming.s  pal-blocked.s
-      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      dial.s  gossip-hops.s  new-mentions  active-calls.s
       gossip-envelopes.s  headlines.s
       seq-counters.s
   ==
@@ -755,7 +858,7 @@
   (lth `@`id.a `@`id.b)
 --
 %-  agent:dbug
-=|  state-21
+=|  state-23
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -779,8 +882,8 @@
 ++  on-load
   |=  old=vase
   ^-  (quip card _this)
-  ?:  ?=([%21 *] q.old)
-    =/  loaded  !<(state-21 old)
+  ?:  ?=([%23 *] q.old)
+    =/  loaded  !<(state-23 old)
     ::  fix: ensure cover note exists and is keyed as %cover
     =/  loaded
       ?:  (~(has by notes.loaded) %cover)  loaded
@@ -815,6 +918,12 @@
       ^-  card
       [%pass /prof-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-profile our.bowl prof])]
     [prof-cards this(state loaded(active-calls *(map @ta call-info:noltbook)))]
+  ?:  ?=([%22 *] q.old)
+    =/  s22  !<(state-22 old)
+    $(old !>((upgrade-22-to-23 s22)))
+  ?:  ?=([%21 *] q.old)
+    =/  s21  !<(state-21 old)
+    $(old !>((upgrade-21-to-22 s21)))
   ?:  ?=([%20 *] q.old)
     =/  s20  !<(state-20 old)
     =/  loaded  (upgrade-20-to-21 s20)
@@ -893,12 +1002,12 @@
       (skim cover-msgs |=(m=message-18 =(author.m our.bowl)))
     =/  remote-msgs=(list message-18)
       (skip cover-msgs |=(m=message-18 =(author.m our.bowl)))
-    =/  remote-envs=(map @da envelope:noltbook)
-      %-  ~(gas by *(map @da envelope:noltbook))
+    =/  remote-envs=(map @da envelope-21)
+      %-  ~(gas by *(map @da envelope-21))
       %+  turn  remote-msgs
       |=  m=message-18
       [id.m [author.m id.m timestamp.m reply-to.m (sham text.m)]]
-    =/  merged-envs=(map @da envelope:noltbook)
+    =/  merged-envs=(map @da envelope-21)
       (~(uni by cover-envelopes.s17) remote-envs)
     =/  s17=state-17
       s17(messages (~(put by messages.s17) %cover own-msgs), cover-envelopes merged-envs)
@@ -1147,21 +1256,11 @@
       %requesting  :: default for known peers not yet tracked
     =/  palupd=update:noltbook  [%pal-list pal-pairs]
     =/  dialupd=update:noltbook  [%dial-update dial]
-    ::  send all current mention states (enrich with eid from message meta)
+    ::  send all current mention states (eid stored natively since state-23)
     =/  mention-cards=(list card)
       %+  turn  ~(tap by mentions)
-      |=  [nid=@ta mns=(list [id=@da author=@p])]
-      =/  note-msgs=(list message:noltbook)  (fall (~(get by messages) nid) ~)
-      =/  enriched=(list [id=@da eid=(unit @uv) author=@p])
-        %+  turn  mns
-        |=  [mid=@da auth=@p]
-        =/  found=(list message:noltbook)  (skim note-msgs |=(m=message:noltbook =(id.m mid)))
-        =/  m-eid=(unit @uv)
-          ?~  found  ~
-          ?~  meta.i.found  ~
-          `eid.u.meta.i.found
-        [mid m-eid auth]
-      [%give %fact ~ %noltbook-update !>(`update:noltbook`[%mention-update nid enriched])]
+      |=  [nid=@ta mns=(list [id=@da eid=(unit @uv) author=@p])]
+      [%give %fact ~ %noltbook-update !>(`update:noltbook`[%mention-update nid mns])]
     ::  send active call states
     =/  call-cards=(list card)
       %+  turn  ~(tap by active-calls)
@@ -1212,7 +1311,7 @@
         [[%give %fact ~ %noltbook-update !>(`update:noltbook`[%message-list nid msgs arts])] env-cards]
       ::  remote peer: send envelopes for everything (own msgs as envelopes too)
       =/  msg-envs=(list envelope:noltbook)
-        (turn msgs |=(m=message:noltbook [author.m id.m timestamp.m reply-to.m (sham text.m)]))
+        (turn msgs |=(m=message:noltbook [author.m id.m timestamp.m reply-to.m (sham text.m) meta.m]))
       =/  all-env-ids=(set @da)  (sy (turn msg-envs |=(e=envelope:noltbook msg-id.e)))
       =/  extra-envs=(list envelope:noltbook)
         (skim ~(val by nenv) |=(e=envelope:noltbook !(~(has in all-env-ids) msg-id.e)))
@@ -1574,17 +1673,16 @@
         %send-message
       =/  exists  (~(get by notes) note-id.act)
       ?~  exists  `this
-      ::  compute entry-meta for regular notes (cover/gossip/rumors skip for now)
+      ::  entry-meta for hosted, cover, and gossip notes. Rumors use
+      ::  content-hash identity (anonymous — no author for eid/seq).
       =/  is-regular=?
-        ?&  !=(%cover type.u.exists)
-            !=(%gossip type.u.exists)
-            !=(note-id.act %ars-rumors)
-        ==
+        !=(note-id.act %ars-rumors)
       =/  cur-seq=@ud  (fall (~(get by seq-counters) note-id.act) 0)
       =/  nxt-seq=@ud  ?:(is-regular +(cur-seq) 0)
-      ::  resolve reply-to-eid: look up parent message's eid
+      ::  resolve reply-to-eid: prefer client-supplied, fall back to lookup
       =/  reply-eid=(unit @uv)
         ?.  is-regular  ~
+        ?^  reply-to-eid.act  reply-to-eid.act
         ?~  reply-to.act  ~
         =/  cur-msgs=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
         =/  parent=(list message:noltbook)  (skim cur-msgs |=(m=message:noltbook =(id.m u.reply-to.act)))
@@ -1603,7 +1701,7 @@
         ::  own messages are hop 0 — author gets full content locally
         =/  upd=update:noltbook  [%gossip-message msg 0]
         ::  broadcast envelope (not full message) to peers
-        =/  env=envelope:noltbook  [our.bowl id.msg now.bowl reply-to.act (sham text.act)]
+        =/  env=envelope:noltbook  [our.bowl id.msg now.bowl reply-to.act (sham text.act) em]
         ~&  [%cover-send-gossip our=our.bowl pal-count=~(wyt in pal-outgoing) targets=~(tap in pal-outgoing)]
         =/  gossip=(list card)
           %+  turn  ~(tap in pal-outgoing)
@@ -1612,14 +1710,14 @@
           [%pass /ars-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-ars-ref env 0])]
         =/  env-upd=update:noltbook  [%gossip-envelope %cover env 0]
         =/  upd-note=note:noltbook  u.exists(last-author `our.bowl, last-preview `text.act)
-        :_  this(notes (~(put by notes) %cover upd-note), messages (~(put by messages) %cover (cap-msgs (snoc cur msg) %.y)), gossip-hops (~(put by gossip-hops) id.msg 0))
+        :_  this(notes (~(put by notes) %cover upd-note), messages (~(put by messages) %cover (cap-msgs (snoc cur msg) %.y)), gossip-hops (~(put by gossip-hops) id.msg 0), seq-counters (~(put by seq-counters) %cover nxt-seq))
         :(weld ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] ~[[%give %fact ~[/notes/cover] %noltbook-update !>(env-upd)]] gossip)
       ::  user-created gossip notes: same envelope model as cover
       ?:  =(%gossip type.u.exists)
         =/  nid=@ta  note-id.act
         =/  cur=(list message:noltbook)  (fall (~(get by messages) nid) ~)
         =/  upd=update:noltbook  [%gossip-message msg 0]
-        =/  env=envelope:noltbook  [our.bowl id.msg now.bowl reply-to.act (sham text.act)]
+        =/  env=envelope:noltbook  [our.bowl id.msg now.bowl reply-to.act (sham text.act) em]
         =/  targets=(list @p)
           %+  skim  ~(tap in users.u.exists)
           |=(p=@p !=(p our.bowl))
@@ -1637,14 +1735,18 @@
               notes  (~(put by notes) nid upd-note)
               messages  (~(put by messages) nid (cap-msgs (snoc cur msg) %.y))
               gossip-hops  (~(put by gossip-hops) id.msg 0)
+              seq-counters  (~(put by seq-counters) nid nxt-seq)
             ==
         :(weld ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] ~[[%give %fact ~[/notes/[nid]] %noltbook-update !>(env-upd)]] gossip)
-      ::  RUMORS: anonymous gossip — strip author before relaying
+      ::  RUMORS: anonymous gossip — intentionally uses content-hash identity,
+      ::  NOT entry-meta. Author is stripped (set to ~hosted), so eid/seq
+      ::  (which are per-author) would be meaningless. Dedup uses (sham text)
+      ::  stored as @da in gossip-hops. This is the correct identity model
+      ::  for anonymous messages — content is the identity.
       ?:  =(note-id.act %ars-rumors)
         =/  cur=(list message:noltbook)  (fall (~(get by messages) %ars-rumors) ~)
-        ::  anonymize: strip author for everyone, including sender
         =/  anon-msg=message:noltbook  msg(author ~hosted)
-        ::  content hash for dedup
+        ::  content-hash identity: dedup by (sham text)
         =/  chash=@uv  (sham text.msg)
         =/  upd=update:noltbook  [%rumor-message anon-msg]
         ::  proxy relay: 50% broadcast to all, 50% proxy through one random peer
@@ -2025,27 +2127,19 @@
     ::
         %clear-mention
       ::  clear a single mention by eid (preferred) or msg-id (fallback)
-      =/  cur=(list [id=@da author=@p])  (fall (~(get by mentions) note-id.act) ~)
-      =/  new=(list [id=@da author=@p])
-        ?~  eid.act
-          ::  no eid: fallback to ms-precision msg-id matching
-          =/  ms-unit=@  (div ~s1 1.000)
-          =/  target-ms=@ud  (div (sub msg-id.act ~1970.1.1) ms-unit)
+      =/  cur=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) note-id.act) ~)
+      =/  new=(list [id=@da eid=(unit @uv) author=@p])
+        ?^  eid.act
+          ::  eid-first: match directly on stored eid
           %+  skip  cur
-          |=  [id=@da author=@p]
-          =(target-ms (div (sub id ~1970.1.1) ms-unit))
-        ::  eid-first: find the message with this eid, match its id
-        =/  note-msgs=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
-        =/  found=(list message:noltbook)  (skim note-msgs |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.eid.act))))
-        ?~  found
-          ::  eid not found, fall back to ms-precision
-          =/  ms-unit=@  (div ~s1 1.000)
-          =/  target-ms=@ud  (div (sub msg-id.act ~1970.1.1) ms-unit)
-          %+  skip  cur
-          |=  [id=@da author=@p]
-          =(target-ms (div (sub id ~1970.1.1) ms-unit))
-        =/  target-id=@da  id.i.found
-        (skip cur |=([id=@da author=@p] =(id target-id)))
+          |=  [id=@da eid=(unit @uv) author=@p]
+          &(?=(^ eid) =(u.eid u.eid.act))
+        ::  no eid: fallback to ms-precision msg-id matching
+        =/  ms-unit=@  (div ~s1 1.000)
+        =/  target-ms=@ud  (div (sub msg-id.act ~1970.1.1) ms-unit)
+        %+  skip  cur
+        |=  [id=@da eid=(unit @uv) author=@p]
+        =(target-ms (div (sub id ~1970.1.1) ms-unit))
       =.  mentions
         ?~  new  (~(del by mentions) note-id.act)
         (~(put by mentions) note-id.act new)
@@ -2333,9 +2427,9 @@
       ::  gossip notes use gossip-specific remote; cover uses legacy path
       :_  this
       ?:  =(%gossip type.u.note-exists)
-        :~  [%pass /fetch-msg/(scot %p author.act)/(scot %da msg-id.act) %agent [author.act %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-fetch-gossip-msg nid our.bowl msg-id.act])]
+        :~  [%pass /fetch-msg/(scot %p author.act)/(scot %da msg-id.act) %agent [author.act %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-fetch-gossip-msg nid our.bowl msg-id.act eid.act])]
         ==
-      :~  [%pass /fetch-msg/(scot %p author.act)/(scot %da msg-id.act) %agent [author.act %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-fetch-cover-msg our.bowl msg-id.act])]
+      :~  [%pass /fetch-msg/(scot %p author.act)/(scot %da msg-id.act) %agent [author.act %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-fetch-cover-msg our.bowl msg-id.act eid.act])]
       ==
     ==
   ::
@@ -2490,6 +2584,11 @@
       =/  reply-eid=(unit @uv)
         ?.  is-regular  ~
         ?~  reply-to.msg.rem  ~
+        ::  prefer sender-supplied reply-to-eid when present
+        =/  sender-eid=(unit @uv)
+          ?~(meta.msg.rem ~ reply-to-eid.u.meta.msg.rem)
+        ?^  sender-eid  sender-eid
+        ::  fallback: look up parent by timestamp
         =/  parent=(list message:noltbook)  (skim cur |=(m=message:noltbook =(id.m u.reply-to.msg.rem)))
         ?~  parent  ~
         ?~  meta.i.parent  ~
@@ -2511,10 +2610,10 @@
         ?.  mentioned  ~
         =/  mupd=update:noltbook  [%mention-update note-id.rem ~[[id.stamped stamped-eid author.msg.rem]]]
         ~[[%give %fact ~[/notes] %noltbook-update !>(mupd)]]
-      =/  new-mentions=(map @ta (list [id=@da author=@p]))
+      =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
         ?.  mentioned  mentions
-        =/  cur-m=(list [id=@da author=@p])  (fall (~(get by mentions) note-id.rem) ~)
-        (~(put by mentions) note-id.rem (snoc cur-m [id.stamped author.msg.rem]))
+        =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) note-id.rem) ~)
+        (~(put by mentions) note-id.rem (snoc cur-m [id.stamped stamped-eid author.msg.rem]))
       =/  new-seq=(map @ta @ud)
         ?:(is-regular (~(put by seq-counters) note-id.rem nxt-seq) seq-counters)
       :_  this(notes (~(put by notes) note-id.rem upd-note), messages (~(put by messages) note-id.rem (snoc cur stamped)), mentions new-mentions, seq-counters new-seq)
@@ -2528,21 +2627,31 @@
       =/  cenv=(map @da envelope:noltbook)
         (fall (~(get by gossip-envelopes) %cover) *(map @da envelope:noltbook))
       =/  cur=(list message:noltbook)  (fall (~(get by messages) %cover) ~)
-      ?:  (lien cur |=(m=message:noltbook =(id.m id.msg.rem)))
+      =/  meid=(unit @uv)  ?~(meta.msg.rem ~ `eid.u.meta.msg.rem)
+      ::  dedup: eid-first (stable identity), fall back to msg-id (compat)
+      ?:  ?|  (lien cur |=(m=message:noltbook =(id.m id.msg.rem)))
+              ?&  ?=(^ meid)
+                  (lien cur |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.meid))))
+              ==
+          ==
         `this
-      ?:  (~(has by cenv) id.msg.rem)
+      ?:  ?|  (~(has by cenv) id.msg.rem)
+              ?&  ?=(^ meid)
+                  (lien ~(val by cenv) |=(e=envelope:noltbook ?~(meta.e %.n =(eid.u.meta.e u.meid))))
+              ==
+          ==
         `this
       =/  my-hops=@ud  (add hops.rem 1)
       =/  mentioned=?  &(!=(author.msg.rem our.bowl) (has-our-mention text.msg.rem our.bowl))
       =/  mention-cards=(list card)
         ?.  mentioned  ~
-        =/  mupd=update:noltbook  [%mention-update %cover ~[[id.msg.rem ~ author.msg.rem]]]
+        =/  mupd=update:noltbook  [%mention-update %cover ~[[id.msg.rem meid author.msg.rem]]]
         ~[[%give %fact ~[/notes] %noltbook-update !>(mupd)]]
-      =/  new-mentions=(map @ta (list [id=@da author=@p]))
+      =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
         ?.  mentioned  mentions
-        =/  cur-m=(list [id=@da author=@p])  (fall (~(get by mentions) %cover) ~)
-        (~(put by mentions) %cover (snoc cur-m [id.msg.rem author.msg.rem]))
-      =/  env=envelope:noltbook  [author.msg.rem id.msg.rem timestamp.msg.rem reply-to.msg.rem (sham text.msg.rem)]
+        =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) %cover) ~)
+        (~(put by mentions) %cover (snoc cur-m [id.msg.rem meid author.msg.rem]))
+      =/  env=envelope:noltbook  [author.msg.rem id.msg.rem timestamp.msg.rem reply-to.msg.rem (sham text.msg.rem) meta.msg.rem]
       =/  relay=(list card)
         %+  murn  ~(tap in pal-outgoing)
         |=  p=@p
@@ -2564,11 +2673,20 @@
       ~&  [%ars-ref-received our=our.bowl from=src.bowl author=author.env]
       =/  cenv=(map @da envelope:noltbook)
         (fall (~(get by gossip-envelopes) %cover) *(map @da envelope:noltbook))
-      ?:  (~(has by cenv) msg-id.env)
-        ~&  [%ars-ref-dedup-envelope msg-id=msg-id.env]
+      ::  dedup: eid-first (stable identity), fall back to msg-id (compat)
+      =/  env-eid=(unit @uv)  ?~(meta.env ~ `eid.u.meta.env)
+      ?:  ?|  (~(has by cenv) msg-id.env)
+              ?&  ?=(^ env-eid)
+                  (lien ~(val by cenv) |=(e=envelope:noltbook ?~(meta.e %.n =(eid.u.meta.e u.env-eid))))
+              ==
+          ==
         `this
       =/  cur=(list message:noltbook)  (fall (~(get by messages) %cover) ~)
-      ?:  (lien cur |=(m=message:noltbook =(id.m msg-id.env)))
+      ?:  ?|  (lien cur |=(m=message:noltbook =(id.m msg-id.env)))
+              ?&  ?=(^ env-eid)
+                  (lien cur |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.env-eid))))
+              ==
+          ==
         `this
       =/  my-hops=@ud  (add hops.rem 1)
       =/  upd=update:noltbook  [%gossip-envelope %cover env my-hops]
@@ -2584,9 +2702,13 @@
         %remote-fetch-cover-msg
       ::  someone is requesting a cover message we authored
       =/  cur=(list message:noltbook)  (fall (~(get by messages) %cover) ~)
-      =/  target-ms=@ud  (div (sub msg-id.rem ~1970.1.1) (div ~s1 1.000))
+      ::  eid-first lookup, fall back to msg-id
       =/  found=(list message:noltbook)
-        (skim cur |=(m=message:noltbook &(=((div (sub id.m ~1970.1.1) (div ~s1 1.000)) target-ms) =(author.m our.bowl))))
+        ?^  eid.rem
+          =/  by-eid  (skim cur |=(m=message:noltbook ?&(=(author.m our.bowl) ?~(meta.m %.n =(eid.u.meta.m u.eid.rem)))))
+          ?^  by-eid  by-eid
+          (skim cur |=(m=message:noltbook &(=(id.m msg-id.rem) =(author.m our.bowl))))
+        (skim cur |=(m=message:noltbook &(=(id.m msg-id.rem) =(author.m our.bowl))))
       ?~  found  `this
       :_  this
       :~  [%pass /msg-reply/(scot %p requester.rem)/(scot %da msg-id.rem) %agent [requester.rem %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-cover-msg-reply requester.rem i.found])]
@@ -2599,9 +2721,21 @@
       =/  cenv=(map @da envelope:noltbook)
         (fall (~(get by gossip-envelopes) %cover) *(map @da envelope:noltbook))
       =/  cur=(list message:noltbook)  (fall (~(get by messages) %cover) ~)
-      ?:  (lien cur |=(m=message:noltbook =(id.m id.msg)))
+      =/  reply-eid=(unit @uv)  ?~(meta.msg ~ `eid.u.meta.msg)
+      ::  dedup: eid-first, fall back to msg-id
+      ?:  ?|  (lien cur |=(m=message:noltbook =(id.m id.msg)))
+              ?&  ?=(^ reply-eid)
+                  (lien cur |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.reply-eid))))
+              ==
+          ==
         `this
-      =/  env  (~(get by cenv) id.msg)
+      ::  envelope lookup: eid-first, fall back to msg-id
+      =/  env=(unit envelope:noltbook)
+        ?:  ?=(^ reply-eid)
+          =/  by-eid  (skim ~(val by cenv) |=(e=envelope:noltbook ?~(meta.e %.n =(eid.u.meta.e u.reply-eid))))
+          ?^  by-eid  `i.by-eid
+          (~(get by cenv) id.msg)
+        (~(get by cenv) id.msg)
       ?~  env
         ~&  [%cover-msg-reply-no-envelope id=id.msg]
         `this
@@ -2612,15 +2746,16 @@
         ?:  =(content-hash.u.env *@uv)
           (~(put by gossip-envelopes) %cover (cap-envs (~(put by cenv) id.msg u.env(content-hash (sham text.msg)))))
         gossip-envelopes
+      =/  meid=(unit @uv)  ?~(meta.msg ~ `eid.u.meta.msg)
       =/  mentioned=?  &(!=(author.msg our.bowl) (has-our-mention text.msg our.bowl))
       =/  mention-cards=(list card)
         ?.  mentioned  ~
-        =/  mupd=update:noltbook  [%mention-update %cover ~[[id.msg ~ author.msg]]]
+        =/  mupd=update:noltbook  [%mention-update %cover ~[[id.msg meid author.msg]]]
         ~[[%give %fact ~[/notes] %noltbook-update !>(mupd)]]
-      =/  new-mentions=(map @ta (list [id=@da author=@p]))
+      =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
         ?.  mentioned  mentions
-        =/  cur-m=(list [id=@da author=@p])  (fall (~(get by mentions) %cover) ~)
-        (~(put by mentions) %cover (snoc cur-m [id.msg author.msg]))
+        =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) %cover) ~)
+        (~(put by mentions) %cover (snoc cur-m [id.msg meid author.msg]))
       =/  upd=update:noltbook  [%cover-msg-content %cover msg]
       :_  this(gossip-envelopes new-envs, mentions new-mentions)
       (weld ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] mention-cards)
@@ -2635,9 +2770,21 @@
       =/  env  env.rem
       =/  nenv=(map @da envelope:noltbook)
         (fall (~(get by gossip-envelopes) nid) *(map @da envelope:noltbook))
-      ?:  (~(has by nenv) msg-id.env)  `this
+      ::  dedup: eid-first (stable identity), fall back to msg-id (compat)
+      =/  env-eid=(unit @uv)  ?~(meta.env ~ `eid.u.meta.env)
+      ?:  ?|  (~(has by nenv) msg-id.env)
+              ?&  ?=(^ env-eid)
+                  (lien ~(val by nenv) |=(e=envelope:noltbook ?~(meta.e %.n =(eid.u.meta.e u.env-eid))))
+              ==
+          ==
+        `this
       =/  cur=(list message:noltbook)  (fall (~(get by messages) nid) ~)
-      ?:  (lien cur |=(m=message:noltbook =(id.m msg-id.env)))  `this
+      ?:  ?|  (lien cur |=(m=message:noltbook =(id.m msg-id.env)))
+              ?&  ?=(^ env-eid)
+                  (lien cur |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.env-eid))))
+              ==
+          ==
+        `this
       =/  my-hops=@ud  (add hops.rem 1)
       =/  upd=update:noltbook  [%gossip-envelope nid env my-hops]
       ::  relay to other note users (excluding sender and author)
@@ -2655,9 +2802,13 @@
       ::  someone requests a gossip message we authored
       =/  nid=@ta  note-id.rem
       =/  cur=(list message:noltbook)  (fall (~(get by messages) nid) ~)
-      =/  target-ms=@ud  (div (sub msg-id.rem ~1970.1.1) (div ~s1 1.000))
+      ::  eid-first lookup, fall back to msg-id
       =/  found=(list message:noltbook)
-        (skim cur |=(m=message:noltbook &(=((div (sub id.m ~1970.1.1) (div ~s1 1.000)) target-ms) =(author.m our.bowl))))
+        ?^  eid.rem
+          =/  by-eid  (skim cur |=(m=message:noltbook ?&(=(author.m our.bowl) ?~(meta.m %.n =(eid.u.meta.m u.eid.rem)))))
+          ?^  by-eid  by-eid
+          (skim cur |=(m=message:noltbook &(=(id.m msg-id.rem) =(author.m our.bowl))))
+        (skim cur |=(m=message:noltbook &(=(id.m msg-id.rem) =(author.m our.bowl))))
       ?~  found  `this
       :_  this
       :~  [%pass /msg-reply/(scot %p requester.rem)/(scot %da msg-id.rem) %agent [requester.rem %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-gossip-msg-reply nid requester.rem i.found])]
@@ -2671,9 +2822,21 @@
       =/  nenv=(map @da envelope:noltbook)
         (fall (~(get by gossip-envelopes) nid) *(map @da envelope:noltbook))
       =/  cur=(list message:noltbook)  (fall (~(get by messages) nid) ~)
-      ?:  (lien cur |=(m=message:noltbook =(id.m id.msg)))
+      =/  reply-eid=(unit @uv)  ?~(meta.msg ~ `eid.u.meta.msg)
+      ::  dedup: eid-first, fall back to msg-id
+      ?:  ?|  (lien cur |=(m=message:noltbook =(id.m id.msg)))
+              ?&  ?=(^ reply-eid)
+                  (lien cur |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.reply-eid))))
+              ==
+          ==
         `this
-      =/  env  (~(get by nenv) id.msg)
+      ::  envelope lookup: eid-first, fall back to msg-id
+      =/  env=(unit envelope:noltbook)
+        ?:  ?=(^ reply-eid)
+          =/  by-eid  (skim ~(val by nenv) |=(e=envelope:noltbook ?~(meta.e %.n =(eid.u.meta.e u.reply-eid))))
+          ?^  by-eid  `i.by-eid
+          (~(get by nenv) id.msg)
+        (~(get by nenv) id.msg)
       ?~  env
         ~&  [%gossip-msg-reply-no-envelope id=id.msg note=nid]
         `this
@@ -2684,24 +2847,26 @@
         ?:  =(content-hash.u.env *@uv)
           (~(put by gossip-envelopes) nid (cap-envs (~(put by nenv) id.msg u.env(content-hash (sham text.msg)))))
         gossip-envelopes
+      =/  meid=(unit @uv)  ?~(meta.msg ~ `eid.u.meta.msg)
       =/  mentioned=?  &(!=(author.msg our.bowl) (has-our-mention text.msg our.bowl))
       =/  mention-cards=(list card)
         ?.  mentioned  ~
-        =/  mupd=update:noltbook  [%mention-update nid ~[[id.msg ~ author.msg]]]
+        =/  mupd=update:noltbook  [%mention-update nid ~[[id.msg meid author.msg]]]
         ~[[%give %fact ~[/notes] %noltbook-update !>(mupd)]]
-      =/  new-mentions=(map @ta (list [id=@da author=@p]))
+      =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
         ?.  mentioned  mentions
-        =/  cur-m=(list [id=@da author=@p])  (fall (~(get by mentions) nid) ~)
-        (~(put by mentions) nid (snoc cur-m [id.msg author.msg]))
+        =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) nid) ~)
+        (~(put by mentions) nid (snoc cur-m [id.msg meid author.msg]))
       ::  do NOT persist full message — ephemeral forward only
       =/  upd=update:noltbook  [%cover-msg-content nid msg]
       :_  this(gossip-envelopes new-envs, mentions new-mentions)
       (weld ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] mention-cards)
     ::
         %remote-rumor
-      ::  RUMORS: anonymous gossip from a peer
+      ::  RUMORS: anonymous gossip from a peer. Identity model is
+      ::  content-hash (not entry-meta) — see %send-message %ars-rumors.
       =/  cur=(list message:noltbook)  (fall (~(get by messages) %ars-rumors) ~)
-      ::  dedup by content hash (not message id)
+      ::  content-hash identity: dedup by (sham text)
       =/  chash=@uv  (sham text.msg.rem)
       ?:  (~(has by gossip-hops) `@da`chash)
         `this
@@ -3166,10 +3331,23 @@
         ?+  -.upd  `this
             %gossip-envelope
           =/  env  env.upd
-          ?:  (~(has by note-envs) msg-id.env)
+          =/  env-eid=(unit @uv)  ?~(meta.env ~ `eid.u.meta.env)
+          ::  eid-first dedup against envelope map
+          ?:  ?|  (~(has by note-envs) msg-id.env)
+                  ?&  ?=(^ env-eid)
+                      %+  lien  ~(val by note-envs)
+                      |=(e=envelope:noltbook ?&(?=(^ meta.e) =(eid.u.meta.e u.env-eid)))
+                  ==
+              ==
             `this
           =/  own-msgs=(list message:noltbook)  (fall (~(get by messages) nid) ~)
-          ?:  (lien own-msgs |=(m=message:noltbook =(id.m msg-id.env)))
+          ::  eid-first dedup against own messages
+          ?:  ?|  (lien own-msgs |=(m=message:noltbook =(id.m msg-id.env)))
+                  ?&  ?=(^ env-eid)
+                      %+  lien  own-msgs
+                      |=(m=message:noltbook ?&(?=(^ meta.m) =(eid.u.meta.m u.env-eid)))
+                  ==
+              ==
             `this
           =/  my-hops=@ud  (add hops.upd 1)
           =/  gupd=update:noltbook  [%gossip-envelope nid env my-hops]
@@ -3180,7 +3358,15 @@
         ::
             %envelope-list
           =/  new-envs=(list envelope:noltbook)
-            (skim envelopes.upd |=(e=envelope:noltbook !(~(has by note-envs) msg-id.e)))
+            %+  skim  envelopes.upd
+            |=  e=envelope:noltbook
+            ?:  (~(has by note-envs) msg-id.e)  %.n
+            =/  e-eid=(unit @uv)  ?~(meta.e ~ `eid.u.meta.e)
+            ?~  e-eid  %.y
+            =/  has=?
+              %+  lien  ~(val by note-envs)
+              |=(x=envelope:noltbook ?&(?=(^ meta.x) =(eid.u.meta.x u.e-eid)))
+            !has
           ?~  new-envs  `this
           =/  new-env-map=(map @da envelope:noltbook)
             %-  ~(gas by *(map @da envelope:noltbook))
@@ -3194,10 +3380,25 @@
             %cover-msg-content
           ::  fetched content via subscription — ephemeral forward only
           =/  msg  msg.upd
+          =/  msg-eid=(unit @uv)  ?~(meta.msg ~ `eid.u.meta.msg)
           =/  cur=(list message:noltbook)  (fall (~(get by messages) nid) ~)
-          ?:  (lien cur |=(m=message:noltbook =(id.m id.msg)))
+          ::  eid-first dedup against messages
+          ?:  ?|  (lien cur |=(m=message:noltbook =(id.m id.msg)))
+                  ?&  ?=(^ msg-eid)
+                      %+  lien  cur
+                      |=(m=message:noltbook ?&(?=(^ meta.m) =(eid.u.meta.m u.msg-eid)))
+                  ==
+              ==
             `this
-          =/  env  (~(get by note-envs) id.msg)
+          ::  eid-first envelope lookup, msg-id fallback
+          =/  env=(unit envelope:noltbook)
+            ?:  ?=(^ msg-eid)
+              =/  eid-match
+                %+  skim  ~(val by note-envs)
+                |=(e=envelope:noltbook ?&(?=(^ meta.e) =(eid.u.meta.e u.msg-eid)))
+              ?^  eid-match  `i.eid-match
+              (~(get by note-envs) id.msg)
+            (~(get by note-envs) id.msg)
           ?~  env  `this
           ?.  |(=(content-hash.u.env *@uv) =(content-hash.u.env (sham text.msg)))
             ~&  [%gossip-msg-hash-mismatch-sub note=nid id=id.msg]
@@ -3208,13 +3409,26 @@
             %gossip-message
           ::  full gossip from subscription — convert to envelope
           =/  msg  msg.upd
+          =/  msg-eid=(unit @uv)  ?~(meta.msg ~ `eid.u.meta.msg)
           =/  cur=(list message:noltbook)  (fall (~(get by messages) nid) ~)
-          ?:  (lien cur |=(m=message:noltbook =(id.m id.msg)))
+          ::  eid-first dedup against messages
+          ?:  ?|  (lien cur |=(m=message:noltbook =(id.m id.msg)))
+                  ?&  ?=(^ msg-eid)
+                      %+  lien  cur
+                      |=(m=message:noltbook ?&(?=(^ meta.m) =(eid.u.meta.m u.msg-eid)))
+                  ==
+              ==
             `this
-          ?:  (~(has by note-envs) id.msg)
+          ::  eid-first dedup against envelopes
+          ?:  ?|  (~(has by note-envs) id.msg)
+                  ?&  ?=(^ msg-eid)
+                      %+  lien  ~(val by note-envs)
+                      |=(e=envelope:noltbook ?&(?=(^ meta.e) =(eid.u.meta.e u.msg-eid)))
+                  ==
+              ==
             `this
           =/  my-hops=@ud  (add hops.upd 1)
-          =/  env=envelope:noltbook  [author.msg id.msg timestamp.msg reply-to.msg (sham text.msg)]
+          =/  env=envelope:noltbook  [author.msg id.msg timestamp.msg reply-to.msg (sham text.msg) meta.msg]
           =/  eupd=update:noltbook  [%gossip-envelope nid env my-hops]
           =/  pax=path  /notes/[nid]
           ?:  =(author.msg our.bowl)
@@ -3233,12 +3447,25 @@
             %new-message
           ::  legacy full-message — convert to envelope
           =/  msg  msg.upd
+          =/  msg-eid=(unit @uv)  ?~(meta.msg ~ `eid.u.meta.msg)
           =/  cur=(list message:noltbook)  (fall (~(get by messages) nid) ~)
-          ?:  (lien cur |=(m=message:noltbook =(id.m id.msg)))
+          ::  eid-first dedup against messages
+          ?:  ?|  (lien cur |=(m=message:noltbook =(id.m id.msg)))
+                  ?&  ?=(^ msg-eid)
+                      %+  lien  cur
+                      |=(m=message:noltbook ?&(?=(^ meta.m) =(eid.u.meta.m u.msg-eid)))
+                  ==
+              ==
             `this
-          ?:  (~(has by note-envs) id.msg)
+          ::  eid-first dedup against envelopes
+          ?:  ?|  (~(has by note-envs) id.msg)
+                  ?&  ?=(^ msg-eid)
+                      %+  lien  ~(val by note-envs)
+                      |=(e=envelope:noltbook ?&(?=(^ meta.e) =(eid.u.meta.e u.msg-eid)))
+                  ==
+              ==
             `this
-          =/  env=envelope:noltbook  [author.msg id.msg timestamp.msg reply-to.msg (sham text.msg)]
+          =/  env=envelope:noltbook  [author.msg id.msg timestamp.msg reply-to.msg (sham text.msg) meta.msg]
           =/  eupd=update:noltbook  [%gossip-envelope nid env 1]
           =/  pax=path  /notes/[nid]
           ?:  =(author.msg our.bowl)
@@ -3280,13 +3507,13 @@
         =?  notes  ?=(^ note)
           (~(put by notes) nid u.note(last-author `author.msg, last-preview `text.msg))
         ::  mention detection for subscribed notes
-        =/  mentioned=?  &(!=(author.msg our.bowl) (has-our-mention text.msg our.bowl))
-        =?  mentions  mentioned
-          =/  cur-m=(list [id=@da author=@p])  (fall (~(get by mentions) nid) ~)
-          (~(put by mentions) nid (snoc cur-m [id.msg author.msg]))
         =/  msg-eid=(unit @uv)
           ?~  meta.msg  ~
           `eid.u.meta.msg
+        =/  mentioned=?  &(!=(author.msg our.bowl) (has-our-mention text.msg our.bowl))
+        =?  mentions  mentioned
+          =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) nid) ~)
+          (~(put by mentions) nid (snoc cur-m [id.msg msg-eid author.msg]))
         =/  mention-cards=(list card)
           ?.  mentioned  ~
           =/  mupd=update:noltbook  [%mention-update nid ~[[id.msg msg-eid author.msg]]]
@@ -3390,20 +3617,34 @@
           %new-message
         ::  legacy full-message from subscription — convert to envelope
         =/  msg  msg.upd
+        =/  msg-eid=(unit @uv)  ?~(meta.msg ~ `eid.u.meta.msg)
         =/  cur=(list message:noltbook)  (fall (~(get by messages) %cover) ~)
-        ?:  (lien cur |=(m=message:noltbook =(id.m id.msg)))
+        ::  eid-first dedup against messages
+        ?:  ?|  (lien cur |=(m=message:noltbook =(id.m id.msg)))
+                ?&  ?=(^ msg-eid)
+                    %+  lien  cur
+                    |=(m=message:noltbook ?&(?=(^ meta.m) =(eid.u.meta.m u.msg-eid)))
+                ==
+            ==
           `this
-        ?:  (~(has by cover-envs) id.msg)
+        ::  eid-first dedup against envelopes
+        ?:  ?|  (~(has by cover-envs) id.msg)
+                ?&  ?=(^ msg-eid)
+                    %+  lien  ~(val by cover-envs)
+                    |=(e=envelope:noltbook ?&(?=(^ meta.e) =(eid.u.meta.e u.msg-eid)))
+                ==
+            ==
           `this
-        =/  env=envelope:noltbook  [author.msg id.msg timestamp.msg reply-to.msg (sham text.msg)]
+        =/  env=envelope:noltbook  [author.msg id.msg timestamp.msg reply-to.msg (sham text.msg) meta.msg]
         =/  eupd=update:noltbook  [%gossip-envelope %cover env 1]
+        =/  msg-eid=(unit @uv)  ?~(meta.msg ~ `eid.u.meta.msg)
         =/  mentioned=?  &(!=(author.msg our.bowl) (has-our-mention text.msg our.bowl))
         =?  mentions  mentioned
-          =/  cur-m=(list [id=@da author=@p])  (fall (~(get by mentions) %cover) ~)
-          (~(put by mentions) %cover (snoc cur-m [id.msg author.msg]))
+          =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) %cover) ~)
+          (~(put by mentions) %cover (snoc cur-m [id.msg msg-eid author.msg]))
         =/  mention-cards=(list card)
           ?.  mentioned  ~
-          ~[[%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%mention-update %cover ~[[id.msg ~ author.msg]]])]]
+          ~[[%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%mention-update %cover ~[[id.msg msg-eid author.msg]]])]]
         ::  author persists full message; non-author stores envelope only
         ?:  =(author.msg our.bowl)
           =.  messages  (~(put by messages) %cover (cap-msgs (snoc cur msg) %.y))
@@ -3420,21 +3661,35 @@
           %gossip-message
         ::  full gossip from subscription — convert to envelope
         =/  msg  msg.upd
+        =/  msg-eid=(unit @uv)  ?~(meta.msg ~ `eid.u.meta.msg)
         =/  cur=(list message:noltbook)  (fall (~(get by messages) %cover) ~)
-        ?:  (lien cur |=(m=message:noltbook =(id.m id.msg)))
+        ::  eid-first dedup against messages
+        ?:  ?|  (lien cur |=(m=message:noltbook =(id.m id.msg)))
+                ?&  ?=(^ msg-eid)
+                    %+  lien  cur
+                    |=(m=message:noltbook ?&(?=(^ meta.m) =(eid.u.meta.m u.msg-eid)))
+                ==
+            ==
           `this
-        ?:  (~(has by cover-envs) id.msg)
+        ::  eid-first dedup against envelopes
+        ?:  ?|  (~(has by cover-envs) id.msg)
+                ?&  ?=(^ msg-eid)
+                    %+  lien  ~(val by cover-envs)
+                    |=(e=envelope:noltbook ?&(?=(^ meta.e) =(eid.u.meta.e u.msg-eid)))
+                ==
+            ==
           `this
         =/  my-hops=@ud  (add hops.upd 1)
-        =/  env=envelope:noltbook  [author.msg id.msg timestamp.msg reply-to.msg (sham text.msg)]
+        =/  env=envelope:noltbook  [author.msg id.msg timestamp.msg reply-to.msg (sham text.msg) meta.msg]
         =/  eupd=update:noltbook  [%gossip-envelope %cover env my-hops]
+        =/  msg-eid=(unit @uv)  ?~(meta.msg ~ `eid.u.meta.msg)
         =/  mentioned=?  &(!=(author.msg our.bowl) (has-our-mention text.msg our.bowl))
         =?  mentions  mentioned
-          =/  cur-m=(list [id=@da author=@p])  (fall (~(get by mentions) %cover) ~)
-          (~(put by mentions) %cover (snoc cur-m [id.msg author.msg]))
+          =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) %cover) ~)
+          (~(put by mentions) %cover (snoc cur-m [id.msg msg-eid author.msg]))
         =/  mention-cards=(list card)
           ?.  mentioned  ~
-          ~[[%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%mention-update %cover ~[[id.msg ~ author.msg]]])]]
+          ~[[%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%mention-update %cover ~[[id.msg msg-eid author.msg]]])]]
         ::  author persists; non-author stores envelope only
         ?:  =(author.msg our.bowl)
           =.  messages  (~(put by messages) %cover (cap-msgs (snoc cur msg) %.y))
@@ -3453,10 +3708,22 @@
         =/  cur=(list message:noltbook)  (fall (~(get by messages) %cover) ~)
         =/  cur-ids=(set @da)  (sy (turn cur |=(m=message:noltbook id.m)))
         =/  env-ids=(set @da)  ~(key by cover-envs)
+        =/  cur-eids=(set @uv)
+          %-  sy
+          %+  murn  cur
+          |=(m=message:noltbook ?~(meta.m ~ `eid.u.meta.m))
+        =/  env-eids=(set @uv)
+          %-  sy
+          %+  murn  ~(val by cover-envs)
+          |=(e=envelope:noltbook ?~(meta.e ~ `eid.u.meta.e))
         =/  new-msgs=(list message:noltbook)
           %+  skim  messages.upd
           |=  m=message:noltbook
-          &(!(~(has in cur-ids) id.m) !(~(has in env-ids) id.m))
+          ?:  ?|((~(has in cur-ids) id.m) (~(has in env-ids) id.m))  %.n
+          =/  m-eid=(unit @uv)  ?~(meta.m ~ `eid.u.meta.m)
+          ?~  m-eid  %.y
+          ?:  ?|((~(has in cur-eids) u.m-eid) (~(has in env-eids) u.m-eid))  %.n
+          %.y
         =/  own=(list message:noltbook)
           (skim new-msgs |=(m=message:noltbook =(author.m our.bowl)))
         =/  remote=(list message:noltbook)
@@ -3465,7 +3732,7 @@
           %-  ~(gas by *(map @da envelope:noltbook))
           %+  turn  remote
           |=  m=message:noltbook
-          [id.m [author.m id.m timestamp.m reply-to.m (sham text.m)]]
+          [id.m [author.m id.m timestamp.m reply-to.m (sham text.m) meta.m]]
         =/  new-hops=(map @da @ud)
           %-  ~(gas by *(map @da @ud))
           (turn new-msgs |=(m=message:noltbook [id.m 1]))
@@ -3476,10 +3743,23 @@
           %gossip-envelope
         ::  envelope gossip via subscription
         =/  env  env.upd
-        ?:  (~(has by cover-envs) msg-id.env)
+        =/  env-eid=(unit @uv)  ?~(meta.env ~ `eid.u.meta.env)
+        ::  eid-first dedup against envelope map
+        ?:  ?|  (~(has by cover-envs) msg-id.env)
+                ?&  ?=(^ env-eid)
+                    %+  lien  ~(val by cover-envs)
+                    |=(e=envelope:noltbook ?&(?=(^ meta.e) =(eid.u.meta.e u.env-eid)))
+                ==
+            ==
           `this
         =/  cover-msgs=(list message:noltbook)  (fall (~(get by messages) %cover) ~)
-        ?:  (lien cover-msgs |=(m=message:noltbook =(id.m msg-id.env)))
+        ::  eid-first dedup against messages
+        ?:  ?|  (lien cover-msgs |=(m=message:noltbook =(id.m msg-id.env)))
+                ?&  ?=(^ env-eid)
+                    %+  lien  cover-msgs
+                    |=(m=message:noltbook ?&(?=(^ meta.m) =(eid.u.meta.m u.env-eid)))
+                ==
+            ==
           `this
         =/  my-hops=@ud  (add hops.upd 1)
         =/  gupd=update:noltbook  [%gossip-envelope %cover env my-hops]
@@ -3491,7 +3771,15 @@
           %envelope-list
         ::  initial sync of envelopes from peer
         =/  new-envs=(list envelope:noltbook)
-          (skim envelopes.upd |=(e=envelope:noltbook !(~(has by cover-envs) msg-id.e)))
+          %+  skim  envelopes.upd
+          |=  e=envelope:noltbook
+          ?:  (~(has by cover-envs) msg-id.e)  %.n
+          =/  e-eid=(unit @uv)  ?~(meta.e ~ `eid.u.meta.e)
+          ?~  e-eid  %.y
+          =/  has=?
+            %+  lien  ~(val by cover-envs)
+            |=(x=envelope:noltbook ?&(?=(^ meta.x) =(eid.u.meta.x u.e-eid)))
+          !has
         ?~  new-envs  `this
         =/  new-env-map=(map @da envelope:noltbook)
           %-  ~(gas by *(map @da envelope:noltbook))
@@ -3505,11 +3793,25 @@
           %cover-msg-content
         ::  fetched content via subscription — ephemeral forward only
         =/  msg  msg.upd
+        =/  msg-eid=(unit @uv)  ?~(meta.msg ~ `eid.u.meta.msg)
         =/  cur=(list message:noltbook)  (fall (~(get by messages) %cover) ~)
-        ?:  (lien cur |=(m=message:noltbook =(id.m id.msg)))
+        ::  eid-first dedup against messages
+        ?:  ?|  (lien cur |=(m=message:noltbook =(id.m id.msg)))
+                ?&  ?=(^ msg-eid)
+                    %+  lien  cur
+                    |=(m=message:noltbook ?&(?=(^ meta.m) =(eid.u.meta.m u.msg-eid)))
+                ==
+            ==
           `this
-        ::  verify content hash if envelope exists
-        =/  env  (~(get by cover-envs) id.msg)
+        ::  eid-first envelope lookup, msg-id fallback
+        =/  env=(unit envelope:noltbook)
+          ?:  ?=(^ msg-eid)
+            =/  eid-match
+              %+  skim  ~(val by cover-envs)
+              |=(e=envelope:noltbook ?&(?=(^ meta.e) =(eid.u.meta.e u.msg-eid)))
+            ?^  eid-match  `i.eid-match
+            (~(get by cover-envs) id.msg)
+          (~(get by cover-envs) id.msg)
         ?~  env  `this
         ?.  |(=(content-hash.u.env *@uv) =(content-hash.u.env (sham text.msg)))
           ~&  [%cover-msg-hash-mismatch-sub id=id.msg]
