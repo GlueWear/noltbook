@@ -242,6 +242,20 @@
       =/  ship-nd  (need (~(get by d) 'ship'))
       ?>  ?=([%s *] ship-nd)
       [%create-dm (slav %p p.ship-nd)]
+    ::  convert-to-dm
+    ?:  =('convert-to-dm' tag)
+      =/  id-nd  (need (~(get by d) 'id'))
+      ?>  ?=([%s *] id-nd)
+      =/  ship-nd  (need (~(get by d) 'ship'))
+      ?>  ?=([%s *] ship-nd)
+      [%convert-to-dm `@ta`p.id-nd (slav %p p.ship-nd)]
+    ::  merge-into-dm
+    ?:  =('merge-into-dm' tag)
+      =/  id-nd  (need (~(get by d) 'id'))
+      ?>  ?=([%s *] id-nd)
+      =/  ship-nd  (need (~(get by d) 'ship'))
+      ?>  ?=([%s *] ship-nd)
+      [%merge-into-dm `@ta`p.id-nd (slav %p p.ship-nd)]
     ::  leave-note
     ?:  =('leave-note' tag)
       =/  id-nd  (need (~(get by d) 'id'))
@@ -333,6 +347,34 @@
       =/  hl-nd  (need (~(get by d) 'headline'))
       ?>  ?=([%s *] hl-nd)
       [%set-headline `@ta`p.id-nd p.hl-nd]
+    ::  request-join
+    ?:  =('request-join' tag)
+      =/  nid-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] nid-nd)
+      =/  host-nd  (need (~(get by d) 'host'))
+      ?>  ?=([%s *] host-nd)
+      [%request-join `@ta`p.nid-nd (slav %p p.host-nd)]
+    ::  approve-join
+    ?:  =('approve-join' tag)
+      =/  nid-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] nid-nd)
+      =/  ship-nd  (need (~(get by d) 'ship'))
+      ?>  ?=([%s *] ship-nd)
+      [%approve-join `@ta`p.nid-nd (slav %p p.ship-nd)]
+    ::  deny-join
+    ?:  =('deny-join' tag)
+      =/  nid-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] nid-nd)
+      =/  ship-nd  (need (~(get by d) 'ship'))
+      ?>  ?=([%s *] ship-nd)
+      [%deny-join `@ta`p.nid-nd (slav %p p.ship-nd)]
+    ::  deny-block-join
+    ?:  =('deny-block-join' tag)
+      =/  nid-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] nid-nd)
+      =/  ship-nd  (need (~(get by d) 'ship'))
+      ?>  ?=([%s *] ship-nd)
+      [%deny-block-join `@ta`p.nid-nd (slav %p p.ship-nd)]
     ::  set-dial (final case)
     ?>  =('set-dial' tag)
     =/  dial-nd  (need (~(get by d) 'dial'))

@@ -401,7 +401,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
         <div class="section-body open" id="notesBody"></div>
         <div class="section-header" onclick="toggleSection('shared')">
           <span class="section-arrow open" id="sharedArrow">▶</span>
-          <span class="section-title">SHARED</span>
+          <span class="section-title">SHARED NOTES</span>
         </div>
         <div class="section-body open" id="sharedBody"></div>
         <div class="section-header" onclick="toggleSection('ars')">
@@ -661,7 +661,7 @@ const api = {
     this.reconnecting=false;
   }
 };
-const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},dial:0,gossipHops:{},mentions:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{}};
+const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},dial:0,gossipHops:{},mentions:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null};
 let sigilFn=null;
 const sigilCache={};
 (async function loadSigil(){
@@ -744,7 +744,7 @@ function scheduleNoteList(){if(_noteListTimer)clearTimeout(_noteListTimer);_note
 let _lastMsgHash={};
 function handleUpdate(upd){
   if(upd['note-list']){console.log('[note-list]',JSON.stringify(upd['note-list']));for(const n of upd['note-list'])state.notes[n.id]=n;renderNoteList()}
-  else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));state.notes[n.id]=n;if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id)}if(n.creator==='~'+api.ship){if(n.parent)state.expandedNotes.add(n.parent);openNote(n.id)}else{state.notifications.add(n.id)}renderNoteList()}
+  else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));delete state.pendingJoins[n.id];state.notes[n.id]=n;if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id)}if(state.pendingWalletMsg&&n.type==='dm'){const pw=state.pendingWalletMsg;if(n.users&&n.users.length===2&&n.users.includes(pw.ship)){api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:n.id,text:pw.text}});state.pendingWalletMsg=null}}if(n.creator==='~'+api.ship){if(n.parent)state.expandedNotes.add(n.parent);openNote(n.id)}else{state.notifications.add(n.id)}renderNoteList()}
   else if(upd['note-renamed']){const{id,name}=upd['note-renamed'];if(state.notes[id]){state.notes[id].name=name;renderNoteList()}if(state.currentNoteId===id)document.getElementById('chatNoteName').textContent=name}
   else if(upd['note-deleted']){const{id}=upd['note-deleted'];delete state.notes[id];if(state.currentNoteId===id)openNote('cover');renderNoteList()}
   else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];let maxSeq=0,revSum=0;for(const m of messages){if(m.meta){if(m.meta.seq>maxSeq)maxSeq=m.meta.seq;revSum+=m.meta.rev}}const hash=noteId+':'+messages.length+':'+maxSeq+':'+revSum;if(_lastMsgHash[noteId]===hash)return;_lastMsgHash[noteId]=hash;state.messages[noteId]=messages;for(const a of artifacts)state.artifacts[a.id]=a;if(state.currentNoteId===noteId)scheduleRender(noteId);updateCoverPreview();scheduleNoteList()}
@@ -758,11 +758,11 @@ function handleUpdate(upd){
   else if(upd['message-deleted']){const{noteId,msgId,eid}=upd['message-deleted'];const msgs=state.messages[noteId]||[];const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===msgId);if(fi>=0)msgs.splice(fi,1);if(state.currentNoteId===noteId)scheduleRender(noteId)}
   else if(upd['profile-list']){for(const entry of upd['profile-list']){state.profiles[entry.ship]=entry.profile}const me=state.profiles['~'+api.ship];if(me){if(me.displayName)document.getElementById('shipDisplay').textContent=me.displayName;updateSidebarSigil()}if(state.palsView)renderPalsList();if(state.currentNoteId)scheduleRender()}
   else if(upd['profile-updated']){const{ship,profile}=upd['profile-updated'];state.profiles[ship]=profile;if(ship==='~'+api.ship){document.getElementById('shipDisplay').textContent=profile.displayName||'~'+api.ship;updateSidebarSigil()}if(state.palsView)renderPalsList();if(state.currentNoteId)scheduleRender()}
-  else if(upd['remote-note-list']){const{ship,notes}=upd['remote-note-list'];const el=document.getElementById('viewProfileNotes');if(el){const pubNotes=notes.filter(n=>n.visibility==='public').sort((a,b)=>a.name.localeCompare(b.name));const privNotes=notes.filter(n=>n.visibility==='private').sort((a,b)=>a.name.localeCompare(b.name));const all=[...pubNotes,...privNotes];if(all.length===0){el.innerHTML='<span style="color:var(--dim)">none available</span>'}else{el.innerHTML=all.map(n=>{const ic=n.iconUrl?'<img src="'+escAttr(n.iconUrl)+'">':noteInitials(n.name);const vis=n.visibility==='public'?'public':'private';return '<div class="profile-note-entry"><div class="profile-note-icon">'+ic+'</div><div class="profile-note-text"><span class="profile-note-name">'+escHtml(n.name)+'</span><span class="profile-note-vis">'+vis+'</span></div></div>'}).join('')}}}
+  else if(upd['remote-note-list']){const{ship,notes}=upd['remote-note-list'];const el=document.getElementById('viewProfileNotes');if(el){const pubNotes=notes.filter(n=>n.visibility==='public').sort((a,b)=>a.name.localeCompare(b.name));const privNotes=notes.filter(n=>n.visibility==='private').sort((a,b)=>a.name.localeCompare(b.name));const all=[...pubNotes,...privNotes];if(all.length===0){el.innerHTML='<span style="color:var(--dim)">none available</span>'}else{el.innerHTML=all.map(n=>{const ic=n.iconUrl?'<img src="'+escAttr(n.iconUrl)+'">':noteInitials(n.name);const vis=n.visibility==='public'?'public':'private';const me='~'+api.ship;const isMember=state.notes[n.id]&&(state.notes[n.id].users||[]).includes(me);const isPending=!!state.pendingJoins[n.id];let btn='';if(isMember){btn='<span style="color:var(--text-dim);font-size:.65rem">JOINED</span>'}else if(isPending){btn='<span style="color:#ffee55;font-size:.65rem">PENDING</span>'}else if(n.visibility==='public'){btn='<span style="color:#00ff88;font-size:.65rem;cursor:pointer" onclick="event.stopPropagation();requestJoinNote(\''+escAttr(n.id)+'\',\''+escAttr(n.creator)+'\')">JOIN</span>'}else{btn='<span style="color:#ffaa00;font-size:.65rem;cursor:pointer" onclick="event.stopPropagation();requestJoinNote(\''+escAttr(n.id)+'\',\''+escAttr(n.creator)+'\')">REQUEST</span>'}return '<div class="profile-note-entry"><div class="profile-note-icon">'+ic+'</div><div class="profile-note-text"><span class="profile-note-name">'+escHtml(n.name)+'</span><span class="profile-note-vis">'+vis+'</span></div><div style="margin-left:auto">'+btn+'</div></div>'}).join('')}}}
   else if(upd['pal-list']){for(const entry of upd['pal-list']){state.palStatus[entry.ship]=entry.status}if(state.palsView)renderPalsList();fetchVisibleEnvelopes()}
   else if(upd['pal-update']){const{ship,status}=upd['pal-update'];state.palStatus[ship]=status;if(state.palsView)renderPalsList();renderNoteList();fetchVisibleEnvelopes();if(isGossipNote(state.currentNoteId))scheduleRender(state.currentNoteId)}
   else if(upd['dial-update']){state.dial=upd['dial-update'];updateDialUI();if(isGossipNote(state.currentNoteId))scheduleRender(state.currentNoteId);scheduleNoteList();fetchVisibleEnvelopes()}
-  else if(upd['note-users-updated']){const{id,users,removed}=upd['note-users-updated'];console.log('[note-users-updated]',id,users,removed);if(state.notes[id]){state.notes[id].users=users;state.notes[id].removed=removed||[];renderNoteList();if(state.currentNoteId===id)scheduleRender(id)}}
+  else if(upd['note-users-updated']){const{id,type,users,removed}=upd['note-users-updated'];console.log('[note-users-updated]',id,type,users,removed);if(state.notes[id]){state.notes[id].users=users;state.notes[id].removed=removed||[];if(type)state.notes[id].type=type;renderNoteList();if(state.currentNoteId===id)scheduleRender(id)}}
   else if(upd['note-redirect']){const{oldId,newId}=upd['note-redirect'];console.log('[note-redirect]',oldId,'->',newId);delete state.notes[oldId];delete state.messages[oldId];state.notifications.delete(oldId);if(state.currentNoteId===oldId){if(state.notes[newId])openNote(newId);else openNote('cover')}renderNoteList()}
   else if(upd['wallet-update']){wallet.transactions=upd['wallet-update'].map(tx=>({type:tx.type,who:tx.counterparty,amount:tx.amount,time:new Date(tx.timestamp).toLocaleString(),txid:tx.txHash}));renderWalletNotes()}
   else if(upd['gossip-message']){const{message,hops}=upd['gossip-message'];const nid=message.noteId||'cover';const msgEid=message.meta&&message.meta.eid||null;state.gossipHops[message.id]=hops;if(!state.messages[nid])state.messages[nid]=[];const nenvs=state.gossipEnvelopes[nid]||{};delete nenvs[message.id];if(msgEid)delete nenvs[msgEid];state.gossipEnvelopes[nid]=nenvs;const nfetch=state.gossipFetching[nid];if(nfetch){nfetch.delete(message.id);if(msgEid)nfetch.delete(msgEid)}const isDup=state.messages[nid].some(m=>(msgEid&&m.meta&&m.meta.eid===msgEid)||m.id===message.id);if(!isDup){state.messages[nid].push(message);const visible=coverMsgVisible(message);if(state.currentNoteId===nid&&visible)appendMessage(message);else if(state.currentNoteId!==nid&&visible)state.notifications.add(nid)}const visible=coverMsgVisible(message);if(visible&&state.notes[nid]){state.notes[nid].lastAuthor=message.author;state.notes[nid].lastPreview=message.text}scheduleNoteList()}
@@ -778,6 +778,10 @@ function handleUpdate(upd){
   else if(upd['call-ended']){const{noteId,callId}=upd['call-ended'];const c=state.activeCalls[noteId];if(!c){console.log('[call-ended] no active call, ignoring');return}if(callId&&c.callId&&callId!==c.callId){console.log('[call-ended] stale callId',callId,'vs active',c.callId,', ignoring');return}console.log('[call-ended]',noteId,callId);delete state.activeCalls[noteId];if(state.inCall===noteId){rtcManager.hangUp();state.inCall=null}updateCallUI()}
   else if(upd['call-signal']){const{noteId,from,sigType,payload}=upd['call-signal'];console.log('[call-signal]',noteId,from,sigType);if(state.inCall===noteId)rtcManager.handleSignal(from,sigType,payload)}
   else if(upd['kick-notification']){const{noteId,noteName,from}=upd['kick-notification'];state.blockNotifications.push({noteId,noteName,from,time:Date.now()});updateLogoBadge()}
+  else if(upd['join-requested']){const{noteId,host}=upd['join-requested'];state.pendingJoins[noteId]=host;console.log('[join-requested] pending',noteId,host)}
+  else if(upd['join-denied']){const{noteId,host}=upd['join-denied'];delete state.pendingJoins[noteId];console.log('[join-denied]',noteId,host)}
+  else if(upd['join-request-received']){const{noteId,ship,noteName}=upd['join-request-received'];if(!state.joinRequests.some(r=>r.noteId===noteId&&r.ship===ship)){state.joinRequests.push({noteId,ship,noteName,time:Date.now()})}updateLogoBadge();console.log('[join-request-received]',noteId,ship,noteName)}
+  else if(upd['join-request-list']){const list=upd['join-request-list'];state.joinRequests=list.map(r=>({noteId:r.noteId,ship:r.ship,noteName:r.noteName,time:Date.now()}));updateLogoBadge();const gm=document.getElementById('grimoireMenu');if(gm){gm.remove();openGrimoireMenu()}console.log('[join-request-list]',list.length,'requests')}
 }
 function revealNoteInTree(id){
   // expand ancestors and open the containing section so the note is visible
@@ -794,8 +798,9 @@ function revealNoteInTree(id){
   if(id==='cover'||id==='ars-rumors')section='ars';
   else if(node){
     if(node.type==='gossip')section='ars';
+    else if(node.type==='dm')section='shared';
     else{const others=(node.users||[]).filter(u=>u&&u!==me);
-    const isShared=node.type==='dm'||node.type==='group'||others.length>0||(node.creator&&node.creator!==me);
+    const isShared=others.length>0||(node.creator&&node.creator!==me);
     section=isShared?'shared':'notes';}
   }
   if(!state.expandedSections[section]){
@@ -816,7 +821,7 @@ async function openNote(id){
   // if note has descendant notifications, expand tree to reveal them
   if(state.notes[id]){expandToNotifications(id);state.expandedNotes.add(id)}
   document.getElementById('chatNoteName').textContent=id==='cover'?'%Grimoire':id==='ars-rumors'?'%Rumors':(state.notes[id]?noteDisplayName(state.notes[id]):id);
-  document.getElementById('shareBtn').style.display=(id==='cover'||id==='ars-rumors')?'none':'block';
+  document.getElementById('shareBtn').style.display=(id==='cover'||id==='ars-rumors'||(state.notes[id]&&state.notes[id].type==='dm'))?'none':'block';
   document.getElementById('chatMessages').innerHTML='';
   await api.poke('noltbook','noltbook-action',{action:'switch-note',data:{id}});
   const subId=await api.subscribe('noltbook','/notes/'+id,handleUpdate);
@@ -965,14 +970,14 @@ function noteDisplayIconHtml(note){
   const url=resolveNoteIconUrl(note);
   return url?`<img src="${escAttr(url)}" style="width:100%;height:100%;object-fit:cover;border-radius:3px">`:noteInitials(note.name);
 }
-function findSharedRootByUsers(userSet){
-  // returns note whose users match userSet exactly and has no parent; null if none
-  const target=[...userSet].sort().join(',');
+
+function findDmRoot(ship){
+  // returns the canonical %dm root for {me, ship}, or null
+  const me='~'+api.ship;
   for(const n of Object.values(state.notes)){
-    if(n.parent)continue;
-    if(n.id==='cover'||(n.id+'').startsWith('ars-'))continue;
-    const u=[...(n.users||[])].sort().join(',');
-    if(u===target)return n;
+    if(n.parent||n.type!=='dm')continue;
+    const u=n.users||[];
+    if(u.length===2&&u.includes(me)&&u.includes(ship))return n;
   }
   return null;
 }
@@ -985,8 +990,9 @@ function computeTrickle(){
     if(rootId==='cover'||rootId==='ars-rumors')return 'ars';
     const r=state.notes[rootId]; if(!r)return 'notes';
     if(r.type==='gossip')return 'ars';
+    if(r.type==='dm')return 'shared';
     const others=(r.users||[]).filter(u=>u&&u!==me);
-    const isShared=r.type==='dm'||r.type==='group'||others.length>0||(r.creator&&r.creator!==me);
+    const isShared=others.length>0||(r.creator&&r.creator!==me);
     return isShared?'shared':'notes';
   }
   for(const rawId of state.notifications){
@@ -1033,8 +1039,9 @@ function renderNoteList(){
     if(n.id==='cover'||(n.id+'').startsWith('ars-'))continue;
     if(n.parent)continue;
     if(n.type==='gossip'){renderTree(n.id,0,arsEl);continue}
+    if(n.type==='dm'){sharedNotes.push(n);continue}
     const others=(n.users||[]).filter(u=>u&&u!==me);
-    const isShared=n.type==='dm'||n.type==='group'||others.length>0||(n.creator&&n.creator!==me);
+    const isShared=others.length>0||(n.creator&&n.creator!==me);
     if(isShared)sharedNotes.push(n);else myNotes.push(n);
   }
   for(const n of myNotes)renderTree(n.id,0,notesEl);
@@ -1113,8 +1120,9 @@ function toggleSection(name){
     for(const n of Object.values(state.notes)){
       if(n.id==='cover'||(n.id+'').startsWith('ars-')||n.parent)continue;
       if(n.type==='gossip'){if(name==='ars')expandToNotifications(n.id);continue}
+      if(n.type==='dm'){if(name==='shared')expandToNotifications(n.id);continue}
       const others=(n.users||[]).filter(u=>u&&u!==me);
-      const isShared=n.type==='dm'||n.type==='group'||others.length>0||(n.creator&&n.creator!==me);
+      const isShared=others.length>0||(n.creator&&n.creator!==me);
       const sec=isShared?'shared':'notes';
       if(sec===name)expandToNotifications(n.id);
     }
@@ -1823,19 +1831,15 @@ function openSharePrompt(){
     if(selected.size===0)return;
     const note=state.notes[noteId];
     if(!note){dd.destroy();overlay.remove();modal.remove();return}
-    // check for existing root with same user set
-    const newUsers=new Set(note.users||[]);
-    for(const s of selected)newUsers.add(s);
-    const noteType=note.type||(newUsers.size===2?'dm':'notebook');
-    const existing=Object.values(state.notes).find(n=>
-      !n.parent&&n.id!=='cover'&&n.id!==noteId&&
-      n.type===noteType&&
-      n.users&&n.users.length===newUsers.size&&
-      n.users.every(u=>newUsers.has(u))
-    );
-    if(existing){
+    // solo-note single-invite DM choice
+    const me='~'+api.ship;
+    const canOfferDm=note.type==='group'&&!note.parent
+      &&(note.users||[]).length===1&&note.creator===me
+      &&note.visibility==='secret';
+    if(canOfferDm&&selected.size===1){
+      const targetShip=[...selected][0];
       dd.destroy();overlay.remove();modal.remove();
-      showReparentPrompt(noteId,note.name,existing.id,existing.name);
+      showDmChoiceModal(noteId,targetShip);
       return;
     }
     for(const ship of selected){
@@ -1844,6 +1848,48 @@ function openSharePrompt(){
     dd.destroy();overlay.remove();modal.remove();
   });
   inputEl.addEventListener('keydown',function(e){if(e.key==='Enter'&&!document.querySelector('.user-dropdown.open .user-drop-item.active')){document.getElementById('shareInviteBtn').click()}});
+}
+function showDmChoiceModal(noteId,targetShip){
+  const existing=findDmRoot(targetShip);
+  const hasContent=(state.messages[noteId]&&state.messages[noteId].length>0)||Object.values(state.artifacts).some(a=>a.noteId===noteId);
+  const ov=document.createElement('div');
+  ov.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999';
+  const m=document.createElement('div');
+  m.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--bg2);border:1px solid var(--border);padding:1rem;z-index:10000;min-width:300px;display:flex;flex-direction:column;gap:.7rem';
+  const dn=displayName(targetShip);
+  // 3 cases: no DM, existing DM + no content, existing DM + content
+  const dmLabel=!existing?'Create DM':hasContent?'Post to Existing DM':'Open Existing DM';
+  const desc=!existing
+    ?'Would you like to start a direct message with '+escHtml(dn)+', or share this note with them?'
+    :hasContent
+      ?'A DM with '+escHtml(dn)+' already exists. Move this content there, or share this note instead?'
+      :'A DM with '+escHtml(dn)+' already exists. Open it, or share this note instead?';
+  m.innerHTML=`<div style="font-size:.85rem;color:#ffaa00;font-weight:bold">MESSAGE ${escHtml(dn)}</div>`+
+    `<div style="font-size:.8rem;color:var(--text);line-height:1.4">${desc}</div>`+
+    `<div style="display:flex;flex-direction:column;gap:.4rem">`+
+    `<button id="dmChoiceDm" style="background:#ffaa00;color:#000;border:none;padding:.4rem .7rem;cursor:pointer;font-weight:bold;font-family:var(--font)">${escHtml(dmLabel)}</button>`+
+    `<button id="dmChoiceNote" style="background:var(--bg3);color:var(--text);border:none;padding:.4rem .7rem;cursor:pointer;font-family:var(--font)">Keep as Note</button></div>`;
+  ov.addEventListener('click',function(e){if(e.target===ov){ov.remove();m.remove()}});
+  document.body.appendChild(ov);document.body.appendChild(m);
+  document.getElementById('dmChoiceDm').addEventListener('click',function(){
+    ov.remove();m.remove();
+    if(!existing){
+      // convert this note into the DM in place
+      api.poke('noltbook','noltbook-action',{action:'convert-to-dm',data:{id:noteId,ship:targetShip}});
+    }else if(hasContent){
+      // merge content into existing DM, delete this note
+      api.poke('noltbook','noltbook-action',{action:'merge-into-dm',data:{id:noteId,ship:targetShip}});
+      openNote(existing.id);
+    }else{
+      // discard empty note, open existing DM
+      api.poke('noltbook','noltbook-action',{action:'delete-note',data:{id:noteId}});
+      openNote(existing.id);
+    }
+  });
+  document.getElementById('dmChoiceNote').addEventListener('click',function(){
+    ov.remove();m.remove();
+    api.poke('noltbook','noltbook-action',{action:'invite-to-note',data:{id:noteId,ship:targetShip}});
+  });
 }
 function createNote(parentId){state.pendingParent=parentId||null;document.getElementById('noteNameInput').value='';document.getElementById('gossipCheck').checked=false;document.getElementById('gossipToggleWrap').style.display=parentId?'none':'flex';document.getElementById('noteModalTitle').textContent=parentId?'NEW CHILD NOTE':'NEW NOTE';document.getElementById('noteModal').classList.add('open');setTimeout(()=>document.getElementById('noteNameInput').focus(),50)}
 function closeNoteModal(){document.getElementById('noteModal').classList.remove('open');state.pendingParent=null}
@@ -1916,7 +1962,8 @@ function showNoteContextMenu(event,noteId){
   const userCount=(note.users||[]).length;
   const isShared=userCount>1;
   const isGossip=note.type==='gossip';
-  const delItem=(isShared||isGossip)
+  const isDm=note.type==='dm';
+  const delItem=(isShared||isGossip||isDm)
     ?'<div class="context-menu-item danger" data-action="leave">Leave</div>'
     :'<div class="context-menu-item danger" data-action="delete">Delete</div>';
   menu.innerHTML=`
@@ -1927,7 +1974,7 @@ function showNoteContextMenu(event,noteId){
     <div class="context-menu-item${ro}" data-action="writable" data-val="true"><span class="context-radio ${wr?'selected':''}"></span> Write</div>
     <div class="context-menu-item${ro}" data-action="writable" data-val="false"><span class="context-radio ${!wr?'selected':''}"></span> Read Only</div>
     <div class="context-menu-divider"></div>
-    <div class="context-menu-item" data-action="child">+ Child</div>
+    ${note.type!=='dm'?'<div class="context-menu-item" data-action="child">+ Child</div>':''}
     <div class="context-menu-item${ro}" data-action="img">+ Img</div>
     <div class="context-menu-item" data-action="duplicate">Duplicate</div>
     ${isCreator?'<div class="context-menu-item" data-action="rename">Rename</div>':''}
@@ -1959,22 +2006,6 @@ function showNoteContextMenu(event,noteId){
   setTimeout(()=>{document.addEventListener('click',closeContextMenu)},0);
 }
 function closeContextMenu(){const menu=document.getElementById('noteContextMenu');if(menu)menu.remove();document.removeEventListener('click',closeContextMenu)}
-function showReparentPrompt(childId,childName,parentId,parentName){
-  const ov=document.createElement('div');ov.className='modal-overlay open';ov.id='reparentOverlay';
-  const m=document.createElement('div');m.className='modal';
-  m.innerHTML=`<span class="modal-title">GROUP EXISTS</span>`+
-    `<div style="font-size:.85rem;color:var(--text);line-height:1.5">A group with these users already exists:<br>`+
-    `<span style="color:var(--accent,#00ff88)">"${escHtml(parentName)}"</span><br><br>`+
-    `Make <span style="color:var(--text)">"${escHtml(childName)}"</span> a child of it?</div>`+
-    `<div class="modal-actions"><button class="modal-btn cancel" id="reparentNo">CANCEL</button>`+
-    `<button class="modal-btn primary" id="reparentYes">MAKE CHILD</button></div>`;
-  ov.appendChild(m);document.body.appendChild(ov);
-  document.getElementById('reparentNo').addEventListener('click',function(){ov.remove()});
-  document.getElementById('reparentYes').addEventListener('click',function(){
-    api.poke('noltbook','noltbook-action',{action:'reparent-note',data:{id:childId,newParent:parentId}});
-    ov.remove();
-  });
-}
 function toggleAttachMenu(){document.getElementById('attachMenu').classList.toggle('open')}
 const APP_REGISTRY=[
   {id:'canvas',name:'Canvas',icon:'▢',version:'0.1.0',description:'Collaborative drawing app'}
@@ -2274,6 +2305,10 @@ function viewProfileRemoveContact(ship){
   // backend TBD
   console.log('[remove-contact]',ship);
 }
+function requestJoinNote(noteId,host){
+  if(state.pendingJoins[noteId])return;
+  api.poke('noltbook','noltbook-action',{action:'request-join',data:{noteId,host}});
+}
 function viewProfileSend(ship){
   const overlay=document.querySelector('.modal-overlay.open');
   if(overlay)overlay.remove();
@@ -2284,12 +2319,10 @@ async function viewProfileDm(ship){
   // close profile modal
   const overlay=document.querySelector('.modal-overlay.open');
   if(overlay&&overlay.id!=='noteModal')overlay.remove();
-  // check if DM already exists locally for instant focus
-  const existing=findSharedRootByUsers(new Set(['~'+api.ship,ship]));
+  // find canonical DM root for this exact pair
+  const existing=findDmRoot(ship);
   if(existing){openNote(existing.id);return}
-  // otherwise poke backend to create; note-created handler will not auto-open
-  // since we're not the creator check — we ARE creator here, so note-created
-  // triggers openNote automatically in handleUpdate. fine.
+  // create-dm will create the %dm root
   await api.poke('noltbook','noltbook-action',{action:'create-dm',data:{ship}});
 }
 function openGroupMembersModal(note){
@@ -2383,17 +2416,35 @@ document.addEventListener('click',(e)=>{
   document.querySelectorAll('.msg.show-actions').forEach(x=>x.classList.remove('show-actions'));
   if(!isOpen)m.classList.add('show-actions');
 });
-function updateLogoBadge(){const el=document.getElementById('noltbookLogo');if(el)el.classList.toggle('has-notif',state.blockNotifications.length>0)}
+function updateLogoBadge(){const el=document.getElementById('noltbookLogo');if(el)el.classList.toggle('has-notif',state.blockNotifications.length>0||state.joinRequests.length>0)}
+function handleJoinAction(noteId,ship,action){
+  if(action==='approve'){api.poke('noltbook','noltbook-action',{action:'approve-join',data:{noteId,ship}})}
+  else if(action==='deny'){api.poke('noltbook','noltbook-action',{action:'deny-join',data:{noteId,ship}})}
+  else if(action==='deny-block'){api.poke('noltbook','noltbook-action',{action:'deny-block-join',data:{noteId,ship}})}
+}
 function openGrimoireMenu(){
   const existing=document.getElementById('grimoireMenu');if(existing){existing.remove();return}
   const menu=document.createElement('div');menu.id='grimoireMenu';menu.className='context-menu';
   let html='';
-  if(state.blockNotifications.length>0){
+  const hasNotifs=state.blockNotifications.length>0||state.joinRequests.length>0;
+  if(hasNotifs){
     html+='<div style="padding:.4rem .6rem;font-size:.65rem;color:var(--text-dim);letter-spacing:.05em;border-bottom:1px solid var(--border)">NOTIFICATIONS</div>';
     for(const bn of state.blockNotifications){
       html+=`<div class="context-menu-item" style="font-size:.75rem;color:#ff4444">Removed from ${escHtml(bn.noteName)}</div>`;
     }
-    html+=`<div class="context-menu-item" style="font-size:.7rem;color:var(--text-dim);cursor:pointer" onclick="state.blockNotifications=[];updateLogoBadge();openGrimoireMenu();openGrimoireMenu()">CLEAR</div>`;
+    for(const jr of state.joinRequests){
+      html+=`<div class="context-menu-item" style="font-size:.75rem;display:flex;flex-direction:column;gap:.3rem">
+        <span style="color:var(--text)"><span style="color:#ffaa00">${escHtml(jr.ship)}</span> wants to join <b>${escHtml(jr.noteName)}</b></span>
+        <div style="display:flex;gap:.4rem">
+          <span style="color:#00ff88;cursor:pointer;font-size:.65rem" onclick="handleJoinAction('${escAttr(jr.noteId)}','${escAttr(jr.ship)}','approve')">APPROVE</span>
+          <span style="color:#ff4444;cursor:pointer;font-size:.65rem" onclick="handleJoinAction('${escAttr(jr.noteId)}','${escAttr(jr.ship)}','deny')">DENY</span>
+          <span style="color:#ff4444;cursor:pointer;font-size:.65rem" onclick="handleJoinAction('${escAttr(jr.noteId)}','${escAttr(jr.ship)}','deny-block')">DENY+BLOCK</span>
+        </div>
+      </div>`;
+    }
+    if(state.blockNotifications.length>0){
+      html+=`<div class="context-menu-item" style="font-size:.7rem;color:var(--text-dim);cursor:pointer" onclick="state.blockNotifications=[];updateLogoBadge();openGrimoireMenu();openGrimoireMenu()">CLEAR KICKS</div>`;
+    }
   }else{
     html='<div class="context-menu-item" style="color:var(--text-dim)">No notifications</div>';
   }
@@ -2974,18 +3025,16 @@ async function walletSend(){
       to:recipientName,amount:amount,txHash:txHash
     }});
 
-    // Send payment message to DM
+    // Send payment message to canonical DM root
     if(recipientName.startsWith('~')){
-      const dm=findSharedRootByUsers(new Set(['~'+api.ship,recipientName]));
       const paymentText=NOCK_SEND_PREFIX+' sent '+amount.toFixed(4)+' $NOCK to '+recipientName+(txHash?' (tx:'+txHash.slice(0,12)+'...)':'');
+      const dm=findDmRoot(recipientName);
       if(dm){
         api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:dm.id,text:paymentText}});
       }else{
+        // create-dm creates the DM root; pendingWalletMsg fires when note-created arrives
+        state.pendingWalletMsg={ship:recipientName,text:paymentText};
         await api.poke('noltbook','noltbook-action',{action:'create-dm',data:{ship:recipientName}});
-        setTimeout(()=>{
-          const dm2=findSharedRootByUsers(new Set(['~'+api.ship,recipientName]));
-          if(dm2){api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:dm2.id,text:paymentText}})}
-        },2000);
       }
     }
 

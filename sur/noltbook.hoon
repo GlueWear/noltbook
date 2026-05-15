@@ -149,6 +149,10 @@
       [%remote-call-signal call-id=@ta from=@p sig-type=@t payload=@t]
       ::  block: host kicked you from a note
       [%remote-kick note-id=@ta note-name=@t]
+      ::  join-request flow
+      [%remote-join-request note-id=@ta]
+      [%remote-join-pending note-id=@ta]
+      [%remote-join-denied note-id=@ta]
   ==
 ::  poke actions (client to agent)
 +$  action
@@ -176,6 +180,8 @@
       [%unblock-pal ship=@p]
       [%set-dial dial=@ud]
       [%create-dm ship=@p]
+      [%convert-to-dm id=@ta ship=@p]
+      [%merge-into-dm id=@ta ship=@p]
       [%leave-note id=@ta]
       [%reparent-note id=@ta new-parent=@ta]
       [%remove-member id=@ta ship=@p]
@@ -189,6 +195,10 @@
       [%clear-calls ~]
       [%fetch-cover-msg note-id=@ta author=@p msg-id=@da eid=(unit @uv)]
       [%set-headline id=@ta headline=@t]
+      [%request-join note-id=@ta host=@p]
+      [%approve-join note-id=@ta ship=@p]
+      [%deny-join note-id=@ta ship=@p]
+      [%deny-block-join note-id=@ta ship=@p]
   ==
 ::  subscription updates (agent to client)
 +$  update
@@ -218,7 +228,7 @@
       [%cover-msg-content note-id=@ta msg=message]
       [%rumor-message msg=message]
       [%note-redirect old-id=@ta new-id=@ta]
-      [%note-users-updated id=@ta users=(list @p) removed=(list @p)]
+      [%note-users-updated id=@ta type=note-type users=(list @p) removed=(list @p)]
       [%mention-update note-id=@ta mentions=(list [id=@da eid=(unit @uv) author=@p])]
       ::  call updates
       [%call-started note-id=@ta call-id=@ta started-by=@p participants=(list @p)]
@@ -230,5 +240,9 @@
       ::  block: you were kicked from a note
       [%headline-updated id=@ta headline=(unit @t)]
       [%kick-notification note-id=@ta note-name=@t from=@p]
+      [%join-requested note-id=@ta host=@p]
+      [%join-denied note-id=@ta host=@p]
+      [%join-request-received note-id=@ta ship=@p note-name=@t]
+      [%join-request-list requests=(list [note-id=@ta ship=@p note-name=@t])]
   ==
 --

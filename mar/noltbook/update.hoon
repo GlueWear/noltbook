@@ -163,6 +163,7 @@
       %+  frond  'note-users-updated'
       %-  pairs
       :~  ['id' s+(crip (trip id.upd))]
+          ['type' s+(crip (trip (scot %tas type.upd)))]
           ['users' a+(turn users.upd |=(p=@p s+(scot %p p)))]
           ['removed' a+(turn removed.upd |=(p=@p s+(scot %p p)))]
       ==
@@ -227,6 +228,32 @@
           ['noteName' s+note-name.upd]
           ['from' s+(scot %p from.upd)]
       ==
+    ::
+        %join-requested
+      %+  frond  'join-requested'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['host' s+(scot %p host.upd)]
+      ==
+    ::
+        %join-denied
+      %+  frond  'join-denied'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['host' s+(scot %p host.upd)]
+      ==
+    ::
+        %join-request-received
+      %+  frond  'join-request-received'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['ship' s+(scot %p ship.upd)]
+          ['noteName' s+note-name.upd]
+      ==
+    ::
+        %join-request-list
+      %+  frond  'join-request-list'
+      a+(turn requests.upd |=([note-id=@ta ship=@p note-name=@t] (pairs ~[['noteId' s+(crip (trip note-id))] ['ship' s+(scot %p ship)] ['noteName' s+note-name]])))
     ==
     ::
     ++  call-to-json
