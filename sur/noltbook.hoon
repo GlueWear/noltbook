@@ -117,7 +117,7 @@
 ::
 ::  ship-to-ship remote pokes
 +$  remote
-  $%  [%remote-invite note-id=@ta name=@t type=note-type creator=@p users=(set @p) visibility=note-visibility]
+  $%  [%remote-invite note-id=@ta name=@t type=note-type creator=@p users=(set @p) visibility=note-visibility writable=?]
       [%remote-message note-id=@ta msg=message]
       [%remote-ars msg=message hops=@ud]
       [%remote-ars-ref env=envelope hops=@ud]
@@ -149,10 +149,20 @@
       [%remote-call-signal call-id=@ta from=@p sig-type=@t payload=@t]
       ::  block: host kicked you from a note
       [%remote-kick note-id=@ta note-name=@t]
+      ::  block: high-level notification that someone blocked you
+      [%remote-blocked ~]
+      ::  block: notification that someone unblocked you
+      [%remote-unblocked ~]
+      ::  block: DM invite was rejected because sender is blocked
+      [%remote-dm-blocked note-id=@ta]
       ::  join-request flow
       [%remote-join-request note-id=@ta]
       [%remote-join-pending note-id=@ta]
       [%remote-join-denied note-id=@ta]
+      [%remote-join-removed note-id=@ta]
+      [%remote-note-deleted note-id=@ta note-name=@t]
+      ::  admin moderation forwarding (remote admin -> host)
+      [%remote-mod note-id=@ta mod-type=@tas target=@p]
   ==
 ::  poke actions (client to agent)
 +$  action
@@ -199,6 +209,11 @@
       [%approve-join note-id=@ta ship=@p]
       [%deny-join note-id=@ta ship=@p]
       [%deny-block-join note-id=@ta ship=@p]
+      ::  role management
+      [%make-admin id=@ta ship=@p]
+      [%remove-admin id=@ta ship=@p]
+      [%mute-member id=@ta ship=@p]
+      [%unmute-member id=@ta ship=@p]
   ==
 ::  subscription updates (agent to client)
 +$  update
@@ -240,9 +255,17 @@
       ::  block: you were kicked from a note
       [%headline-updated id=@ta headline=(unit @t)]
       [%kick-notification note-id=@ta note-name=@t from=@p]
+      [%blocked-notification from=@p]
+      [%unblocked-notification from=@p]
+      [%blocked-by-list ships=(list @p)]
       [%join-requested note-id=@ta host=@p]
       [%join-denied note-id=@ta host=@p]
+      [%join-removed note-id=@ta host=@p]
       [%join-request-received note-id=@ta ship=@p note-name=@t]
       [%join-request-list requests=(list [note-id=@ta ship=@p note-name=@t])]
+      [%note-deleted-notification note-id=@ta note-name=@t]
+      ::  role updates
+      [%admins-updated id=@ta admins=(list @p)]
+      [%muted-updated id=@ta muted=(list @p)]
   ==
 --

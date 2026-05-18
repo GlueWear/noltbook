@@ -375,6 +375,34 @@
       =/  ship-nd  (need (~(get by d) 'ship'))
       ?>  ?=([%s *] ship-nd)
       [%deny-block-join `@ta`p.nid-nd (slav %p p.ship-nd)]
+    ::  make-admin
+    ?:  =('make-admin' tag)
+      =/  id-nd  (need (~(get by d) 'id'))
+      ?>  ?=([%s *] id-nd)
+      =/  ship-nd  (need (~(get by d) 'ship'))
+      ?>  ?=([%s *] ship-nd)
+      [%make-admin `@ta`p.id-nd (slav %p p.ship-nd)]
+    ::  remove-admin
+    ?:  =('remove-admin' tag)
+      =/  id-nd  (need (~(get by d) 'id'))
+      ?>  ?=([%s *] id-nd)
+      =/  ship-nd  (need (~(get by d) 'ship'))
+      ?>  ?=([%s *] ship-nd)
+      [%remove-admin `@ta`p.id-nd (slav %p p.ship-nd)]
+    ::  mute-member
+    ?:  =('mute-member' tag)
+      =/  id-nd  (need (~(get by d) 'id'))
+      ?>  ?=([%s *] id-nd)
+      =/  ship-nd  (need (~(get by d) 'ship'))
+      ?>  ?=([%s *] ship-nd)
+      [%mute-member `@ta`p.id-nd (slav %p p.ship-nd)]
+    ::  unmute-member
+    ?:  =('unmute-member' tag)
+      =/  id-nd  (need (~(get by d) 'id'))
+      ?>  ?=([%s *] id-nd)
+      =/  ship-nd  (need (~(get by d) 'ship'))
+      ?>  ?=([%s *] ship-nd)
+      [%unmute-member `@ta`p.id-nd (slav %p p.ship-nd)]
     ::  set-dial (final case)
     ?>  =('set-dial' tag)
     =/  dial-nd  (need (~(get by d) 'dial'))

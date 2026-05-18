@@ -229,6 +229,21 @@
           ['from' s+(scot %p from.upd)]
       ==
     ::
+        %blocked-notification
+      %+  frond  'blocked-notification'
+      %-  pairs
+      :~  ['from' s+(scot %p from.upd)]
+      ==
+    ::
+        %unblocked-notification
+      %+  frond  'unblocked-notification'
+      %-  pairs
+      :~  ['from' s+(scot %p from.upd)]
+      ==
+    ::
+        %blocked-by-list
+      (frond 'blocked-by-list' a+(turn ships.upd |=(p=@p s+(scot %p p))))
+    ::
         %join-requested
       %+  frond  'join-requested'
       %-  pairs
@@ -238,6 +253,13 @@
     ::
         %join-denied
       %+  frond  'join-denied'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['host' s+(scot %p host.upd)]
+      ==
+    ::
+        %join-removed
+      %+  frond  'join-removed'
       %-  pairs
       :~  ['noteId' s+(crip (trip note-id.upd))]
           ['host' s+(scot %p host.upd)]
@@ -254,6 +276,27 @@
         %join-request-list
       %+  frond  'join-request-list'
       a+(turn requests.upd |=([note-id=@ta ship=@p note-name=@t] (pairs ~[['noteId' s+(crip (trip note-id))] ['ship' s+(scot %p ship)] ['noteName' s+note-name]])))
+    ::
+        %note-deleted-notification
+      %+  frond  'note-deleted-notification'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['noteName' s+note-name.upd]
+      ==
+    ::
+        %admins-updated
+      %+  frond  'admins-updated'
+      %-  pairs
+      :~  ['id' s+(crip (trip id.upd))]
+          ['admins' a+(turn admins.upd |=(p=@p s+(scot %p p)))]
+      ==
+    ::
+        %muted-updated
+      %+  frond  'muted-updated'
+      %-  pairs
+      :~  ['id' s+(crip (trip id.upd))]
+          ['muted' a+(turn muted.upd |=(p=@p s+(scot %p p)))]
+      ==
     ==
     ::
     ++  call-to-json
