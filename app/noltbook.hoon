@@ -2276,17 +2276,6 @@
         ?.  is-new-peer
           ~
         ~[[%pass /ars/(scot %p ship.act) %agent [ship.act %noltbook] %watch /notes/cover]]
-      ::  NOTE: auto-pal — send hey to new peers automatically
-      =/  new-outgoing=(set @p)
-        ?.  is-new-peer  pal-outgoing
-        (~(put in pal-outgoing) ship.act)
-      =/  hey-cards=(list card)
-        ?.  is-new-peer  ~
-        ~[[%pass /pal-hey/(scot %p ship.act) %agent [ship.act %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-hey ~])]]
-      =/  pal-status-upd=(list card)
-        ?.  is-new-peer  ~
-        =/  status=pal-status:noltbook  %requesting
-        ~[[%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%pal-update ship.act status])]]
       ::  notify local frontend
       =/  upd=update:noltbook  [%note-created new-note]
       ::  auto-mute invitee if note is read-only (group only, skip host/admin)
@@ -2304,8 +2293,8 @@
         ?:  (~(has in (fall (~(get by note-admins) id.act) ~)) ship.act)  ~
         =/  mute-upd=update:noltbook  [%muted-updated id.act ~(tap in ro-muted)]
         ~[[%give %fact ~[/notes] %noltbook-update !>(mute-upd)] [%give %fact ~[/notes/[id.act]] %noltbook-update !>(mute-upd)]]
-      :_  this(notes (~(put by notes) id.act new-note), peers new-peers, pal-outgoing new-outgoing, note-muted (~(put by note-muted) id.act ro-muted))
-      :(weld [poke-card [%give %fact ~[/notes] %noltbook-update !>(upd)] ~] ars-cards hey-cards pal-status-upd ro-mute-cards)
+      :_  this(notes (~(put by notes) id.act new-note), peers new-peers, note-muted (~(put by note-muted) id.act ro-muted))
+      :(weld [poke-card [%give %fact ~[/notes] %noltbook-update !>(upd)] ~] ars-cards ro-mute-cards)
     ::
         %create-artifact
       =/  exists  (~(get by notes) note-id.act)
@@ -2455,52 +2444,59 @@
       =/  upd=update:noltbook  [%pal-update ship.act %blocked]
       ::  pass 1: remove blocked ship from blocker-hosted %group notes + clean role state
       =/  removal-result=[new-notes=(map @ta note:noltbook) new-admins=(map @ta (set @p)) new-muted=(map @ta (set @p)) cards=(list card)]
+        =/  entries=(list [@ta note:noltbook])  ~(tap by notes)
         =/  nn=(map @ta note:noltbook)  notes
         =/  na=(map @ta (set @p))  note-admins
         =/  nm=(map @ta (set @p))  note-muted
         =/  cc=(list card)  ~
-        %-  ~(rep by notes)
-        |=  [[nid=@ta n=note:noltbook] acc=[nn=(map @ta note:noltbook) na=(map @ta (set @p)) nm=(map @ta (set @p)) cc=(list card)]]
-        ?.  =(our.bowl creator.n)  acc
-        ?.  =(%group type.n)  acc
-        ?.  (~(has in users.n) ship.act)  acc
+        |-
+        ?~  entries  [nn na nm cc]
+        =/  nid=@ta  -.i.entries
+        =/  n=note:noltbook  +.i.entries
+        ?.  ?&(=(our.bowl creator.n) =(%group type.n) (~(has in users.n) ship.act))
+          $(entries t.entries)
         =/  new-users=(set @p)  (~(del in users.n) ship.act)
-        =/  upd-note=note:noltbook  n(users new-users)
-        =/  users-upd=update:noltbook  [%note-users-updated nid type.n ~(tap in new-users) ~(tap in removed.n)]
+        =/  new-removed=(set @p)  (~(put in removed.n) ship.act)
+        =/  upd-note=note:noltbook  n(users new-users, removed new-removed)
+        =/  users-upd=update:noltbook  [%note-users-updated nid type.n ~(tap in new-users) ~(tap in new-removed)]
         =/  kick-card=card
           [%pass /kick/(scot %p ship.act)/[nid] %agent [ship.act %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-kick nid name.n])]
         ::  clean admin/muted role state for removed ship
-        =/  ca=(map @ta (set @p))
-          =/  cur=(set @p)  (fall (~(get by na.acc) nid) ~)
+        =/  new-na=(map @ta (set @p))
+          =/  cur=(set @p)  (fall (~(get by na) nid) ~)
           ?:  (~(has in cur) ship.act)
-            (~(put by na.acc) nid (~(del in cur) ship.act))
-          na.acc
-        =/  cm=(map @ta (set @p))
-          =/  cur=(set @p)  (fall (~(get by nm.acc) nid) ~)
+            (~(put by na) nid (~(del in cur) ship.act))
+          na
+        =/  new-nm=(map @ta (set @p))
+          =/  cur=(set @p)  (fall (~(get by nm) nid) ~)
           ?:  (~(has in cur) ship.act)
-            (~(put by nm.acc) nid (~(del in cur) ship.act))
-          nm.acc
-        [nn=(~(put by nn.acc) nid upd-note) na=ca nm=cm cc=[kick-card [%give %fact ~[/notes] %noltbook-update !>(users-upd)] cc.acc]]
+            (~(put by nm) nid (~(del in cur) ship.act))
+          nm
+        $(entries t.entries, nn (~(put by nn) nid upd-note), na new-na, nm new-nm, cc [kick-card [%give %fact ~[/notes] %noltbook-update !>(users-upd)] cc])
       ::  pass 2: auto-leave all %group notes hosted by blocked ship
       =/  leave-result=[new-notes=(map @ta note:noltbook) new-msgs=(map @ta (list message:noltbook)) new-arts=(map @ta artifact:noltbook) cards=(list card)]
+        =/  entries=(list [@ta note:noltbook])  ~(tap by new-notes.removal-result)
         =/  nn=(map @ta note:noltbook)  new-notes.removal-result
         =/  nm=(map @ta (list message:noltbook))  messages
         =/  na=(map @ta artifact:noltbook)  artifacts
         =/  cc=(list card)  ~
-        %-  ~(rep by new-notes.removal-result)
-        |=  [[nid=@ta n=note:noltbook] acc=[nn=(map @ta note:noltbook) nm=(map @ta (list message:noltbook)) na=(map @ta artifact:noltbook) cc=(list card)]]
-        ?.  =(ship.act creator.n)  acc
-        ?.  =(%group type.n)  acc
-        ?.  (~(has in users.n) our.bowl)  acc
+        |-
+        ?~  entries  [nn nm na cc]
+        =/  nid=@ta  -.i.entries
+        =/  n=note:noltbook  +.i.entries
+        ?.  ?&(=(ship.act creator.n) =(%group type.n) (~(has in users.n) our.bowl))
+          $(entries t.entries)
         =/  del-upd=update:noltbook  [%note-deleted nid]
+        =/  unsub-card=card
+          [%pass /remote-note/[nid] %agent [ship.act %noltbook] %leave ~]
         =/  leave-card=card
           [%pass /leave-out/(scot %p ship.act)/[nid] %agent [ship.act %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-leave nid])]
         =/  cleaned-na=(map @ta artifact:noltbook)
-          %-  ~(rep by na.acc)
+          %-  ~(rep by na)
           |=  [[k=@ta v=artifact:noltbook] a=(map @ta artifact:noltbook)]
           ?.  =(note-id.v nid)  (~(put by a) k v)
           a
-        [nn=(~(del by nn.acc) nid) nm=(~(del by nm.acc) nid) na=cleaned-na cc=[leave-card [%give %fact ~[/notes] %noltbook-update !>(del-upd)] cc.acc]]
+        $(entries t.entries, nn (~(del by nn) nid), nm (~(del by nm) nid), na cleaned-na, cc [unsub-card leave-card [%give %fact ~[/notes] %noltbook-update !>(del-upd)] cc])
       ::  clean up any pending join-requests from blocked ship
       =/  new-jr=(map @ta (set @p))
         %-  ~(rep by join-requests)
@@ -3012,15 +3008,6 @@
       =/  ars-cards=(list card)
         ?.  is-new-peer  ~
         ~[[%pass /ars/(scot %p ship.act) %agent [ship.act %noltbook] %watch /notes/cover]]
-      =/  new-outgoing=(set @p)
-        ?.  is-new-peer  pal-outgoing
-        (~(put in pal-outgoing) ship.act)
-      =/  hey-cards=(list card)
-        ?.  is-new-peer  ~
-        ~[[%pass /pal-hey/(scot %p ship.act) %agent [ship.act %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-hey ~])]]
-      =/  pal-status-upd=(list card)
-        ?.  is-new-peer  ~
-        ~[[%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%pal-update ship.act %requesting])]]
       =/  users-upd=update:noltbook  [%note-users-updated note-id.act type.u.old ~(tap in new-users) ~(tap in new-removed)]
       ::  emit updated join-request-list so host frontend removes processed request
       =/  jr-list=(list [note-id=@ta ship=@p note-name=@t])
@@ -3039,8 +3026,8 @@
         ?.  !writable.u.old  ~
         =/  mute-upd=update:noltbook  [%muted-updated note-id.act ~(tap in ro-muted)]
         ~[[%give %fact ~[/notes] %noltbook-update !>(mute-upd)] [%give %fact ~[/notes/[note-id.act]] %noltbook-update !>(mute-upd)]]
-      :_  this(notes (~(put by notes) note-id.act new-note), peers new-peers, pal-outgoing new-outgoing, note-muted (~(put by note-muted) note-id.act ro-muted))
-      :(weld [poke-card [%give %fact ~[/notes] %noltbook-update !>(users-upd)] [%give %fact ~[/notes/[note-id.act]] %noltbook-update !>(users-upd)] [%give %fact ~[/notes] %noltbook-update !>(jr-upd)] ~] ars-cards hey-cards pal-status-upd ro-mute-cards)
+      :_  this(notes (~(put by notes) note-id.act new-note), peers new-peers, note-muted (~(put by note-muted) note-id.act ro-muted))
+      :(weld [poke-card [%give %fact ~[/notes] %noltbook-update !>(users-upd)] [%give %fact ~[/notes/[note-id.act]] %noltbook-update !>(users-upd)] [%give %fact ~[/notes] %noltbook-update !>(jr-upd)] ~] ars-cards ro-mute-cards)
     ::
         %deny-join
       ::  host or admin denies a pending join request (no block)
@@ -4367,9 +4354,6 @@
         =/  ars-cards=(list card)
           ?.  is-new-peer  ~
           ~[[%pass /ars/(scot %p target.rem) %agent [target.rem %noltbook] %watch /notes/cover]]
-        =/  hey-cards=(list card)
-          ?.  is-new-peer  ~
-          ~[[%pass /pal-hey/(scot %p target.rem) %agent [target.rem %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-hey ~])]]
         =/  users-upd=update:noltbook  [%note-users-updated note-id.rem type.u.old ~(tap in new-users) ~(tap in new-removed)]
         =/  pax=path  ~[%notes note-id.rem]
         ::  auto-mute invitee if note is read-only
@@ -4381,7 +4365,7 @@
           =/  mute-upd=update:noltbook  [%muted-updated note-id.rem ~(tap in ro-muted)]
           ~[[%give %fact ~[/notes] %noltbook-update !>(mute-upd)] [%give %fact ~[pax] %noltbook-update !>(mute-upd)]]
         :_  this(notes (~(put by notes) note-id.rem new-note), peers new-peers, note-muted (~(put by note-muted) note-id.rem ro-muted))
-        :(weld ~[poke-card] ~[[%give %fact ~[/notes] %noltbook-update !>(users-upd)]] ~[[%give %fact ~[pax] %noltbook-update !>(users-upd)]] ars-cards hey-cards ro-mute-cards)
+        :(weld ~[poke-card] ~[[%give %fact ~[/notes] %noltbook-update !>(users-upd)]] ~[[%give %fact ~[pax] %noltbook-update !>(users-upd)]] ars-cards ro-mute-cards)
       ==
     ==
   ==

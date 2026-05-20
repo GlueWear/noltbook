@@ -769,9 +769,9 @@ function scheduleNoteList(){if(_noteListTimer)clearTimeout(_noteListTimer);_note
 let _lastMsgHash={};
 function handleUpdate(upd){
   if(upd['note-list']){console.log('[note-list]',JSON.stringify(upd['note-list']));for(const n of upd['note-list'])state.notes[n.id]=n;renderNoteList()}
-  else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));const wasPendingJoin=!!state.pendingJoins[n.id];delete state.pendingJoins[n.id];delete state.removedFromNotes[n.id];state.notes[n.id]=n;if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id)}if(state.pendingWalletMsg&&n.type==='dm'){const pw=state.pendingWalletMsg;if(n.users&&n.users.length===2&&n.users.includes(pw.ship)){api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:n.id,text:pw.text}});state.pendingWalletMsg=null}}if(n.creator==='~'+api.ship){if(n.parent)state.expandedNotes.add(n.parent);openNote(n.id)}else if(wasPendingJoin){document.querySelectorAll('.profile-flow-modal').forEach(el=>el.remove());state.viewingProfileShip=null;if(n.visibility==='public'){openNote(n.id)}else{state.notifications.add(n.id)}}else{state.notifications.add(n.id)}renderNoteList()}
+  else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));const wasPendingJoin=!!state.pendingJoins[n.id];delete state.pendingJoins[n.id];delete state.removedFromNotes[n.id];state.notes[n.id]=n;if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id)}if(state.pendingWalletMsg&&n.type==='dm'){const pw=state.pendingWalletMsg;if(n.users&&n.users.length===2&&n.users.includes(pw.ship)){api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:n.id,text:pw.text}});state.pendingWalletMsg=null}}if(n.creator==='~'+api.ship){if(n.parent)state.expandedNotes.add(n.parent);openNote(n.id)}else if(wasPendingJoin){document.querySelectorAll('.profile-flow-modal').forEach(el=>el.remove());state.viewingProfileShip=null;if(state.palsView)switchView('notes');if(n.visibility==='public'){openNote(n.id)}else{state.notifications.add(n.id)}}else{if(state.palsView)switchView('notes');state.notifications.add(n.id)}renderNoteList()}
   else if(upd['note-renamed']){const{id,name}=upd['note-renamed'];if(state.notes[id]){state.notes[id].name=name;renderNoteList()}if(state.currentNoteId===id)document.getElementById('chatNoteName').textContent=name}
-  else if(upd['note-deleted']){const{id}=upd['note-deleted'];delete state.notes[id];delete state.noteAdmins[id];delete state.noteMuted[id];if(state.currentNoteId===id)openNote('cover');renderNoteList()}
+  else if(upd['note-deleted']){const{id}=upd['note-deleted'];const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];delete state.noteAdmins[id];delete state.noteMuted[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];state.notifications.delete(id);if(state.currentNoteId===id)openNote('cover');renderNoteList()}
   else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];if(noteId==='cover')console.log('[cover:msg-list]',messages.length,'msgs, current=',state.currentNoteId);let maxSeq=0,revSum=0;for(const m of messages){if(m.meta){if(m.meta.seq>maxSeq)maxSeq=m.meta.seq;revSum+=m.meta.rev}}const hash=noteId+':'+messages.length+':'+maxSeq+':'+revSum;if(_lastMsgHash[noteId]===hash){if(noteId==='cover')console.log('[cover:msg-list] hash match, skipping');return}_lastMsgHash[noteId]=hash;state.messages[noteId]=messages;for(const a of artifacts)state.artifacts[a.id]=a;if(state.currentNoteId===noteId)scheduleRender(noteId);updateCoverPreview();scheduleNoteList()}
   else if(upd['new-message']){const msg=upd['new-message'];if(!state.messages[msg.noteId])state.messages[msg.noteId]=[];if(state.messages[msg.noteId].some(m=>(msg.meta&&msg.meta.eid&&m.meta&&m.meta.eid===msg.meta.eid)||m.id===msg.id))return;state.messages[msg.noteId].push(msg);if(state.notes[msg.noteId]){state.notes[msg.noteId].lastAuthor=msg.author;state.notes[msg.noteId].lastPreview=msg.text}if(state.currentNoteId===msg.noteId)appendMessage(msg);else state.notifications.add(msg.noteId);updateCoverPreview();scheduleNoteList()}
   else if(upd['artifact-created']){const a=upd['artifact-created'];state.artifacts[a.id]=a;if(a.type==='app'||a.type==='file')scheduleRender()}
@@ -783,11 +783,11 @@ function handleUpdate(upd){
   else if(upd['message-deleted']){const{noteId,msgId,eid}=upd['message-deleted'];const msgs=state.messages[noteId]||[];const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===msgId);if(fi>=0)msgs.splice(fi,1);if(state.currentNoteId===noteId)scheduleRender(noteId)}
   else if(upd['profile-list']){for(const entry of upd['profile-list']){state.profiles[entry.ship]=entry.profile}const me=state.profiles['~'+api.ship];if(me){if(me.displayName)document.getElementById('shipDisplay').textContent=me.displayName;updateSidebarSigil()}if(state.palsView)renderPalsList();if(state.currentNoteId)scheduleRender()}
   else if(upd['profile-updated']){const{ship,profile}=upd['profile-updated'];state.profiles[ship]=profile;if(ship==='~'+api.ship){document.getElementById('shipDisplay').textContent=profile.displayName||'~'+api.ship;updateSidebarSigil()}if(state.palsView)renderPalsList();if(state.currentNoteId)scheduleRender()}
-  else if(upd['remote-note-list']){const{ship,notes}=upd['remote-note-list'];Object.keys(state.discoveryNotes).forEach(k=>{if(state.discoveryNotes[k].creator===ship)delete state.discoveryNotes[k]});for(const n of notes)state.discoveryNotes[n.id]=n;const el=document.getElementById('viewProfileNotes');if(el&&state.viewingProfileShip===ship){const groupNotes=notes.filter(n=>n.type==='group');const pubNotes=groupNotes.filter(n=>n.visibility==='public').sort((a,b)=>a.name.localeCompare(b.name));const privNotes=groupNotes.filter(n=>n.visibility==='private').sort((a,b)=>a.name.localeCompare(b.name));const all=[...pubNotes,...privNotes];if(all.length===0){el.innerHTML='<span style="color:var(--dim)">none available</span>'}else{el.innerHTML=all.map(n=>{const _iu=resolveNoteIconUrl(n);const ic=_iu?'<img src="'+escAttr(_iu)+'">':noteInitials(n.name);const vis=n.visibility==='public'?'public':'private';const me='~'+api.ship;const isMember=state.notes[n.id]&&(state.notes[n.id].users||[]).includes(me);const isPending=!!state.pendingJoins[n.id];const isRemoved=!!state.removedFromNotes[n.id]||(n.removed&&n.removed.includes(me));let badge='';if(isMember)badge='<span style="color:var(--text-dim);font-size:.65rem">JOINED</span>';else if(isRemoved)badge='<span style="color:#ff4444;font-size:.65rem">REMOVED</span>';else if(isPending)badge='<span style="color:#ffee55;font-size:.65rem">PENDING</span>';return '<div class="profile-note-entry" data-note-id="'+escAttr(n.id)+'" onclick="openNoteDetailModal(\''+escAttr(n.id)+'\')"><div class="profile-note-icon">'+ic+'</div><div class="profile-note-text"><span class="profile-note-name">'+escHtml(n.name)+'</span><span class="profile-note-vis">'+vis+'</span></div>'+(badge?'<div data-badge="1" style="margin-left:auto">'+badge+'</div>':'')+'</div>'}).join('')}}if(state.pendingRefOpen&&state.pendingRefOpen.creator===ship){const _pnid=state.pendingRefOpen.noteId;clearTimeout(state.pendingRefOpen.timer);state.pendingRefOpen=null;if(state.discoveryNotes[_pnid]){openNoteDetailModal(_pnid)}else{showRefUnavailable(_pnid,'Note unavailable')}}}
+  else if(upd['remote-note-list']){const{ship,notes}=upd['remote-note-list'];Object.keys(state.discoveryNotes).forEach(k=>{if(state.discoveryNotes[k].creator===ship)delete state.discoveryNotes[k]});for(const n of notes)state.discoveryNotes[n.id]=n;const el=document.getElementById('viewProfileNotes');if(el&&state.viewingProfileShip===ship){el.innerHTML=renderProfileNotesHtml(ship,'none available')}if(state.pendingRefOpen&&state.pendingRefOpen.creator===ship){const _pnid=state.pendingRefOpen.noteId;clearTimeout(state.pendingRefOpen.timer);state.pendingRefOpen=null;if(state.discoveryNotes[_pnid]){openNoteDetailModal(_pnid)}else{showRefUnavailable(_pnid,'Note unavailable')}}}
   else if(upd['pal-list']){for(const entry of upd['pal-list']){state.palStatus[entry.ship]=entry.status}if(state.palsView)renderPalsList();fetchVisibleEnvelopes()}
   else if(upd['pal-update']){const{ship,status}=upd['pal-update'];const wasBlocked=state.palStatus[ship]==='blocked';state.palStatus[ship]=status;if(wasBlocked&&status!=='blocked'){Object.keys(state.removedFromNotes).forEach(nid=>{if(state.removedFromNotes[nid]===ship)delete state.removedFromNotes[nid]});api.poke('noltbook','noltbook-action',{action:'request-remote-notes',data:{ship}})}if(status!=='blocked')delete state.blockedBy[ship];if(state.palsView)renderPalsList();renderNoteList();fetchVisibleEnvelopes();if(isGossipNote(state.currentNoteId))scheduleRender(state.currentNoteId);if(state.currentNoteId){const cn=state.notes[state.currentNoteId];if(cn&&cn.type==='dm'){const cp=dmCounterparty(cn);if(cp===ship)updateMuteUI()}}}
   else if(upd['dial-update']){state.dial=upd['dial-update'];updateDialUI();if(isGossipNote(state.currentNoteId))scheduleRender(state.currentNoteId);scheduleNoteList();fetchVisibleEnvelopes()}
-  else if(upd['note-users-updated']){const{id,type,users,removed}=upd['note-users-updated'];console.log('[note-users-updated]',id,type,users,removed);if(state.notes[id]){const me='~'+api.ship;if(state.notes[id].creator===me){const oldU=state.notes[id].users||[];const newJ=users.filter(u=>!oldU.includes(u)&&u!==me);for(const j of newJ)state.blockNotifications.push({noteId:id,noteName:state.notes[id].name,from:j,time:Date.now(),type:'joined'});if(newJ.length>0)updateLogoBadge()}state.notes[id].users=users;state.notes[id].removed=removed||[];if(type)state.notes[id].type=type;renderNoteList();if(state.currentNoteId===id)scheduleRender(id)}}
+  else if(upd['note-users-updated']){const{id,type,users,removed}=upd['note-users-updated'];console.log('[note-users-updated]',id,type,users,removed);if(state.notes[id]){const me='~'+api.ship;const vis=state.notes[id].visibility;const notifyVis=vis==='public'||vis==='private';if(state.notes[id].creator===me&&notifyVis){const oldU=state.notes[id].users||[];const newJ=users.filter(u=>!oldU.includes(u)&&u!==me);for(const j of newJ)state.blockNotifications.push({noteId:id,noteName:state.notes[id].name,from:j,time:Date.now(),type:'joined'});if(newJ.length>0)updateLogoBadge()}state.notes[id].users=users;state.notes[id].removed=removed||[];if(type)state.notes[id].type=type;renderNoteList();if(state.currentNoteId===id)scheduleRender(id);refreshNoteInfoMembers(id)}}
   else if(upd['note-redirect']){const{oldId,newId}=upd['note-redirect'];console.log('[note-redirect]',oldId,'->',newId);delete state.notes[oldId];delete state.messages[oldId];state.notifications.delete(oldId);if(state.currentNoteId===oldId){if(state.notes[newId])openNote(newId);else openNote('cover')}renderNoteList()}
   else if(upd['wallet-update']){wallet.transactions=upd['wallet-update'].map(tx=>({type:tx.type,who:tx.counterparty,amount:tx.amount,time:new Date(tx.timestamp).toLocaleString(),txid:tx.txHash}));renderWalletNotes()}
   else if(upd['gossip-message']){const{message,hops}=upd['gossip-message'];const nid=message.noteId||'cover';const msgEid=message.meta&&message.meta.eid||null;if(nid==='cover')console.log('[cover:gossip-msg]',message.author,'dup=',(state.messages[nid]||[]).some(m=>(msgEid&&m.meta&&m.meta.eid===msgEid)||m.id===message.id),'viewing=',state.currentNoteId===nid);state.gossipHops[message.id]=hops;if(!state.messages[nid])state.messages[nid]=[];const nenvs=state.gossipEnvelopes[nid]||{};delete nenvs[message.id];if(msgEid)delete nenvs[msgEid];state.gossipEnvelopes[nid]=nenvs;const nfetch=state.gossipFetching[nid];if(nfetch){nfetch.delete(message.id);if(msgEid)nfetch.delete(msgEid)}const isDup=state.messages[nid].some(m=>(msgEid&&m.meta&&m.meta.eid===msgEid)||m.id===message.id);if(!isDup){state.messages[nid].push(message);const visible=coverMsgVisible(message);if(state.currentNoteId===nid&&visible)appendMessage(message);else if(state.currentNoteId!==nid&&visible)state.notifications.add(nid)}const visible=coverMsgVisible(message);if(visible&&state.notes[nid]){state.notes[nid].lastAuthor=message.author;state.notes[nid].lastPreview=message.text}scheduleNoteList()}
@@ -812,8 +812,8 @@ function handleUpdate(upd){
   else if(upd['join-request-received']){const{noteId,ship,noteName}=upd['join-request-received'];if(!state.joinRequests.some(r=>r.noteId===noteId&&r.ship===ship)){state.joinRequests.push({noteId,ship,noteName,time:Date.now()})}updateLogoBadge();console.log('[join-request-received]',noteId,ship,noteName)}
   else if(upd['join-request-list']){const list=upd['join-request-list'];state.joinRequests=list.map(r=>({noteId:r.noteId,ship:r.ship,noteName:r.noteName,time:Date.now()}));updateLogoBadge();const gm=document.getElementById('grimoireMenu');if(gm){gm.remove();openGrimoireMenu()}console.log('[join-request-list]',list.length,'requests')}
   else if(upd['note-deleted-notification']){const{noteId,noteName}=upd['note-deleted-notification'];state.blockNotifications.push({noteId,noteName,from:null,time:Date.now(),type:'deleted'});updateLogoBadge()}
-  else if(upd['admins-updated']){const{id,admins}=upd['admins-updated'];state.noteAdmins[id]=admins;console.log('[admins-updated]',id,admins)}
-  else if(upd['muted-updated']){const{id,muted}=upd['muted-updated'];state.noteMuted[id]=muted;console.log('[muted-updated]',id,muted);if(state.currentNoteId===id)updateMuteUI()}
+  else if(upd['admins-updated']){const{id,admins}=upd['admins-updated'];state.noteAdmins[id]=admins;console.log('[admins-updated]',id,admins);refreshNoteInfoMembers(id)}
+  else if(upd['muted-updated']){const{id,muted}=upd['muted-updated'];state.noteMuted[id]=muted;console.log('[muted-updated]',id,muted);if(state.currentNoteId===id)updateMuteUI();refreshNoteInfoMembers(id)}
 }
 function revealNoteInTree(id){
   // expand ancestors and open the containing section so the note is visible
@@ -854,6 +854,7 @@ async function openNote(id){
   if(state.notes[id]){expandToNotifications(id);state.expandedNotes.add(id)}
   document.getElementById('chatNoteName').textContent=id==='cover'?'%Grimoire':id==='ars-rumors'?'%Rumors':(state.notes[id]?noteDisplayName(state.notes[id]):id);
   document.getElementById('shareBtn').style.display=(id==='cover'||id==='ars-rumors'||(state.notes[id]&&state.notes[id].type==='dm'))?'none':'block';
+  const _dw=document.getElementById('dialWrap');if(_dw)_dw.style.display=isGossipNote(id)?'':'none';
   document.getElementById('chatMessages').innerHTML='';
   await api.poke('noltbook','noltbook-action',{action:'switch-note',data:{id}});
   const subId=await api.subscribe('noltbook','/notes/'+id,handleUpdate);
@@ -886,7 +887,8 @@ function updateMuteUI(){
     if(cp&&state.palStatus[cp]==='blocked'){dmBlocked=true;dmBlockMsg='You have blocked this user.'}
     else if(cp&&state.blockedBy[cp]){dmBlocked=true;dmBlockMsg='You are blocked.'}
   }
-  const locked=dmBlocked||muted||(isReadOnly&&!isHostOrAdmin);
+  const roLock=isReadOnly&&!isHostOrAdmin;
+  const locked=dmBlocked||muted||roLock;
   const sendBtn=document.querySelector('.send-btn');
   const attachWrap=document.querySelector('.attach-wrap');
   let lockBar=document.getElementById('readOnlyLockBar');
@@ -900,7 +902,7 @@ function updateMuteUI(){
       lockBar.style.cssText='display:flex;align-items:center;gap:.5rem;padding:.5rem .75rem;color:var(--text-dim);font-size:.8rem;letter-spacing:.04em;width:100%;box-sizing:border-box';
       inp.parentElement.parentElement.insertBefore(lockBar,inp.parentElement);
     }
-    const msg=dmBlocked?dmBlockMsg:'You are muted in this note.';
+    const msg=dmBlocked?dmBlockMsg:muted?'You are muted in this note.':'This note is read only.';
     lockBar.innerHTML='<span style="font-size:1rem">&#x1F512;</span><span>'+msg+'</span>';
     lockBar.style.display='flex';
   } else {
@@ -1282,6 +1284,7 @@ function toggleContactTag(el){
     if(status==='blocked'){
       api.poke('noltbook','noltbook-action',{action:'unblock-pal',data:{ship}});
     }else{
+      if(!confirm('Block '+ship+'?'))return;
       api.poke('noltbook','noltbook-action',{action:'block-pal',data:{ship}});
     }
     return;
@@ -1721,15 +1724,16 @@ function showUserDropdown(inputEl,containerEl,onSelect,opts){
   _activeDropdown={dd,update,inputEl};
   return{update,destroy:function(){dd.remove();inputEl.removeEventListener('input',update);inputEl.removeEventListener('keydown',handleKey)}};
 }
-function renderText(text){if(!text)return'';var out=escHtml(text);out=out.replace(/`([^`]+)`/g,'<code style="background:var(--bg3);padding:.1rem .3rem">$1</code>');out=out.replace(/(data:image\/[^\s"]+)/g,function(m){var raw=m.replace(/&amp;/g,'&').replace(/&quot;/g,'"');return '<div style="margin:.35rem 0"><img src="'+raw+'" style="max-width:100%;max-height:400px;border:1px solid var(--border);cursor:pointer" ondblclick="openImageFullscreen(this.src)"></div>'});out=out.replace(/(https?:\/\/[^\s]+)/g,function(url){var raw=url.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/[.,;:!?\)]+$/,'');if(/\.(png|jpe?g|gif|webp|svg|bmp|ico)(\?[^\s]*)?$/i.test(raw)){return '<div style="margin:.35rem 0"><img src="'+escAttr(raw)+'" style="max-width:100%;max-height:400px;border:1px solid var(--border);cursor:pointer" ondblclick="openImageFullscreen(this.src)"></div>'}var yt=raw.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/);if(yt){return '<div style="margin:.35rem 0;max-width:480px;aspect-ratio:16/9"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[1]+'" style="width:100%;height:100%;border:1px solid var(--border)" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe></div>'}var tw=raw.match(/(?:twitter\.com|x\.com)\/(\w+)\/status\/(\d+)/);if(tw){return '<div class="tweet-embed" style="margin:.35rem 0;max-width:480px"><blockquote class="twitter-tweet" data-theme="dark" data-conversation="none"><a href="https://twitter.com/'+tw[1]+'/status/'+tw[2]+'"></a></blockquote></div>'}return '<a href="'+escAttr(raw)+'" target="_blank" rel="noopener" style="color:#ffaa00">'+url+'</a>'});out=out.replace(/~ref\[([^\]|]+)\|([^\]]+)\]/g,function(m,nid,cr){var n=state.notes[nid]||state.discoveryNotes[nid];if(n){var iu=resolveNoteIconUrl(n);var ic=iu?'<img src="'+escAttr(iu)+'">':noteInitials(n.name);return '<span class="note-ref" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-icon">'+ic+'</span><span class="note-ref-name">'+escHtml(n.name)+'</span></span>'}return '<span class="note-ref" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-icon">?</span><span class="note-ref-name note-ref-unknown">note ref</span></span>'});out=out.replace(/~gref\[([^\]|]+)\|([^\]|]+)\|([^\]|]*)\|([^\]]+)\]/g,function(m,nid,author,eid,mid){if(state.palStatus[author]==='blocked')return '<span style="color:#ff4444;font-size:.8rem">[blocked user ref]</span>';var n=state.notes[nid];var noteName=n?noteDisplayName(n):'gossip note';var authorName=displayName(author);var excerpt='';if(n){var msgs=state.messages[nid]||[];var found=msgs.find(function(msg){if(eid&&getMsgEid(msg)===eid)return true;return String(msg.id)===mid});if(found&&found.text)excerpt=found.text.slice(0,60)}var excerptHtml=excerpt?'<span class="gossip-ref-excerpt">\u2014 '+escHtml(excerpt)+'</span>':'<span class="gossip-ref-unavail">gossip post</span>';return '<span class="gossip-ref" onclick="clickGossipRef(\''+escAttr(nid)+'\',\''+escAttr(author)+'\',\''+escAttr(eid)+'\',\''+escAttr(mid)+'\')"><span class="gossip-ref-author">'+escHtml(authorName)+'</span><span class="gossip-ref-note">in '+escHtml(noteName)+'</span>'+excerptHtml+'</span>'});out=out.replace(/@(~[a-z][\w-]*)/g,function(m,ship){return '<span style="color:#ffaa00;font-weight:500">@'+ship+'</span>'});return out}
+function renderText(text){if(!text)return'';var out=escHtml(text);out=out.replace(/`([^`]+)`/g,'<code style="background:var(--bg3);padding:.1rem .3rem">$1</code>');out=out.replace(/(data:image\/[^\s"]+)/g,function(m){var raw=m.replace(/&amp;/g,'&').replace(/&quot;/g,'"');return '<div style="margin:.35rem 0"><img src="'+raw+'" style="max-width:100%;max-height:400px;border:1px solid var(--border);cursor:pointer" ondblclick="openImageFullscreen(this.src)"></div>'});out=out.replace(/(https?:\/\/[^\s]+)/g,function(url){var raw=url.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/[.,;:!?\)]+$/,'');if(/\.(png|jpe?g|gif|webp|svg|bmp|ico)(\?[^\s]*)?$/i.test(raw)){return '<div style="margin:.35rem 0"><img src="'+escAttr(raw)+'" style="max-width:100%;max-height:400px;border:1px solid var(--border);cursor:pointer" ondblclick="openImageFullscreen(this.src)"></div>'}var yt=raw.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/);if(yt){return '<div style="margin:.35rem 0;max-width:480px;aspect-ratio:16/9"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[1]+'" style="width:100%;height:100%;border:1px solid var(--border)" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe></div>'}var tw=raw.match(/(?:twitter\.com|x\.com)\/(\w+)\/status\/(\d+)/);if(tw){return '<div class="tweet-embed" style="margin:.35rem 0;max-width:480px"><blockquote class="twitter-tweet" data-theme="dark" data-conversation="none"><a href="https://twitter.com/'+tw[1]+'/status/'+tw[2]+'"></a></blockquote></div>'}return '<a href="'+escAttr(raw)+'" target="_blank" rel="noopener" style="color:#ffaa00">'+url+'</a>'});out=out.replace(/~ref\[([^\]|]+)\|([^\]]+)\]/g,function(m,nid,cr){var n=state.notes[nid]||state.discoveryNotes[nid];if(n){var iu=resolveNoteIconUrl(n);var ic=iu?'<img src="'+escAttr(iu)+'">':noteInitials(n.name);return '<span class="note-ref" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-icon">'+ic+'</span><span class="note-ref-name">'+escHtml(n.name)+'</span></span>'}return '<span class="note-ref" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-icon">?</span><span class="note-ref-name note-ref-unknown">Note Link</span></span>'});out=out.replace(/~gref\[([^\]|]+)\|([^\]|]+)\|([^\]|]*)\|([^\]]+)\]/g,function(m,nid,author,eid,mid){if(state.palStatus[author]==='blocked')return '<span style="color:#ff4444;font-size:.8rem">[blocked user ref]</span>';var n=state.notes[nid];var noteName=n?noteDisplayName(n):'gossip note';var authorName=displayName(author);var excerpt='';if(n){var msgs=state.messages[nid]||[];var found=msgs.find(function(msg){if(eid&&getMsgEid(msg)===eid)return true;return String(msg.id)===mid});if(found&&found.text)excerpt=found.text.slice(0,60)}var excerptHtml=excerpt?'<span class="gossip-ref-excerpt">\u2014 '+escHtml(excerpt)+'</span>':'<span class="gossip-ref-unavail">gossip post</span>';return '<span class="gossip-ref" onclick="clickGossipRef(\''+escAttr(nid)+'\',\''+escAttr(author)+'\',\''+escAttr(eid)+'\',\''+escAttr(mid)+'\')"><span class="gossip-ref-author">'+escHtml(authorName)+'</span><span class="gossip-ref-note">in '+escHtml(noteName)+'</span>'+excerptHtml+'</span>'});out=out.replace(/@(~[a-z][\w-]*)/g,function(m,ship){return '<span style="color:#ffaa00;font-weight:500">@'+ship+'</span>'});return out}
 function openImageFullscreen(url){var o=document.createElement('div');o.id='file-fullscreen';o.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.92);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer';o.innerHTML='<img src="'+url+'" style="max-width:95%;max-height:90vh">';o.onclick=function(){o.remove()};document.body.appendChild(o)}
 async function sendMessage(){
   const input=document.getElementById('chatInput');const text=input.value.trim();if(!text)return;
   const _nid=state.currentNoteId;const _note=state.notes[_nid];
   const _me='~'+api.ship;const _muted=(state.noteMuted[_nid]||[]).includes(_me);
+  if(_muted)return;
   const _ro=_note&&_note.writable===false&&_note.type==='group';
-  const _role=getMyRole(_nid);const _hoa=_role==='host'||_role==='admin';
-  if(_muted||(_ro&&!_hoa))return;
+  const _role=getMyRole(_nid);
+  if(_ro&&_role!=='host'&&_role!=='admin')return;
   if(_note&&_note.type==='dm'){const _cp=dmCounterparty(_note);if(_cp&&(state.palStatus[_cp]==='blocked'||state.blockedBy[_cp]))return}
   if(state.editingMsgId){
     const msgId=state.editingMsgId;
@@ -1833,6 +1837,9 @@ function editMessage(msgId){
   const _note=state.notes[_nid];
   const _muted=(state.noteMuted[_nid]||[]).includes(_me);
   if(_muted)return;
+  const _ro=_note&&_note.writable===false&&_note.type==='group';
+  const _role=getMyRole(_nid);
+  if(_ro&&_role!=='host'&&_role!=='admin')return;
   if(_note&&_note.type==='dm'){const _cp=dmCounterparty(_note);if(_cp&&(state.palStatus[_cp]==='blocked'||state.blockedBy[_cp]))return}
   const msgs=state.messages[_nid]||[];
   const msg=msgs.find(m=>String(m.id)===String(msgId));
@@ -1851,6 +1858,9 @@ async function deleteMessage(msgId){
   const _note=state.notes[_nid];
   const _muted=(state.noteMuted[_nid]||[]).includes(_me);
   if(_muted)return;
+  const _ro=_note&&_note.writable===false&&_note.type==='group';
+  const _role=getMyRole(_nid);
+  if(_ro&&_role!=='host'&&_role!=='admin')return;
   if(_note&&_note.type==='dm'){const _cp=dmCounterparty(_note);if(_cp&&(state.palStatus[_cp]==='blocked'||state.blockedBy[_cp]))return}
   if(!confirm('Delete this message?'))return;
   msgId=parseInt(msgId);
@@ -2074,10 +2084,10 @@ function showNoteContextMenu(event,noteId){
     <div class="context-menu-item${ro}" data-action="writable" data-val="true"><span class="context-radio ${wr?'selected':''}"></span> Write</div>
     <div class="context-menu-item${ro}" data-action="writable" data-val="false"><span class="context-radio ${!wr?'selected':''}"></span> Read Only</div>
     <div class="context-menu-divider"></div>
-    ${note.type!=='dm'?'<div class="context-menu-item" data-action="child">+ Child</div>':''}
+    ${note.type!=='dm'?'<div class="context-menu-item" data-action="child">+ Note</div>':''}
     <div class="context-menu-item${ro}" data-action="img">+ Img</div>
     <div class="context-menu-item" data-action="duplicate">Duplicate</div>
-    ${note.type==='group'?'<div class="context-menu-item" data-action="copyref">Copy Ref</div>':''}
+    ${noteCanCopyRef(note)?'<div class="context-menu-item" data-action="copyref">Copy Note Link</div>':''}
     ${isCreator?'<div class="context-menu-item" data-action="rename">Rename</div>':''}
     ${delItem}`;
   menu.style.left=event.pageX+'px';
@@ -2252,6 +2262,25 @@ function promptProfileIcon(){
     overlay.remove();menu.remove();
   });
 }
+function renderProfileNotesHtml(ship,fallback){
+  const me='~'+api.ship;
+  const joinedNotes=Object.values(state.notes).filter(n=>n.type==='group'&&n.creator===ship&&(n.visibility==='public'||n.visibility==='private'));
+  const discNotes=Object.values(state.discoveryNotes).filter(n=>n.type==='group'&&n.creator===ship&&!state.notes[n.id]);
+  const combined=[...joinedNotes,...discNotes];
+  const pubNotes=combined.filter(n=>n.visibility==='public').sort((a,b)=>a.name.localeCompare(b.name));
+  const privNotes=combined.filter(n=>n.visibility==='private').sort((a,b)=>a.name.localeCompare(b.name));
+  const all=[...pubNotes,...privNotes];
+  if(all.length===0)return '<span style="color:var(--dim)">'+escHtml(fallback)+'</span>';
+  return all.map(n=>{
+    const _icU=resolveNoteIconUrl(n);const ic=_icU?'<img src="'+escAttr(_icU)+'">':noteInitials(n.name);
+    const vis=n.visibility==='public'?'public':'private';
+    const isMember=state.notes[n.id]&&(state.notes[n.id].users||[]).includes(me);
+    const isPending=!!state.pendingJoins[n.id];
+    const isRemoved=!!state.removedFromNotes[n.id]||(n.removed&&n.removed.includes(me));
+    let badge='';if(isMember)badge='<span style="color:var(--text-dim);font-size:.65rem">JOINED</span>';else if(isRemoved)badge='<span style="color:#ff4444;font-size:.65rem">REMOVED</span>';else if(isPending)badge='<span style="color:#ffee55;font-size:.65rem">PENDING</span>';
+    return '<div class="profile-note-entry" data-note-id="'+escAttr(n.id)+'" onclick="openNoteDetailModal(\''+escAttr(n.id)+'\')"><div class="profile-note-icon">'+ic+'</div><div class="profile-note-text"><span class="profile-note-name">'+escHtml(n.name)+'</span><span class="profile-note-vis">'+vis+'</span></div>'+(badge?'<div data-badge="1" style="margin-left:auto">'+badge+'</div>':'')+'</div>';
+  }).join('');
+}
 async function viewProfile(ship){
   const isMe=ship==='~'+api.ship;
   if(isMe){openProfileModal();return}
@@ -2267,18 +2296,7 @@ async function viewProfile(ship){
     :(function(){const svg=getSigilSvg(ship);return svg||'<span style="color:'+sc+';font-size:1.5rem">'+ship.slice(1,3)+'</span>'})();
   const dn=p.displayName||ship;
   const pt=shipToPoint(ship);
-  const allNotes=Object.values(state.notes);
-  const hostedNotes=allNotes.filter(n=>n.type==='group'&&n.creator===ship);
-  const pubNotes=hostedNotes.filter(n=>n.visibility==='public').sort((a,b)=>a.name.localeCompare(b.name));
-  const privNotes=hostedNotes.filter(n=>n.visibility==='private').sort((a,b)=>a.name.localeCompare(b.name));
-  const sharedNotes=[...pubNotes,...privNotes];
-  for(const n of sharedNotes)state.discoveryNotes[n.id]=n;
-  const notesHtml=sharedNotes.length===0?'<span style="color:var(--dim)">loading...</span>'
-    :sharedNotes.map(n=>{
-      const _icU=resolveNoteIconUrl(n);const ic=_icU?'<img src="'+escAttr(_icU)+'">':noteInitials(n.name);
-      const vis=n.visibility==='public'?'public':'private';
-      return '<div class="profile-note-entry" data-note-id="'+escAttr(n.id)+'" onclick="openNoteDetailModal(\''+escAttr(n.id)+'\')"><div class="profile-note-icon">'+ic+'</div><div class="profile-note-text"><span class="profile-note-name">'+escHtml(n.name)+'</span><span class="profile-note-vis">'+vis+'</span></div><div data-badge="1" style="margin-left:auto"><span style="color:var(--text-dim);font-size:.65rem">JOINED</span></div></div>';
-    }).join('');
+  const notesHtml=renderProfileNotesHtml(ship,'loading...');
   modal.innerHTML=`
     <div style="display:flex;gap:1rem">
       <div style="flex:1;display:flex;flex-direction:column;gap:.75rem">
@@ -2310,9 +2328,19 @@ async function viewProfile(ship){
     </div>`;
   overlay.appendChild(modal);
   state.viewingProfileShip=ship;
-  overlay.addEventListener('click',function(e){if(e.target===overlay){state.viewingProfileShip=null;overlay.remove()}});
+  function _closeProfile(){
+    state.viewingProfileShip=null;
+    overlay.remove();
+    const retId=state.returnToNoteInfo;
+    if(retId){
+      state.returnToNoteInfo=null;
+      const n=state.notes[retId];
+      if(n)openNoteInfoModal(n);
+    }
+  }
+  overlay.addEventListener('click',function(e){if(e.target===overlay)_closeProfile()});
   document.body.appendChild(overlay);
-  overlay.querySelector('#viewProfileClose').addEventListener('click',function(){state.viewingProfileShip=null;overlay.remove()});
+  overlay.querySelector('#viewProfileClose').addEventListener('click',_closeProfile);
   updateViewProfileTags(ship);
   try{
     const res=await api.scry('noltbook','/sponsors/'+ship);
@@ -2402,6 +2430,7 @@ function viewProfileToggleBlock(ship){
   if(status==='blocked'){
     api.poke('noltbook','noltbook-action',{action:'unblock-pal',data:{ship}});
   }else{
+    if(!confirm('Block '+ship+'?'))return;
     api.poke('noltbook','noltbook-action',{action:'block-pal',data:{ship}});
   }
   setTimeout(()=>updateViewProfileTags(ship),100);
@@ -2468,14 +2497,15 @@ function openNoteDetailModal(noteId){
     ${desc}
     ${membersHtml}
     <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.25rem">
-      <button class="modal-btn" id="ndCopyRef" style="margin-right:auto;font-size:.65rem">COPY REF</button>
+      ${noteCanCopyRef(n)?'<button class="modal-btn" id="ndCopyRef" style="margin-right:auto;font-size:.65rem">COPY NOTE LINK</button>':''}
       <button class="modal-btn cancel-red" id="ndClose">CLOSE</button>
       ${btnHtml}
     </div>`;
   overlay.appendChild(modal);
   overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove()});
   document.body.appendChild(overlay);
-  modal.querySelector('#ndCopyRef').onclick=()=>{copyNoteRef(noteId,n.creator);const b=modal.querySelector('#ndCopyRef');b.textContent='COPIED';setTimeout(()=>{b.textContent='COPY REF'},1500)};
+  const _ndCr=modal.querySelector('#ndCopyRef');
+  if(_ndCr)_ndCr.onclick=()=>{copyNoteRef(noteId,n.creator);_ndCr.textContent='COPIED';setTimeout(()=>{_ndCr.textContent='COPY NOTE LINK'},1500)};
   modal.querySelector('#ndClose').onclick=()=>overlay.remove();
   const joinBtn=modal.querySelector('#ndJoinBtn');
   if(joinBtn){
@@ -2591,20 +2621,28 @@ function openGroupMembersModal(note){
     const prof=state.profiles[m]||{};
     const name=prof.displayName||m;
     const av=avatarHtml(m);
-    return `<div class="contact-item" data-member="${escAttr(m)}" style="opacity:.5"><div class="contact-avatar" style="width:2.5rem;height:2.5rem">${av}</div><div class="contact-info"><div style="display:flex;align-items:center"><span class="contact-name">${escHtml(name)}</span><span style="color:#ff4444;font-size:.65rem;border:1px solid #ff4444;padding:0 .25rem;margin-left:.4rem">REMOVED</span></div><span class="contact-ship">${escHtml(m)}</span></div></div>`;
+    return `<div class="contact-item" data-member="${escAttr(m)}" data-removed="1" style="opacity:.5"><div class="contact-avatar" style="width:2.5rem;height:2.5rem">${av}</div><div class="contact-info"><div style="display:flex;align-items:center"><span class="contact-name">${escHtml(name)}</span><span style="color:#ff4444;font-size:.65rem;border:1px solid #ff4444;padding:0 .25rem;margin-left:.4rem">REMOVED</span></div><span class="contact-ship">${escHtml(m)}</span></div></div>`;
   }).join('');
   modal.innerHTML=`<div style="font-size:.9rem;color:var(--text-dim);letter-spacing:.1em;margin-bottom:.25rem">MEMBERS (${members.length})</div>${rows}${removedRows?'<div style="font-size:.75rem;color:var(--text-dim);letter-spacing:.1em;margin-top:.5rem;border-top:1px solid var(--border);padding-top:.5rem">REMOVED</div>'+removedRows:''}<div class="modal-actions" style="margin-top:.5rem"><button class="modal-btn amber-hover" onclick="this.closest('.modal-overlay').remove()">CLOSE</button></div>`;
   overlay.appendChild(modal);
+  const canReinvite=isHost||myRole==='admin';
   const items=modal.querySelectorAll('.contact-item');
   items.forEach(el=>{
     const m=el.dataset.member;
+    const isRemovedRow=el.dataset.removed==='1';
     el.onclick=()=>openGroupMembersModalClick(m);
-    // host or admin can right-click non-self members for moderation
-    const canMod=(myRole==='host'||myRole==='admin')&&m!==me&&m!==host;
-    // admin cannot moderate other admins
-    const canModThis=canMod&&(myRole==='host'||!admins.includes(m));
-    if(canModThis){
-      el.oncontextmenu=e=>{e.preventDefault();e.stopPropagation();showMemberContextMenu(e,m,note.id)};
+    if(isRemovedRow){
+      if(canReinvite){
+        el.oncontextmenu=e=>{e.preventDefault();e.stopPropagation();showRemovedContextMenu(e,m,note.id)};
+      }
+    }else{
+      // host or admin can right-click non-self members for moderation
+      const canMod=(myRole==='host'||myRole==='admin')&&m!==me&&m!==host;
+      // admin cannot moderate other admins
+      const canModThis=canMod&&(myRole==='host'||!admins.includes(m));
+      if(canModThis){
+        el.oncontextmenu=e=>{e.preventDefault();e.stopPropagation();showMemberContextMenu(e,m,note.id)};
+      }
     }
   });
   overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove()});
@@ -2632,26 +2670,52 @@ function showMemberContextMenu(event,ship,noteId){
   menu.addEventListener('click',function(e){
     const item=e.target.closest('.context-menu-item');if(!item)return;
     const action=item.dataset.action;
+    const niOpen=!!document.getElementById('noteInfoModal');
     if(action==='admin'){
       if(isAdmin){api.poke('noltbook','noltbook-action',{action:'remove-admin',data:{id:noteId,ship}})}
       else{api.poke('noltbook','noltbook-action',{action:'make-admin',data:{id:noteId,ship}})}
-      const ov=document.querySelector('.modal-overlay.open');if(ov)ov.remove();
+      if(!niOpen){const ov=document.querySelector('.modal-overlay.open');if(ov)ov.remove()}
     }else if(action==='mute'){
       if(isMuted){api.poke('noltbook','noltbook-action',{action:'unmute-member',data:{id:noteId,ship}})}
       else{api.poke('noltbook','noltbook-action',{action:'mute-member',data:{id:noteId,ship}})}
-      const ov=document.querySelector('.modal-overlay.open');if(ov)ov.remove();
+      if(!niOpen){const ov=document.querySelector('.modal-overlay.open');if(ov)ov.remove()}
     }else if(action==='remove'){
       api.poke('noltbook','noltbook-action',{action:'remove-member',data:{id:noteId,ship}});
-      const ov=document.querySelector('.modal-overlay.open');if(ov)ov.remove();
+      if(!niOpen){const ov=document.querySelector('.modal-overlay.open');if(ov)ov.remove()}
     }
     menu.remove();
   });
   document.body.appendChild(menu);
   setTimeout(()=>document.addEventListener('click',function close(){menu.remove();document.removeEventListener('click',close)}),0);
 }
-function openGroupMembersModalClick(ship){
-  const ov=document.querySelector('.modal-overlay.open');
-  if(ov)ov.remove();
+function showRemovedContextMenu(event,ship,noteId){
+  const existing=document.getElementById('memberContextMenu');if(existing)existing.remove();
+  const menu=document.createElement('div');
+  menu.id='memberContextMenu';
+  menu.className='context-menu';
+  menu.style.left=event.pageX+'px';menu.style.top=event.pageY+'px';menu.style.zIndex='10001';
+  menu.innerHTML='<div class="context-menu-item" data-action="reinvite" style="color:#00ff88">Reinvite</div>';
+  menu.addEventListener('click',function(e){
+    const item=e.target.closest('.context-menu-item');if(!item)return;
+    if(item.dataset.action==='reinvite'){
+      api.poke('noltbook','noltbook-action',{action:'invite-to-note',data:{id:noteId,ship}});
+      const niOpen=!!document.getElementById('noteInfoModal');
+      if(!niOpen){const ov=document.querySelector('.modal-overlay.open');if(ov)ov.remove()}
+    }
+    menu.remove();
+  });
+  document.body.appendChild(menu);
+  setTimeout(()=>document.addEventListener('click',function close(){menu.remove();document.removeEventListener('click',close)}),0);
+}
+function openGroupMembersModalClick(ship,noteId){
+  const niModal=document.getElementById('noteInfoModal');
+  if(niModal&&niModal.dataset.noteId===(noteId||niModal.dataset.noteId)){
+    state.returnToNoteInfo=niModal.dataset.noteId;
+    niModal.remove();
+  }else{
+    const ov=document.querySelector('.modal-overlay.open');
+    if(ov)ov.remove();
+  }
   viewProfile(ship);
 }
 function toggleMsgActions(el,force,event){
@@ -2722,50 +2786,118 @@ function openCurrentNoteMenu(event){
   const note=state.notes[id]; if(!note)return;
   openNoteInfoModal(note);
 }
+function noteCanCopyRef(note){
+  return note&&note.type==='group'&&(note.visibility==='public'||note.visibility==='private');
+}
+function renderNoteInfoMemberRows(note){
+  const me='~'+api.ship;
+  const host=note.creator;
+  const admins=state.noteAdmins[note.id]||[];
+  const muted=state.noteMuted[note.id]||[];
+  const users=(note.users||[]).slice();
+  const others=users.filter(u=>u!==host).sort((a,b)=>{
+    const na=(state.profiles[a]&&state.profiles[a].displayName||a).toLowerCase();
+    const nb=(state.profiles[b]&&state.profiles[b].displayName||b).toLowerCase();
+    return na.localeCompare(nb);
+  });
+  const ordered=users.includes(host)?[host,...others]:others;
+  const rows=ordered.map(m=>{
+    const prof=state.profiles[m]||{};
+    const name=prof.displayName||m;
+    const av=avatarHtml(m);
+    const hostTag=m===host?'<span style="color:#ffaa00;font-size:.6rem;border:1px solid #ffaa00;padding:0 .25rem;margin-left:.4rem">HOST</span>':'';
+    const adminTag=(!hostTag&&admins.includes(m))?'<span style="color:#00ccff;font-size:.6rem;border:1px solid #00ccff;padding:0 .25rem;margin-left:.4rem">ADMIN</span>':'';
+    const mutedTag=muted.includes(m)?'<span style="color:#ff4444;font-size:.6rem;border:1px solid #ff4444;padding:0 .25rem;margin-left:.4rem">MUTED</span>':'';
+    const meTag=m===me?'<span style="color:var(--dim);font-size:.65rem;margin-left:.4rem">(you)</span>':'';
+    return `<div class="contact-item ni-member" data-member="${escAttr(m)}" style="padding:.3rem .25rem;gap:.5rem"><div class="contact-avatar" style="width:1.75rem;height:1.75rem">${av}</div><div class="contact-info" style="min-width:0"><div style="display:flex;align-items:center;flex-wrap:wrap"><span class="contact-name" style="font-size:.8rem">${escHtml(name)}</span>${hostTag}${adminTag}${mutedTag}${meTag}</div><span class="contact-ship" style="font-size:.65rem">${escHtml(m)}</span></div></div>`;
+  }).join('');
+  const removed=(note.removed||[]).slice().sort();
+  const removedRows=removed.map(m=>{
+    const prof=state.profiles[m]||{};
+    const name=prof.displayName||m;
+    const av=avatarHtml(m);
+    return `<div class="contact-item ni-member" data-member="${escAttr(m)}" data-removed="1" style="opacity:.5;padding:.3rem .25rem;gap:.5rem"><div class="contact-avatar" style="width:1.75rem;height:1.75rem">${av}</div><div class="contact-info" style="min-width:0"><div style="display:flex;align-items:center"><span class="contact-name" style="font-size:.8rem">${escHtml(name)}</span><span style="color:#ff4444;font-size:.6rem;border:1px solid #ff4444;padding:0 .25rem;margin-left:.4rem">REMOVED</span></div><span class="contact-ship" style="font-size:.65rem">${escHtml(m)}</span></div></div>`;
+  }).join('');
+  const removedHeader=removedRows?'<div style="font-size:.6rem;color:var(--text-dim);letter-spacing:.1em;margin-top:.4rem;border-top:1px solid var(--border);padding-top:.3rem">REMOVED</div>':'';
+  return rows+removedHeader+removedRows;
+}
+function bindNoteInfoMemberRows(modal,note){
+  const me='~'+api.ship;
+  const host=note.creator;
+  const myRole=getMyRole(note.id);
+  const admins=state.noteAdmins[note.id]||[];
+  const canReinvite=note.creator===me||myRole==='admin';
+  modal.querySelectorAll('.ni-member').forEach(el=>{
+    const m=el.dataset.member;
+    const isRemovedRow=el.dataset.removed==='1';
+    el.onclick=()=>openGroupMembersModalClick(m,note.id);
+    if(isRemovedRow){
+      if(canReinvite){
+        el.oncontextmenu=e=>{e.preventDefault();e.stopPropagation();showRemovedContextMenu(e,m,note.id)};
+      }
+    }else{
+      const canMod=(myRole==='host'||myRole==='admin')&&m!==me&&m!==host;
+      const canModThis=canMod&&(myRole==='host'||!admins.includes(m));
+      if(canModThis){
+        el.oncontextmenu=e=>{e.preventDefault();e.stopPropagation();showMemberContextMenu(e,m,note.id)};
+      }
+    }
+  });
+}
+function refreshNoteInfoMembers(noteId){
+  const modal=document.getElementById('noteInfoModal');
+  if(!modal||modal.dataset.noteId!==noteId)return;
+  const note=state.notes[noteId];if(!note)return;
+  const container=modal.querySelector('#noteInfoMembers');
+  if(!container)return;
+  container.innerHTML=renderNoteInfoMemberRows(note);
+  bindNoteInfoMemberRows(modal,note);
+  const countEl=modal.querySelector('#noteInfoMemberCount');
+  if(countEl){const c=(note.users||[]).length;countEl.textContent=c+' member'+(c!==1?'s':'')}
+}
 function openNoteInfoModal(note){
   const me='~'+api.ship;
   const isCreator=note.creator===me;
-  const isMember=(note.users||[]).includes(me);
-  const isGossip=note.type==='gossip';
   const overlay=document.createElement('div');
-  overlay.className='modal-overlay open';
+  overlay.className='modal-overlay open note-info-modal';
+  overlay.id='noteInfoModal';
+  overlay.dataset.noteId=note.id;
   overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center';
   const modal=document.createElement('div');
   modal.style.cssText='background:var(--bg2);border:1px solid var(--border);min-width:360px;max-width:440px;max-height:80vh;overflow:auto;padding:1rem;display:flex;flex-direction:column;gap:.75rem';
-  const members=(note.users||[]).slice().sort();
-  const memberCount=members.length;
+  const memberCount=(note.users||[]).length;
   const titleRo=isCreator?'':'readonly';
   const descRo=isCreator?'':'readonly';
   const descVal=note.headline||'';
+  const memberRows=renderNoteInfoMemberRows(note);
   modal.innerHTML=`
     <div style="font-size:.75rem;color:var(--text-dim);letter-spacing:.1em">NOTE INFO</div>
     <div class="modal-field">
       <label class="modal-label" style="font-size:.65rem">TITLE</label>
       <input class="modal-input" id="noteInfoTitle" value="${escAttr(note.name)}" ${titleRo} style="font-size:.85rem">
     </div>
+    ${noteCanCopyRef(note)?'<div style="margin-top:-.25rem"><button class="modal-btn" id="noteInfoCopyRef" style="font-size:.65rem;padding:.25rem .5rem">COPY NOTE LINK</button></div>':''}
     <div class="modal-field">
       <label class="modal-label" style="font-size:.65rem">DESCRIPTION</label>
       <textarea class="modal-textarea" id="noteInfoDesc" rows="3" placeholder="purpose, rules, intent..." ${descRo} style="font-size:.8rem;resize:vertical;min-height:3rem">${escHtml(descVal)}</textarea>
     </div>
-    <div style="display:flex;align-items:center;gap:.5rem;font-size:.75rem;color:var(--text-dim)">
-      <span>${memberCount} member${memberCount!==1?'s':''}</span>
-      ${memberCount>1?'<span style="cursor:pointer;color:#ffaa00;text-decoration:underline" id="noteInfoViewMembers">view</span>':''}
+    <div style="display:flex;align-items:center;gap:.5rem;font-size:.7rem;color:var(--text-dim);letter-spacing:.05em">
+      <span id="noteInfoMemberCount">${memberCount} member${memberCount!==1?'s':''}</span>
       <span style="margin-left:auto;font-size:.65rem;opacity:.6">${note.type}</span>
     </div>
+    <div id="noteInfoMembers" style="display:flex;flex-direction:column;gap:.1rem;max-height:40vh;overflow:auto;border:1px solid var(--border);padding:.25rem">${memberRows}</div>
     <div class="modal-actions" style="margin-top:.25rem">
-      ${note.type==='group'?'<button class="modal-btn" id="noteInfoCopyRef" style="margin-right:auto;font-size:.65rem">COPY REF</button>':''}
       <button class="modal-btn cancel-red" id="noteInfoClose">CLOSE</button>
       ${isCreator?'<button class="modal-btn amber" id="noteInfoSave">SAVE</button>':''}
     </div>`;
   overlay.appendChild(modal);
   overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove()});
   document.body.appendChild(overlay);
+  bindNoteInfoMemberRows(modal,note);
   const copyRefBtn=modal.querySelector('#noteInfoCopyRef');
-  if(copyRefBtn)copyRefBtn.onclick=()=>{copyNoteRef(note.id,note.creator);copyRefBtn.textContent='COPIED';setTimeout(()=>{copyRefBtn.textContent='COPY REF'},1500)};
+  if(copyRefBtn)copyRefBtn.onclick=()=>{copyNoteRef(note.id,note.creator);copyRefBtn.textContent='COPIED';setTimeout(()=>{copyRefBtn.textContent='COPY NOTE LINK'},1500)};
   const closeBtn=modal.querySelector('#noteInfoClose');
   closeBtn.onclick=()=>overlay.remove();
-  const viewBtn=modal.querySelector('#noteInfoViewMembers');
-  if(viewBtn)viewBtn.onclick=()=>{overlay.remove();openGroupMembersModal(note)};
   const saveBtn=modal.querySelector('#noteInfoSave');
   if(saveBtn){
     saveBtn.onclick=async()=>{
