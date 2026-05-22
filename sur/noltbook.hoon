@@ -84,6 +84,21 @@
       versions=(list artifact-version)
   ==
 ::
+::  artifact-envelope: small metadata propagated through cover/gossip mesh.
+::  bytes live only on the author ship; peers store envelopes only.
++$  artifact-envelope
+  $:  aid=@ta
+      author=@p
+      note-id=@ta
+      name=@t
+      mime=@t
+      kind=@t
+      size=@ud
+      content-hash=@uv
+      timestamp=@da
+      meta=(unit entry-meta)
+  ==
+::
 +$  avatar-type  ?(%urbit %s3 %ipfs %external)
 +$  avatar-ref  [type=avatar-type url=@t]
 +$  profile
@@ -163,6 +178,19 @@
       [%remote-note-deleted note-id=@ta note-name=@t]
       ::  admin moderation forwarding (remote admin -> host)
       [%remote-mod note-id=@ta mod-type=@tas target=@p]
+      ::  artifact fetch flow (member <-> byte host)
+      ::  expected-hash optional: cover/gossip envelope path passes the
+      ::  envelope content-hash so the byte host can confirm it matches the
+      ::  serving artifact before sending bytes.
+      [%remote-artifact-fetch art-id=@ta eyre-id=@ta expected-hash=(unit @uv)]
+      [%remote-artifact-content art-id=@ta eyre-id=@ta mime=@t bytes=octs]
+      [%remote-artifact-denied art-id=@ta eyre-id=@ta]
+      ::  member -> note host: register artifact metadata; bytes stay on member
+      [%remote-artifact-create =artifact]
+      ::  DM artifact: ship metadata + bytes to counterparty (symmetric storage)
+      [%remote-dm-artifact =artifact mime=@t bytes=octs]
+      ::  cover/gossip artifact envelope mesh propagation; bytes never travel
+      [%remote-artifact-envelope-ref note-id=@ta env=artifact-envelope hops=@ud]
   ==
 ::  poke actions (client to agent)
 +$  action
@@ -267,5 +295,8 @@
       ::  role updates
       [%admins-updated id=@ta admins=(list @p)]
       [%muted-updated id=@ta muted=(list @p)]
+      ::  cover/gossip artifact envelope updates
+      [%artifact-envelope note-id=@ta env=artifact-envelope hops=@ud]
+      [%artifact-envelope-list note-id=@ta envs=(list artifact-envelope)]
   ==
 --

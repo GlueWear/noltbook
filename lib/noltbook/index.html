@@ -501,10 +501,8 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
           <div class="attach-wrap">
             <button class="attach-btn" onclick="toggleAttachMenu()">+</button>
             <div class="attach-menu" id="attachMenu">
-              <button class="attach-item" onclick="openAppPicker()">% Apps</button>
-              <button class="attach-item" onclick="pickFile()">⊞ File / Img</button>
+              <button class="attach-item" id="attachFileBtn" onclick="pickFile()" style="display:none">⊞ File / Img</button>
               <input type="file" id="quickFileInput" hidden>
-              <button class="attach-item" onclick="openArtifactModal('code')">{ } Code</button>
             </div>
           </div>
           <button class="send-btn" onclick="sendMessage()">SEND</button>
@@ -553,32 +551,6 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
     <div class="modal-actions">
       <button class="modal-btn cancel-red" id="noteModalCancel" onclick="closeNoteModal()">CANCEL</button>
       <button class="modal-btn amber" id="noteModalCreate" onclick="submitNote()">CREATE</button>
-    </div>
-  </div>
-</div>
-<div class="modal-overlay" id="artifactModal">
-  <div class="modal">
-    <span class="modal-title" id="artifactModalTitle">NEW ARTIFACT</span>
-    <div class="modal-field">
-      <label class="modal-label">NAME</label>
-      <input class="modal-input" id="artNameInput" placeholder="artifact-name" autocomplete="off">
-    </div>
-    <div class="modal-field" id="artContentField">
-      <label class="modal-label">CONTENT</label>
-      <textarea class="modal-textarea" id="artContentInput" placeholder="content..."></textarea>
-    </div>
-    <div class="modal-actions">
-      <button class="modal-btn" onclick="closeArtifactModal()">CANCEL</button>
-      <button class="modal-btn primary" onclick="submitArtifact()">CREATE</button>
-    </div>
-  </div>
-</div>
-<div class="modal-overlay" id="appPickerModal">
-  <div class="modal">
-    <span class="modal-title">MY APPS</span>
-    <div class="app-picker-list" id="appPickerList"></div>
-    <div class="modal-actions">
-      <button class="modal-btn" onclick="closeAppPicker()">CANCEL</button>
     </div>
   </div>
 </div>
@@ -686,7 +658,7 @@ const api = {
     this.reconnecting=false;
   }
 };
-const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},dial:0,gossipHops:{},mentions:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null};
+const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},dial:0,gossipHops:{},mentions:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{}};
 let sigilFn=null;
 const sigilCache={};
 (async function loadSigil(){
@@ -779,6 +751,8 @@ function handleUpdate(upd){
   else if(upd['artifact-deleted']){delete state.artifacts[upd['artifact-deleted'].id];closeArtifactPanel();scheduleRender()}
   else if(upd['note-meta-updated']){const d=upd['note-meta-updated'];const n=state.notes[d.id];if(n){n.visibility=d.visibility;n.iconUrl=d.iconUrl||null;n.writable=d.writable;renderNoteList();if(d.id===state.currentNoteId)updateMuteUI()}}
   else if(upd['headline-updated']){const d=upd['headline-updated'];const n=state.notes[d.id];if(n){n.headline=d.headline||null;renderNoteList()}}
+  else if(upd['artifact-envelope']){const d=upd['artifact-envelope'];const nid=d.noteId;const env=d.envelope;if(!state.artifactEnvelopes[nid])state.artifactEnvelopes[nid]={};if(state.artifactEnvelopes[nid][env.aid])return;state.artifactEnvelopes[nid][env.aid]=env;state.artifactEnvHops[env.aid]=(typeof d.hops==='number')?d.hops:1;if(state.currentNoteId===nid)scheduleRender(nid);else if(artEnvVisible(env))state.notifications.add(nid);scheduleNoteList()}
+  else if(upd['artifact-envelope-list']){const d=upd['artifact-envelope-list'];const nid=d.noteId;if(!state.artifactEnvelopes[nid])state.artifactEnvelopes[nid]={};let added=0;for(const e of d.envelopes||[]){if(state.artifactEnvelopes[nid][e.aid])continue;state.artifactEnvelopes[nid][e.aid]=e;if(state.artifactEnvHops[e.aid]===undefined)state.artifactEnvHops[e.aid]=1;added++}if(added&&state.currentNoteId===nid)scheduleRender(nid)}
   else if(upd['message-edited']){const{noteId,message}=upd['message-edited'];const msgs=state.messages[noteId]||[];const eid=message.meta&&message.meta.eid;const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===message.id);if(fi>=0){msgs[fi]=message}if(state.currentNoteId===noteId)scheduleRender(noteId)}
   else if(upd['message-deleted']){const{noteId,msgId,eid}=upd['message-deleted'];const msgs=state.messages[noteId]||[];const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===msgId);if(fi>=0)msgs.splice(fi,1);if(state.currentNoteId===noteId)scheduleRender(noteId)}
   else if(upd['profile-list']){for(const entry of upd['profile-list']){state.profiles[entry.ship]=entry.profile}const me=state.profiles['~'+api.ship];if(me){if(me.displayName)document.getElementById('shipDisplay').textContent=me.displayName;updateSidebarSigil()}if(state.palsView)renderPalsList();if(state.currentNoteId)scheduleRender()}
@@ -987,6 +961,52 @@ function coverMsgVisible(m){
   var h=state.gossipHops[m.id];
   if(h===undefined)return true;
   return h<=state.dial+1;
+}
+function artEnvVisible(env){
+  var me='~'+api.ship;
+  if(env.author===me)return true;
+  if(state.dial===0){
+    var ps=state.palStatus[env.author];
+    return ps==='mutual'||ps==='requesting';
+  }
+  var h=state.artifactEnvHops[env.aid];
+  if(h===undefined)return true;
+  return h<=state.dial+1;
+}
+function isDocMime(mime,name){
+  var m=(mime||'').toLowerCase();
+  if(m.startsWith('text/'))return true;
+  if(m==='application/json'||m==='application/xml'||m==='application/javascript')return true;
+  if(/\.(md|markdown|txt|json|xml|js|ts|csv|log|yaml|yml|toml|ini)$/i.test(name||''))return true;
+  return false;
+}
+function fmtSize(n){
+  if(!n||!isFinite(n))return '';
+  if(n<1024)return n+' B';
+  if(n<1048576)return (n/1024).toFixed(1)+' KB';
+  return (n/1048576).toFixed(1)+' MB';
+}
+function renderDocCard(url,name,mime,size){
+  var labelType=(mime||'').split('/').pop()||'doc';
+  var sizeLabel=fmtSize(size);
+  var previewId='doc-prev-'+Math.random().toString(36).slice(2);
+  setTimeout(function(){
+    fetch(url).then(function(r){if(!r.ok)throw new Error('http '+r.status);return r.text()}).then(function(t){
+      var el=document.getElementById(previewId);if(!el)return;
+      el.textContent=t.slice(0,1200);
+    }).catch(function(){
+      var el=document.getElementById(previewId);if(!el)return;
+      el.textContent='[preview unavailable]';el.style.color='#888';
+    });
+  },0);
+  return '<div style="margin-top:.35rem;border:1px solid var(--border);background:var(--bg2)">'
+    +'<div style="display:flex;align-items:center;gap:.5rem;padding:.35rem .6rem;border-bottom:1px solid var(--border);font-size:.75rem;color:var(--text-dim)">'
+    +'<span style="color:var(--text)">'+escHtml(name)+'</span>'
+    +'<span style="opacity:.7">'+escHtml(labelType)+(sizeLabel?' · '+sizeLabel:'')+'</span>'
+    +'<a href="'+escAttr(url)+'&download=1" style="margin-left:auto;color:#ffaa00;text-decoration:none;font-size:.7rem" download="'+escAttr(name)+'">DOWNLOAD</a>'
+    +'</div>'
+    +'<pre id="'+previewId+'" style="max-height:240px;overflow:auto;padding:.5rem .6rem;margin:0;font-size:.75rem;color:#ddd;white-space:pre-wrap;word-break:break-word">loading preview...</pre>'
+    +'</div>';
 }
 function fetchVisibleEnvelopes(){
   for(const[nid,envMap]of Object.entries(state.gossipEnvelopes)){
@@ -1370,6 +1390,16 @@ function renderMessages(noteId){
       items.push({type:'thread',anchorId:parseInt(tid),order:t.lastOrder,newestId:t.newestId});
     }
   }
+  // merge artifact envelopes (cover/gossip mesh) into the timeline
+  const envMap=state.artifactEnvelopes[noteId]||{};
+  for(const aid in envMap){
+    const env=envMap[aid];
+    // skip if we already have the real artifact (we're the author or this ship was)
+    if(state.artifacts[aid])continue;
+    // dial/hop visibility for cover/gossip envelopes
+    if(isGossipNote(noteId)&&!artEnvVisible(env))continue;
+    items.push({type:'artifact-env',env,order:env.timestamp||0});
+  }
   // merge artifacts into the timeline so they appear in chronological order with messages
   const noteArts=Object.values(state.artifacts).filter(a=>a.noteId===noteId&&(a.type==='app'||a.type==='file'));
   for(const art of noteArts){
@@ -1453,7 +1483,20 @@ function renderMessages(noteId){
         let meta={};if(lastVer){try{meta=JSON.parse(lastVer.content)}catch(e){}}
         const fname=escHtml(meta.fileName||art.name);
         const dblExpand=`ondblclick="openFileFullscreen('${art.id}')"`;
-        if(meta.dataUrl&&meta.mimeType&&meta.mimeType.startsWith('image/')){
+        if(meta.storage==='clay'){
+          const v=meta.version||1;
+          const artUrl='/apps/noltbook/artifact/'+encodeURIComponent(art.id)+'?v='+v;
+          const dlUrl=artUrl+'&download=1';
+          const m=meta.mime||'';
+          const isImg=meta.kind==='image'||m.startsWith('image/');
+          if(isImg){
+            fileContent=`<img src="${artUrl}" alt="${fname}" style="max-width:100%;max-height:400px;border:1px solid var(--border);margin-top:.35rem;cursor:pointer;display:block" onerror="this.outerHTML='<div style=&quot;margin-top:.35rem;font-size:.8rem;color:#ff4444&quot;>[content not yet available on this ship]</div>'" ${dblExpand}>`;
+          }else if(isDocMime(m,fname)){
+            fileContent=renderDocCard(artUrl,fname,m,meta.size);
+          }else{
+            fileContent=`<div style="display:flex;align-items:center;gap:.5rem;margin-top:.35rem;padding:.4rem .6rem;border:1px solid var(--border);background:var(--bg2)"><span style="font-size:.85rem;color:var(--text)">${fname}</span><a href="${artUrl}&download=1" style="font-size:.7rem;color:#ffaa00;text-decoration:none;margin-left:auto" download="${fname}">DOWNLOAD</a></div>`;
+          }
+        }else if(meta.dataUrl&&meta.mimeType&&meta.mimeType.startsWith('image/')){
           fileContent=`<img src="${escAttr(meta.dataUrl)}" alt="${fname}" style="max-width:100%;max-height:400px;border:1px solid var(--border);margin-top:.35rem;cursor:pointer;display:block" ${dblExpand}>`;
         }else if(meta.dataUrl&&meta.mimeType==='application/pdf'){
           fileContent=`<div style="margin-top:.35rem" ${dblExpand}><iframe src="${escAttr(meta.dataUrl)}" style="width:100%;height:400px;border:1px solid var(--border);background:#fff;pointer-events:none"></iframe></div>`;
@@ -1473,6 +1516,27 @@ function renderMessages(noteId){
         wrap.innerHTML=`<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar">${avatarHtml(art.creator)}</div><div class="msg-body"><div class="msg-header"><span class="msg-author" style="color:${authorColor}">${escHtml(displayName(art.creator))}</span><span class="msg-time">${timeStr}</span>${actions}</div>${fileContent}</div></div>`;
         el.appendChild(wrap);
       }
+    }else if(item.type==='artifact-env'){
+      const env=item.env;
+      const wrap=document.createElement('div');
+      wrap.className='msg';
+      wrap.id='inline-art-env-'+env.aid;
+      const authorColor=env.author.startsWith('~')?shipColor(env.author):'var(--visitor)';
+      const ts=env.timestamp?new Date(env.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
+      const url='/apps/noltbook/artifact/'+encodeURIComponent(env.aid)+'?v=1';
+      const isImg=(env.kind==='image')||((env.mime||'').startsWith('image/'));
+      const rawName=env.name||env.aid;
+      const fname=escHtml(rawName);
+      let body='';
+      if(isImg){
+        body=`<img src="${url}" alt="${fname}" style="max-width:100%;max-height:400px;border:1px solid var(--border);margin-top:.35rem;cursor:pointer;display:block" onerror="this.outerHTML='<div style=&quot;margin-top:.35rem;font-size:.8rem;color:#ff4444&quot;>[content not yet available]</div>'">`;
+      }else if(isDocMime(env.mime,rawName)){
+        body=renderDocCard(url,rawName,env.mime||'',env.size);
+      }else{
+        body=`<div style="display:flex;align-items:center;gap:.5rem;margin-top:.35rem;padding:.4rem .6rem;border:1px solid var(--border);background:var(--bg2)"><span style="font-size:.85rem;color:var(--text)">${fname}</span><a href="${url}&download=1" style="font-size:.7rem;color:#ffaa00;text-decoration:none;margin-left:auto" download="${fname}">DOWNLOAD</a></div>`;
+      }
+      wrap.innerHTML=`<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar">${avatarHtml(env.author)}</div><div class="msg-body"><div class="msg-header"><span class="msg-author" style="color:${authorColor}">${escHtml(displayName(env.author))}</span><span class="msg-time">${ts}</span></div>${body}</div></div>`;
+      el.appendChild(wrap);
     }
   }
   // set up mention observer on every render for current note
@@ -2118,35 +2182,53 @@ function showNoteContextMenu(event,noteId){
   setTimeout(()=>{document.addEventListener('click',closeContextMenu)},0);
 }
 function closeContextMenu(){const menu=document.getElementById('noteContextMenu');if(menu)menu.remove();document.removeEventListener('click',closeContextMenu)}
-function toggleAttachMenu(){document.getElementById('attachMenu').classList.toggle('open')}
-const APP_REGISTRY=[
-  {id:'canvas',name:'Canvas',icon:'▢',version:'0.1.0',description:'Collaborative drawing app'}
-];
-function openAppPicker(){
-  document.getElementById('attachMenu').classList.remove('open');
-  const list=document.getElementById('appPickerList');
-  list.innerHTML='';
-  for(const app of APP_REGISTRY){
-    const item=document.createElement('button');
-    item.className='app-picker-item';
-    item.innerHTML=`<span class="app-picker-icon">${app.icon}</span><div class="app-picker-info"><span class="app-picker-name">${app.name}</span><span class="app-picker-desc">${app.description}</span></div>`;
-    item.onclick=()=>{closeAppPicker();insertApp(app)};
-    list.appendChild(item);
-  }
-  document.getElementById('appPickerModal').classList.add('open');
+function updateAttachMenu(){
+  const btn=document.getElementById('attachFileBtn');if(!btn)return;
+  const nid=state.currentNoteId;const note=state.notes[nid];const me='~'+api.ship;
+  if(!nid){btn.style.display='none';return}
+  const isCover=nid==='cover'||(note&&note.type==='cover');
+  if(!note&&!isCover){btn.style.display='none';return}
+  const isDm=note&&note.type==='dm';
+  const isGossip=note&&note.type==='gossip';
+  const okType=isCover||isDm||isGossip||(note&&(note.type==='notebook'||note.type==='group'));
+  const member=isCover||(note&&(note.users||[]).includes(me));
+  const notRemoved=isCover||!(note&&(note.removed||[]).includes(me));
+  const writable=!note||note.writable!==false;
+  const admins=state.noteAdmins[nid]||[];
+  const isHostOrAdmin=isCover||(note&&(note.creator===me||admins.includes(me)));
+  const groupOk=writable||isHostOrAdmin;
+  const canUpload=okType&&member&&notRemoved&&(isDm||isCover||isGossip||groupOk);
+  btn.style.display=canUpload?'':'none';
 }
-function closeAppPicker(){document.getElementById('appPickerModal').classList.remove('open')}
-async function insertApp(app){
-  const content=JSON.stringify({packageId:app.id,packageVersion:app.version,hostShip:'~'+api.ship,state:{}});
-  await api.poke('noltbook','noltbook-action',{action:'create-artifact',data:{noteId:state.currentNoteId,name:app.name,type:'app',content}});
-}
+function toggleAttachMenu(){updateAttachMenu();document.getElementById('attachMenu').classList.toggle('open')}
 function pickFile(){document.getElementById('attachMenu').classList.remove('open');const inp=document.getElementById('quickFileInput');inp.value='';inp.onchange=function(){if(this.files[0])uploadFile(this.files[0])};inp.click()}
-async function uploadFile(file){const reader=new FileReader();reader.onload=async function(){const content=JSON.stringify({dataUrl:reader.result,fileName:file.name,mimeType:file.type||'application/octet-stream',size:file.size});await api.poke('noltbook','noltbook-action',{action:'create-artifact',data:{noteId:state.currentNoteId,name:file.name,type:'file',content}})};reader.readAsDataURL(file)}
-function openFileFullscreen(artId){const art=state.artifacts[artId];if(!art)return;const lastVer=art.versions[art.versions.length-1];if(!lastVer)return;let meta={};try{meta=JSON.parse(lastVer.content)}catch(e){return}const overlay=document.createElement('div');overlay.id='file-fullscreen';overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.92);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center';const bar=document.createElement('div');bar.style.cssText='position:absolute;top:0;right:0;padding:.75rem 1rem;display:flex;gap:.5rem;z-index:1';bar.innerHTML=`<a href="${escAttr(meta.dataUrl)}" download="${escAttr(meta.fileName||art.name)}" style="font-family:var(--font);font-size:.75rem;padding:.25rem .6rem;border:1px solid #555;color:#aaa;text-decoration:none;cursor:pointer">DOWNLOAD</a><button onclick="this.closest('#file-fullscreen').remove()" style="font-family:var(--font);font-size:.75rem;padding:.25rem .6rem;border:1px solid #555;color:#aaa;background:none;cursor:pointer">CLOSE</button>`;overlay.appendChild(bar);const body=document.createElement('div');body.style.cssText='max-width:95%;max-height:90%;overflow:auto';if(meta.mimeType&&meta.mimeType.startsWith('image/')){body.innerHTML=`<img src="${escAttr(meta.dataUrl)}" style="max-width:100%;max-height:90vh">`}else if(meta.mimeType==='application/pdf'){body.innerHTML=`<iframe src="${escAttr(meta.dataUrl)}" style="width:90vw;height:85vh;border:none;background:#fff"></iframe>`}else if(meta.mimeType&&(meta.mimeType.startsWith('text/')||meta.mimeType==='application/json')){fetch(meta.dataUrl).then(r=>r.text()).then(t=>{body.innerHTML=`<pre style="color:#ddd;font-size:.85rem;white-space:pre-wrap;padding:1rem">${escHtml(t)}</pre>`})}else{body.innerHTML=`<div style="color:#aaa;font-size:1rem;text-align:center"><div style="font-size:2rem;margin-bottom:.5rem">📄</div>${escHtml(meta.fileName||art.name)}</div>`}overlay.appendChild(body);overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove()});document.body.appendChild(overlay)}
-function openArtifactModal(type){document.getElementById('attachMenu').classList.remove('open');state.currentArtifactType=type;document.getElementById('artifactModalTitle').textContent=type==='code'?'NEW CODE':'NEW FILE / IMG';document.getElementById('artNameInput').value='';document.getElementById('artContentInput').value='';document.getElementById('artContentField').style.display='';document.getElementById('artFileField').style.display='none';document.getElementById('artifactModal').classList.add('open');setTimeout(()=>document.getElementById('artNameInput').focus(),50)}
-function closeArtifactModal(){document.getElementById('artifactModal').classList.remove('open')}
-async function submitArtifact(){const name=document.getElementById('artNameInput').value.trim();if(!name)return;const content=document.getElementById('artContentInput').value;await api.poke('noltbook','noltbook-action',{action:'create-artifact',data:{noteId:state.currentNoteId,name,type:state.currentArtifactType,content}});closeArtifactModal()}
-function openArtifactPanel(id){const art=state.artifacts[id];if(!art)return;document.getElementById('artifactPanel').classList.add('open');document.getElementById('artifactPanelTitle').textContent=art.name;const lastVer=art.versions[art.versions.length-1];const content=lastVer?lastVer.content:'';const body=document.getElementById('artifactPanelBody');if(art.type==='file'){let meta={};try{meta=JSON.parse(content)}catch(e){}if(meta.dataUrl&&meta.mimeType&&meta.mimeType.startsWith('image/')){body.innerHTML=`<img src="${escAttr(meta.dataUrl)}" alt="${escAttr(art.name)}" style="max-width:100%">`}else if(meta.dataUrl){body.innerHTML=`<a href="${escAttr(meta.dataUrl)}" download="${escAttr(meta.fileName||art.name)}" style="color:var(--amber)">${escHtml(meta.fileName||art.name)}</a>`}else{body.innerHTML=`<div class="artifact-file-wrap">${escHtml(content)}</div>`}}else if(art.type==='app'){let meta={};try{meta=JSON.parse(content)}catch(e){}const iframeId='app-iframe-'+id;body.innerHTML=`<iframe id="${iframeId}" src="/apps/noltbook/pkg/${meta.packageId||'canvas'}" sandbox="allow-scripts" style="width:100%;height:600px;border:none;background:#181818"></iframe>`;initHostBridge(iframeId,id,meta)}else{body.innerHTML=`<pre class="artifact-code">${escHtml(content)}</pre>`}document.getElementById('artifactPanelMeta').textContent=`v${art.versions.length} · ${art.creator} · ${new Date(lastVer?lastVer.timestamp:Date.now()).toLocaleDateString()}`}
+async function uploadFile(file){
+  const nid=state.currentNoteId;const note=state.notes[nid];const me='~'+api.ship;
+  const isCover=nid==='cover'||(note&&note.type==='cover');
+  if(!isCover){
+    if(!note||(note.type!=='notebook'&&note.type!=='group'&&note.type!=='dm'&&note.type!=='gossip')){
+      alert('File/Img upload not supported in this note type.');
+      return;
+    }
+    if(!(note.users||[]).includes(me)||(note.removed||[]).includes(me)){
+      alert('You are not a member of this note.');
+      return;
+    }
+  }
+  if(file.size>5*1024*1024){alert('File too large (5 MB max).');return}
+  const mime=file.type||'application/octet-stream';
+  const kind=mime.startsWith('image/')?'image':'file';
+  const qs='?name='+encodeURIComponent(file.name)+'&kind='+kind+'&mime='+encodeURIComponent(mime);
+  try{
+    const r=await fetch('/apps/noltbook/upload-artifact/'+encodeURIComponent(nid)+qs,{method:'POST',body:file,headers:{'Content-Type':mime}});
+    if(!r.ok){alert('Upload failed: '+r.status);return}
+    if(note.creator!==me){
+      console.log('[upload-artifact] sent to host; waiting for broadcast');
+    }
+  }catch(e){console.error('[upload-artifact]',e);alert('Upload error: '+e.message)}
+}
+function openFileFullscreen(artId){const art=state.artifacts[artId];if(!art)return;const lastVer=art.versions[art.versions.length-1];if(!lastVer)return;let meta={};try{meta=JSON.parse(lastVer.content)}catch(e){return}const overlay=document.createElement('div');overlay.id='file-fullscreen';overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.92);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center';const bar=document.createElement('div');bar.style.cssText='position:absolute;top:0;right:0;padding:.75rem 1rem;display:flex;gap:.5rem;z-index:1';let srcUrl,downloadUrl,mtype;if(meta.storage==='clay'){const v=meta.version||1;srcUrl='/apps/noltbook/artifact/'+encodeURIComponent(art.id)+'?v='+v;downloadUrl=srcUrl+'&download=1';mtype=meta.mime||'';}else{srcUrl=meta.dataUrl;downloadUrl=meta.dataUrl;mtype=meta.mimeType||'';}bar.innerHTML=`<a href="${escAttr(downloadUrl)}" download="${escAttr(meta.fileName||art.name)}" style="font-family:var(--font);font-size:.75rem;padding:.25rem .6rem;border:1px solid #555;color:#aaa;text-decoration:none;cursor:pointer">DOWNLOAD</a><button onclick="this.closest('#file-fullscreen').remove()" style="font-family:var(--font);font-size:.75rem;padding:.25rem .6rem;border:1px solid #555;color:#aaa;background:none;cursor:pointer">CLOSE</button>`;overlay.appendChild(bar);const body=document.createElement('div');body.style.cssText='max-width:95%;max-height:90%;overflow:auto';if(mtype.startsWith('image/')){body.innerHTML=`<img src="${escAttr(srcUrl)}" style="max-width:100%;max-height:90vh">`}else if(mtype==='application/pdf'){body.innerHTML=`<iframe src="${escAttr(srcUrl)}" style="width:90vw;height:85vh;border:none;background:#fff"></iframe>`}else if(mtype.startsWith('text/')||mtype==='application/json'){fetch(srcUrl).then(r=>r.text()).then(t=>{body.innerHTML=`<pre style="color:#ddd;font-size:.85rem;white-space:pre-wrap;padding:1rem">${escHtml(t)}</pre>`})}else{body.innerHTML=`<div style="color:#aaa;font-size:1rem;text-align:center"><div style="font-size:2rem;margin-bottom:.5rem">📄</div>${escHtml(meta.fileName||art.name)}</div>`}overlay.appendChild(body);overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove()});document.body.appendChild(overlay)}
+function openArtifactPanel(id){const art=state.artifacts[id];if(!art)return;document.getElementById('artifactPanel').classList.add('open');document.getElementById('artifactPanelTitle').textContent=art.name;const lastVer=art.versions[art.versions.length-1];const content=lastVer?lastVer.content:'';const body=document.getElementById('artifactPanelBody');if(art.type==='file'){let meta={};try{meta=JSON.parse(content)}catch(e){}if(meta.storage==='clay'){const v=meta.version||1;const src='/apps/noltbook/artifact/'+encodeURIComponent(id)+'?v='+v;const m=meta.mime||'';if(meta.kind==='image'||m.startsWith('image/')){body.innerHTML=`<img src="${escAttr(src)}" alt="${escAttr(art.name)}" style="max-width:100%" onerror="this.outerHTML='<div style=&quot;color:#ff4444;font-size:.85rem&quot;>[content not yet available on this ship]</div>'">`}else{body.innerHTML=`<a href="${escAttr(src)}&download=1" download="${escAttr(art.name)}" style="color:var(--amber)">${escHtml(art.name)}</a>`}}else if(meta.dataUrl&&meta.mimeType&&meta.mimeType.startsWith('image/')){body.innerHTML=`<img src="${escAttr(meta.dataUrl)}" alt="${escAttr(art.name)}" style="max-width:100%">`}else if(meta.dataUrl){body.innerHTML=`<a href="${escAttr(meta.dataUrl)}" download="${escAttr(meta.fileName||art.name)}" style="color:var(--amber)">${escHtml(meta.fileName||art.name)}</a>`}else{body.innerHTML=`<div class="artifact-file-wrap">${escHtml(content)}</div>`}}else if(art.type==='app'){let meta={};try{meta=JSON.parse(content)}catch(e){}const iframeId='app-iframe-'+id;body.innerHTML=`<iframe id="${iframeId}" src="/apps/noltbook/pkg/${meta.packageId||'canvas'}" sandbox="allow-scripts" style="width:100%;height:600px;border:none;background:#181818"></iframe>`;initHostBridge(iframeId,id,meta)}else{body.innerHTML=`<pre class="artifact-code">${escHtml(content)}</pre>`}document.getElementById('artifactPanelMeta').textContent=`v${art.versions.length} · ${art.creator} · ${new Date(lastVer?lastVer.timestamp:Date.now()).toLocaleDateString()}`}
 function closeArtifactPanel(){document.getElementById('artifactPanel').classList.remove('open');state.activeAppBridge=null}
 function initHostBridge(iframeId,artifactId,meta){
   const iframe=document.getElementById(iframeId);

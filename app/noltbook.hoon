@@ -28,6 +28,7 @@
       state-24
       state-25
       state-26
+      state-27
   ==
 ::  pre-entry-meta message shape — used by state-18 for on-load typing
 +$  message-18
@@ -552,6 +553,33 @@
       seq-counters=(map @ta @ud)
       join-requests=(map @ta (set @p))
   ==
+::  state-27: add artifact-envelopes for cover/gossip envelope mesh
++$  state-27
+  $:  %27
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+  ==
 ::  state-26: add durable blocked-by set (ships that have blocked us)
 +$  state-26
   $:  %26
@@ -801,7 +829,7 @@
 ::  chains through upgrade-20-to-21 → ... → upgrade-25-to-26
 ++  upgrade-19-to-20
   |=  s=state-19
-  ^-  state-26
+  ^-  state-27
   =/  new-seq=(map @ta @ud)
     %-  ~(rep by seq-counters.s)
     |=  [[[a=@p n=@ta] v=@ud] acc=(map @ta @ud)]
@@ -821,7 +849,7 @@
 ::  chains through upgrade-21-to-22 → upgrade-22-to-23
 ++  upgrade-20-to-21
   |=  s=state-20
-  ^-  state-26
+  ^-  state-27
   =/  new-msgs=(map @ta (list message:noltbook))
     %-  ~(run by messages.s)
     |=  msgs=(list message-20)
@@ -863,7 +891,7 @@
 ::  upgrade-21-to-22: add meta=(unit entry-meta) to envelopes
 ++  upgrade-21-to-22
   |=  s=state-21
-  ^-  state-26
+  ^-  state-27
   =/  new-envs=(map @ta (map @da envelope:noltbook))
     %-  ~(run by gossip-envelopes.s)
     |=  envs=(map @da envelope-21)
@@ -885,7 +913,7 @@
 ::  upgrade-22-to-23: enrich mention storage with stable eid
 ++  upgrade-22-to-23
   |=  s=state-22
-  ^-  state-26
+  ^-  state-27
   =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
     %-  ~(urn by mentions.s)
     |=  [nid=@ta mns=(list [id=@da author=@p])]
@@ -909,9 +937,24 @@
       seq-counters.s
   ==
 ::  upgrade-25-to-26: add blocked-by set
+++  upgrade-26-to-27
+  |=  s=state-26
+  ^-  state-27
+  :*  %27
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      *(map @ta (map @ta artifact-envelope:noltbook))
+  ==
 ++  upgrade-25-to-26
   |=  s=state-25
-  ^-  state-26
+  ^-  state-27
+  %-  upgrade-26-to-27
   :*  %26
       notes.s  messages.s  artifacts.s  profiles.s
       transactions.s  current-note.s  peers.s  has-avatar.s
@@ -925,7 +968,7 @@
 ::  upgrade-24-to-25: add note-admins and note-muted maps
 ++  upgrade-24-to-25
   |=  s=state-24
-  ^-  state-26
+  ^-  state-27
   %-  upgrade-25-to-26
   :*  %25
       notes.s  messages.s  artifacts.s  profiles.s
@@ -947,7 +990,7 @@
 ::  upgrade-23-to-24: add join-requests map
 ++  upgrade-23-to-24
   |=  s=state-23
-  ^-  state-26
+  ^-  state-27
   %-  upgrade-24-to-25
   :*  %24
       notes.s  messages.s  artifacts.s  profiles.s
@@ -994,9 +1037,72 @@
   ^-  ?
   ?.  =(cr.a cr.b)  (lth `@`cr.a `@`cr.b)
   (lth `@`id.a `@`id.b)
+::  parse-mime-path: split 'image/png' into knot list [%image %png ~]
+++  parse-mime-path
+  |=  m=@t
+  ^-  (list @ta)
+  =/  s=tape  (trip m)
+  =/  parts=(list tape)  ~
+  =/  cur=tape  ""
+  |-
+  ?~  s
+    %+  turn  (snoc parts cur)
+    |=(t=tape `@ta`(crip t))
+  ?:  =('/' i.s)
+    $(parts (snoc parts cur), cur "", s t.s)
+  $(cur (snoc cur i.s), s t.s)
+::  art-meta-json: build clay-backed artifact metadata blob
+++  art-meta-json
+  |=  [mime=@t kind=@t size=@ud version=@ud]
+  ^-  @t
+  %+  rap  3
+  :~  '{"storage":"clay","mime":"'  mime  '","kind":"'  kind  '","size":'
+      (scot %ud size)  ',"version":'  (scot %ud version)  '}'
+  ==
+::  art-env-cap: per-note artifact-envelope cap (drop oldest by timestamp)
+++  art-env-cap  100
+++  cap-art-envs
+  |=  envs=(map @ta artifact-envelope:noltbook)
+  ^-  (map @ta artifact-envelope:noltbook)
+  ?:  (lte ~(wyt by envs) art-env-cap)  envs
+  =/  sorted=(list [@ta artifact-envelope:noltbook])
+    %+  sort  ~(tap by envs)
+    |=  [a=[@ta v=artifact-envelope:noltbook] b=[@ta w=artifact-envelope:noltbook]]
+    (gth timestamp.v.a timestamp.w.b)
+  (~(gas by *(map @ta artifact-envelope:noltbook)) (scag art-env-cap sorted))
+::  find-aid-in-envelopes: scan all per-note envelope maps for an aid
+++  find-aid-in-envelopes
+  |=  [aid=@ta envs=(map @ta (map @ta artifact-envelope:noltbook))]
+  ^-  (unit artifact-envelope:noltbook)
+  =/  vals=(list (map @ta artifact-envelope:noltbook))  ~(val by envs)
+  |-
+  ?~  vals  ~
+  =/  hit  (~(get by i.vals) aid)
+  ?^  hit  hit
+  $(vals t.vals)
+::  query-arg: lookup query-string arg
+++  query-arg
+  |=  [args=(list [key=@t value=@t]) k=@t]
+  ^-  (unit @t)
+  ?~  args  ~
+  ?:  =(key.i.args k)  `value.i.args
+  $(args t.args)
+::  split-url-tail: slice url after a known prefix into a knot path component
+::  and parsed query args. Bypasses apat:de-purl which mis-handles
+::  path segments containing dots (e.g. note-~2024.1.5..).
+++  split-url-tail
+  |=  [url=tape prefix-len=@ud]
+  ^-  [path=@ta args=(list [key=@t value=@t])]
+  =/  rest=tape  (slag prefix-len url)
+  =/  qix=(unit @ud)  (find "?" rest)
+  =/  path-tape=tape  ?~(qix rest (scag u.qix rest))
+  =/  qstr-tape=tape  ?~(qix "" (slag u.qix rest))
+  =/  args=(list [key=@t value=@t])
+    (fall (rush (crip qstr-tape) yque:de-purl:html) ~)
+  [(crip path-tape) args]
 --
 %-  agent:dbug
-=|  state-26
+=|  state-27
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -1020,8 +1126,8 @@
 ++  on-load
   |=  old=vase
   ^-  (quip card _this)
-  ?:  ?=([%26 *] q.old)
-    =/  loaded  !<(state-26 old)
+  ?:  ?=([%27 *] q.old)
+    =/  loaded  !<(state-27 old)
     ::  fix: ensure cover note exists and is keyed as %cover
     ::  (same normalizations carried forward from state-24 load)
     =/  loaded
@@ -1096,6 +1202,9 @@
       ^-  card
       [%pass /prof-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-profile our.bowl prof])]
     [prof-cards this(state loaded(active-calls *(map @ta call-info:noltbook)))]
+  ?:  ?=([%26 *] q.old)
+    =/  s26  !<(state-26 old)
+    $(old !>((upgrade-26-to-27 s26)))
   ?:  ?=([%25 *] q.old)
     =/  s25  !<(state-25 old)
     $(old !>((upgrade-25-to-26 s25)))
@@ -1591,8 +1700,14 @@
       =/  jr-list=(list [note-id=@ta ship=@p note-name=@t])
         (turn ~(tap in pending) |=(s=@p [nid s name.u.n]))
       ~[[%give %fact ~ %noltbook-update !>(`update:noltbook`[%join-request-list jr-list])]]
+    =/  art-env-cards=(list card)
+      ?.  is-gossip-note  ~
+      =/  aenv-map  (fall (~(get by artifact-envelopes) nid) *(map @ta artifact-envelope:noltbook))
+      =/  aenvs  ~(val by aenv-map)
+      ?~  aenvs  ~
+      ~[[%give %fact ~ %noltbook-update !>(`update:noltbook`[%artifact-envelope-list nid aenvs])]]
     :_  this(peers new-peers)
-    :(weld init-cards ~[[%give %fact ~ %noltbook-update !>(pupd)]] intro-cards call-cards note-role-cards jr-admin-cards)
+    :(weld init-cards ~[[%give %fact ~ %noltbook-update !>(pupd)]] intro-cards call-cards note-role-cards jr-admin-cards art-env-cards)
   ::
       [%http-response @ ~]
     `this
@@ -1774,6 +1889,255 @@
           [%give %fact ~[/notes] %noltbook-update !>(meta-upd)]
           [%give %fact ~[/notes/[nid]] %noltbook-update !>(meta-upd)]
       ==
+    ::  artifact fetch endpoint — auth-gated
+    ::  GET /apps/noltbook/artifact/<aid>?v=<v>&download=1
+    ::  - on the byte host (=creator): serve local Clay (404 if bytes missing)
+    ::  - on any other ship: always remote-fetch from byte host; do NOT touch
+    ::    local Clay (member ships must not mirror artifact bytes)
+    ?:  &(=(%'GET' method.request.inbound-request) =((scag 24 url-tape) "/apps/noltbook/artifact/"))
+      =/  parts  (split-url-tail url-tape 24)
+      =/  aid=@ta  path.parts
+      =/  q-args  args.parts
+      ?:  =('' aid)
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[404 ~] ~]
+      =/  art  (~(get by artifacts) aid)
+      ?~  art
+        ::  no artifact ref locally — try gossip/cover envelope path
+        =/  env  (find-aid-in-envelopes aid artifact-envelopes)
+        ?~  env
+          :_  this
+          %+  give-simple-payload:app:server  eyre-id
+          [[404 ~] ~]
+        ::  remote-fetch from envelope author, pass expected content-hash
+        =/  fetch-card=card
+          :*  %pass
+              /art-fetch-out/[aid]/[eyre-id]
+              %agent  [author.u.env %noltbook]
+              %poke   %noltbook-remote
+              !>(`remote:noltbook`[%remote-artifact-fetch aid eyre-id `content-hash.u.env])
+          ==
+        :_  this
+        ~[fetch-card]
+      ::  byte host serves local Clay. DM participants also hold a local copy
+      ::  by design (symmetric DM storage) and serve from local Clay too.
+      =/  nt-art  (~(get by notes) note-id.u.art)
+      =/  is-dm-member=?
+        ?&  ?=(^ nt-art)
+            ?=(%dm type.u.nt-art)
+            (~(has in users.u.nt-art) our.bowl)
+        ==
+      ?:  ?|(=(our.bowl creator.u.art) is-dm-member)
+        =/  art-clay=path
+          :*  (scot %p our.bowl)
+              q.byk.bowl
+              (scot %da now.bowl)
+              /lib/noltbook/artifacts/[aid]/mime
+          ==
+        =/  local-res  (mule |.(.^(mime %cx art-clay)))
+        ?:  ?=(%& -.local-res)
+          =/  art-data=mime  p.local-res
+          =/  ct=@t  (rap 3 (join '/' p.art-data))
+          =/  qarg-dl  (query-arg q-args 'download')
+          =/  hdrs=(list [@t @t])
+            ?~  qarg-dl
+              ~[['content-type' ct] ['cache-control' 'max-age=3600']]
+            =/  fname=@t  name.u.art
+            =/  cd=@t  (rap 3 ['attachment; filename="' fname '"' ~])
+            :~  ['content-type' ct]
+                ['cache-control' 'max-age=3600']
+                ['content-disposition' cd]
+            ==
+          =/  =simple-payload:http
+            [[200 hdrs] `q.art-data]
+          [(give-simple-payload:app:server eyre-id simple-payload) this]
+        ::  byte host has no local bytes → 404; DM member falls through to
+        ::  remote fetch from the artifact creator (sender)
+        ?:  =(our.bowl creator.u.art)
+          :_  this
+          %+  give-simple-payload:app:server  eyre-id
+          [[404 ~] ~]
+        =/  fetch-card=card
+          :*  %pass
+              /art-fetch-out/[aid]/[eyre-id]
+              %agent  [creator.u.art %noltbook]
+              %poke   %noltbook-remote
+              !>(`remote:noltbook`[%remote-artifact-fetch aid eyre-id ~])
+          ==
+        :_  this
+        ~[fetch-card]
+      ::  non-host, non-DM: never touch local Clay; always remote-fetch
+      =/  fetch-card=card
+        :*  %pass
+            /art-fetch-out/[aid]/[eyre-id]
+            %agent  [creator.u.art %noltbook]
+            %poke   %noltbook-remote
+            !>(`remote:noltbook`[%remote-artifact-fetch aid eyre-id ~])
+        ==
+      :_  this
+      ~[fetch-card]
+    ::  artifact upload endpoint
+    ::  POST /apps/noltbook/upload-artifact/<note-id>?name=...&kind=image|file&mime=...
+    ::  host path: write Clay + broadcast metadata
+    ::  non-host path: write own Clay + remote-poke host with metadata; host broadcasts
+    ?:  &(=(%'POST' method.request.inbound-request) =((scag 31 url-tape) "/apps/noltbook/upload-artifact/"))
+      =/  parts  (split-url-tail url-tape 31)
+      =/  nid=@ta  path.parts
+      =/  q-args  args.parts
+      ?:  =('' nid)
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[400 ~] ~]
+      =/  nt  (~(get by notes) nid)
+      ?~  nt
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[404 ~] ~]
+      ::  all note types accept artifact uploads at this layer; type-specific
+      ::  rules below
+      =/  is-dm=?  ?=(%dm type.u.nt)
+      =/  is-cover=?  ?=(%cover type.u.nt)
+      =/  is-gossipy-note=?  ?=(%gossip type.u.nt)
+      =/  is-gossipy=?  |(is-cover is-gossipy-note)
+      =/  is-host=?  =(our.bowl creator.u.nt)
+      =/  admins  (fall (~(get by note-admins) nid) ~)
+      =/  is-admin=?  (~(has in admins) our.bowl)
+      ::  uploader must be a current member, not removed (applies to all)
+      ?:  ?|  !(~(has in users.u.nt) our.bowl)
+              (~(has in removed.u.nt) our.bowl)
+          ==
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[403 ~] ~]
+      ::  read-only/mute checks skip for DMs (no admin/mute concept)
+      ::  and for cover (cover is a personal note hosted by self)
+      ?:  ?&  !is-dm
+              !is-cover
+              !writable.u.nt
+              !is-host
+              !is-admin
+          ==
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[403 ~] ~]
+      =/  muted  (fall (~(get by note-muted) nid) ~)
+      ?:  ?&  !is-dm
+              !is-cover
+              (~(has in muted) our.bowl)
+              !is-host
+              !is-admin
+          ==
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[403 ~] ~]
+      =/  bod  body.request.inbound-request
+      ?~  bod
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[400 ~] ~]
+      ::  cap at 5 MB
+      ?:  (gth p.u.bod 5.242.880)
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[413 ~] ~]
+      =/  qarg-name  (query-arg q-args 'name')
+      =/  qarg-kind  (query-arg q-args 'kind')
+      =/  qarg-mime  (query-arg q-args 'mime')
+      =/  fname=@t  (fall qarg-name 'untitled')
+      =/  kind=@t   (fall qarg-kind 'file')
+      =/  mtype=@t  (fall qarg-mime 'application/octet-stream')
+      =/  mpath=(list @ta)  (parse-mime-path mtype)
+      =/  aid=@ta  (crip (weld "art-" (trip (scot %da now.bowl))))
+      =/  art-cage=cage  [%mime !>(`mime`[mpath u.bod])]
+      =/  nori  [%& ~[[/lib/noltbook/artifacts/[aid]/mime [%ins art-cage]]]]
+      =/  clay-card=card  [%pass /art-write/[aid] %arvo %c %info q.byk.bowl nori]
+      =/  meta-content=@t  (art-meta-json mtype kind p.u.bod 1)
+      =/  new-art=artifact:noltbook
+        :*  aid  fname  %file  our.bowl  nid
+            ~[[1 meta-content our.bowl now.bowl]]
+        ==
+      =/  resp-body=@t  (rap 3 ['{"id":"' aid '","version":1}' ~])
+      =/  ok-payload=simple-payload:http
+        [[200 ~[['content-type' 'application/json']]] `(as-octs:mimes:html resp-body)]
+      =/  http-cards  (give-simple-payload:app:server eyre-id ok-payload)
+      ?:  is-gossipy
+        ::  cover/gossip path: write own Clay, store artifact locally,
+        ::  build envelope, broadcast %artifact-envelope locally + gossip
+        ::  %remote-artifact-envelope-ref to mesh recipients. Never ship bytes.
+        =/  hash=@uv  (sham q.u.bod)
+        =/  env=artifact-envelope:noltbook
+          [aid our.bowl nid fname mtype kind p.u.bod hash now.bowl ~]
+        =/  upd=update:noltbook  [%artifact-envelope nid env 0]
+        =/  pax=path  ~[%notes nid]
+        =/  targets=(list @p)
+          ?:  is-cover
+            ~(tap in pal-outgoing)
+          %+  skim  ~(tap in users.u.nt)
+          |=(p=@p !=(p our.bowl))
+        =/  gossip-cards=(list card)
+          %+  turn  targets
+          |=  p=@p
+          ^-  card
+          [%pass /art-env-out/(scot %p p)/[aid] %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-artifact-envelope-ref nid env 0])]
+        =/  envs-cur=(map @ta artifact-envelope:noltbook)
+          (fall (~(get by artifact-envelopes) nid) *(map @ta artifact-envelope:noltbook))
+        :_  %=  this
+              artifacts  (~(put by artifacts) aid new-art)
+              artifact-envelopes
+                (~(put by artifact-envelopes) nid (cap-art-envs (~(put by envs-cur) aid env)))
+            ==
+        %+  weld  http-cards
+        %+  weld
+          :~  clay-card
+              [%give %fact ~[pax] %noltbook-update !>(upd)]
+          ==
+        gossip-cards
+      ?:  is-dm
+        ::  DM path: write own Clay, store metadata, broadcast locally, ship
+        ::  metadata + bytes to counterparty (symmetric duplication).
+        =/  others=(list @p)
+          %+  skim  ~(tap in users.u.nt)
+          |=(p=@p !=(p our.bowl))
+        =/  counterparty=@p  ?~(others our.bowl i.others)
+        =/  upd=update:noltbook  [%artifact-created new-art]
+        =/  pax=path  ~[%notes nid]
+        =/  dm-card=(list card)
+          ?:  =(counterparty our.bowl)  ~
+          :~  :*  %pass
+                  /art-dm-out/[aid]
+                  %agent  [counterparty %noltbook]
+                  %poke   %noltbook-remote
+                  !>(`remote:noltbook`[%remote-dm-artifact new-art mtype u.bod])
+              ==
+          ==
+        :_  this(artifacts (~(put by artifacts) aid new-art))
+        %+  weld  http-cards
+        %+  weld
+          :~  clay-card
+              [%give %fact ~[pax] %noltbook-update !>(upd)]
+          ==
+        dm-card
+      ?:  is-host
+        ::  host path: store ref + broadcast group history
+        =/  upd=update:noltbook  [%artifact-created new-art]
+        =/  pax=path  ~[%notes nid]
+        :_  this(artifacts (~(put by artifacts) aid new-art))
+        %+  weld  http-cards
+        :~  clay-card
+            [%give %fact ~[pax] %noltbook-update !>(upd)]
+        ==
+      ::  non-host path: write own Clay, ship metadata to host; no local broadcast
+      =/  create-card=card
+        :*  %pass
+            /art-create-out/[aid]
+            %agent  [creator.u.nt %noltbook]
+            %poke   %noltbook-remote
+            !>(`remote:noltbook`[%remote-artifact-create new-art])
+        ==
+      :_  this
+      %+  weld  http-cards
+      ~[clay-card create-card]
     ::  serve packages
     ?:  =((scag 19 url-tape) "/apps/noltbook/pkg/")
       =/  pkg-id=@ta  (crip (slag 19 url-tape))
@@ -2299,6 +2663,8 @@
         %create-artifact
       =/  exists  (~(get by notes) note-id.act)
       ?~  exists  `this
+      ::  cover/gossip artifact creation is not implemented; close legacy door
+      ?:  ?|(?=(%cover type.u.exists) ?=(%gossip type.u.exists))  `this
       =/  aid=@ta  (crip (weld "art-" (trip (scot %da now.bowl))))
       =/  new-art=artifact:noltbook
         :*  aid  name.act  type.act  our.bowl  note-id.act
@@ -4367,6 +4733,226 @@
         :_  this(notes (~(put by notes) note-id.rem new-note), peers new-peers, note-muted (~(put by note-muted) note-id.rem ro-muted))
         :(weld ~[poke-card] ~[[%give %fact ~[/notes] %noltbook-update !>(users-upd)]] ~[[%give %fact ~[pax] %noltbook-update !>(users-upd)]] ars-cards ro-mute-cards)
       ==
+    ::
+        %remote-artifact-fetch
+      ::  requester asking us for artifact bytes
+      =/  art  (~(get by artifacts) art-id.rem)
+      ?~  art
+        :_  this
+        ~[[%pass /art-deny/(scot %p src.bowl)/[art-id.rem] %agent [src.bowl %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-artifact-denied art-id.rem eyre-id.rem])]]
+      =/  nt  (~(get by notes) note-id.u.art)
+      ?~  nt
+        :_  this
+        ~[[%pass /art-deny/(scot %p src.bowl)/[art-id.rem] %agent [src.bowl %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-artifact-denied art-id.rem eyre-id.rem])]]
+      ::  block guard
+      ?:  (~(has in pal-blocked) src.bowl)
+        :_  this
+        ~[[%pass /art-deny/(scot %p src.bowl)/[art-id.rem] %agent [src.bowl %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-artifact-denied art-id.rem eyre-id.rem])]]
+      ::  per-type permission
+      ::  cover: NO direct-pal check; envelope mesh reaches further
+      ::  gossip note: explicit membership (in users, not removed)
+      ::  others: existing notebook/group/dm membership
+      ?:  ?&  !?=(%cover type.u.nt)
+              ?|  !(~(has in users.u.nt) src.bowl)
+                  (~(has in removed.u.nt) src.bowl)
+              ==
+          ==
+        :_  this
+        ~[[%pass /art-deny/(scot %p src.bowl)/[art-id.rem] %agent [src.bowl %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-artifact-denied art-id.rem eyre-id.rem])]]
+      ::  scry bytes from our clay
+      =/  art-clay=path
+        :*  (scot %p our.bowl)
+            q.byk.bowl
+            (scot %da now.bowl)
+            /lib/noltbook/artifacts/[art-id.rem]/mime
+        ==
+      =/  scry-res  (mule |.(.^(mime %cx art-clay)))
+      ?:  ?=(%| -.scry-res)
+        :_  this
+        ~[[%pass /art-deny/(scot %p src.bowl)/[art-id.rem] %agent [src.bowl %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-artifact-denied art-id.rem eyre-id.rem])]]
+      =/  mim=mime  p.scry-res
+      ::  if requester sent expected-hash, validate before serving.
+      ::  q.mim is octs [p=@ud q=@]; hash content == hash of byte atom (q.q.mim)
+      ?:  ?&  ?=(^ expected-hash.rem)
+              !=(u.expected-hash.rem (sham q.q.mim))
+          ==
+        :_  this
+        ~[[%pass /art-deny/(scot %p src.bowl)/[art-id.rem] %agent [src.bowl %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-artifact-denied art-id.rem eyre-id.rem])]]
+      =/  mtype=@t  (rap 3 (join '/' p.mim))
+      :_  this
+      :~  :*  %pass
+              /art-content/(scot %p src.bowl)/[art-id.rem]
+              %agent  [src.bowl %noltbook]
+              %poke   %noltbook-remote
+              !>(`remote:noltbook`[%remote-artifact-content art-id.rem eyre-id.rem mtype q.mim])
+          ==
+      ==
+    ::
+        %remote-artifact-content
+      ::  byte host replied with bytes; complete pending HTTP for this response
+      ::  only. Do NOT persist bytes locally — member ships hold metadata only.
+      =/  art  (~(get by artifacts) art-id.rem)
+      ?^  art
+        ::  artifact-map path: only creator may serve us bytes
+        ?.  =(src.bowl creator.u.art)  `this
+        =/  hdrs=(list [@t @t])
+          :~  ['content-type' mime.rem]
+              ['cache-control' 'no-store']
+          ==
+        =/  =simple-payload:http  [[200 hdrs] `bytes.rem]
+        :_  this
+        (give-simple-payload:app:server eyre-id.rem simple-payload)
+      ::  envelope path: require known envelope, matching author, matching hash
+      =/  env  (find-aid-in-envelopes art-id.rem artifact-envelopes)
+      ?~  env  `this
+      ?.  =(src.bowl author.u.env)  `this
+      ?.  =(content-hash.u.env (sham q.bytes.rem))
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id.rem
+        [[404 ~] ~]
+      =/  hdrs=(list [@t @t])
+        :~  ['content-type' mime.rem]
+            ['cache-control' 'no-store']
+        ==
+      =/  =simple-payload:http  [[200 hdrs] `bytes.rem]
+      :_  this
+      (give-simple-payload:app:server eyre-id.rem simple-payload)
+    ::
+        %remote-artifact-denied
+      ::  byte host refused (not member, missing, removed); reply 404 to http
+      =/  art  (~(get by artifacts) art-id.rem)
+      ?^  art
+        ?.  =(src.bowl creator.u.art)  `this
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id.rem
+        [[404 ~] ~]
+      =/  env  (find-aid-in-envelopes art-id.rem artifact-envelopes)
+      ?~  env  `this
+      ?.  =(src.bowl author.u.env)  `this
+      :_  this
+      %+  give-simple-payload:app:server  eyre-id.rem
+      [[404 ~] ~]
+    ::
+        %remote-artifact-create
+      ::  member registering metadata for an artifact whose bytes live on member
+      =/  art  artifact.rem
+      =/  nid=@ta  note-id.art
+      =/  nt  (~(get by notes) nid)
+      ?~  nt  `this
+      ::  must be host of this note
+      ?.  =(our.bowl creator.u.nt)  `this
+      ::  only normal/group notes accept artifact metadata
+      ?.  ?|(?=(%notebook type.u.nt) ?=(%group type.u.nt))  `this
+      ::  sender must be current member, not removed
+      ?.  (~(has in users.u.nt) src.bowl)  `this
+      ?:  (~(has in removed.u.nt) src.bowl)  `this
+      ::  artifact creator must equal sender
+      ?.  =(src.bowl creator.art)  `this
+      ::  only %file artifacts in this phase
+      ?.  ?=(%file type.art)  `this
+      ::  versions: phase-2 uploads emit exactly one version
+      ?.  ?=([^ ~] versions.art)  `this
+      =/  ver  i.versions.art
+      ::  content must be clay-backed metadata; reject inline base64 payloads
+      =/  ctnt=tape  (trip content.ver)
+      ?~  (find (trip '"storage":"clay"') ctnt)  `this
+      ?^  (find (trip 'dataUrl') ctnt)  `this
+      ?^  (find (trip 'mimeType') ctnt)  `this
+      ::  read-only: only host/admin can post; host already self
+      =/  admins  (fall (~(get by note-admins) nid) ~)
+      =/  is-admin=?  (~(has in admins) src.bowl)
+      ?:  ?&  !writable.u.nt
+              !is-admin
+          ==
+        `this
+      ::  mute: muted members cannot post
+      =/  muted  (fall (~(get by note-muted) nid) ~)
+      ?:  ?&  (~(has in muted) src.bowl)
+              !is-admin
+          ==
+        `this
+      ::  reject id collision (don't overwrite local artifact)
+      ?:  (~(has by artifacts) id.art)  `this
+      ::  store ref + broadcast group history; bytes stay on src.bowl
+      =/  upd=update:noltbook  [%artifact-created art]
+      =/  pax=path  ~[%notes nid]
+      :_  this(artifacts (~(put by artifacts) id.art art))
+      ~[[%give %fact ~[pax] %noltbook-update !>(upd)]]
+    ::
+        %remote-dm-artifact
+      ::  counterparty shipped a DM artifact (metadata + bytes). Store both.
+      =/  art  artifact.rem
+      =/  nid=@ta  note-id.art
+      =/  nt  (~(get by notes) nid)
+      ?~  nt  `this
+      ?.  ?=(%dm type.u.nt)  `this
+      ::  both parties must be current, non-removed members
+      ?.  (~(has in users.u.nt) src.bowl)  `this
+      ?.  (~(has in users.u.nt) our.bowl)  `this
+      ?:  (~(has in removed.u.nt) src.bowl)  `this
+      ?:  (~(has in removed.u.nt) our.bowl)  `this
+      ::  artifact must originate from sender
+      ?.  =(src.bowl creator.art)  `this
+      ?.  ?=(%file type.art)  `this
+      ::  versions: exactly one
+      ?.  ?=([^ ~] versions.art)  `this
+      =/  ver  i.versions.art
+      =/  ctnt=tape  (trip content.ver)
+      ?~  (find (trip '"storage":"clay"') ctnt)  `this
+      ?^  (find (trip 'dataUrl') ctnt)  `this
+      ?^  (find (trip 'mimeType') ctnt)  `this
+      ::  reject id collision
+      ?:  (~(has by artifacts) id.art)  `this
+      ::  write bytes to our Clay at the deterministic path
+      =/  mpath=(list @ta)  (parse-mime-path mime.rem)
+      =/  art-cage=cage  [%mime !>(`mime`[mpath bytes.rem])]
+      =/  nori  [%& ~[[/lib/noltbook/artifacts/[id.art]/mime [%ins art-cage]]]]
+      =/  clay-card=card  [%pass /art-dm-in/[id.art] %arvo %c %info q.byk.bowl nori]
+      =/  upd=update:noltbook  [%artifact-created art]
+      =/  pax=path  ~[%notes nid]
+      :_  this(artifacts (~(put by artifacts) id.art art))
+      :~  clay-card
+          [%give %fact ~[pax] %noltbook-update !>(upd)]
+          [%give %fact ~[/notes] %noltbook-update !>(upd)]
+      ==
+    ::
+        %remote-artifact-envelope-ref
+      ::  cover/gossip artifact envelope from a peer; never carries bytes
+      =/  nid=@ta  note-id.rem
+      =/  nt  (~(get by notes) nid)
+      ?~  nt  `this
+      ?.  ?|(?=(%cover type.u.nt) ?=(%gossip type.u.nt))  `this
+      ::  blocked sender or blocked author is rejected
+      ?:  (~(has in pal-blocked) src.bowl)  `this
+      ?:  (~(has in pal-blocked) author.env.rem)  `this
+      ::  gossip notes: src must be in users, not removed
+      ?:  ?&  ?=(%gossip type.u.nt)
+              ?|  !(~(has in users.u.nt) src.bowl)
+                  (~(has in removed.u.nt) src.bowl)
+              ==
+          ==
+        `this
+      =/  envs=(map @ta artifact-envelope:noltbook)
+        (fall (~(get by artifact-envelopes) nid) *(map @ta artifact-envelope:noltbook))
+      ::  dedup by aid; skip if we already have it as a full artifact (own)
+      ?:  (~(has by envs) aid.env.rem)  `this
+      ?:  (~(has by artifacts) aid.env.rem)  `this
+      =/  my-hops=@ud  (add hops.rem 1)
+      =/  recipients=(list @p)
+        ?:  ?=(%cover type.u.nt)
+          ~(tap in pal-outgoing)
+        ~(tap in users.u.nt)
+      =/  relay=(list card)
+        %+  murn  recipients
+        |=  p=@p
+        ?:  =(p our.bowl)  ~
+        ?:  =(p src.bowl)  ~
+        ?:  =(p author.env.rem)  ~
+        `[%pass /art-env-out/(scot %p p)/[aid.env.rem] %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-artifact-envelope-ref nid env.rem my-hops])]
+      =/  upd=update:noltbook  [%artifact-envelope nid env.rem my-hops]
+      =/  pax=path  ~[%notes nid]
+      :_  this(artifact-envelopes (~(put by artifact-envelopes) nid (cap-art-envs (~(put by envs) aid.env.rem env.rem))))
+      :(weld ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] relay)
     ==
   ==
 ::
@@ -4733,6 +5319,24 @@
           (~(put by note-admins) id.upd as)
         :_  this
         ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
+      ::
+          %artifact-created
+        ::  host added an artifact; store locally and relay to frontend
+        =.  artifacts  (~(put by artifacts) id.artifact.upd artifact.upd)
+        :_  this
+        ~[[%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]]
+      ::
+          %artifact-updated
+        ::  host updated an artifact; store locally and relay to frontend
+        =.  artifacts  (~(put by artifacts) id.artifact.upd artifact.upd)
+        :_  this
+        ~[[%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]]
+      ::
+          %artifact-deleted
+        ::  host deleted an artifact; drop locally and relay to frontend
+        =.  artifacts  (~(del by artifacts) id.upd)
+        :_  this
+        ~[[%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]]
       ==
     ::
         %kick

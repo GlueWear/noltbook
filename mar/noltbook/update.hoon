@@ -297,6 +297,21 @@
       :~  ['id' s+(crip (trip id.upd))]
           ['muted' a+(turn muted.upd |=(p=@p s+(scot %p p)))]
       ==
+    ::
+        %artifact-envelope
+      %+  frond  'artifact-envelope'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['envelope' (art-env-to-json env.upd)]
+          ['hops' (numb hops.upd)]
+      ==
+    ::
+        %artifact-envelope-list
+      %+  frond  'artifact-envelope-list'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['envelopes' a+(turn envs.upd art-env-to-json)]
+      ==
     ==
     ::
     ++  call-to-json
@@ -378,6 +393,21 @@
           ['creator' s+(scot %p creator.a)]
           ['noteId' s+(crip (trip note-id.a))]
           ['versions' a+(turn versions.a ver-to-json)]
+      ==
+    ::
+    ++  art-env-to-json
+      |=  e=artifact-envelope:noltbook
+      %-  pairs
+      :~  ['aid' s+(crip (trip aid.e))]
+          ['author' s+(scot %p author.e)]
+          ['noteId' s+(crip (trip note-id.e))]
+          ['name' s+name.e]
+          ['mime' s+mime.e]
+          ['kind' s+kind.e]
+          ['size' (numb size.e)]
+          ['contentHash' s+(scot %uv content-hash.e)]
+          ['timestamp' (numb (da-to-ms timestamp.e))]
+          ['meta' ?~(meta.e ~ (meta-to-json u.meta.e))]
       ==
     ::
     ++  ver-to-json
