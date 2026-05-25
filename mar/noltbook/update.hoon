@@ -37,6 +37,46 @@
           ['writable' b+writable.upd]
       ==
     ::
+        %note-type-updated
+      %+  frond  'note-type-updated'
+      %-  pairs
+      :~  ['id' s+(crip (trip id.upd))]
+          ['type' s+(crip (trip (scot %tas type.upd)))]
+      ==
+    ::
+        %note-host-status
+      %+  frond  'note-host-status'
+      %-  pairs
+      :~  ['id' s+(crip (trip id.upd))]
+          ['status' ?~(status.upd ~ s+(crip (trip (scot %tas u.status.upd))))]
+      ==
+    ::
+        %note-lineage-set
+      %+  frond  'note-lineage-set'
+      %-  pairs
+      :~  ['id' s+(crip (trip id.upd))]
+          ['forkOrigin' s+(scot %uv fork-origin.upd)]
+          ['forkVersion' (numb fork-version.upd)]
+          :-  'forkOf'
+          ?~  fork-of.upd  ~
+          (pairs ~[['host' s+(scot %p host.u.fork-of.upd)] ['nid' s+(crip (trip nid.u.fork-of.upd))]])
+      ==
+    ::
+        %fork-invite-received
+      %+  frond  'fork-invite-received'
+      %-  pairs
+      :~  ['rootId' s+(crip (trip root-id.upd))]
+          ['sourceName' s+source-name.upd]
+          ['sourceVersion' (numb source-version.upd)]
+          ['forker' s+(scot %p forker.upd)]
+      ==
+    ::
+        %fork-invite-cleared
+      (frond 'fork-invite-cleared' (frond 'rootId' s+(crip (trip root-id.upd))))
+    ::
+        %fork-invite-accepted
+      (frond 'fork-invite-accepted' (frond 'rootId' s+(crip (trip root-id.upd))))
+    ::
         %headline-updated
       %+  frond  'headline-updated'
       %-  pairs

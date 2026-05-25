@@ -29,6 +29,10 @@
       state-25
       state-26
       state-27
+      state-28
+      state-29
+      state-30
+      state-31
   ==
 ::  pre-entry-meta message shape — used by state-18 for on-load typing
 +$  message-18
@@ -580,6 +584,146 @@
       note-muted=(map @ta (set @p))
       artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
   ==
+::  state-28: add host-status map. Absence of a key means live. %host-deleted
+::  marks notes whose remote host issued %remote-note-deleted; preserved
+::  locally as read-only archive. %host-unreachable reserved for later.
++$  state-28
+  $:  %28
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+  ==
+::  state-29: add fork lineage maps. Absence of a key means default v1.
+::    fork-origin: stable lineage id shared across all forks of one source.
+::    fork-version: depth (1 = original). Used for "vN" badge.
+::    fork-of: direct parent of this fork (host + source-nid).
++$  state-29
+  $:  %29
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+  ==
+::  state-30: pending-fork-invites stored FULL subtree payloads (deprecated
+::  in state-31). Kept here for migration typing only.
++$  state-30-pending-fork-invite
+  $:  sender=@p
+      root-note=note:noltbook
+      descendants=(list note:noltbook)
+      source-name=@t
+      source-version=@ud
+      fork-origin=@uv
+      received=@da
+  ==
++$  state-30
+  $:  %30
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta state-30-pending-fork-invite)
+  ==
+::  state-31: pending fork invites become metadata-only (privacy correct).
+::  Add fork-invitees so the forker can authorize fetch requests.
++$  state-31
+  $:  %31
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+  ==
 ::  state-26: add durable blocked-by set (ships that have blocked us)
 +$  state-26
   $:  %26
@@ -829,7 +973,7 @@
 ::  chains through upgrade-20-to-21 → ... → upgrade-25-to-26
 ++  upgrade-19-to-20
   |=  s=state-19
-  ^-  state-27
+  ^-  state-31
   =/  new-seq=(map @ta @ud)
     %-  ~(rep by seq-counters.s)
     |=  [[[a=@p n=@ta] v=@ud] acc=(map @ta @ud)]
@@ -849,7 +993,7 @@
 ::  chains through upgrade-21-to-22 → upgrade-22-to-23
 ++  upgrade-20-to-21
   |=  s=state-20
-  ^-  state-27
+  ^-  state-31
   =/  new-msgs=(map @ta (list message:noltbook))
     %-  ~(run by messages.s)
     |=  msgs=(list message-20)
@@ -891,7 +1035,7 @@
 ::  upgrade-21-to-22: add meta=(unit entry-meta) to envelopes
 ++  upgrade-21-to-22
   |=  s=state-21
-  ^-  state-27
+  ^-  state-31
   =/  new-envs=(map @ta (map @da envelope:noltbook))
     %-  ~(run by gossip-envelopes.s)
     |=  envs=(map @da envelope-21)
@@ -913,7 +1057,7 @@
 ::  upgrade-22-to-23: enrich mention storage with stable eid
 ++  upgrade-22-to-23
   |=  s=state-22
-  ^-  state-27
+  ^-  state-31
   =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
     %-  ~(urn by mentions.s)
     |=  [nid=@ta mns=(list [id=@da author=@p])]
@@ -936,10 +1080,95 @@
       gossip-envelopes.s  headlines.s
       seq-counters.s
   ==
+::  upgrade-30-to-31: drop any 6.1-style payload-bearing pending invites
+::  (privacy-incorrect; can't be losslessly converted without source-root-id).
+::  Initialize fork-invitees empty — forker has to send new invites for
+::  in-flight forks to become fetchable.
+++  upgrade-30-to-31
+  |=  s=state-30
+  ^-  state-31
+  =?  s  (gth ~(wyt by pending-fork-invites.s) 0)
+    ~&  [%dropping-legacy-pending-fork-invites count=~(wyt by pending-fork-invites.s)]
+    s(pending-fork-invites *(map @ta state-30-pending-fork-invite))
+  :*  %31
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      *(map @ta pending-fork-invite:noltbook)
+      *(map @ta (set @p))
+  ==
+::  upgrade-29-to-30: add pending-fork-invites map (empty).
+++  upgrade-29-to-30
+  |=  s=state-29
+  ^-  state-31
+  %-  upgrade-30-to-31
+  :*  %30
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      *(map @ta state-30-pending-fork-invite)
+  ==
+::  upgrade-28-to-29: add fork lineage maps. Empty by default; each existing
+::  note is treated as v1 (origin computed lazily by note-lineage-of helper).
+++  upgrade-28-to-29
+  |=  s=state-28
+  ^-  state-31
+  %-  upgrade-29-to-30
+  :*  %29
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      *(map @ta @uv)
+      *(map @ta @ud)
+      *(map @ta [@p @ta])
+  ==
+::  upgrade-27-to-28: add host-status map for preserved host-deleted notes.
+::  Initialized empty — every existing note is treated as live until the
+::  remote host issues %remote-note-deleted post-upgrade.
+++  upgrade-27-to-28
+  |=  s=state-27
+  ^-  state-31
+  %-  upgrade-28-to-29
+  :*  %28
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      *(map @ta ?(%host-deleted %host-unreachable))
+  ==
 ::  upgrade-25-to-26: add blocked-by set
 ++  upgrade-26-to-27
   |=  s=state-26
-  ^-  state-27
+  ^-  state-31
+  %-  upgrade-27-to-28
   :*  %27
       notes.s  messages.s  artifacts.s  profiles.s
       transactions.s  current-note.s  peers.s  has-avatar.s
@@ -953,7 +1182,7 @@
   ==
 ++  upgrade-25-to-26
   |=  s=state-25
-  ^-  state-27
+  ^-  state-31
   %-  upgrade-26-to-27
   :*  %26
       notes.s  messages.s  artifacts.s  profiles.s
@@ -968,7 +1197,7 @@
 ::  upgrade-24-to-25: add note-admins and note-muted maps
 ++  upgrade-24-to-25
   |=  s=state-24
-  ^-  state-27
+  ^-  state-31
   %-  upgrade-25-to-26
   :*  %25
       notes.s  messages.s  artifacts.s  profiles.s
@@ -987,10 +1216,330 @@
   ?|  =(ship creator)
       (~(has in (fall (~(get by admins) nid) ~)) ship)
   ==
+::  collect-notebook-descendants: walk a note's children recursively; collect
+::  the ids of descendants whose type is %notebook. Root itself excluded —
+::  caller flips the root explicitly.
+++  collect-notebook-descendants
+  |=  [root=@ta nmap=(map @ta note:noltbook)]
+  ^-  (list @ta)
+  =/  root-note=(unit note:noltbook)  (~(get by nmap) root)
+  ?~  root-note  ~
+  =/  queue=(list @ta)  children.u.root-note
+  =/  acc=(list @ta)  ~
+  |-
+  ?~  queue  acc
+  =/  cid=@ta  i.queue
+  =/  cur=(unit note:noltbook)  (~(get by nmap) cid)
+  ?~  cur  $(queue t.queue)
+  =/  next-queue=(list @ta)  (weld t.queue children.u.cur)
+  ?.  =(%notebook type.u.cur)  $(queue next-queue)
+  $(queue next-queue, acc [cid acc])
+::  apply-type-group: flip type of every id in ids to %group in nmap.
+++  apply-type-group
+  |=  [ids=(list @ta) nmap=(map @ta note:noltbook)]
+  ^-  (map @ta note:noltbook)
+  ?~  ids  nmap
+  =/  cur=(unit note:noltbook)  (~(get by nmap) i.ids)
+  ?~  cur  $(ids t.ids)
+  $(ids t.ids, nmap (~(put by nmap) i.ids u.cur(type %group)))
+::  build-type-update-cards: emit %note-type-updated fact cards for root id
+::  plus every id in descendants. Both /notes and /notes/[id] paths.
+++  build-type-update-cards
+  |=  [root=@ta descendants=(list @ta)]
+  ^-  (list card:agent:gall)
+  =/  ids=(list @ta)  [root descendants]
+  %-  zing
+  %+  turn  ids
+  |=  nid=@ta
+  ^-  (list card:agent:gall)
+  =/  cu=update:noltbook  [%note-type-updated nid %group]
+  :~  [%give %fact ~[/notes] %noltbook-update !>(cu)]
+      [%give %fact ~[/notes/[nid]] %noltbook-update !>(cu)]
+  ==
+::  ===== Phase 3: membership propagation helpers =====
+::  collect-group-descendants: BFS-ordered list of descendant ids (root
+::  excluded) that are %group type AND share the root's creator. Same-creator
+::  guard reserves room for forks/foreign subtrees later. BFS order so each
+::  child appears after its parent — required for downstream %remote-child-note
+::  delivery where the receiver must already have the parent.
+++  collect-group-descendants
+  |=  [root=@ta nmap=(map @ta note:noltbook)]
+  ^-  (list @ta)
+  =/  root-note=(unit note:noltbook)  (~(get by nmap) root)
+  ?~  root-note  ~
+  =/  host=@p  creator.u.root-note
+  =/  queue=(list @ta)  children.u.root-note
+  =/  acc=(list @ta)  ~
+  |-
+  ?~  queue  (flop acc)
+  =/  cid=@ta  i.queue
+  =/  cur=(unit note:noltbook)  (~(get by nmap) cid)
+  ?~  cur  $(queue t.queue)
+  ?.  &(=(%group type.u.cur) =(creator.u.cur host))
+    $(queue t.queue)
+  $(queue (weld t.queue children.u.cur), acc [cid acc])
+::  add-ship-to-ids: for each id, add ship to users + remove from removed.
+++  add-ship-to-ids
+  |=  [ship=@p ids=(list @ta) nmap=(map @ta note:noltbook)]
+  ^-  (map @ta note:noltbook)
+  ?~  ids  nmap
+  =/  cur=(unit note:noltbook)  (~(get by nmap) i.ids)
+  ?~  cur  $(ids t.ids)
+  =/  nu=(set @p)  (~(put in users.u.cur) ship)
+  =/  nr=(set @p)  (~(del in removed.u.cur) ship)
+  $(ids t.ids, nmap (~(put by nmap) i.ids u.cur(users nu, removed nr)))
+::  remove-ship-from-ids: for each id, remove ship from users + add to removed
+::  (kick semantics — host removed the ship).
+++  remove-ship-from-ids
+  |=  [ship=@p ids=(list @ta) nmap=(map @ta note:noltbook)]
+  ^-  (map @ta note:noltbook)
+  ?~  ids  nmap
+  =/  cur=(unit note:noltbook)  (~(get by nmap) i.ids)
+  ?~  cur  $(ids t.ids)
+  =/  nu=(set @p)  (~(del in users.u.cur) ship)
+  =/  nr=(set @p)  (~(put in removed.u.cur) ship)
+  $(ids t.ids, nmap (~(put by nmap) i.ids u.cur(users nu, removed nr)))
+::  clear-ship-from-ids: for each id, remove ship from users only — does not
+::  mark as removed. Used when the ship voluntarily left.
+++  clear-ship-from-ids
+  |=  [ship=@p ids=(list @ta) nmap=(map @ta note:noltbook)]
+  ^-  (map @ta note:noltbook)
+  ?~  ids  nmap
+  =/  cur=(unit note:noltbook)  (~(get by nmap) i.ids)
+  ?~  cur  $(ids t.ids)
+  =/  nu=(set @p)  (~(del in users.u.cur) ship)
+  $(ids t.ids, nmap (~(put by nmap) i.ids u.cur(users nu)))
+::  build-users-updated-cards: emit %note-users-updated facts on both /notes
+::  and /notes/[id] for each id, reading current users/removed from nmap.
+++  build-users-updated-cards
+  |=  [ids=(list @ta) nmap=(map @ta note:noltbook)]
+  ^-  (list card:agent:gall)
+  %-  zing
+  %+  turn  ids
+  |=  nid=@ta
+  ^-  (list card:agent:gall)
+  =/  n=(unit note:noltbook)  (~(get by nmap) nid)
+  ?~  n  ~
+  =/  upd=update:noltbook
+    [%note-users-updated nid type.u.n ~(tap in users.u.n) ~(tap in removed.u.n)]
+  ^-  (list card:agent:gall)
+  :~  [%give %fact ~[/notes] %noltbook-update !>(upd)]
+      [%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]
+  ==
+::  build-remote-child-notes-to-ship: send %remote-child-note for each id in
+::  ids to ship, ordering preserved so receiver sees each parent before its
+::  child. Skips ids without a parent pointer.
+++  build-remote-child-notes-to-ship
+  |=  [ship=@p ids=(list @ta) nmap=(map @ta note:noltbook)]
+  ^-  (list card:agent:gall)
+  %+  murn  ids
+  |=  nid=@ta
+  ^-  (unit card:agent:gall)
+  =/  n=(unit note:noltbook)  (~(get by nmap) nid)
+  ?~  n  ~
+  ?~  parent.u.n  ~
+  `[%pass /child-out/(scot %p ship)/[nid] %agent [ship %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-child-note u.parent.u.n u.n])]
+::  build-kick-cards-to-ship: send %remote-kick for each id to ship. Causes
+::  receiver to drop their local copy via existing %remote-kick handler.
+++  build-kick-cards-to-ship
+  |=  [ship=@p ids=(list @ta) nmap=(map @ta note:noltbook)]
+  ^-  (list card:agent:gall)
+  %+  murn  ids
+  |=  nid=@ta
+  ^-  (unit card:agent:gall)
+  =/  n=(unit note:noltbook)  (~(get by nmap) nid)
+  ?~  n  ~
+  `[%pass /kick/(scot %p ship)/[nid] %agent [ship %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-kick nid name.u.n])]
+::  ===== Phase 4: delete cascade helpers =====
+::  collect-all-descendants: BFS-ordered list of every descendant id (root
+::  excluded), regardless of type. Used for delete cascade where the entire
+::  subtree must be cleared.
+++  collect-all-descendants
+  |=  [root=@ta nmap=(map @ta note:noltbook)]
+  ^-  (list @ta)
+  =/  root-note=(unit note:noltbook)  (~(get by nmap) root)
+  ?~  root-note  ~
+  =/  queue=(list @ta)  children.u.root-note
+  =/  acc=(list @ta)  ~
+  |-
+  ?~  queue  (flop acc)
+  =/  cid=@ta  i.queue
+  =/  cur=(unit note:noltbook)  (~(get by nmap) cid)
+  ?~  cur  $(queue t.queue)
+  $(queue (weld t.queue children.u.cur), acc [cid acc])
+::  delete-artifacts-for-notes: drop artifacts whose note-id is in ids.
+++  delete-artifacts-for-notes
+  |=  [ids=(list @ta) arts=(map @ta artifact:noltbook)]
+  ^-  (map @ta artifact:noltbook)
+  =/  drop=(set @ta)  (sy ids)
+  %-  ~(rep by arts)
+  |=  [[k=@ta v=artifact:noltbook] acc=(map @ta artifact:noltbook)]
+  ?:  (~(has in drop) note-id.v)  acc
+  (~(put by acc) k v)
+::  build-note-deleted-cards: emit %note-deleted for every id (on /notes path
+::  which the FE listens to for sidebar removal).
+++  build-note-deleted-cards
+  |=  ids=(list @ta)
+  ^-  (list card:agent:gall)
+  %+  turn  ids
+  |=  nid=@ta
+  ^-  card:agent:gall
+  [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%note-deleted nid])]
+::  ===== Phase 5: host-deleted preservation helpers =====
+::  is-host-deleted: tests whether a note id is marked host-deleted in the
+::  given host-status map. Used as a write-guard at every mutating action.
+++  is-host-deleted
+  |=  [nid=@ta hs=(map @ta ?(%host-deleted %host-unreachable))]
+  ^-  ?
+  =/  st  (~(get by hs) nid)
+  ?~  st  %.n
+  =(%host-deleted u.st)
+::  is-removed-self: tests whether we (us) are in note.removed for nid.
+::  Used as a write-guard alongside is-host-deleted.
+++  is-removed-self
+  |=  [nid=@ta nmap=(map @ta note:noltbook) us=@p]
+  ^-  ?
+  =/  n  (~(get by nmap) nid)
+  ?~  n  %.n
+  (~(has in removed.u.n) us)
+::  is-write-blocked: convenience OR of host-deleted and removed-self.
+++  is-write-blocked
+  |=  $:  nid=@ta
+          hs=(map @ta ?(%host-deleted %host-unreachable))
+          nmap=(map @ta note:noltbook)
+          us=@p
+      ==
+  ^-  ?
+  ?:  (is-host-deleted nid hs)  %.y
+  (is-removed-self nid nmap us)
+::  build-host-status-cards: emit %note-host-status fact for each id setting
+::  status, on both /notes and /notes/[id] paths.
+++  build-host-status-cards
+  |=  [ids=(list @ta) status=(unit ?(%host-deleted %host-unreachable))]
+  ^-  (list card:agent:gall)
+  %-  zing
+  %+  turn  ids
+  |=  nid=@ta
+  ^-  (list card:agent:gall)
+  =/  upd=update:noltbook  [%note-host-status nid status]
+  :~  [%give %fact ~[/notes] %noltbook-update !>(upd)]
+      [%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]
+  ==
+::  ===== Phase 6: fork helpers =====
+::  gen-fork-id-map: assigns a fresh nid per old id by appending an index to
+::  the base timestamp. Deterministic and unique within a single fork call.
+++  gen-fork-id-map
+  |=  [src-ids=(list @ta) base=@da]
+  ^-  (map @ta @ta)
+  =/  todo  src-ids
+  =/  acc=(map @ta @ta)  ~
+  =/  idx=@ud  0
+  |-
+  ?~  todo  acc
+  =/  new-nid=@ta
+    (crip (weld "note-" (trip (scot %da `@da`(add base idx)))))
+  $(todo t.todo, idx +(idx), acc (~(put by acc) i.todo new-nid))
+::  build-fork-notes: produce the new note records for a fork. Root takes
+::  optional name override; descendants keep their original name. Type is
+::  always %group. Creator = forker. Users = forker+invitees. removed
+::  cleared. children/parent rewritten via id-map. Visibility/writable/
+::  icon/headline copied from source.
+++  build-fork-notes
+  |=  $:  src-ids=(list @ta)
+          id-map=(map @ta @ta)
+          root-old-id=@ta
+          name-override=(unit @t)
+          source-notes=(map @ta note:noltbook)
+          forker=@p
+          new-users=(set @p)
+      ==
+  ^-  (list note:noltbook)
+  %+  turn  src-ids
+  |=  old-id=@ta
+  ^-  note:noltbook
+  =/  old-note  (~(got by source-notes) old-id)
+  =/  new-id=@ta  (~(got by id-map) old-id)
+  =/  new-children=(list @ta)
+    %+  turn  children.old-note
+    |=  c=@ta
+    (fall (~(get by id-map) c) c)
+  =/  new-parent=(unit @ta)
+    ?:  =(old-id root-old-id)  ~
+    ?~  parent.old-note  ~
+    (~(get by id-map) u.parent.old-note)
+  =/  use-name=@t
+    ?:  &(=(old-id root-old-id) ?=(^ name-override))  u.name-override
+    name.old-note
+  :*  new-id  use-name  %group  forker  new-users  new-children  new-parent
+      ~  ~
+      visibility.old-note  icon-url.old-note  writable.old-note
+      *(set @p)
+      headline.old-note
+  ==
+::  copy-messages-for-fork: for each (old, new) pair, copy the messages list
+::  from source map into the destination map under the new key.
+++  copy-messages-for-fork
+  |=  $:  pairs=(list [old=@ta new=@ta])
+          src-msgs=(map @ta (list message:noltbook))
+          dst=(map @ta (list message:noltbook))
+      ==
+  ^-  (map @ta (list message:noltbook))
+  ?~  pairs  dst
+  =/  ml=(list message:noltbook)
+    (fall (~(get by src-msgs) old.i.pairs) ~)
+  $(pairs t.pairs, dst (~(put by dst) new.i.pairs ml))
+::  copy-headlines-for-fork: same idea for headlines.
+++  copy-headlines-for-fork
+  |=  $:  pairs=(list [old=@ta new=@ta])
+          src-hl=(map @ta @t)
+          dst=(map @ta @t)
+      ==
+  ^-  (map @ta @t)
+  ?~  pairs  dst
+  =/  cur  (~(get by src-hl) old.i.pairs)
+  ?~  cur  $(pairs t.pairs)
+  $(pairs t.pairs, dst (~(put by dst) new.i.pairs u.cur))
+::  ===== Phase 6: fork lineage helpers =====
+::  lineage-origin-of: read fork-origin for a note, deriving the default
+::  (sham [creator id]) when the key is absent. Stable across forks.
+++  lineage-origin-of
+  |=  [n=note:noltbook fo=(map @ta @uv)]
+  ^-  @uv
+  =/  cur  (~(get by fo) id.n)
+  ?^  cur  u.cur
+  (sham [creator.n id.n])
+::  lineage-version-of: read fork-version for a note, default 1.
+++  lineage-version-of
+  |=  [nid=@ta fv=(map @ta @ud)]
+  ^-  @ud
+  (fall (~(get by fv) nid) 1)
+::  build-lineage-set-cards: emit %note-lineage-set facts for each id, using
+::  current lineage state. /notes and /notes/[id].
+++  build-lineage-set-cards
+  |=  $:  ids=(list @ta)
+          notes=(map @ta note:noltbook)
+          fo=(map @ta @uv)
+          fv=(map @ta @ud)
+          fp=(map @ta [host=@p nid=@ta])
+      ==
+  ^-  (list card:agent:gall)
+  %-  zing
+  %+  turn  ids
+  |=  nid=@ta
+  ^-  (list card:agent:gall)
+  =/  n=(unit note:noltbook)  (~(get by notes) nid)
+  ?~  n  ~
+  =/  origin=@uv  (lineage-origin-of u.n fo)
+  =/  version=@ud  (lineage-version-of nid fv)
+  =/  parent=(unit [host=@p nid=@ta])  (~(get by fp) nid)
+  =/  upd=update:noltbook  [%note-lineage-set nid origin version parent]
+  :~  [%give %fact ~[/notes] %noltbook-update !>(upd)]
+      [%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]
+  ==
 ::  upgrade-23-to-24: add join-requests map
 ++  upgrade-23-to-24
   |=  s=state-23
-  ^-  state-27
+  ^-  state-31
   %-  upgrade-24-to-25
   :*  %24
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1102,7 +1651,7 @@
   [(crip path-tape) args]
 --
 %-  agent:dbug
-=|  state-27
+=|  state-31
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -1126,8 +1675,8 @@
 ++  on-load
   |=  old=vase
   ^-  (quip card _this)
-  ?:  ?=([%27 *] q.old)
-    =/  loaded  !<(state-27 old)
+  ?:  ?=([%31 *] q.old)
+    =/  loaded  !<(state-31 old)
     ::  fix: ensure cover note exists and is keyed as %cover
     ::  (same normalizations carried forward from state-24 load)
     =/  loaded
@@ -1195,6 +1744,53 @@
       =?  nmap  ?=(^ kid)
         (~(put by nmap) i.kids u.kid(parent ~))
       $(kids t.kids)
+    ::  normalize legacy: flip obvious personal roots from %group to %notebook.
+    ::  predicate: parent=~, type=%group, creator==our.bowl, users == {our.bowl},
+    ::             visibility=%secret, id not %cover/%ars-rumors.
+    ::  idempotent — once flipped to %notebook the predicate no longer matches.
+    ::  visibility guard added so solo %group with %public/%private (intentional
+    ::  shared groups awaiting joiners) are NOT demoted.
+    =/  loaded
+      =/  flips=(list [@ta note:noltbook])
+        %+  skim  ~(tap by notes.loaded)
+        |=  [k=@ta n=note:noltbook]
+        ?&  ?=(~ parent.n)
+            =(%group type.n)
+            =(creator.n our.bowl)
+            =(1 ~(wyt in users.n))
+            (~(has in users.n) our.bowl)
+            =(%secret visibility.n)
+            !=(k %cover)
+            !=(k %ars-rumors)
+        ==
+      ?~  flips  loaded
+      ~&  [%flipping-personal-roots-to-notebook count=(lent flips)]
+      =/  nmap=(map @ta note:noltbook)  notes.loaded
+      =/  fixes=(list [@ta note:noltbook])  flips
+      |-
+      ?~  fixes  loaded(notes nmap)
+      =/  [nid=@ta n=note:noltbook]  i.fixes
+      =.  nmap  (~(put by nmap) nid n(type %notebook))
+      $(fixes t.fixes)
+    ::  corrective pass: undo any wrongly-flipped notebooks. if a note is
+    ::  %notebook with visibility %public or %private it should be %group.
+    ::  catches Phase 1 over-flips for shared-intent solo groups. idempotent.
+    =/  loaded
+      =/  fixes=(list [@ta note:noltbook])
+        %+  skim  ~(tap by notes.loaded)
+        |=  [k=@ta n=note:noltbook]
+        ?&  =(%notebook type.n)
+            ?|(=(%public visibility.n) =(%private visibility.n))
+        ==
+      ?~  fixes  loaded
+      ~&  [%restoring-public-private-notebooks-to-group count=(lent fixes)]
+      =/  nmap=(map @ta note:noltbook)  notes.loaded
+      =/  todo=(list [@ta note:noltbook])  fixes
+      |-
+      ?~  todo  loaded(notes nmap)
+      =/  [nid=@ta n=note:noltbook]  i.todo
+      =.  nmap  (~(put by nmap) nid n(type %group))
+      $(todo t.todo)
     =/  prof  (fall (~(get by profiles.loaded) our.bowl) *profile:noltbook)
     =/  prof-cards=(list card)
       %+  turn  ~(tap in peers.loaded)
@@ -1202,6 +1798,18 @@
       ^-  card
       [%pass /prof-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-profile our.bowl prof])]
     [prof-cards this(state loaded(active-calls *(map @ta call-info:noltbook)))]
+  ?:  ?=([%30 *] q.old)
+    =/  s30  !<(state-30 old)
+    $(old !>((upgrade-30-to-31 s30)))
+  ?:  ?=([%29 *] q.old)
+    =/  s29  !<(state-29 old)
+    $(old !>((upgrade-29-to-30 s29)))
+  ?:  ?=([%28 *] q.old)
+    =/  s28  !<(state-28 old)
+    $(old !>((upgrade-28-to-29 s28)))
+  ?:  ?=([%27 *] q.old)
+    =/  s27  !<(state-27 old)
+    $(old !>((upgrade-27-to-28 s27)))
   ?:  ?=([%26 *] q.old)
     =/  s26  !<(state-26 old)
     $(old !>((upgrade-26-to-27 s26)))
@@ -1591,6 +2199,27 @@
       =/  bb-list=(list @p)  ~(tap in blocked-by)
       ?~  bb-list  ~
       ~[[%give %fact ~ %noltbook-update !>(`update:noltbook`[%blocked-by-list bb-list])]]
+    ::  replay host-status entries so host-deleted banners persist over refresh
+    =/  hs-cards=(list card)
+      %+  turn  ~(tap by host-status)
+      |=  [nid=@ta st=?(%host-deleted %host-unreachable)]
+      [%give %fact ~ %noltbook-update !>(`update:noltbook`[%note-host-status nid `st])]
+    ::  replay lineage for every note so v1/vN ~host badges render after
+    ::  refresh. Falls back to defaults for notes without explicit lineage
+    ::  (origin = sham[creator id], version = 1, fork-of = ~).
+    =/  lineage-cards=(list card)
+      %+  turn  ~(tap by notes)
+      |=  [nid=@ta n=note:noltbook]
+      =/  origin=@uv  (lineage-origin-of n fork-origin)
+      =/  version=@ud  (lineage-version-of nid fork-version)
+      =/  parent=(unit [host=@p nid=@ta])  (~(get by fork-of) nid)
+      [%give %fact ~ %noltbook-update !>(`update:noltbook`[%note-lineage-set nid origin version parent])]
+    ::  replay pending fork invites so the receiver sees the banner again
+    ::  after refresh.
+    =/  pfi-cards=(list card)
+      %+  turn  ~(tap by pending-fork-invites)
+      |=  [nid=@ta pi=pending-fork-invite:noltbook]
+      [%give %fact ~ %noltbook-update !>(`update:noltbook`[%fork-invite-received root-id.pi source-name.pi source-version.pi sender.pi])]
     =/  init-cards=(list card)
       :~  [%give %fact ~ %noltbook-update !>(upd)]
           [%give %fact ~ %noltbook-update !>(pupd)]
@@ -1598,7 +2227,7 @@
           [%give %fact ~ %noltbook-update !>(dialupd)]
       ==
     :_  this
-    :(weld init-cards mention-cards call-cards jr-cards role-cards bb-cards)
+    :(weld init-cards mention-cards call-cards jr-cards role-cards bb-cards hs-cards lineage-cards pfi-cards)
   ::
       [%notes @ ~]
     =/  nid=@ta  i.t.path
@@ -2183,6 +2812,7 @@
       ==
     ::
         %set-headline
+      ?:  (is-write-blocked id.act host-status notes our.bowl)  `this
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
       ::  only creator can set headline
@@ -2199,40 +2829,127 @@
       ==
     ::
         %delete-note
+      ?:  (is-write-blocked id.act host-status notes our.bowl)  `this
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
       ::  protect system notes from deletion
       ?:  |(=(id.act %cover) =(id.act %ars-rumors))  `this
       ::  only creator (host) can delete
       ?.  =(our.bowl creator.u.old)  `this
+      ::  Phase 4: collect entire subtree (root + descendants of any type)
+      =/  descendants=(list @ta)  (collect-all-descendants id.act notes)
+      =/  subtree-ids=(list @ta)  [id.act descendants]
+      ::  detach root from parent's children list (descendants are also
+      ::  deleted, so their entries in their parent's children are dropped
+      ::  along with the parent — no separate trim needed)
       =/  trimmed=(map @ta note:noltbook)
         ?~  parent.u.old  notes
         =/  par  (~(get by notes) u.parent.u.old)
         ?~  par  notes
         (~(put by notes) u.parent.u.old u.par(children (skim children.u.par |=(c=@ta !=(c id.act)))))
-      =/  upd=update:noltbook  [%note-deleted id.act]
-      ::  clean up artifacts belonging to this note
-      =/  cleaned-arts=(map @ta artifact:noltbook)
-        %-  ~(rep by artifacts)
-        |=  [[k=@ta v=artifact:noltbook] acc=(map @ta artifact:noltbook)]
-        ?.  =(note-id.v id.act)  (~(put by acc) k v)
-        acc
-      ::  notify remote users that note was deleted
-      =/  delete-cards=(list card)
+      ::  bulk-delete every per-note map keyed by @ta. Inline typed traps,
+      ::  one per map type, so each compiles against its concrete value type.
+      =/  new-notes=(map @ta note:noltbook)
+        =/  acc=(map @ta note:noltbook)  trimmed
+        =/  todo=(list @ta)  subtree-ids
+        |-
+        ?~  todo  acc
+        $(todo t.todo, acc (~(del by acc) i.todo))
+      =/  new-messages=(map @ta (list message:noltbook))
+        =/  acc=(map @ta (list message:noltbook))  messages
+        =/  todo=(list @ta)  subtree-ids
+        |-
+        ?~  todo  acc
+        $(todo t.todo, acc (~(del by acc) i.todo))
+      =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+        =/  acc=(map @ta (list [id=@da eid=(unit @uv) author=@p]))  mentions
+        =/  todo=(list @ta)  subtree-ids
+        |-
+        ?~  todo  acc
+        $(todo t.todo, acc (~(del by acc) i.todo))
+      =/  new-active-calls=(map @ta call-info:noltbook)
+        =/  acc=(map @ta call-info:noltbook)  active-calls
+        =/  todo=(list @ta)  subtree-ids
+        |-
+        ?~  todo  acc
+        $(todo t.todo, acc (~(del by acc) i.todo))
+      =/  new-gossip-envelopes=(map @ta (map @da envelope:noltbook))
+        =/  acc=(map @ta (map @da envelope:noltbook))  gossip-envelopes
+        =/  todo=(list @ta)  subtree-ids
+        |-
+        ?~  todo  acc
+        $(todo t.todo, acc (~(del by acc) i.todo))
+      =/  new-headlines=(map @ta @t)
+        =/  acc=(map @ta @t)  headlines
+        =/  todo=(list @ta)  subtree-ids
+        |-
+        ?~  todo  acc
+        $(todo t.todo, acc (~(del by acc) i.todo))
+      =/  new-seq-counters=(map @ta @ud)
+        =/  acc=(map @ta @ud)  seq-counters
+        =/  todo=(list @ta)  subtree-ids
+        |-
+        ?~  todo  acc
+        $(todo t.todo, acc (~(del by acc) i.todo))
+      =/  new-join-requests=(map @ta (set @p))
+        =/  acc=(map @ta (set @p))  join-requests
+        =/  todo=(list @ta)  subtree-ids
+        |-
+        ?~  todo  acc
+        $(todo t.todo, acc (~(del by acc) i.todo))
+      =/  new-note-admins=(map @ta (set @p))
+        =/  acc=(map @ta (set @p))  note-admins
+        =/  todo=(list @ta)  subtree-ids
+        |-
+        ?~  todo  acc
+        $(todo t.todo, acc (~(del by acc) i.todo))
+      =/  new-note-muted=(map @ta (set @p))
+        =/  acc=(map @ta (set @p))  note-muted
+        =/  todo=(list @ta)  subtree-ids
+        |-
+        ?~  todo  acc
+        $(todo t.todo, acc (~(del by acc) i.todo))
+      =/  new-artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+        =/  acc=(map @ta (map @ta artifact-envelope:noltbook))  artifact-envelopes
+        =/  todo=(list @ta)  subtree-ids
+        |-
+        ?~  todo  acc
+        $(todo t.todo, acc (~(del by acc) i.todo))
+      ::  clean up artifacts whose note-id is in the deleted subtree
+      =/  new-artifacts  (delete-artifacts-for-notes subtree-ids artifacts)
+      ::  emit %note-deleted for every deleted id so FE clears subtree
+      =/  delete-updates=(list card)  (build-note-deleted-cards subtree-ids)
+      ::  notify remote users — one %remote-note-deleted for ROOT only;
+      ::  receivers cascade descendants locally from their own notes map.
+      =/  delete-remote-cards=(list card)
         %+  murn  ~(tap in users.u.old)
         |=  p=@p
         ?:  =(p our.bowl)  ~
         `[%pass /note-del/(scot %p p)/[id.act] %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-note-deleted id.act name.u.old])]
-      :_  this(notes (~(del by trimmed) id.act), messages (~(del by messages) id.act), artifacts cleaned-arts, note-admins (~(del by note-admins) id.act), note-muted (~(del by note-muted) id.act))
-      [[%give %fact ~[/notes] %noltbook-update !>(upd)] delete-cards]
+      :_  %=  this
+            notes  new-notes
+            messages  new-messages
+            mentions  new-mentions
+            active-calls  new-active-calls
+            gossip-envelopes  new-gossip-envelopes
+            headlines  new-headlines
+            seq-counters  new-seq-counters
+            join-requests  new-join-requests
+            note-admins  new-note-admins
+            note-muted  new-note-muted
+            artifact-envelopes  new-artifact-envelopes
+            artifacts  new-artifacts
+          ==
+      ^-  (list card)
+      (weld delete-updates delete-remote-cards)
     ::
         %create-note
-      ::  no parent: personal root note
+      ::  no parent: personal root note — created as %notebook
       ?~  parent.act
         =/  self-set=(set @p)  (sy ~[our.bowl])
         =/  nid=@ta  (crip (weld "note-" (trip (scot %da now.bowl))))
         =/  new-note=note:noltbook
-          :*  nid  name.act  %group  our.bowl  self-set  ~  ~  ~  ~  %secret  ~  &  ~  ~
+          :*  nid  name.act  %notebook  our.bowl  self-set  ~  ~  ~  ~  %secret  ~  &  ~  ~
           ==
         =/  upd=update:noltbook  [%note-created new-note]
         :_  this(notes (~(put by notes) nid new-note), messages (~(put by messages) nid *(list message:noltbook)))
@@ -2240,18 +2957,21 @@
       =/  pid=@ta  u.parent.act
       =/  par-u=(unit note:noltbook)  (~(get by notes) pid)
       ?~  par-u  `this
-      ::  DMs cannot have children
-      ?:  =(%dm type.u.par-u)  `this
+      ::  only %notebook and %group parents may have children;
+      ::  reject %dm, %cover, %gossip
+      ?.  ?|(=(%notebook type.u.par-u) =(%group type.u.par-u))  `this
       =/  par=note:noltbook  u.par-u
+      =/  child-type=note-type:noltbook  type.par
       =/  is-shared=?  (gth ~(wyt in users.par) 1)
-      ::  shared & not host: forward to host
+      ::  shared & not host: forward to host (only meaningful for %group)
       ?:  ?&  is-shared  !=(our.bowl creator.par)  ==
         :_  this
         ~[[%pass /create-child/[pid] %agent [creator.par %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-create-child pid name.act])]]
-      ::  local create; inherit users and creator from parent
+      ::  local create; inherit users and creator from parent; mirror type;
+      ::  factory metadata; no admin/mute inheritance
       =/  nid=@ta  (crip (weld "note-" (trip (scot %da now.bowl))))
       =/  new-note=note:noltbook
-        :*  nid  name.act  %group  creator.par  users.par  ~  `pid  ~  ~  %secret  ~  &  ~  ~
+        :*  nid  name.act  child-type  creator.par  users.par  ~  `pid  ~  ~  %secret  ~  &  ~  ~
         ==
       =/  n1=(map @ta note:noltbook)  (~(put by notes) nid new-note)
       =/  n2=(map @ta note:noltbook)
@@ -2282,6 +3002,7 @@
       ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
     ::
         %send-message
+      ?:  (is-write-blocked note-id.act host-status notes our.bowl)  `this
       =/  exists  (~(get by notes) note-id.act)
       ?~  exists  `this
       ::  entry-meta for hosted, cover, and gossip notes. Rumors use
@@ -2410,6 +3131,7 @@
       ==
     ::
         %edit-message
+      ?:  (is-write-blocked note-id.act host-status notes our.bowl)  `this
       =/  exists  (~(get by notes) note-id.act)
       ?~  exists  `this
       ::  DM: peer-authoritative — edit locally and replicate
@@ -2480,6 +3202,7 @@
       ==
     ::
         %delete-message
+      ?:  (is-write-blocked note-id.act host-status notes our.bowl)  `this
       =/  exists  (~(get by notes) note-id.act)
       ?~  exists  `this
       ::  DM: peer-authoritative — delete locally and replicate
@@ -2561,18 +3284,37 @@
       facts
     ::
         %set-note-meta
+      ?:  (is-write-blocked id.act host-status notes our.bowl)  `this
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
       ::  only creator can change meta
       ?.  =(our.bowl creator.u.old)  `this
+      ::  notebook -> group conversion: visibility public/private on a
+      ::  %notebook root flips it (and any %notebook descendants) to %group.
+      ::  type-only change; visibility/writable/icon/headline untouched on
+      ::  descendants. one-way; %group never demotes back.
+      =/  needs-convert=?
+        ?&  =(%notebook type.u.old)
+            ?|(=(%public visibility.act) =(%private visibility.act))
+        ==
+      =/  converted=(list @ta)
+        ?.  needs-convert  ~
+        (collect-notebook-descendants id.act notes)
+      =?  notes  needs-convert  (apply-type-group converted notes)
+      =/  effective-old=note:noltbook
+        ?.  needs-convert  u.old
+        u.old(type %group)
+      =/  type-updates=(list card)
+        ?.  needs-convert  ~
+        (build-type-update-cards id.act converted)
       =/  upd-note=note:noltbook
-        u.old(visibility visibility.act, icon-url icon-url.act, writable writable.act)
+        effective-old(visibility visibility.act, icon-url icon-url.act, writable writable.act)
       =/  upd=update:noltbook  [%note-meta-updated id.act visibility.act icon-url.act writable.act]
       ::  read-only toggle: adjust muted set for %group notes
       =/  new-muted=(set @p)  (fall (~(get by note-muted) id.act) ~)
       =/  mute-changed=?  %.n
       ::  Write -> Read Only: mute all non-host non-admin members
-      ?:  &(writable.u.old !writable.act =(%group type.u.old))
+      ?:  &(writable.u.old !writable.act =(%group type.effective-old))
         =/  admins=(set @p)  (fall (~(get by note-admins) id.act) ~)
         =.  new-muted
           %-  ~(rep in users.u.old)
@@ -2583,17 +3325,21 @@
         =.  mute-changed  %.y
         =/  mute-upd=update:noltbook  [%muted-updated id.act ~(tap in new-muted)]
         :_  this(notes (~(put by notes) id.act upd-note), note-muted (~(put by note-muted) id.act new-muted))
+        %+  weld  type-updates
+        ^-  (list card)
         :~  [%give %fact ~[/notes] %noltbook-update !>(upd)]
             [%give %fact ~[/notes/[id.act]] %noltbook-update !>(upd)]
             [%give %fact ~[/notes] %noltbook-update !>(mute-upd)]
             [%give %fact ~[/notes/[id.act]] %noltbook-update !>(mute-upd)]
         ==
       ::  Read Only -> Write: clear muted set broadly
-      ?:  &(!writable.u.old writable.act =(%group type.u.old))
+      ?:  &(!writable.u.old writable.act =(%group type.effective-old))
         =.  new-muted  ~
         =.  mute-changed  %.y
         =/  mute-upd=update:noltbook  [%muted-updated id.act ~(tap in new-muted)]
         :_  this(notes (~(put by notes) id.act upd-note), note-muted (~(put by note-muted) id.act new-muted))
+        %+  weld  type-updates
+        ^-  (list card)
         :~  [%give %fact ~[/notes] %noltbook-update !>(upd)]
             [%give %fact ~[/notes/[id.act]] %noltbook-update !>(upd)]
             [%give %fact ~[/notes] %noltbook-update !>(mute-upd)]
@@ -2601,11 +3347,14 @@
         ==
       ::  no writable change or not %group — just update meta
       :_  this(notes (~(put by notes) id.act upd-note))
+      %+  weld  type-updates
+      ^-  (list card)
       :~  [%give %fact ~[/notes] %noltbook-update !>(upd)]
           [%give %fact ~[/notes/[id.act]] %noltbook-update !>(upd)]
       ==
     ::
         %invite-to-note
+      ?:  (is-write-blocked id.act host-status notes our.bowl)  `this
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
       ::  gossip: any member can invite; group: host or admin; others: host only
@@ -2616,22 +3365,36 @@
         `this
       ::  %dm is strictly 2-user; cannot invite into DM
       ?:  =(%dm type.u.old)  `this
+      ::  safety-net notebook -> group conversion: any invite from a %notebook
+      ::  flips it (and any %notebook descendants) to %group before invite
+      ::  fan-out, so the outgoing %remote-invite carries type=%group.
+      =/  needs-convert=?  =(%notebook type.u.old)
+      =/  converted=(list @ta)
+        ?.  needs-convert  ~
+        (collect-notebook-descendants id.act notes)
+      =?  notes  needs-convert  (apply-type-group converted notes)
+      =/  effective-old=note:noltbook
+        ?.  needs-convert  u.old
+        u.old(type %group)
+      =/  type-updates=(list card)
+        ?.  needs-convert  ~
+        (build-type-update-cards id.act converted)
       ::  non-host group admin: forward invite request to host
-      ?:  &(=(%group type.u.old) !=(our.bowl creator.u.old))
-        =/  host=@p  creator.u.old
+      ?:  &(=(%group type.effective-old) !=(our.bowl creator.effective-old))
+        =/  host=@p  creator.effective-old
         :_  this
         ~[[%pass /mod-out/(scot %p host)/[id.act] %agent [host %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-mod id.act %invite-member ship.act])]]
       ::  compute new user set
-      =/  new-users=(set @p)  (~(put in users.u.old) ship.act)
-      =/  new-removed=(set @p)  (~(del in removed.u.old) ship.act)
-      =/  new-note=note:noltbook  u.old(users new-users, removed new-removed)
+      =/  new-users=(set @p)  (~(put in users.effective-old) ship.act)
+      =/  new-removed=(set @p)  (~(del in removed.effective-old) ship.act)
+      =/  new-note=note:noltbook  effective-old(users new-users, removed new-removed)
       ::  poke remote ship with invite (gossip notes use gossip-invite with headline)
       =/  poke-card=card
-        ?:  =(%gossip type.u.old)
+        ?:  =(%gossip type.effective-old)
           =/  hl=(unit @t)  (~(get by headlines) id.act)
-          =/  rem=remote:noltbook  [%remote-gossip-invite id.act name.u.old our.bowl users.new-note hl]
+          =/  rem=remote:noltbook  [%remote-gossip-invite id.act name.effective-old our.bowl users.new-note hl]
           [%pass /invite/(scot %p ship.act)/[id.act] %agent [ship.act %noltbook] %poke %noltbook-remote !>(rem)]
-        =/  rem=remote:noltbook  [%remote-invite id.act name.u.old type.u.old our.bowl users.new-note visibility.u.old writable.u.old]
+        =/  rem=remote:noltbook  [%remote-invite id.act name.effective-old type.effective-old our.bowl users.new-note visibility.effective-old writable.effective-old]
         [%pass /invite/(scot %p ship.act)/[id.act] %agent [ship.act %noltbook] %poke %noltbook-remote !>(rem)]
       ::  subscribe to remote's ars notoria if new peer
       =/  new-peers=(set @p)  (~(put in peers) ship.act)
@@ -2644,23 +3407,37 @@
       =/  upd=update:noltbook  [%note-created new-note]
       ::  auto-mute invitee if note is read-only (group only, skip host/admin)
       =/  ro-muted=(set @p)
-        ?.  &(!writable.u.old =(%group type.u.old))
+        ?.  &(!writable.effective-old =(%group type.effective-old))
           (fall (~(get by note-muted) id.act) ~)
-        ?.  =(ship.act creator.u.old)
+        ?.  =(ship.act creator.effective-old)
           ?.  (~(has in (fall (~(get by note-admins) id.act) ~)) ship.act)
             (~(put in (fall (~(get by note-muted) id.act) ~)) ship.act)
           (fall (~(get by note-muted) id.act) ~)
         (fall (~(get by note-muted) id.act) ~)
       =/  ro-mute-cards=(list card)
-        ?.  &(!writable.u.old =(%group type.u.old))  ~
-        ?:  =(ship.act creator.u.old)  ~
+        ?.  &(!writable.effective-old =(%group type.effective-old))  ~
+        ?:  =(ship.act creator.effective-old)  ~
         ?:  (~(has in (fall (~(get by note-admins) id.act) ~)) ship.act)  ~
         =/  mute-upd=update:noltbook  [%muted-updated id.act ~(tap in ro-muted)]
         ~[[%give %fact ~[/notes] %noltbook-update !>(mute-upd)] [%give %fact ~[/notes/[id.act]] %noltbook-update !>(mute-upd)]]
+      ::  Phase 3: cascade membership to %group descendants. Skip for %gossip.
+      =/  group-descs=(list @ta)
+        ?.  =(%group type.effective-old)  ~
+        (collect-group-descendants id.act notes)
+      =.  notes
+        ?:  =(~ group-descs)  notes
+        (add-ship-to-ids ship.act group-descs notes)
+      =/  desc-users-cards=(list card)
+        ?:  =(~ group-descs)  ~
+        (build-users-updated-cards group-descs notes)
+      =/  desc-child-pokes=(list card)
+        ?:  =(~ group-descs)  ~
+        (build-remote-child-notes-to-ship ship.act group-descs notes)
       :_  this(notes (~(put by notes) id.act new-note), peers new-peers, note-muted (~(put by note-muted) id.act ro-muted))
-      :(weld [poke-card [%give %fact ~[/notes] %noltbook-update !>(upd)] ~] ars-cards ro-mute-cards)
+      :(weld type-updates [poke-card [%give %fact ~[/notes] %noltbook-update !>(upd)] ~] ars-cards ro-mute-cards desc-users-cards desc-child-pokes)
     ::
         %create-artifact
+      ?:  (is-write-blocked note-id.act host-status notes our.bowl)  `this
       =/  exists  (~(get by notes) note-id.act)
       ?~  exists  `this
       ::  cover/gossip artifact creation is not implemented; close legacy door
@@ -2678,6 +3455,7 @@
         %edit-artifact
       =/  old  (~(get by artifacts) id.act)
       ?~  old  `this
+      ?:  (is-write-blocked note-id.u.old host-status notes our.bowl)  `this
       =/  new-ver=artifact-version:noltbook
         :*  (add 1 (lent versions.u.old))  content.act  our.bowl  now.bowl
         ==
@@ -2690,6 +3468,7 @@
         %delete-artifact
       =/  old  (~(get by artifacts) id.act)
       ?~  old  `this
+      ?:  (is-write-blocked note-id.u.old host-status notes our.bowl)  `this
       =/  nid=@ta  note-id.u.old
       =/  upd=update:noltbook  [%artifact-deleted id.act]
       =/  pax=path  ~[%notes nid]
@@ -2699,6 +3478,7 @@
         %file-save
       =/  old  (~(get by artifacts) id.act)
       ?~  old  `this
+      ?:  (is-write-blocked note-id.u.old host-status notes our.bowl)  `this
       =/  upd-art=artifact:noltbook
         u.old(versions ~[[1 data.act our.bowl now.bowl]])
       =/  upd=update:noltbook  [%artifact-updated upd-art]
@@ -2949,6 +3729,7 @@
       :(weld ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] broadcast)
     ::
         %remove-member
+      ?:  (is-write-blocked id.act host-status notes our.bowl)  `this
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
       ::  remote admin: forward to host
@@ -2988,13 +3769,28 @@
         ?:  (~(has in cur) ship.act)
           (~(put by note-muted) id.act (~(del in cur) ship.act))
         note-muted
-      :_  this(notes (~(put by notes) id.act upd-note), messages (~(put by messages) id.act new-msgs), note-admins clean-admins, note-muted clean-muted)
-      :~  kick-card
-          [%give %fact ~[/notes] %noltbook-update !>(users-upd)]
-          [%give %fact ~[/notes/[id.act]] %noltbook-update !>(users-upd)]
-          [%give %fact ~[/notes] %noltbook-update !>(msg-upd)]
-          [%give %fact ~[/notes/[id.act]] %noltbook-update !>(msg-upd)]
-      ==
+      ::  Phase 3: cascade removal to %group descendants
+      =/  group-descs=(list @ta)
+        ?.  =(%group type.u.old)  ~
+        (collect-group-descendants id.act notes)
+      =/  notes-after=(map @ta note:noltbook)
+        (~(put by notes) id.act upd-note)
+      =.  notes-after
+        ?:  =(~ group-descs)  notes-after
+        (remove-ship-from-ids ship.act group-descs notes-after)
+      =/  desc-users-cards=(list card)
+        ?:  =(~ group-descs)  ~
+        (build-users-updated-cards group-descs notes-after)
+      :_  this(notes notes-after, messages (~(put by messages) id.act new-msgs), note-admins clean-admins, note-muted clean-muted)
+      %+  weld
+        ^-  (list card)
+        :~  kick-card
+            [%give %fact ~[/notes] %noltbook-update !>(users-upd)]
+            [%give %fact ~[/notes/[id.act]] %noltbook-update !>(users-upd)]
+            [%give %fact ~[/notes] %noltbook-update !>(msg-upd)]
+            [%give %fact ~[/notes/[id.act]] %noltbook-update !>(msg-upd)]
+        ==
+      desc-users-cards
     ::
         %leave-note
       =/  old  (~(get by notes) id.act)
@@ -3023,26 +3819,213 @@
         =/  upd=update:noltbook  [%note-deleted id.act]
         :_  this(notes (~(del by trimmed) id.act), messages (~(del by messages) id.act), artifacts cleaned-arts)
         ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
+      ::  Phase 3: collect %group descendants once for both host and non-host
+      ::  branches (computed against pre-deletion notes map).
+      =/  group-descs=(list @ta)
+        ?.  =(%group type.u.old)  ~
+        (collect-group-descendants id.act notes)
+      =/  subtree-ids=(list @ta)  [id.act group-descs]
       ::  host leaving shared note: notify other users via kick, then drop locally
       ?:  is-host
         =/  upd=update:noltbook  [%note-deleted id.act]
         =/  pax=path  ~[%notes id.act]
+        ::  kick every remaining member off every node in the subtree
         =/  kick-cards=(list card)
-          %+  murn  ~(tap in users.u.old)
+          %-  zing
+          %+  turn  ~(tap in users.u.old)
           |=  p=@p
+          ^-  (list card)
           ?:  =(p our.bowl)  ~
-          `[%pass /kick-out/(scot %p p)/[id.act] %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-kick id.act name.u.old])]
-        :_  this(notes (~(del by notes) id.act), messages (~(del by messages) id.act), artifacts cleaned-arts)
-        :(weld ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] kick-cards)
-      ::  non-host leaving shared note: unsub, poke host, drop locally
+          %+  turn  subtree-ids
+          |=  nid=@ta
+          ^-  card
+          =/  nm=(unit note:noltbook)  (~(get by notes) nid)
+          =/  nname=@t  ?~(nm '' name.u.nm)
+          [%pass /kick-out/(scot %p p)/[nid] %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-kick nid nname])]
+        ::  drop entire subtree from local state
+        =/  notes-after=(map @ta note:noltbook)
+          %+  roll  subtree-ids
+          |=  [nid=@ta nm=_notes]
+          (~(del by nm) nid)
+        =/  msgs-after=(map @ta (list message:noltbook))
+          %+  roll  subtree-ids
+          |=  [nid=@ta mm=_messages]
+          (~(del by mm) nid)
+        =/  arts-after=(map @ta artifact:noltbook)
+          %-  ~(rep by artifacts)
+          |=  [[k=@ta v=artifact:noltbook] acc=(map @ta artifact:noltbook)]
+          ?:  (lien subtree-ids |=(c=@ta =(c note-id.v)))  acc
+          (~(put by acc) k v)
+        =/  local-deletes=(list card)
+          %+  turn  subtree-ids
+          |=  nid=@ta
+          ^-  card
+          [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%note-deleted nid])]
+        :_  this(notes notes-after, messages msgs-after, artifacts arts-after)
+        :(weld local-deletes ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] kick-cards)
+      ::  non-host leaving shared note: unsub root + descendants, poke host
+      ::  about the root (host cascades to its own copy), drop local subtree.
       =/  host=@p  creator.u.old
-      =/  unsub-card=card
-        [%pass /remote-note/[id.act] %agent [host %noltbook] %leave ~]
+      =/  unsub-cards=(list card)
+        %+  turn  subtree-ids
+        |=  nid=@ta
+        ^-  card
+        [%pass /remote-note/[nid] %agent [host %noltbook] %leave ~]
       =/  leave-card=card
         [%pass /leave-out/(scot %p host)/[id.act] %agent [host %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-leave id.act])]
-      =/  upd=update:noltbook  [%note-deleted id.act]
-      :_  this(notes (~(del by notes) id.act), messages (~(del by messages) id.act), artifacts cleaned-arts)
-      ~[unsub-card leave-card [%give %fact ~[/notes] %noltbook-update !>(upd)]]
+      ::  drop entire subtree from local state
+      =/  notes-after=(map @ta note:noltbook)
+        %+  roll  subtree-ids
+        |=  [nid=@ta nm=_notes]
+        (~(del by nm) nid)
+      =/  msgs-after=(map @ta (list message:noltbook))
+        %+  roll  subtree-ids
+        |=  [nid=@ta mm=_messages]
+        (~(del by mm) nid)
+      =/  arts-after=(map @ta artifact:noltbook)
+        %-  ~(rep by artifacts)
+        |=  [[k=@ta v=artifact:noltbook] acc=(map @ta artifact:noltbook)]
+        ?:  (lien subtree-ids |=(c=@ta =(c note-id.v)))  acc
+        (~(put by acc) k v)
+      =/  local-deletes=(list card)
+        %+  turn  subtree-ids
+        |=  nid=@ta
+        ^-  card
+        [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%note-deleted nid])]
+      :_  this(notes notes-after, messages msgs-after, artifacts arts-after)
+      :(weld unsub-cards ~[leave-card] local-deletes)
+    ::
+        %fork-note
+      ::  Phase 6: clone a %group subtree into a new fork hosted by us.
+      ::  Allowed for any current non-removed member of a %group, including
+      ::  host-deleted archives. Artifact bytes and aux maps (admins/muted/
+      ::  calls/joins/mentions) intentionally not copied.
+      =/  src  (~(get by notes) id.act)
+      ?~  src  `this
+      ?.  =(%group type.u.src)  `this
+      ?.  (~(has in users.u.src) our.bowl)  `this
+      ::  collect subtree (%group descendants, same creator as source root)
+      =/  desc-ids=(list @ta)  (collect-group-descendants id.act notes)
+      =/  src-ids=(list @ta)  [id.act desc-ids]
+      ::  build fresh id map old -> new
+      =/  id-map=(map @ta @ta)  (gen-fork-id-map src-ids now.bowl)
+      ::  compute eligible invitees: source.users minus removed minus blocked
+      ::  minus self. (Old host is included automatically if still in users
+      ::  and not blocked.)
+      =/  candidates=(set @p)  (~(dif in users.u.src) removed.u.src)
+      =/  candidates=(set @p)  (~(dif in candidates) pal-blocked)
+      =/  invitees=(set @p)  (~(del in candidates) our.bowl)
+      ::  new fork users: forker + all invitees (matches existing remote-invite
+      ::  semantics where receivers auto-create locally on poke)
+      =/  fork-users=(set @p)  (~(put in invitees) our.bowl)
+      ::  lineage
+      =/  src-origin=@uv  (lineage-origin-of u.src fork-origin)
+      =/  src-version=@ud  (lineage-version-of id.act fork-version)
+      =/  new-version=@ud  +(src-version)
+      =/  src-host=@p  creator.u.src
+      ::  build new note records
+      =/  new-notes-list=(list note:noltbook)
+        (build-fork-notes src-ids id-map id.act name.act notes our.bowl fork-users)
+      ::  install new notes into the map
+      =/  notes-after=(map @ta note:noltbook)
+        =/  pairs=(list note:noltbook)  new-notes-list
+        |-
+        ?~  pairs  notes
+        $(pairs t.pairs, notes (~(put by notes) id.i.pairs i.pairs))
+      ::  pairs of [old-id new-id] for downstream copy helpers
+      =/  pairs=(list [old=@ta new=@ta])
+        %+  turn  src-ids
+        |=  o=@ta  [o (~(got by id-map) o)]
+      ::  copy messages and reseed seq-counters
+      =/  messages-after=(map @ta (list message:noltbook))
+        (copy-messages-for-fork pairs messages messages)
+      =/  seq-after=(map @ta @ud)
+        =/  todo  pairs
+        |-
+        ?~  todo  seq-counters
+        =/  ml=(list message:noltbook)
+          (fall (~(get by messages-after) new.i.todo) ~)
+        $(todo t.todo, seq-counters (~(put by seq-counters) new.i.todo (lent ml)))
+      ::  copy headlines
+      =/  headlines-after=(map @ta @t)
+        (copy-headlines-for-fork pairs headlines headlines)
+      ::  install lineage entries: every new id gets origin + new-version +
+      ::  fork-of pointing to its source counterpart (host = source-host).
+      =/  fork-origin-after=(map @ta @uv)
+        =/  todo  pairs
+        |-
+        ?~  todo  fork-origin
+        $(todo t.todo, fork-origin (~(put by fork-origin) new.i.todo src-origin))
+      =/  fork-version-after=(map @ta @ud)
+        =/  todo  pairs
+        |-
+        ?~  todo  fork-version
+        $(todo t.todo, fork-version (~(put by fork-version) new.i.todo new-version))
+      =/  fork-of-after=(map @ta [host=@p nid=@ta])
+        =/  todo  pairs
+        |-
+        ?~  todo  fork-of
+        $(todo t.todo, fork-of (~(put by fork-of) new.i.todo [src-host old.i.todo]))
+      ::  outgoing fork invites: metadata-only. Receiver stores as pending
+      ::  and must explicitly accept to trigger %remote-fork-fetch.
+      =/  new-root-id=@ta  (~(got by id-map) id.act)
+      =/  invite-cards=(list card)
+        %+  turn  ~(tap in invitees)
+        |=  p=@p
+        ^-  card
+        =/  rem=remote:noltbook
+          [%remote-fork-invite new-root-id id.act name.u.src src-version our.bowl src-origin]
+        [%pass /fork-invite/(scot %p p)/[new-root-id] %agent [p %noltbook] %poke %noltbook-remote !>(rem)]
+      ::  remember the authorized invitee set so we can validate later
+      ::  %remote-fork-fetch requests.
+      =/  fork-invitees-after=(map @ta (set @p))
+        (~(put by fork-invitees) new-root-id invitees)
+      ::  local frontend: %note-created per new note + %note-lineage-set per
+      ::  new note so sidebar shows fork moniker immediately.
+      =/  new-ids=(list @ta)
+        %+  turn  src-ids
+        |=  o=@ta  (~(got by id-map) o)
+      =/  created-cards=(list card)
+        %+  turn  new-ids
+        |=  nid=@ta
+        ^-  card
+        =/  n  (~(got by notes-after) nid)
+        [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%note-created n])]
+      =/  lineage-cards=(list card)
+        (build-lineage-set-cards new-ids notes-after fork-origin-after fork-version-after fork-of-after)
+      :_  %=  this
+            notes  notes-after
+            messages  messages-after
+            seq-counters  seq-after
+            headlines  headlines-after
+            fork-origin  fork-origin-after
+            fork-version  fork-version-after
+            fork-of  fork-of-after
+            fork-invitees  fork-invitees-after
+          ==
+      ^-  (list card)
+      :(weld created-cards lineage-cards invite-cards)
+    ::
+        %accept-fork-invite
+      ::  Phase 6.2: do not install yet. Send a %remote-fork-fetch to the
+      ::  pending invite's sender. The payload arrives via %remote-fork-payload
+      ::  and is installed there after final validation. Mark pending as
+      ::  fetching so the FE can show a loading state.
+      =/  inv  (~(get by pending-fork-invites) root-id.act)
+      ?~  inv  `this
+      =/  pi  u.inv
+      ?:  (~(has in pal-blocked) sender.pi)  `this
+      =/  updated  pi(fetching %.y)
+      :_  this(pending-fork-invites (~(put by pending-fork-invites) root-id.act updated))
+      ~[[%pass /fork-fetch/(scot %p sender.pi)/[root-id.act] %agent [sender.pi %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-fork-fetch root-id.act])]]
+    ::
+        %decline-fork-invite
+      ::  Phase 6.1: forget a pending fork invite. No notification sent to
+      ::  the forker in this pass — deferred.
+      ?.  (~(has by pending-fork-invites) root-id.act)  `this
+      =/  cleared=update:noltbook  [%fork-invite-cleared root-id.act]
+      :_  this(pending-fork-invites (~(del by pending-fork-invites) root-id.act))
+      ~[[%give %fact ~[/notes] %noltbook-update !>(cleared)]]
     ::
         %create-dm
       ?:  =(ship.act our.bowl)  `this
@@ -3205,6 +4188,7 @@
     ::  ===== CALL ACTIONS =====
     ::
         %start-call
+      ?:  (is-write-blocked note-id.act host-status notes our.bowl)  `this
       =/  exists  (~(get by notes) note-id.act)
       ?~  exists  `this
       ::  if stale call exists (0 participants), clean it up; if active, no-op
@@ -3239,6 +4223,7 @@
       :(weld ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] ~[[%give %fact ~[pax] %noltbook-update !>(msg-upd)]] broadcast)
     ::
         %join-call
+      ?:  (is-write-blocked note-id.act host-status notes our.bowl)  `this
       =/  exists  (~(get by notes) note-id.act)
       ?~  exists  `this
       =/  ci  (~(get by active-calls) note-id.act)
@@ -3392,8 +4377,21 @@
         ?.  !writable.u.old  ~
         =/  mute-upd=update:noltbook  [%muted-updated note-id.act ~(tap in ro-muted)]
         ~[[%give %fact ~[/notes] %noltbook-update !>(mute-upd)] [%give %fact ~[/notes/[note-id.act]] %noltbook-update !>(mute-upd)]]
+      ::  Phase 3: cascade approved member to %group descendants
+      =/  group-descs=(list @ta)
+        ?.  =(%group type.u.old)  ~
+        (collect-group-descendants note-id.act notes)
+      =.  notes
+        ?:  =(~ group-descs)  notes
+        (add-ship-to-ids ship.act group-descs notes)
+      =/  desc-users-cards=(list card)
+        ?:  =(~ group-descs)  ~
+        (build-users-updated-cards group-descs notes)
+      =/  desc-child-pokes=(list card)
+        ?:  =(~ group-descs)  ~
+        (build-remote-child-notes-to-ship ship.act group-descs notes)
       :_  this(notes (~(put by notes) note-id.act new-note), peers new-peers, note-muted (~(put by note-muted) note-id.act ro-muted))
-      :(weld [poke-card [%give %fact ~[/notes] %noltbook-update !>(users-upd)] [%give %fact ~[/notes/[note-id.act]] %noltbook-update !>(users-upd)] [%give %fact ~[/notes] %noltbook-update !>(jr-upd)] ~] ars-cards ro-mute-cards)
+      :(weld [poke-card [%give %fact ~[/notes] %noltbook-update !>(users-upd)] [%give %fact ~[/notes/[note-id.act]] %noltbook-update !>(users-upd)] [%give %fact ~[/notes] %noltbook-update !>(jr-upd)] ~] ars-cards ro-mute-cards desc-users-cards desc-child-pokes)
     ::
         %deny-join
       ::  host or admin denies a pending join request (no block)
@@ -3475,6 +4473,7 @@
       ==
     ::
         %make-admin
+      ?:  (is-write-blocked id.act host-status notes our.bowl)  `this
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
       ::  only host can assign admins
@@ -3499,6 +4498,7 @@
       :(weld ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] ~[[%give %fact ~[/notes/[id.act]] %noltbook-update !>(upd)]] mute-cards)
     ::
         %remove-admin
+      ?:  (is-write-blocked id.act host-status notes our.bowl)  `this
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
       ::  only host can remove admins
@@ -3521,6 +4521,7 @@
       :(weld ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] ~[[%give %fact ~[/notes/[id.act]] %noltbook-update !>(upd)]] mute-cards)
     ::
         %mute-member
+      ?:  (is-write-blocked id.act host-status notes our.bowl)  `this
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
       ::  remote admin: forward to host
@@ -3542,6 +4543,7 @@
       ==
     ::
         %unmute-member
+      ?:  (is-write-blocked id.act host-status notes our.bowl)  `this
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
       ::  remote admin: forward to host
@@ -4133,11 +5135,13 @@
       ?~  old  `this
       ?.  =(our.bowl creator.u.old)  `this
       ?.  (~(has in users.u.old) src.bowl)  `this
-      ::  DMs cannot have children
-      ?:  =(%dm type.u.old)  `this
+      ::  only %notebook and %group parents may have children;
+      ::  reject %dm, %cover, %gossip
+      ?.  ?|(=(%notebook type.u.old) =(%group type.u.old))  `this
+      =/  child-type=note-type:noltbook  type.u.old
       =/  nid=@ta  (crip (weld "note-" (trip (scot %da now.bowl))))
       =/  new-note=note:noltbook
-        :*  nid  name.rem  %group  our.bowl  users.u.old  ~  `parent-id.rem  ~  ~  %secret  ~  &  ~  ~
+        :*  nid  name.rem  child-type  our.bowl  users.u.old  ~  `parent-id.rem  ~  ~  %secret  ~  &  ~  ~
         ==
       =/  new-par=note:noltbook  u.old(children (snoc children.u.old nid))
       =/  all-notes  (~(put by (~(put by notes) nid new-note)) parent-id.rem new-par)
@@ -4238,8 +5242,21 @@
         :~  [%give %fact ~[/notes] %noltbook-update !>(users-upd)]
             [%give %fact ~[/notes/[note-id.rem]] %noltbook-update !>(users-upd)]
         ==
-      :_  this(notes (~(put by notes) note-id.rem new-note), note-admins clean-admins, note-muted clean-muted)
-      :(weld base-cards admin-cards muted-cards)
+      ::  Phase 3: cascade leaver removal to %group descendants. Use clear
+      ::  (not remove) — leaver wasn't kicked, they left.
+      =/  group-descs=(list @ta)
+        ?.  =(%group type.u.old)  ~
+        (collect-group-descendants note-id.rem notes)
+      =/  notes-after=(map @ta note:noltbook)
+        (~(put by notes) note-id.rem new-note)
+      =.  notes-after
+        ?:  =(~ group-descs)  notes-after
+        (clear-ship-from-ids src.bowl group-descs notes-after)
+      =/  desc-users-cards=(list card)
+        ?:  =(~ group-descs)  ~
+        (build-users-updated-cards group-descs notes-after)
+      :_  this(notes notes-after, note-admins clean-admins, note-muted clean-muted)
+      :(weld base-cards admin-cards muted-cards desc-users-cards)
     ::
         %remote-root-exists
       ::  we lost a root-uniqueness race; drop loser, adopt canonical
@@ -4280,21 +5297,51 @@
       (weld sub-cards tail-cards)
     ::
         %remote-kick
-      ::  host removed us from a note (due to blocking)
+      ::  host removed us from a note. For %group notes we PRESERVE the
+      ::  local subtree so the user can keep reading and fork from it; we
+      ::  mark our.bowl as removed in each preserved note's users/removed
+      ::  set (write-guards block mutation while in removed). For non-group
+      ::  notes the legacy delete behavior is retained.
       =/  old  (~(get by notes) note-id.rem)
       ?~  old  `this
-      ::  must come from the note's creator
       ?.  =(src.bowl creator.u.old)  `this
-      =/  del-upd=update:noltbook  [%note-deleted note-id.rem]
       =/  kick-upd=update:noltbook  [%kick-notification note-id.rem note-name.rem src.bowl]
-      ::  unsubscribe from host's note path so reinvite can resubscribe cleanly
-      =/  unsub-card=card
-        [%pass /remote-note/[note-id.rem] %agent [src.bowl %noltbook] %leave ~]
-      :_  this(notes (~(del by notes) note-id.rem), messages (~(del by messages) note-id.rem))
-      :~  unsub-card
-          [%give %fact ~[/notes] %noltbook-update !>(del-upd)]
-          [%give %fact ~[/notes] %noltbook-update !>(kick-upd)]
-      ==
+      ?.  =(%group type.u.old)
+        ::  legacy delete path (DMs, gossip, cover, notebook)
+        =/  del-upd=update:noltbook  [%note-deleted note-id.rem]
+        =/  unsub-card=card
+          [%pass /remote-note/[note-id.rem] %agent [src.bowl %noltbook] %leave ~]
+        :_  this(notes (~(del by notes) note-id.rem), messages (~(del by messages) note-id.rem))
+        :~  unsub-card
+            [%give %fact ~[/notes] %noltbook-update !>(del-upd)]
+            [%give %fact ~[/notes] %noltbook-update !>(kick-upd)]
+        ==
+      ::  %group preservation: collect subtree (same creator) and for each
+      ::  node strip our.bowl from users + add to removed. Unsubscribe from
+      ::  each subscription. Emit %note-users-updated so the FE refreshes
+      ::  membership rows and the input bar locks via note.removed.
+      =/  desc-ids=(list @ta)  (collect-group-descendants note-id.rem notes)
+      =/  subtree-ids=(list @ta)  [note-id.rem desc-ids]
+      =/  notes-after=(map @ta note:noltbook)
+        =/  acc=(map @ta note:noltbook)  notes
+        =/  todo=(list @ta)  subtree-ids
+        |-
+        ?~  todo  acc
+        =/  cur=(unit note:noltbook)  (~(get by acc) i.todo)
+        ?~  cur  $(todo t.todo)
+        =/  nu=(set @p)  (~(del in users.u.cur) our.bowl)
+        =/  nr=(set @p)  (~(put in removed.u.cur) our.bowl)
+        $(todo t.todo, acc (~(put by acc) i.todo u.cur(users nu, removed nr)))
+      =/  unsub-cards=(list card)
+        %+  turn  subtree-ids
+        |=  nid=@ta
+        ^-  card
+        [%pass /remote-note/[nid] %agent [src.bowl %noltbook] %leave ~]
+      =/  users-updated-cards=(list card)
+        (build-users-updated-cards subtree-ids notes-after)
+      :_  this(notes notes-after)
+      ^-  (list card)
+      :(weld unsub-cards users-updated-cards ^-((list card) ~[[%give %fact ~[/notes] %noltbook-update !>(kick-upd)]]))
     ::
         %remote-blocked
       ::  someone blocked us — persist in blocked-by and notify frontend
@@ -4324,19 +5371,198 @@
       ~[[%give %fact ~[/notes] %noltbook-update !>(del-upd)]]
     ::
         %remote-note-deleted
-      ::  host deleted a note we were in
+      ::  host deleted a note we were in. Phase 5: preserve local subtree as
+      ::  a host-deleted archive. Unsubscribe from host paths so we stop
+      ::  receiving live updates; mark every preserved id host-deleted so
+      ::  the write-guard blocks mutations. Emit %note-host-status per id
+      ::  and a single %note-deleted-notification banner for the root.
       =/  old  (~(get by notes) note-id.rem)
       ?~  old  `this
       ?.  =(src.bowl creator.u.old)  `this
-      =/  del-upd=update:noltbook  [%note-deleted note-id.rem]
+      =/  descendants=(list @ta)  (collect-all-descendants note-id.rem notes)
+      =/  subtree-ids=(list @ta)  [note-id.rem descendants]
       =/  notif-upd=update:noltbook  [%note-deleted-notification note-id.rem note-name.rem]
-      =/  unsub-card=card
-        [%pass /remote-note/[note-id.rem] %agent [src.bowl %noltbook] %leave ~]
-      :_  this(notes (~(del by notes) note-id.rem), messages (~(del by messages) note-id.rem))
-      :~  unsub-card
-          [%give %fact ~[/notes] %noltbook-update !>(del-upd)]
-          [%give %fact ~[/notes] %noltbook-update !>(notif-upd)]
+      =/  unsub-cards=(list card)
+        %+  turn  subtree-ids
+        |=  nid=@ta
+        ^-  card
+        [%pass /remote-note/[nid] %agent [src.bowl %noltbook] %leave ~]
+      ::  mark each id as %host-deleted (preserving anything already set)
+      =/  new-host-status=(map @ta ?(%host-deleted %host-unreachable))
+        =/  acc=(map @ta ?(%host-deleted %host-unreachable))  host-status
+        =/  todo=(list @ta)  subtree-ids
+        |-
+        ?~  todo  acc
+        $(todo t.todo, acc (~(put by acc) i.todo %host-deleted))
+      =/  status-cards=(list card)
+        (build-host-status-cards subtree-ids `%host-deleted)
+      :_  this(host-status new-host-status)
+      ^-  (list card)
+      :(weld unsub-cards status-cards ^-((list card) ~[[%give %fact ~[/notes] %noltbook-update !>(notif-upd)]]))
+    ::
+        %remote-fork-invite
+      ::  Phase 6.2: metadata-only notification. No notes, descendants, or
+      ::  messages stored. Blocked senders dropped silently. Duplicate
+      ::  invites no-op. Collision check on root id only — payload-time
+      ::  validation happens on %remote-fork-payload after explicit accept.
+      ?:  (~(has in pal-blocked) src.bowl)  `this
+      ?:  (~(has by notes) root-id.rem)  `this
+      ?:  (~(has by pending-fork-invites) root-id.rem)  `this
+      =/  rec=pending-fork-invite:noltbook
+        :*  src.bowl  root-id.rem  source-root-id.rem
+            source-name.rem  source-version.rem  fork-origin.rem
+            now.bowl  %.n
+        ==
+      =/  notif=update:noltbook
+        [%fork-invite-received root-id.rem source-name.rem source-version.rem forker.rem]
+      :_  this(pending-fork-invites (~(put by pending-fork-invites) root-id.rem rec))
+      ~[[%give %fact ~[/notes] %noltbook-update !>(notif)]]
+    ::
+        %remote-fork-fetch
+      ::  Phase 6.2: receiver requested the full fork payload. Authorize:
+      ::  we must host the fork (root in our notes, creator==our.bowl),
+      ::  requester must be in fork-invitees for this root OR already in
+      ::  users (re-fetch OK), requester not blocked.
+      ?:  (~(has in pal-blocked) src.bowl)  `this
+      =/  root  (~(get by notes) root-id.rem)
+      =/  invs  (fall (~(get by fork-invitees) root-id.rem) *(set @p))
+      =/  authorized=?
+        ?~  root  %.n
+        ?.  =(our.bowl creator.u.root)  %.n
+        ?:  (~(has in invs) src.bowl)  %.y
+        (~(has in users.u.root) src.bowl)
+      ?.  authorized
+        :_  this
+        ~[[%pass /fork-deny/(scot %p src.bowl)/[root-id.rem] %agent [src.bowl %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-fork-denied root-id.rem])]]
+      ::  build payload from current state
+      =/  desc-ids=(list @ta)  (collect-group-descendants root-id.rem notes)
+      =/  src-root-id=@ta
+        =/  fo  (~(get by fork-of) root-id.rem)
+        ?~  fo  root-id.rem
+        nid.u.fo
+      =/  src-origin=@uv
+        ?~  root  *@uv
+        (lineage-origin-of u.root fork-origin)
+      =/  fork-ver=@ud
+        (lineage-version-of root-id.rem fork-version)
+      =/  desc-pairs=(list [n=note:noltbook source-id=@ta])
+        %+  murn  desc-ids
+        |=  did=@ta
+        ^-  (unit [note:noltbook @ta])
+        =/  n  (~(get by notes) did)
+        ?~  n  ~
+        =/  fo  (~(get by fork-of) did)
+        =/  sid=@ta  ?~(fo did nid.u.fo)
+        `[u.n sid]
+      ?~  root  `this
+      =/  pload=remote:noltbook
+        :*  %remote-fork-payload
+            root-id.rem  src-root-id  u.root  desc-pairs
+            src-origin  fork-ver
+        ==
+      :_  this
+      ~[[%pass /fork-pay/(scot %p src.bowl)/[root-id.rem] %agent [src.bowl %noltbook] %poke %noltbook-remote !>(pload)]]
+    ::
+        %remote-fork-payload
+      ::  Phase 6.2: forker delivered the subtree after accept. Validate
+      ::  against pending invite, install only if everything checks out.
+      ?:  (~(has in pal-blocked) src.bowl)  `this
+      =/  inv  (~(get by pending-fork-invites) root-id.rem)
+      ?~  inv  `this
+      =/  pi  u.inv
+      ?.  =(sender.pi src.bowl)  `this
+      ?.  =(root-id.pi root-id.rem)  `this
+      ?.  =(fork-origin.pi fork-origin.rem)  `this
+      ?.  =(id.root-note.rem root-id.rem)  `this
+      ?.  =(src.bowl creator.root-note.rem)  `this
+      ::  flatten subtree (root first then descendants)
+      =/  all-incoming=(list note:noltbook)
+        [root-note.rem (turn descendants.rem |=([n=note:noltbook source-id=@ta] n))]
+      ::  re-check id collisions
+      =/  collides=?
+        =/  todo  all-incoming
+        |-  ^-  ?
+        ?~  todo  %.n
+        ?:  (~(has by notes) id.i.todo)  %.y
+        $(todo t.todo)
+      ?:  collides
+        ::  drop the invite without installing
+        =/  cleared=update:noltbook  [%fork-invite-cleared root-id.rem]
+        :_  this(pending-fork-invites (~(del by pending-fork-invites) root-id.rem))
+        ~[[%give %fact ~[/notes] %noltbook-update !>(cleared)]]
+      =/  new-version=@ud  fork-version.rem
+      =/  notes-after=(map @ta note:noltbook)
+        =/  todo  all-incoming
+        |-
+        ?~  todo  notes
+        $(todo t.todo, notes (~(put by notes) id.i.todo i.todo))
+      =/  messages-after=(map @ta (list message:noltbook))
+        =/  todo  all-incoming
+        |-
+        ?~  todo  messages
+        ?:  (~(has by messages) id.i.todo)  $(todo t.todo)
+        $(todo t.todo, messages (~(put by messages) id.i.todo ~))
+      =/  fork-origin-after=(map @ta @uv)
+        =/  todo  all-incoming
+        |-
+        ?~  todo  fork-origin
+        $(todo t.todo, fork-origin (~(put by fork-origin) id.i.todo fork-origin.rem))
+      =/  fork-version-after=(map @ta @ud)
+        =/  todo  all-incoming
+        |-
+        ?~  todo  fork-version
+        $(todo t.todo, fork-version (~(put by fork-version) id.i.todo new-version))
+      ::  fork-of: root points at the true source [sender, source-root-id];
+      ::  descendants use their carried source-id when available.
+      =/  fork-of-after=(map @ta [host=@p nid=@ta])
+        =.  fork-of  (~(put by fork-of) root-id.rem [src.bowl source-root-id.rem])
+        =/  todo=(list [n=note:noltbook source-id=@ta])  descendants.rem
+        |-
+        ?~  todo  fork-of
+        $(todo t.todo, fork-of (~(put by fork-of) id.n.i.todo [src.bowl source-id.i.todo]))
+      =/  sub-cards=(list card)
+        %+  turn  all-incoming
+        |=  n=note:noltbook
+        ^-  card
+        [%pass /remote-note/[id.n] %agent [src.bowl %noltbook] %watch /notes/[id.n]]
+      =/  created-cards=(list card)
+        %+  turn  all-incoming
+        |=  n=note:noltbook
+        ^-  card
+        [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%note-created n])]
+      =/  all-ids=(list @ta)
+        %+  turn  all-incoming
+        |=  n=note:noltbook  id.n
+      =/  lineage-cards=(list card)
+        (build-lineage-set-cards all-ids notes-after fork-origin-after fork-version-after fork-of-after)
+      =/  cleared=update:noltbook  [%fork-invite-cleared root-id.rem]
+      =/  accepted=update:noltbook  [%fork-invite-accepted root-id.rem]
+      :_  %=  this
+            notes  notes-after
+            messages  messages-after
+            fork-origin  fork-origin-after
+            fork-version  fork-version-after
+            fork-of  fork-of-after
+            peers  (~(put in peers) src.bowl)
+            pending-fork-invites  (~(del by pending-fork-invites) root-id.rem)
+          ==
+      ^-  (list card)
+      %-  zing
+      :~  sub-cards
+          created-cards
+          lineage-cards
+          ^-((list card) ~[[%give %fact ~[/notes] %noltbook-update !>(cleared)]])
+          ^-((list card) ~[[%give %fact ~[/notes] %noltbook-update !>(accepted)]])
       ==
+    ::
+        %remote-fork-denied
+      ::  Phase 6.2: forker rejected our fetch. Clear the pending invite.
+      =/  inv  (~(get by pending-fork-invites) root-id.rem)
+      ?~  inv  `this
+      ?.  =(sender.u.inv src.bowl)  `this
+      =/  cleared=update:noltbook  [%fork-invite-cleared root-id.rem]
+      :_  this(pending-fork-invites (~(del by pending-fork-invites) root-id.rem))
+      ~[[%give %fact ~[/notes] %noltbook-update !>(cleared)]]
     ::
     ::  ===== REMOTE CALL HANDLERS =====
     ::
@@ -4589,13 +5815,28 @@
           ?:  (~(has in cur) target.rem)
             (~(put by note-muted) note-id.rem (~(del in cur) target.rem))
           note-muted
-        :_  this(notes (~(put by notes) note-id.rem upd-note), messages (~(put by messages) note-id.rem new-msgs), note-admins clean-admins, note-muted clean-muted)
-        :~  kick-card
-            [%give %fact ~[/notes] %noltbook-update !>(users-upd)]
-            [%give %fact ~[/notes/[note-id.rem]] %noltbook-update !>(users-upd)]
-            [%give %fact ~[/notes] %noltbook-update !>(msg-upd)]
-            [%give %fact ~[/notes/[note-id.rem]] %noltbook-update !>(msg-upd)]
-        ==
+        ::  Phase 3: cascade removal to %group descendants
+        =/  group-descs=(list @ta)
+          ?.  =(%group type.u.old)  ~
+          (collect-group-descendants note-id.rem notes)
+        =/  notes-after=(map @ta note:noltbook)
+          (~(put by notes) note-id.rem upd-note)
+        =.  notes-after
+          ?:  =(~ group-descs)  notes-after
+          (remove-ship-from-ids target.rem group-descs notes-after)
+        =/  desc-users-cards=(list card)
+          ?:  =(~ group-descs)  ~
+          (build-users-updated-cards group-descs notes-after)
+        :_  this(notes notes-after, messages (~(put by messages) note-id.rem new-msgs), note-admins clean-admins, note-muted clean-muted)
+        %+  weld
+          ^-  (list card)
+          :~  kick-card
+              [%give %fact ~[/notes] %noltbook-update !>(users-upd)]
+              [%give %fact ~[/notes/[note-id.rem]] %noltbook-update !>(users-upd)]
+              [%give %fact ~[/notes] %noltbook-update !>(msg-upd)]
+              [%give %fact ~[/notes/[note-id.rem]] %noltbook-update !>(msg-upd)]
+          ==
+        desc-users-cards
       ::
           %mute-member
         ?.  (~(has in users.u.old) target.rem)  `this
@@ -4656,8 +5897,23 @@
           ?.  !writable.u.old  ~
           =/  mute-upd=update:noltbook  [%muted-updated note-id.rem ~(tap in ro-muted)]
           ~[[%give %fact ~[/notes] %noltbook-update !>(mute-upd)] [%give %fact ~[/notes/[note-id.rem]] %noltbook-update !>(mute-upd)]]
-        :_  this(notes (~(put by notes) note-id.rem new-note), peers new-peers, note-muted (~(put by note-muted) note-id.rem ro-muted))
-        :(weld [poke-card [%give %fact ~[/notes] %noltbook-update !>(users-upd)] [%give %fact ~[/notes/[note-id.rem]] %noltbook-update !>(users-upd)] [%give %fact ~[/notes] %noltbook-update !>(jr-upd)] ~] ars-cards ro-mute-cards)
+        ::  Phase 3: cascade approved member to %group descendants
+        =/  group-descs=(list @ta)
+          ?.  =(%group type.u.old)  ~
+          (collect-group-descendants note-id.rem notes)
+        =/  notes-after=(map @ta note:noltbook)
+          (~(put by notes) note-id.rem new-note)
+        =.  notes-after
+          ?:  =(~ group-descs)  notes-after
+          (add-ship-to-ids target.rem group-descs notes-after)
+        =/  desc-users-cards=(list card)
+          ?:  =(~ group-descs)  ~
+          (build-users-updated-cards group-descs notes-after)
+        =/  desc-child-pokes=(list card)
+          ?:  =(~ group-descs)  ~
+          (build-remote-child-notes-to-ship target.rem group-descs notes-after)
+        :_  this(notes notes-after, peers new-peers, note-muted (~(put by note-muted) note-id.rem ro-muted))
+        :(weld [poke-card [%give %fact ~[/notes] %noltbook-update !>(users-upd)] [%give %fact ~[/notes/[note-id.rem]] %noltbook-update !>(users-upd)] [%give %fact ~[/notes] %noltbook-update !>(jr-upd)] ~] ars-cards ro-mute-cards desc-users-cards desc-child-pokes)
       ::
           %deny-join
         =/  pending=(set @p)  (fall (~(get by join-requests) note-id.rem) *(set @p))
@@ -4730,8 +5986,23 @@
           ?.  !writable.u.old  ~
           =/  mute-upd=update:noltbook  [%muted-updated note-id.rem ~(tap in ro-muted)]
           ~[[%give %fact ~[/notes] %noltbook-update !>(mute-upd)] [%give %fact ~[pax] %noltbook-update !>(mute-upd)]]
-        :_  this(notes (~(put by notes) note-id.rem new-note), peers new-peers, note-muted (~(put by note-muted) note-id.rem ro-muted))
-        :(weld ~[poke-card] ~[[%give %fact ~[/notes] %noltbook-update !>(users-upd)]] ~[[%give %fact ~[pax] %noltbook-update !>(users-upd)]] ars-cards ro-mute-cards)
+        ::  Phase 3: cascade invitee to %group descendants
+        =/  group-descs=(list @ta)
+          ?.  =(%group type.u.old)  ~
+          (collect-group-descendants note-id.rem notes)
+        =/  notes-after=(map @ta note:noltbook)
+          (~(put by notes) note-id.rem new-note)
+        =.  notes-after
+          ?:  =(~ group-descs)  notes-after
+          (add-ship-to-ids target.rem group-descs notes-after)
+        =/  desc-users-cards=(list card)
+          ?:  =(~ group-descs)  ~
+          (build-users-updated-cards group-descs notes-after)
+        =/  desc-child-pokes=(list card)
+          ?:  =(~ group-descs)  ~
+          (build-remote-child-notes-to-ship target.rem group-descs notes-after)
+        :_  this(notes notes-after, peers new-peers, note-muted (~(put by note-muted) note-id.rem ro-muted))
+        :(weld ~[poke-card] ~[[%give %fact ~[/notes] %noltbook-update !>(users-upd)]] ~[[%give %fact ~[pax] %noltbook-update !>(users-upd)]] ars-cards ro-mute-cards desc-users-cards desc-child-pokes)
       ==
     ::
         %remote-artifact-fetch
@@ -5589,6 +6860,36 @@
       ?~  p.sign  `this
       ~&  [%invite-poke-failed wire u.p.sign]
       `this
+    ==
+  ::
+      [%fork-invite @ @ ~]
+    ::  ack/nack for outgoing fork-invite pokes
+    ?+  -.sign  `this
+        %poke-ack
+      ?~  p.sign  `this
+      ~&  [%fork-invite-poke-failed wire u.p.sign]
+      `this
+    ==
+  ::
+      [%fork-fetch @ @ ~]
+    ?+  -.sign  `this
+        %poke-ack
+      ?~  p.sign  `this
+      ~&  [%fork-fetch-poke-failed wire u.p.sign]
+      `this
+    ==
+  ::
+      [%fork-pay @ @ ~]
+    ?+  -.sign  `this
+        %poke-ack
+      ?~  p.sign  `this
+      ~&  [%fork-pay-poke-failed wire u.p.sign]
+      `this
+    ==
+  ::
+      [%fork-deny @ @ ~]
+    ?+  -.sign  `this
+        %poke-ack  `this
     ==
   ::
       [%msg-fwd @ ~]

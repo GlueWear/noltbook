@@ -46,6 +46,26 @@
       =/  id-nd  (need (~(get by d) 'id'))
       ?>  ?=([%s *] id-nd)
       [%delete-note `@ta`p.id-nd]
+    ::  fork-note
+    ?:  =('fork-note' tag)
+      =/  id-nd  (need (~(get by d) 'id'))
+      ?>  ?=([%s *] id-nd)
+      =/  nm-raw  (~(get by d) 'name')
+      =/  nm=(unit @t)
+        ?~  nm-raw  ~
+        ?.  ?=([%s *] u.nm-raw)  ~
+        `p.u.nm-raw
+      [%fork-note `@ta`p.id-nd nm]
+    ::  accept-fork-invite
+    ?:  =('accept-fork-invite' tag)
+      =/  rid-nd  (need (~(get by d) 'rootId'))
+      ?>  ?=([%s *] rid-nd)
+      [%accept-fork-invite `@ta`p.rid-nd]
+    ::  decline-fork-invite
+    ?:  =('decline-fork-invite' tag)
+      =/  rid-nd  (need (~(get by d) 'rootId'))
+      ?>  ?=([%s *] rid-nd)
+      [%decline-fork-invite `@ta`p.rid-nd]
     ::  switch-note
     ?:  =('switch-note' tag)
       =/  id-nd  (need (~(get by d) 'id'))

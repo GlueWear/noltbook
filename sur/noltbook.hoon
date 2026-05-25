@@ -110,6 +110,22 @@
 ::
 +$  pal-status  ?(%mutual %requesting %requested %blocked %none)
 ::
+::  pending-fork-invite: metadata-only record stored on the receiver after
+::  %remote-fork-invite. No note records, no descendants, no messages, no
+::  subscriptions until the user explicitly accepts. Accept triggers a
+::  %remote-fork-fetch to sender; the payload arrives in %remote-fork-payload
+::  and is validated against this record before install.
++$  pending-fork-invite
+  $:  sender=@p
+      root-id=@ta
+      source-root-id=@ta
+      source-name=@t
+      source-version=@ud
+      fork-origin=@uv
+      received=@da
+      fetching=?
+  ==
+::
 +$  tx-type  ?(%sent %received)
 ::
 +$  transaction
@@ -155,6 +171,15 @@
       ::  root-uniqueness: tell loser to drop their root + adopt ours
       [%remote-root-exists losing-id=@ta canonical=note]
       [%remote-leave note-id=@ta]
+      ::  fork invite: metadata-only notification. Receiver stores as pending.
+      [%remote-fork-invite root-id=@ta source-root-id=@ta source-name=@t source-version=@ud forker=@p fork-origin=@uv]
+      ::  fork fetch: receiver requests the full fork subtree after accept.
+      [%remote-fork-fetch root-id=@ta]
+      ::  fork payload: forker replies with notes + per-node source-id (so the
+      ::  receiver can set lineage.fork-of correctly).
+      [%remote-fork-payload root-id=@ta source-root-id=@ta root-note=note descendants=(list [n=note source-id=@ta]) fork-origin=@uv fork-version=@ud]
+      ::  fork denied: forker refuses an unauthorized %remote-fork-fetch.
+      [%remote-fork-denied root-id=@ta]
       [%remote-introduce ship=@p]
       ::  call signaling remotes
       [%remote-call-start note-id=@ta call-id=@ta started-by=@p]
@@ -221,6 +246,9 @@
       [%convert-to-dm id=@ta ship=@p]
       [%merge-into-dm id=@ta ship=@p]
       [%leave-note id=@ta]
+      [%fork-note id=@ta name=(unit @t)]
+      [%accept-fork-invite root-id=@ta]
+      [%decline-fork-invite root-id=@ta]
       [%reparent-note id=@ta new-parent=@ta]
       [%remove-member id=@ta ship=@p]
       [%clear-mentions note-id=@ta]
@@ -250,6 +278,14 @@
       [%note-renamed id=@ta name=@t]
       [%note-deleted id=@ta]
       [%note-meta-updated id=@ta visibility=note-visibility icon-url=(unit @t) writable=?]
+      [%note-type-updated id=@ta type=note-type]
+      [%note-host-status id=@ta status=(unit ?(%host-deleted %host-unreachable))]
+      ::  fork lineage: origin=stable lineage id, version=fork depth (1=original)
+      ::  fork-of=direct source pointer (~ for original)
+      [%note-lineage-set id=@ta fork-origin=@uv fork-version=@ud fork-of=(unit [host=@p nid=@ta])]
+      [%fork-invite-received root-id=@ta source-name=@t source-version=@ud forker=@p]
+      [%fork-invite-cleared root-id=@ta]
+      [%fork-invite-accepted root-id=@ta]
       [%message-list note-id=@ta messages=(list message) artifacts=(list artifact)]
       [%new-message msg=message]
       [%message-edited note-id=@ta msg=message]
