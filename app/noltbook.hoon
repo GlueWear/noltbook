@@ -33,6 +33,7 @@
       state-29
       state-30
       state-31
+      state-32
   ==
 ::  pre-entry-meta message shape — used by state-18 for on-load typing
 +$  message-18
@@ -724,6 +725,41 @@
       pending-fork-invites=(map @ta pending-fork-invite:noltbook)
       fork-invitees=(map @ta (set @p))
   ==
+::  state-32: add explicit contacts set (address book entries independent
+::  of pal/profile state).
++$  state-32
+  $:  %32
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+  ==
 ::  state-26: add durable blocked-by set (ships that have blocked us)
 +$  state-26
   $:  %26
@@ -973,7 +1009,7 @@
 ::  chains through upgrade-20-to-21 → ... → upgrade-25-to-26
 ++  upgrade-19-to-20
   |=  s=state-19
-  ^-  state-31
+  ^-  state-32
   =/  new-seq=(map @ta @ud)
     %-  ~(rep by seq-counters.s)
     |=  [[[a=@p n=@ta] v=@ud] acc=(map @ta @ud)]
@@ -993,7 +1029,7 @@
 ::  chains through upgrade-21-to-22 → upgrade-22-to-23
 ++  upgrade-20-to-21
   |=  s=state-20
-  ^-  state-31
+  ^-  state-32
   =/  new-msgs=(map @ta (list message:noltbook))
     %-  ~(run by messages.s)
     |=  msgs=(list message-20)
@@ -1035,7 +1071,7 @@
 ::  upgrade-21-to-22: add meta=(unit entry-meta) to envelopes
 ++  upgrade-21-to-22
   |=  s=state-21
-  ^-  state-31
+  ^-  state-32
   =/  new-envs=(map @ta (map @da envelope:noltbook))
     %-  ~(run by gossip-envelopes.s)
     |=  envs=(map @da envelope-21)
@@ -1057,7 +1093,7 @@
 ::  upgrade-22-to-23: enrich mention storage with stable eid
 ++  upgrade-22-to-23
   |=  s=state-22
-  ^-  state-31
+  ^-  state-32
   =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
     %-  ~(urn by mentions.s)
     |=  [nid=@ta mns=(list [id=@da author=@p])]
@@ -1086,10 +1122,11 @@
 ::  in-flight forks to become fetchable.
 ++  upgrade-30-to-31
   |=  s=state-30
-  ^-  state-31
+  ^-  state-32
   =?  s  (gth ~(wyt by pending-fork-invites.s) 0)
     ~&  [%dropping-legacy-pending-fork-invites count=~(wyt by pending-fork-invites.s)]
     s(pending-fork-invites *(map @ta state-30-pending-fork-invite))
+  %-  upgrade-31-to-32
   :*  %31
       notes.s  messages.s  artifacts.s  profiles.s
       transactions.s  current-note.s  peers.s  has-avatar.s
@@ -1105,10 +1142,30 @@
       *(map @ta pending-fork-invite:noltbook)
       *(map @ta (set @p))
   ==
+::  upgrade-31-to-32: add empty contacts set
+++  upgrade-31-to-32
+  |=  s=state-31
+  ^-  state-32
+  :*  %32
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      *(set @p)
+  ==
 ::  upgrade-29-to-30: add pending-fork-invites map (empty).
 ++  upgrade-29-to-30
   |=  s=state-29
-  ^-  state-31
+  ^-  state-32
   %-  upgrade-30-to-31
   :*  %30
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1128,7 +1185,7 @@
 ::  note is treated as v1 (origin computed lazily by note-lineage-of helper).
 ++  upgrade-28-to-29
   |=  s=state-28
-  ^-  state-31
+  ^-  state-32
   %-  upgrade-29-to-30
   :*  %29
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1150,7 +1207,7 @@
 ::  remote host issues %remote-note-deleted post-upgrade.
 ++  upgrade-27-to-28
   |=  s=state-27
-  ^-  state-31
+  ^-  state-32
   %-  upgrade-28-to-29
   :*  %28
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1167,7 +1224,7 @@
 ::  upgrade-25-to-26: add blocked-by set
 ++  upgrade-26-to-27
   |=  s=state-26
-  ^-  state-31
+  ^-  state-32
   %-  upgrade-27-to-28
   :*  %27
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1182,7 +1239,7 @@
   ==
 ++  upgrade-25-to-26
   |=  s=state-25
-  ^-  state-31
+  ^-  state-32
   %-  upgrade-26-to-27
   :*  %26
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1197,7 +1254,7 @@
 ::  upgrade-24-to-25: add note-admins and note-muted maps
 ++  upgrade-24-to-25
   |=  s=state-24
-  ^-  state-31
+  ^-  state-32
   %-  upgrade-25-to-26
   :*  %25
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1539,7 +1596,7 @@
 ::  upgrade-23-to-24: add join-requests map
 ++  upgrade-23-to-24
   |=  s=state-23
-  ^-  state-31
+  ^-  state-32
   %-  upgrade-24-to-25
   :*  %24
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1651,7 +1708,7 @@
   [(crip path-tape) args]
 --
 %-  agent:dbug
-=|  state-31
+=|  state-32
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -1663,20 +1720,14 @@
     [%pass /eyre-bind %arvo %e %connect [~ /apps/noltbook] %noltbook]
   =/  cover=note:noltbook  [%cover 'ARS NOTORIA' %cover our.bowl (sy ~[our.bowl]) ~ ~ ~ ~ %secret ~ & ~ ~]
   =/  rumors=note:noltbook  [%ars-rumors 'RUMORS' %cover our.bowl (sy ~[our.bowl]) ~ ~ ~ ~ %secret ~ & ~ ~]
-  ::  subscribe to distributor moon for peer discovery
-  =/  distro=@p  ~racmud-mipmet-disden-talhes
-  =/  distro-card=card
-    [%pass /ars/(scot %p distro) %agent [distro %noltbook] %watch /notes/cover]
-  =/  hey-card=card
-    [%pass /pal-hey/(scot %p distro) %agent [distro %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-hey ~])]
-  :_  this(notes (~(put by (~(put by notes) %cover cover)) %ars-rumors rumors), messages (~(put by (~(put by messages) %cover *(list message:noltbook))) %ars-rumors *(list message:noltbook)), peers (sy ~[distro]), pal-outgoing (sy ~[distro]))
-  ~[bind distro-card hey-card]
+  :_  this(notes (~(put by (~(put by notes) %cover cover)) %ars-rumors rumors), messages (~(put by (~(put by messages) %cover *(list message:noltbook))) %ars-rumors *(list message:noltbook)))
+  ~[bind]
 ++  on-save   !>(state)
 ++  on-load
   |=  old=vase
   ^-  (quip card _this)
-  ?:  ?=([%31 *] q.old)
-    =/  loaded  !<(state-31 old)
+  ?:  ?=([%32 *] q.old)
+    =/  loaded  !<(state-32 old)
     ::  fix: ensure cover note exists and is keyed as %cover
     ::  (same normalizations carried forward from state-24 load)
     =/  loaded
@@ -1798,6 +1849,9 @@
       ^-  card
       [%pass /prof-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-profile our.bowl prof])]
     [prof-cards this(state loaded(active-calls *(map @ta call-info:noltbook)))]
+  ?:  ?=([%31 *] q.old)
+    =/  s31  !<(state-31 old)
+    $(old !>((upgrade-31-to-32 s31)))
   ?:  ?=([%30 *] q.old)
     =/  s30  !<(state-30 old)
     $(old !>((upgrade-30-to-31 s30)))
@@ -1979,46 +2033,22 @@
       s15(notes (~(put by notes.s15) %ars-rumors rumors), messages (~(put by messages.s15) %ars-rumors *(list message-18)))
     s15
     `this(state (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 s15))))))
-  ::  state-12 → state-18
+  ::  state-12 → state-20
   ?:  ?=([%12 *] q.old)
     =/  s12  !<(state-12 old)
     =/  s15  (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 s12)))
-    =/  distro=@p  ~racmud-mipmet-disden-talhes
     ::  ensure ars-rumors note exists
     =/  s15  ?.  (~(has by notes.s15) %ars-rumors)
       =/  rumors=note-17  [%ars-rumors 'RUMORS' %cover our.bowl (sy ~[our.bowl]) ~ ~ ~ ~ %secret ~ & ~]
       s15(notes (~(put by notes.s15) %ars-rumors rumors), messages (~(put by messages.s15) %ars-rumors *(list message-18)))
     s15
     =/  s19  (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 s15)))))
-    ::  if we are the moon: hey all peers so they add us to pal-incoming
-    ?:  =(our.bowl distro)
-      =/  hey-cards=(list card)
-        %+  turn  ~(tap in peers.s19)
-        |=  p=@p
-        [%pass /pal-hey/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-hey ~])]
-      :_  this(state s19(pal-outgoing (~(uni in pal-outgoing.s19) peers.s19)))
-      hey-cards
-    ::  if we are a regular ship: ensure distro connection + re-send hey
-    =/  new-peers=(set @p)  (~(put in peers.s19) distro)
-    =/  new-outgoing=(set @p)  (~(put in pal-outgoing.s19) distro)
-    =/  cards=(list card)
-      :~  [%pass /ars/(scot %p distro) %agent [distro %noltbook] %watch /notes/cover]
-          [%pass /pal-hey/(scot %p distro) %agent [distro %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-hey ~])]
-      ==
-    :_  this(state s19(peers new-peers, pal-outgoing new-outgoing))
-    cards
+    `this(state s19)
   ::  state-11 → state-19
   ?:  ?=([%11 *] q.old)
     =/  s11  !<(state-11 old)
     =/  s19  (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 s11)))))))))
-    =/  distro=@p  ~racmud-mipmet-disden-talhes
-    ?:  =(our.bowl distro)  `this(state s19)
-    =/  new-peers=(set @p)  (~(put in peers.s19) distro)
-    =/  new-outgoing=(set @p)  (~(put in pal-outgoing.s19) distro)
-    :_  this(state s19(peers new-peers, pal-outgoing new-outgoing))
-    :~  [%pass /ars/(scot %p distro) %agent [distro %noltbook] %watch /notes/cover]
-        [%pass /pal-hey/(scot %p distro) %agent [distro %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-hey ~])]
-    ==
+    `this(state s19)
   ::  state-10 → ... → state-19
   ?:  ?=([%10 *] q.old)
     =/  s10  !<(state-10 old)
@@ -2039,15 +2069,9 @@
   ::  state-6 → ... → state-19
   ?:  ?=([%6 *] q.old)
     =/  s6  !<(state-6 old)
-    =/  hey-cards=(list card)
-      %+  turn  ~(tap in peers.s6)
-      |=  p=@p
-      [%pass /pal-hey/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-hey ~])]
     =/  s8=state-8
       [%8 notes.s6 messages.s6 artifacts.s6 profiles.s6 transactions.s6 current-note.s6 peers.s6 has-avatar.s6 peers.s6 ~ ~ 0 ~]
-    :_  this(state (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))))))
-
-    hey-cards
+    `this(state (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))))))
   ?:  ?=([%5 *] q.old)
     =/  s5  !<(state-5 old)
     =/  new-profiles=(map @p profile:noltbook)
@@ -2149,16 +2173,23 @@
     =/  upd=update:noltbook  [%note-list note-list]
     =/  prof-list=(list [@p profile:noltbook])  ~(tap by profiles)
     =/  pupd=update:noltbook  [%profile-list prof-list]
+    =/  pal-set=(set @p)
+      =/  s=(set @p)  contacts
+      =/  s=(set @p)  (~(uni in s) pal-outgoing)
+      =/  s=(set @p)  (~(uni in s) pal-incoming)
+      =/  s=(set @p)  (~(uni in s) pal-blocked)
+      (~(del in s) our.bowl)
     =/  pal-pairs=(list [@p pal-status:noltbook])
-      %+  turn  ~(tap in peers)
+      %+  turn  ~(tap in pal-set)
       |=  p=@p
       :-  p
       ?:  (~(has in pal-blocked) p)  %blocked
       ?:  &((~(has in pal-outgoing) p) (~(has in pal-incoming) p))  %mutual
       ?:  (~(has in pal-outgoing) p)  %requesting
       ?:  (~(has in pal-incoming) p)  %requested
-      %requesting  :: default for known peers not yet tracked
+      %none
     =/  palupd=update:noltbook  [%pal-list pal-pairs]
+    =/  contactupd=update:noltbook  [%contact-list ~(tap in contacts)]
     =/  dialupd=update:noltbook  [%dial-update dial]
     ::  send all current mention states (eid stored natively since state-23)
     =/  mention-cards=(list card)
@@ -2224,6 +2255,7 @@
       :~  [%give %fact ~ %noltbook-update !>(upd)]
           [%give %fact ~ %noltbook-update !>(pupd)]
           [%give %fact ~ %noltbook-update !>(palupd)]
+          [%give %fact ~ %noltbook-update !>(contactupd)]
           [%give %fact ~ %noltbook-update !>(dialupd)]
       ==
     :_  this
@@ -2284,22 +2316,9 @@
       ?~  prof  ~
       `[u u.prof]
     =/  pupd=update:noltbook  [%profile-list prof-list]
-    ::  introduce new remote subscribers to all existing peers
+    ::  track new remote subscriber as a peer (no auto-introduce broadcast)
     =/  is-new-remote=?  &(!=(src.bowl our.bowl) !(~(has in peers) src.bowl))
-    =/  intro-cards=(list card)
-      ?.  is-new-remote  ~
-      =/  existing=(list @p)  ~(tap in peers)
-      ::  tell each existing peer about the new ship
-      =/  out-cards=(list card)
-        %+  turn  existing
-        |=  p=@p
-        [%pass /introduce/(scot %p p)/(scot %p src.bowl) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-introduce src.bowl])]
-      ::  tell the new ship about each existing peer
-      =/  in-cards=(list card)
-        %+  turn  existing
-        |=  p=@p
-        [%pass /introduce/(scot %p src.bowl)/(scot %p p) %agent [src.bowl %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-introduce p])]
-      (weld out-cards in-cards)
+    =/  intro-cards=(list card)  ~
     =/  new-peers=(set @p)
       ?.  is-new-remote  peers
       (~(put in peers) src.bowl)
@@ -3542,15 +3561,15 @@
       ~[[%pass /note-req/(scot %p who) %agent [who %noltbook] %poke %noltbook-remote !>(rem)]]
     ::
     ::  pal management actions
-    ::  NOTE: auto-pal — add-pal is also called automatically on peer discovery.
-    ::  This section will change when we add notifications / manual opt-in.
+    ::  Manual opt-in only: no auto-discovery / no auto add-pal on watch.
     ::
         %add-pal
       ?:  =(ship.act our.bowl)  `this
       ::  unblock if blocked
       =/  new-blocked=(set @p)  (~(del in pal-blocked) ship.act)
-      ::  add to outgoing, send %remote-hey + our profile
+      ::  add to outgoing + peers bookkeeping, send %remote-hey + our profile
       =/  new-outgoing=(set @p)  (~(put in pal-outgoing) ship.act)
+      =/  new-peers=(set @p)  (~(put in peers) ship.act)
       =/  hey-card=card
         [%pass /pal-hey/(scot %p ship.act) %agent [ship.act %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-hey ~])]
       =/  prof  (fall (~(get by profiles) our.bowl) *profile:noltbook)
@@ -3560,7 +3579,7 @@
         ?:  (~(has in pal-incoming) ship.act)  %mutual
         %requesting
       =/  upd=update:noltbook  [%pal-update ship.act status]
-      :_  this(pal-outgoing new-outgoing, pal-blocked new-blocked)
+      :_  this(pal-outgoing new-outgoing, pal-blocked new-blocked, peers new-peers)
       [hey-card prof-card [%give %fact ~[/notes] %noltbook-update !>(upd)] ~]
     ::
         %remove-pal
@@ -3568,12 +3587,37 @@
       =/  new-outgoing=(set @p)  (~(del in pal-outgoing) ship.act)
       =/  bye-card=card
         [%pass /pal-bye/(scot %p ship.act) %agent [ship.act %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-bye ~])]
+      =/  still-visible=?
+        ?|  (~(has in contacts) ship.act)
+            (~(has in pal-incoming) ship.act)
+            (~(has in pal-blocked) ship.act)
+        ==
       =/  status=pal-status:noltbook
         ?:  (~(has in pal-incoming) ship.act)  %requested
         %none
-      =/  upd=update:noltbook  [%pal-update ship.act status]
+      =/  upd=update:noltbook
+        ?:  still-visible  [%pal-update ship.act status]
+        [%pal-removed ship.act]
       :_  this(pal-outgoing new-outgoing)
       [bye-card [%give %fact ~[/notes] %noltbook-update !>(upd)] ~]
+    ::
+        %dismiss-pal-request
+      ?:  =(ship.act our.bowl)  `this
+      =/  new-incoming=(set @p)  (~(del in pal-incoming) ship.act)
+      =/  still-visible=?
+        ?|  (~(has in contacts) ship.act)
+            (~(has in pal-outgoing) ship.act)
+            (~(has in pal-blocked) ship.act)
+        ==
+      =/  status=pal-status:noltbook
+        ?:  (~(has in pal-blocked) ship.act)  %blocked
+        ?:  (~(has in pal-outgoing) ship.act)  %requesting
+        %none
+      =/  upd=update:noltbook
+        ?:  still-visible  [%pal-update ship.act status]
+        [%pal-removed ship.act]
+      :_  this(pal-incoming new-incoming)
+      ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
     ::
         %block-pal
       ?:  =(ship.act our.bowl)  `this
@@ -3657,14 +3701,71 @@
       ?:  =(ship.act our.bowl)  `this
       =/  new-blocked=(set @p)  (~(del in pal-blocked) ship.act)
       ::  NOTE: unblocking does not auto-add as pal. User must click PALS separately.
+      =/  still-visible=?
+        ?|  (~(has in contacts) ship.act)
+            (~(has in pal-outgoing) ship.act)
+            (~(has in pal-incoming) ship.act)
+        ==
       =/  status=pal-status:noltbook
+        ?:  &((~(has in pal-outgoing) ship.act) (~(has in pal-incoming) ship.act))  %mutual
+        ?:  (~(has in pal-outgoing) ship.act)  %requesting
         ?:  (~(has in pal-incoming) ship.act)  %requested
         %none
-      =/  upd=update:noltbook  [%pal-update ship.act status]
+      =/  upd=update:noltbook
+        ?:  still-visible  [%pal-update ship.act status]
+        [%pal-removed ship.act]
       :_  this(pal-blocked new-blocked)
       :~  [%give %fact ~[/notes] %noltbook-update !>(upd)]
           [%pass /unblock-notify/(scot %p ship.act) %agent [ship.act %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-unblocked ~])]
       ==
+    ::
+        %add-contact
+      ::  add explicit contact (independent of pal state).
+      ?:  =(ship.act our.bowl)  `this
+      =/  new-contacts=(set @p)  (~(put in contacts) ship.act)
+      =/  new-peers=(set @p)  (~(put in peers) ship.act)
+      ::  status reflects pal state, not contact-only membership
+      =/  status=pal-status:noltbook
+        ?:  (~(has in pal-blocked) ship.act)  %blocked
+        ?:  &((~(has in pal-outgoing) ship.act) (~(has in pal-incoming) ship.act))  %mutual
+        ?:  (~(has in pal-outgoing) ship.act)  %requesting
+        ?:  (~(has in pal-incoming) ship.act)  %requested
+        %none
+      =/  upd=update:noltbook  [%pal-update ship.act status]
+      =/  cupd=update:noltbook  [%contact-list ~(tap in new-contacts)]
+      :_  this(contacts new-contacts, peers new-peers)
+      :~  [%give %fact ~[/notes] %noltbook-update !>(upd)]
+          [%give %fact ~[/notes] %noltbook-update !>(cupd)]
+      ==
+    ::
+        %remove-contact
+      ::  remove from visible contacts. This clears explicit contact state
+      ::  plus local pal/request state, but does not touch block state.
+      ?:  =(ship.act our.bowl)  `this
+      =/  new-contacts=(set @p)  (~(del in contacts) ship.act)
+      =/  had-outgoing=?  (~(has in pal-outgoing) ship.act)
+      =/  new-outgoing=(set @p)  (~(del in pal-outgoing) ship.act)
+      =/  new-incoming=(set @p)  (~(del in pal-incoming) ship.act)
+      =/  bye-cards=(list card)
+        ?.  had-outgoing  ~
+        ~[[%pass /pal-bye/(scot %p ship.act) %agent [ship.act %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-bye ~])]]
+      ::  blocked ships remain visible until explicitly unblocked.
+      =/  still-visible=?
+        (~(has in pal-blocked) ship.act)
+      =/  status=pal-status:noltbook
+        ?:  (~(has in pal-blocked) ship.act)  %blocked
+        %none
+      ::  if no block state, emit %pal-removed so frontend drops row.
+      =/  upd=update:noltbook
+        ?:  still-visible  [%pal-update ship.act status]
+        [%pal-removed ship.act]
+      =/  cupd=update:noltbook  [%contact-list ~(tap in new-contacts)]
+      =/  base-cards=(list card)
+        :~  [%give %fact ~[/notes] %noltbook-update !>(upd)]
+            [%give %fact ~[/notes] %noltbook-update !>(cupd)]
+        ==
+      :_  this(contacts new-contacts, pal-outgoing new-outgoing, pal-incoming new-incoming)
+      (weld base-cards bye-cards)
     ::
         %clear-mentions
       ::  clear all unread mentions for a note
@@ -5045,8 +5146,9 @@
       ::  a ship wants to be pals with us
       ::  ignore if blocked
       ?:  (~(has in pal-blocked) src.bowl)  `this
-      ::  add to incoming, compute new status, notify frontend
+      ::  add to incoming + peers bookkeeping, compute status, notify frontend
       =/  new-incoming=(set @p)  (~(put in pal-incoming) src.bowl)
+      =/  new-peers=(set @p)  (~(put in peers) src.bowl)
       =/  status=pal-status:noltbook
         ?:  (~(has in pal-outgoing) src.bowl)  %mutual
         %requested
@@ -5061,32 +5163,30 @@
         ?:  (~(has in pal-incoming) src.bowl)  ~
         ?.  (~(has in pal-outgoing) src.bowl)  ~
         ~[[%pass /pal-hey/(scot %p src.bowl) %agent [src.bowl %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-hey ~])]]
-      :_  this(pal-incoming new-incoming)
+      :_  this(pal-incoming new-incoming, peers new-peers)
       :(weld [prof-card [%give %fact ~[/notes] %noltbook-update !>(upd)] ~] hey-back)
     ::
         %remote-bye
       ::  a ship no longer wants to be pals
       =/  new-incoming=(set @p)  (~(del in pal-incoming) src.bowl)
+      =/  still-visible=?
+        ?|  (~(has in contacts) src.bowl)
+            (~(has in pal-outgoing) src.bowl)
+            (~(has in pal-blocked) src.bowl)
+        ==
       =/  status=pal-status:noltbook
         ?:  (~(has in pal-outgoing) src.bowl)  %requesting
         %none
-      =/  upd=update:noltbook  [%pal-update src.bowl status]
+      =/  upd=update:noltbook
+        ?:  still-visible  [%pal-update src.bowl status]
+        [%pal-removed src.bowl]
       :_  this(pal-incoming new-incoming)
       ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
     ::
         %remote-introduce
-      ::  a trusted ship is introducing us to another ship
-      =/  target=@p  ship.rem
-      ?:  =(target our.bowl)  `this
-      ?:  (~(has in peers) target)  `this
-      ?:  (~(has in pal-blocked) target)  `this
-      =/  new-peers=(set @p)  (~(put in peers) target)
-      ::  send our profile to the new peer (peers only, no pal intent)
-      =/  prof  (fall (~(get by profiles) our.bowl) *profile:noltbook)
-      :_  this(peers new-peers)
-      :~  [%pass /ars/(scot %p target) %agent [target %noltbook] %watch /notes/cover]
-          [%pass /prof-out/(scot %p target) %agent [target %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-profile our.bowl prof])]
-      ==
+      ::  no-op: auto peer-introduce removed; variant retained for future
+      ::  contact design. Do not auto-add peer / watch cover / send profile.
+      `this
     ::
         %remote-edit-msg
       ::  remote user editing their own message in a note we host (or DM peer)

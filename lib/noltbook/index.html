@@ -659,7 +659,7 @@ const api = {
     this.reconnecting=false;
   }
 };
-const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},dial:0,gossipHops:{},mentions:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set()};
+const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set()};
 let sigilFn=null;
 const sigilCache={};
 (async function loadSigil(){
@@ -766,6 +766,8 @@ function handleUpdate(upd){
   else if(upd['profile-updated']){const{ship,profile}=upd['profile-updated'];state.profiles[ship]=profile;if(ship==='~'+api.ship){document.getElementById('shipDisplay').textContent=profile.displayName||'~'+api.ship;updateSidebarSigil()}if(state.palsView)renderPalsList();if(state.currentNoteId)scheduleRender()}
   else if(upd['remote-note-list']){const{ship,notes}=upd['remote-note-list'];Object.keys(state.discoveryNotes).forEach(k=>{if(state.discoveryNotes[k].creator===ship)delete state.discoveryNotes[k]});for(const n of notes)state.discoveryNotes[n.id]=n;const el=document.getElementById('viewProfileNotes');if(el&&state.viewingProfileShip===ship){el.innerHTML=renderProfileNotesHtml(ship,'none available')}if(state.pendingRefOpen&&state.pendingRefOpen.creator===ship){const _pnid=state.pendingRefOpen.noteId;clearTimeout(state.pendingRefOpen.timer);state.pendingRefOpen=null;if(state.discoveryNotes[_pnid]){openNoteDetailModal(_pnid)}else{showRefUnavailable(_pnid,'Note unavailable')}}}
   else if(upd['pal-list']){for(const entry of upd['pal-list']){state.palStatus[entry.ship]=entry.status}if(state.palsView)renderPalsList();fetchVisibleEnvelopes()}
+  else if(upd['contact-list']){state.contacts=new Set(upd['contact-list']);if(state.palsView)renderPalsList();if(state.viewingProfileShip)updateViewProfileTags(state.viewingProfileShip)}
+  else if(upd['pal-removed']){const{ship}=upd['pal-removed'];delete state.palStatus[ship];if(state.palsView)renderPalsList();if(state.viewingProfileShip===ship)updateViewProfileTags(ship)}
   else if(upd['pal-update']){const{ship,status}=upd['pal-update'];const wasBlocked=state.palStatus[ship]==='blocked';state.palStatus[ship]=status;if(wasBlocked&&status!=='blocked'){Object.keys(state.removedFromNotes).forEach(nid=>{if(state.removedFromNotes[nid]===ship)delete state.removedFromNotes[nid]});api.poke('noltbook','noltbook-action',{action:'request-remote-notes',data:{ship}})}if(status!=='blocked')delete state.blockedBy[ship];if(state.palsView)renderPalsList();renderNoteList();fetchVisibleEnvelopes();if(isGossipNote(state.currentNoteId))scheduleRender(state.currentNoteId);if(state.currentNoteId){const cn=state.notes[state.currentNoteId];if(cn&&cn.type==='dm'){const cp=dmCounterparty(cn);if(cp===ship)updateMuteUI()}}}
   else if(upd['dial-update']){state.dial=upd['dial-update'];updateDialUI();if(isGossipNote(state.currentNoteId))scheduleRender(state.currentNoteId);scheduleNoteList();fetchVisibleEnvelopes()}
   else if(upd['note-users-updated']){const{id,type,users,removed}=upd['note-users-updated'];console.log('[note-users-updated]',id,type,users,removed);if(state.notes[id]){const me='~'+api.ship;const vis=state.notes[id].visibility;const notifyVis=vis==='public'||vis==='private';if(state.notes[id].creator===me&&notifyVis){const oldU=state.notes[id].users||[];const newJ=users.filter(u=>!oldU.includes(u)&&u!==me);for(const j of newJ)state.blockNotifications.push({noteId:id,noteName:state.notes[id].name,from:j,time:Date.now(),type:'joined'});if(newJ.length>0)updateLogoBadge()}state.notes[id].users=users;state.notes[id].removed=removed||[];if(type)state.notes[id].type=type;rebuildDurableNotifications();updateLogoBadge();renderNoteList();if(state.currentNoteId===id)scheduleRender(id);refreshNoteInfoMembers(id)}}
@@ -1333,7 +1335,9 @@ function renderPalsList(){
   const el=document.getElementById('palsList');
   el.innerHTML='';
   const me='~'+api.ship;
-  const ships=Object.keys(state.profiles).filter(s=>s!==me).sort((a,b)=>{
+  const shipSet=new Set(Object.keys(state.palStatus));
+  shipSet.delete(me);
+  const ships=Array.from(shipSet).sort((a,b)=>{
     const aBlocked=state.palStatus[a]==='blocked'?1:0;
     const bBlocked=state.palStatus[b]==='blocked'?1:0;
     if(aBlocked!==bBlocked)return aBlocked-bBlocked;
@@ -1364,7 +1368,7 @@ function makeContactItem(ship){
   const status=state.palStatus[ship]||'none';
   const isBlocked=status==='blocked';
   const blockInfo=isBlocked?{cls:'contact-tag blocked',label:'BLOCKED'}:{cls:'contact-tag',label:'BLOCK'};
-  const palInfo=isBlocked?{cls:'contact-tag',label:'PALS'}:palStatusLabel(status);
+  const palInfo=isBlocked?{cls:'contact-tag blocked',label:'BLOCKED'}:palStatusLabel(status);
   div.innerHTML=`<div class="contact-avatar">${av}</div><div class="contact-info"><span class="contact-name">${escHtml(name)}</span><span class="contact-ship">${escHtml(ship)}</span><div class="contact-tags"><span class="${palInfo.cls} pal-slot" data-ship="${escAttr(ship)}" data-tag="pal" onclick="event.stopPropagation();toggleContactTag(this)">${palInfo.label}</span><span class="${blockInfo.cls} block-slot" data-ship="${escAttr(ship)}" data-tag="block" onclick="event.stopPropagation();toggleContactTag(this)">${blockInfo.label}</span></div></div>`;
   div.onclick=()=>{viewProfile(ship)};
   return div;
@@ -1384,8 +1388,11 @@ function toggleContactTag(el){
   }
   if(tag==='pal'){
     const status=state.palStatus[ship]||'none';
+    if(status==='blocked')return;
     if(status==='mutual'||status==='requesting'){
       api.poke('noltbook','noltbook-action',{action:'remove-pal',data:{ship}});
+    }else if(status==='requested'){
+      api.poke('noltbook','noltbook-action',{action:'add-pal',data:{ship}});
     }else{
       api.poke('noltbook','noltbook-action',{action:'add-pal',data:{ship}});
     }
@@ -2476,7 +2483,7 @@ async function viewProfile(ship){
         <button class="vp-btn" id="viewProfilePal" onclick="viewProfileTogglePal('${escAttr(ship)}')"></button>
         <button class="vp-btn" onclick="viewProfileDm('${escAttr(ship)}')">DM</button>
         <button class="vp-btn send-hover" onclick="viewProfileSend('${escAttr(ship)}')">SEND</button>
-        <button class="vp-btn danger-hover" onclick="viewProfileRemoveContact('${escAttr(ship)}')">REMOVE CONTACT</button>
+        <button class="vp-btn" id="viewProfileContact" onclick="viewProfileToggleContact('${escAttr(ship)}')"></button>
         <button class="vp-btn danger-hover" id="viewProfileBlock" onclick="viewProfileToggleBlock('${escAttr(ship)}')"></button>
       </div>
     </div>
@@ -2563,22 +2570,31 @@ document.addEventListener('click',(e)=>{if(!e.target.closest('.attach-wrap'))doc
 function updateViewProfileTags(ship){
   const status=state.palStatus[ship]||'none';
   const isBlocked=status==='blocked';
-  const pe=document.getElementById('viewProfilePal');const be=document.getElementById('viewProfileBlock');
+  const isContact=state.contacts.has(ship);
+  const hasPalState=status!=='none';
+  const pe=document.getElementById('viewProfilePal');const be=document.getElementById('viewProfileBlock');const ce=document.getElementById('viewProfileContact');
   if(pe){
     if(status==='mutual'){pe.className='vp-btn pal-mutual';pe.textContent='PALS'}
     else if(status==='requesting'){pe.className='vp-btn pal-requesting';pe.textContent='REQUESTING'}
     else if(status==='requested'){pe.className='vp-btn pal-requested';pe.textContent='REQUESTED'}
-    else if(isBlocked){pe.className='vp-btn';pe.textContent='PALS'}
+    else if(isBlocked){pe.className='vp-btn pal-blocked';pe.textContent='BLOCKED'}
     else{pe.className='vp-btn';pe.textContent='ADD PAL'}
   }
   if(be){
     if(isBlocked){be.className='vp-btn pal-blocked';be.textContent='BLOCKED'}
     else{be.className='vp-btn danger-hover';be.textContent='BLOCK'}
   }
+  if(ce){
+    if(isContact){ce.className='vp-btn danger-hover';ce.textContent='REMOVE CONTACT'}
+    else if(hasPalState){ce.className='vp-btn danger-hover';ce.textContent='REMOVE CONTACT'}
+    else{ce.className='vp-btn';ce.textContent='ADD CONTACT'}
+  }
 }
 function viewProfileTogglePal(ship){
   const status=state.palStatus[ship]||'none';
+  if(status==='blocked')return;
   if(status==='mutual'||status==='requesting')api.poke('noltbook','noltbook-action',{action:'remove-pal',data:{ship}});
+  else if(status==='requested')api.poke('noltbook','noltbook-action',{action:'add-pal',data:{ship}});
   else api.poke('noltbook','noltbook-action',{action:'add-pal',data:{ship}});
   setTimeout(()=>updateViewProfileTags(ship),100);
 }
@@ -2592,9 +2608,18 @@ function viewProfileToggleBlock(ship){
   }
   setTimeout(()=>updateViewProfileTags(ship),100);
 }
-function viewProfileRemoveContact(ship){
-  // backend TBD
-  console.log('[remove-contact]',ship);
+function viewProfileToggleContact(ship){
+  const status=state.palStatus[ship]||'none';
+  if(state.contacts.has(ship)||status!=='none'){
+    if(status!=='none'&&status!=='blocked'){
+      const name=displayName(ship);
+      if(!confirm('Removing '+name+' from Contacts will also remove them from your pals/requests.'))return;
+    }
+    api.poke('noltbook','noltbook-action',{action:'remove-contact',data:{ship}});
+  }else{
+    api.poke('noltbook','noltbook-action',{action:'add-contact',data:{ship}});
+  }
+  setTimeout(()=>updateViewProfileTags(ship),100);
 }
 function requestJoinNote(noteId,host){
   if(state.removedFromNotes[noteId])return;

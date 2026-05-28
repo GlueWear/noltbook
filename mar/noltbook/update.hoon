@@ -154,6 +154,14 @@
           ['status' s+(crip (trip (scot %tas status.upd)))]
       ==
     ::
+        %pal-removed
+      %+  frond  'pal-removed'
+      (pairs ~[['ship' s+(scot %p ship.upd)]])
+    ::
+        %contact-list
+      %+  frond  'contact-list'
+      a+(turn ships.upd |=(p=@p s+(scot %p p)))
+    ::
         %dial-update
       (frond 'dial-update' (numb dial.upd))
     ::

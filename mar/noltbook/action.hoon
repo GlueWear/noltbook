@@ -247,6 +247,11 @@
       =/  ship-nd  (need (~(get by d) 'ship'))
       ?>  ?=([%s *] ship-nd)
       [%remove-pal (slav %p p.ship-nd)]
+    ::  dismiss-pal-request
+    ?:  =('dismiss-pal-request' tag)
+      =/  ship-nd  (need (~(get by d) 'ship'))
+      ?>  ?=([%s *] ship-nd)
+      [%dismiss-pal-request (slav %p p.ship-nd)]
     ::  block-pal
     ?:  =('block-pal' tag)
       =/  ship-nd  (need (~(get by d) 'ship'))
@@ -257,6 +262,16 @@
       =/  ship-nd  (need (~(get by d) 'ship'))
       ?>  ?=([%s *] ship-nd)
       [%unblock-pal (slav %p p.ship-nd)]
+    ::  add-contact
+    ?:  =('add-contact' tag)
+      =/  ship-nd  (need (~(get by d) 'ship'))
+      ?>  ?=([%s *] ship-nd)
+      [%add-contact (slav %p p.ship-nd)]
+    ::  remove-contact
+    ?:  =('remove-contact' tag)
+      =/  ship-nd  (need (~(get by d) 'ship'))
+      ?>  ?=([%s *] ship-nd)
+      [%remove-contact (slav %p p.ship-nd)]
     ::  create-dm
     ?:  =('create-dm' tag)
       =/  ship-nd  (need (~(get by d) 'ship'))
