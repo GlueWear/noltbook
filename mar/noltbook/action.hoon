@@ -145,6 +145,19 @@
       =/  ship-nd  (need (~(get by d) 'ship'))
       ?>  ?=([%s *] ship-nd)
       [%invite-to-note `@ta`p.id-nd (slav %p p.ship-nd)]
+    ::  invite-to-note-batch
+    ?:  =('invite-to-note-batch' tag)
+      =/  id-nd  (need (~(get by d) 'id'))
+      ?>  ?=([%s *] id-nd)
+      =/  ships-nd  (need (~(get by d) 'ships'))
+      ?>  ?=([%a *] ships-nd)
+      =/  ships=(list @p)
+        %+  turn  p.ships-nd
+        |=  j=^json
+        ^-  @p
+        ?>  ?=([%s *] j)
+        (slav %p p.j)
+      [%invite-to-note-batch `@ta`p.id-nd ships]
     ::  create-artifact
     ?:  =('create-artifact' tag)
       =/  nid-nd  (need (~(get by d) 'noteId'))

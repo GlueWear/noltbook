@@ -755,8 +755,8 @@ function handleUpdate(upd){
   else if(upd['note-host-status']){const d=upd['note-host-status'];if(d.status)state.noteHostStatus[d.id]=d.status;else delete state.noteHostStatus[d.id];rebuildDurableNotifications();updateLogoBadge();if(d.id===state.currentNoteId)updateMuteUI();renderNoteList()}
   else if(upd['note-lineage-set']){const d=upd['note-lineage-set'];state.noteLineage[d.id]={forkOrigin:d.forkOrigin,forkVersion:d.forkVersion,forkOf:d.forkOf||null};if(d.id===state.currentNoteId)scheduleRender(d.id);renderNoteList()}
   else if(upd['fork-invite-received']){const d=upd['fork-invite-received'];console.log('[fork-invite-received v6.2 metadata-only]',d.rootId,'from',d.forker);const wasPending=!!state.pendingForkInvites[d.rootId];state.pendingForkInvites[d.rootId]={rootId:d.rootId,sourceName:d.sourceName,sourceVersion:d.sourceVersion,forker:d.forker,time:Date.now()};if(!wasPending){state.blockNotifications.push({noteId:d.rootId,noteName:d.sourceName,from:d.forker,time:Date.now(),type:'fork-invite',sourceVersion:d.sourceVersion})}updateLogoBadge()}
-  else if(upd['fork-invite-cleared']){const d=upd['fork-invite-cleared'];delete state.pendingForkInvites[d.rootId];state.acceptingForkRoots.delete(d.rootId);state.blockNotifications=state.blockNotifications.filter(bn=>!(bn.type==='fork-invite'&&bn.noteId===d.rootId));updateLogoBadge()}
-  else if(upd['fork-invite-accepted']){const d=upd['fork-invite-accepted'];state.acceptingForkRoots.delete(d.rootId);state.notifications.delete(d.rootId);const gm=document.getElementById('grimoireMenu');if(gm)gm.remove();if(state.palsView)switchView('notes');if(state.notes[d.rootId])openNote(d.rootId);renderNoteList()}
+  else if(upd['fork-invite-cleared']){const d=upd['fork-invite-cleared'];delete state.pendingForkInvites[d.rootId];state.acceptingForkRoots.delete(d.rootId);for(const bn of state.blockNotifications){if(bn.type==='fork-invite'&&bn.noteId===d.rootId){bn.resolved=true;delete bn.fetching}}updateLogoBadge()}
+  else if(upd['fork-invite-accepted']){const d=upd['fork-invite-accepted'];state.acceptingForkRoots.delete(d.rootId);state.notifications.delete(d.rootId);for(const bn of state.blockNotifications){if(bn.type==='fork-invite'&&bn.noteId===d.rootId){bn.resolved=true;delete bn.fetching}}const gm=document.getElementById('grimoireMenu');if(gm)gm.remove();if(state.palsView)switchView('notes');if(state.notes[d.rootId])openNote(d.rootId);renderNoteList()}
   else if(upd['headline-updated']){const d=upd['headline-updated'];const n=state.notes[d.id];if(n){n.headline=d.headline||null;renderNoteList()}}
   else if(upd['artifact-envelope']){const d=upd['artifact-envelope'];const nid=d.noteId;const env=d.envelope;if(!state.artifactEnvelopes[nid])state.artifactEnvelopes[nid]={};if(state.artifactEnvelopes[nid][env.aid])return;state.artifactEnvelopes[nid][env.aid]=env;state.artifactEnvHops[env.aid]=(typeof d.hops==='number')?d.hops:1;if(state.currentNoteId===nid)scheduleRender(nid);else if(artEnvVisible(env))state.notifications.add(nid);scheduleNoteList()}
   else if(upd['artifact-envelope-list']){const d=upd['artifact-envelope-list'];const nid=d.noteId;if(!state.artifactEnvelopes[nid])state.artifactEnvelopes[nid]={};let added=0;for(const e of d.envelopes||[]){if(state.artifactEnvelopes[nid][e.aid])continue;state.artifactEnvelopes[nid][e.aid]=e;if(state.artifactEnvHops[e.aid]===undefined)state.artifactEnvHops[e.aid]=1;added++}if(added&&state.currentNoteId===nid)scheduleRender(nid)}
@@ -925,8 +925,14 @@ function acceptForkInvite(rootId){
   updateLogoBadge();
 }
 function declineForkInvite(rootId){
+  delete state.pendingForkInvites[rootId];
+  state.acceptingForkRoots.delete(rootId);
+  for(const bn of state.blockNotifications){
+    if(bn.type==='fork-invite'&&bn.noteId===rootId){bn.resolved=true;delete bn.fetching}
+  }
+  updateLogoBadge();
   api.poke('noltbook','noltbook-action',{action:'decline-fork-invite',data:{rootId}});
-  closeContextMenu();
+  const gm=document.getElementById('grimoireMenu');if(gm){gm.remove();openGrimoireMenu()}
 }
 function lineageMoniker(note){
   if(!note||note.type!=='group')return'';
@@ -2108,8 +2114,11 @@ function openSharePrompt(){
       showDmChoiceModal(noteId,targetShip);
       return;
     }
-    for(const ship of selected){
+    if(selected.size===1){
+      const ship=[...selected][0];
       api.poke('noltbook','noltbook-action',{action:'invite-to-note',data:{id:noteId,ship}});
+    }else{
+      api.poke('noltbook','noltbook-action',{action:'invite-to-note-batch',data:{id:noteId,ships:[...selected]}});
     }
     dd.destroy();overlay.remove();modal.remove();
   });
@@ -2951,7 +2960,7 @@ function rebuildDurableNotifications(){
     }
   }
 }
-function updateLogoBadge(){const el=document.getElementById('noltbookLogo');if(el)el.classList.toggle('has-notif',state.blockNotifications.length>0||state.joinRequests.length>0)}
+function updateLogoBadge(){const el=document.getElementById('noltbookLogo');if(el)el.classList.toggle('has-notif',state.blockNotifications.some(bn=>!bn.seen)||state.joinRequests.length>0)}
 function handleJoinAction(noteId,ship,action){
   if(action==='approve'){api.poke('noltbook','noltbook-action',{action:'approve-join',data:{noteId,ship}})}
   else if(action==='deny'){api.poke('noltbook','noltbook-action',{action:'deny-join',data:{noteId,ship}})}
@@ -2959,6 +2968,8 @@ function handleJoinAction(noteId,ship,action){
 }
 function openGrimoireMenu(){
   const existing=document.getElementById('grimoireMenu');if(existing){existing.remove();return}
+  for(const bn of state.blockNotifications)bn.seen=true;
+  updateLogoBadge();
   const menu=document.createElement('div');menu.id='grimoireMenu';menu.className='context-menu';
   let html='';
   const hasNotifs=state.blockNotifications.length>0||state.joinRequests.length>0;
@@ -2971,10 +2982,13 @@ function openGrimoireMenu(){
       else if(bn.type==='blocked')html+=`<div class="context-menu-item" style="font-size:.75rem;color:#ff4444">${escHtml(bn.from)} blocked you</div>`;
       else if(bn.type==='fork-invite'){
         const fetching=!!bn.fetching;
-        const buttons=fetching
+        const buttons=bn.resolved
+          ?''
+          :fetching
           ?`<span style="font-size:.7rem;color:var(--text-dim)">Joining...</span>`
           :`<span style="display:flex;gap:.3rem"><button onclick="event.stopPropagation();acceptForkInvite('${escAttr(bn.noteId)}')" style="flex:1;background:#ffaa00;color:#000;border:none;padding:.2rem .4rem;cursor:pointer;font-family:var(--font);font-size:.7rem;font-weight:bold">JOIN</button><button onclick="event.stopPropagation();declineForkInvite('${escAttr(bn.noteId)}')" style="flex:1;background:var(--bg3);color:var(--text);border:none;padding:.2rem .4rem;cursor:pointer;font-family:var(--font);font-size:.7rem">DECLINE</button></span>`;
-        html+=`<div class="context-menu-item" style="font-size:.75rem;color:#ffaa00;flex-direction:column;align-items:stretch;gap:.3rem"><span>${escHtml(bn.from)} forked ${escHtml(bn.noteName)}. Join fork?</span>${buttons}</div>`;
+        const msg=escHtml(bn.from)+' forked '+escHtml(bn.noteName)+(bn.resolved?'.':'. Join fork?');
+        html+=`<div class="context-menu-item" style="font-size:.75rem;color:#ffaa00;flex-direction:column;align-items:stretch;gap:.3rem"><span>${msg}</span>${buttons}</div>`;
       }
       else html+=`<div class="context-menu-item" style="font-size:.75rem;color:#ff4444">Removed from ${escHtml(bn.noteName)}</div>`;
     }

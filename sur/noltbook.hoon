@@ -233,6 +233,7 @@
       [%delete-message note-id=@ta msg-id=@da eid=(unit @uv)]
       [%set-note-meta id=@ta visibility=note-visibility icon-url=(unit @t) writable=?]
       [%invite-to-note id=@ta ship=@p]
+      [%invite-to-note-batch id=@ta ships=(list @p)]
       [%create-artifact note-id=@ta name=@t type=artifact-type content=@t]
       [%edit-artifact id=@ta content=@t]
       [%delete-artifact id=@ta]

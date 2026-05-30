@@ -3583,8 +3583,137 @@
       =/  desc-child-pokes=(list card)
         ?:  =(~ group-descs)  ~
         (build-remote-child-notes-to-ship ship.act group-descs notes)
+      ::  notify existing remote subscribers of the root note that the
+      ::  member list changed; without this they keep a stale users set
+      ::  and can miss later invitees on local-only operations like fork.
+      =/  root-users-upd=update:noltbook
+        [%note-users-updated id.act type.new-note ~(tap in users.new-note) ~(tap in removed.new-note)]
+      =/  root-users-cards=(list card)
+        ~[[%give %fact ~[/notes/[id.act]] %noltbook-update !>(root-users-upd)]]
       :_  this(notes (~(put by notes) id.act new-note), peers new-peers, note-muted (~(put by note-muted) id.act ro-muted))
-      :(weld type-updates [poke-card [%give %fact ~[/notes] %noltbook-update !>(upd)] ~] ars-cards ro-mute-cards desc-users-cards desc-child-pokes)
+      :(weld type-updates [poke-card [%give %fact ~[/notes] %noltbook-update !>(upd)] ~] ars-cards ro-mute-cards desc-users-cards desc-child-pokes root-users-cards)
+    ::
+        %invite-to-note-batch
+      ?:  (is-write-blocked id.act host-status notes our.bowl)  `this
+      =/  old  (~(get by notes) id.act)
+      ?~  old  `this
+      ::  permission gate matches %invite-to-note
+      ?.  ?|  =(our.bowl creator.u.old)
+              &(=(%gossip type.u.old) (~(has in users.u.old) our.bowl))
+              &(=(%group type.u.old) (~(has in (fall (~(get by note-admins) id.act) ~)) our.bowl))
+          ==
+        `this
+      ?:  =(%dm type.u.old)  `this
+      ::  one-shot notebook -> group conversion
+      =/  needs-convert=?  =(%notebook type.u.old)
+      =/  converted=(list @ta)
+        ?.  needs-convert  ~
+        (collect-notebook-descendants id.act notes)
+      =?  notes  needs-convert  (apply-type-group converted notes)
+      =/  effective-old=note:noltbook
+        ?.  needs-convert  u.old
+        u.old(type %group)
+      =/  type-updates=(list card)
+        ?.  needs-convert  ~
+        (build-type-update-cards id.act converted)
+      ::  clean input: dedup, drop self + existing members
+      =/  cleaned=(set @p)
+        =/  raw=(set @p)  (sy ships.act)
+        =/  no-self=(set @p)  (~(del in raw) our.bowl)
+        %-  ~(rep in no-self)
+        |=  [p=@p acc=(set @p)]
+        ?:  (~(has in users.effective-old) p)  acc
+        (~(put in acc) p)
+      ?:  =(~ cleaned)  `this
+      ::  non-host group admin: forward one %remote-mod per cleaned ship
+      ?:  &(=(%group type.effective-old) !=(our.bowl creator.effective-old))
+        =/  host=@p  creator.effective-old
+        =/  mod-cards=(list card)
+          %+  turn  ~(tap in cleaned)
+          |=  p=@p
+          ^-  card
+          [%pass /mod-out/(scot %p host)/[id.act]/(scot %p p) %agent [host %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-mod id.act %invite-member p])]
+        :_  this
+        mod-cards
+      ::  compute final users + removed once; all invites carry this set
+      =/  new-users=(set @p)  (~(uni in users.effective-old) cleaned)
+      =/  new-removed=(set @p)
+        %-  ~(rep in cleaned)
+        |=  [p=@p acc=_removed.effective-old]
+        (~(del in acc) p)
+      =/  new-note=note:noltbook  effective-old(users new-users, removed new-removed)
+      ::  outgoing invite poke per cleaned ship, with FINAL users set
+      =/  poke-cards=(list card)
+        ?:  =(%gossip type.effective-old)
+          =/  hl=(unit @t)  (~(get by headlines) id.act)
+          %+  turn  ~(tap in cleaned)
+          |=  p=@p
+          ^-  card
+          =/  rem=remote:noltbook  [%remote-gossip-invite id.act name.effective-old our.bowl users.new-note hl]
+          [%pass /invite/(scot %p p)/[id.act] %agent [p %noltbook] %poke %noltbook-remote !>(rem)]
+        %+  turn  ~(tap in cleaned)
+        |=  p=@p
+        ^-  card
+        =/  rem=remote:noltbook  [%remote-invite id.act name.effective-old type.effective-old our.bowl users.new-note visibility.effective-old writable.effective-old]
+        [%pass /invite/(scot %p p)/[id.act] %agent [p %noltbook] %poke %noltbook-remote !>(rem)]
+      ::  peers + ars cover-watch per genuinely-new peer
+      =/  new-peers=(set @p)  (~(uni in peers) cleaned)
+      =/  newly-peered=(set @p)
+        %-  ~(rep in cleaned)
+        |=  [p=@p acc=(set @p)]
+        ?:  (~(has in peers) p)  acc
+        (~(put in acc) p)
+      =/  ars-cards=(list card)
+        %+  turn  ~(tap in newly-peered)
+        |=  p=@p
+        ^-  card
+        [%pass /ars/(scot %p p) %agent [p %noltbook] %watch /notes/cover]
+      ::  read-only group: auto-mute each cleaned non-host/non-admin invitee
+      =/  is-ro-group=?  &(!writable.effective-old =(%group type.effective-old))
+      =/  admins=(set @p)  (fall (~(get by note-admins) id.act) ~)
+      =/  cur-muted=(set @p)  (fall (~(get by note-muted) id.act) ~)
+      =/  to-mute=(set @p)
+        ?.  is-ro-group  *(set @p)
+        %-  ~(rep in cleaned)
+        |=  [p=@p acc=(set @p)]
+        ?:  =(p creator.effective-old)  acc
+        ?:  (~(has in admins) p)  acc
+        (~(put in acc) p)
+      =/  new-muted=(set @p)  (~(uni in cur-muted) to-mute)
+      =/  ro-mute-cards=(list card)
+        ?:  =(~ to-mute)  ~
+        =/  mute-upd=update:noltbook  [%muted-updated id.act ~(tap in new-muted)]
+        ~[[%give %fact ~[/notes] %noltbook-update !>(mute-upd)] [%give %fact ~[/notes/[id.act]] %noltbook-update !>(mute-upd)]]
+      ::  cascade membership to %group descendants once
+      =/  group-descs=(list @ta)
+        ?.  =(%group type.effective-old)  ~
+        (collect-group-descendants id.act notes)
+      =.  notes
+        ?:  =(~ group-descs)  notes
+        %-  ~(rep in cleaned)
+        |=  [p=@p nm=(map @ta note:noltbook)]
+        (add-ship-to-ids p group-descs nm)
+      =/  desc-users-cards=(list card)
+        ?:  =(~ group-descs)  ~
+        (build-users-updated-cards group-descs notes)
+      =/  desc-child-pokes=(list card)
+        ?:  =(~ group-descs)  ~
+        %-  zing
+        %+  turn  ~(tap in cleaned)
+        |=  p=@p
+        ^-  (list card)
+        (build-remote-child-notes-to-ship p group-descs notes)
+      ::  root /notes/[id] users update with FINAL set so existing subscribers
+      ::  refresh in one shot
+      =/  root-users-upd=update:noltbook
+        [%note-users-updated id.act type.new-note ~(tap in users.new-note) ~(tap in removed.new-note)]
+      =/  root-users-cards=(list card)
+        ~[[%give %fact ~[/notes/[id.act]] %noltbook-update !>(root-users-upd)]]
+      =/  upd=update:noltbook  [%note-created new-note]
+      =/  local-cards=(list card)
+        ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
+      :_  this(notes (~(put by notes) id.act new-note), peers new-peers, note-muted (~(put by note-muted) id.act new-muted))
+      :(weld type-updates poke-cards local-cards ars-cards ro-mute-cards desc-users-cards desc-child-pokes root-users-cards)
     ::
         %create-artifact
       ?:  (is-write-blocked note-id.act host-status notes our.bowl)  `this
