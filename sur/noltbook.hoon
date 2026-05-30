@@ -150,6 +150,10 @@
 +$  remote
   $%  [%remote-invite note-id=@ta name=@t type=note-type creator=@p users=(set @p) visibility=note-visibility writable=?]
       [%remote-message note-id=@ta msg=message]
+      ::  atomic DM message: carries enough note metadata so the receiver
+      ::  can recreate the DM locally if they previously left it. No
+      ::  separate invite is sent; receiver does not subscribe.
+      [%remote-dm-message note=note msg=message]
       [%remote-ars msg=message hops=@ud]
       [%remote-ars-ref env=envelope hops=@ud]
       [%remote-fetch-cover-msg requester=@p msg-id=@da eid=(unit @uv)]

@@ -34,6 +34,7 @@
       state-30
       state-31
       state-32
+      state-33
   ==
 ::  pre-entry-meta message shape — used by state-18 for on-load typing
 +$  message-18
@@ -760,6 +761,44 @@
       fork-invitees=(map @ta (set @p))
       contacts=(set @p)
   ==
+::  state-33: durable per-counterparty DM display prefs (name + icon-url).
+::  Local-only; never broadcast. Survive %leave-note so a re-invited DM
+::  re-applies the user's saved label/icon.
++$  dm-pref  $:(name=(unit @t) icon-url=(unit @t))
++$  state-33
+  $:  %33
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+  ==
 ::  state-26: add durable blocked-by set (ships that have blocked us)
 +$  state-26
   $:  %26
@@ -1009,7 +1048,7 @@
 ::  chains through upgrade-20-to-21 → ... → upgrade-25-to-26
 ++  upgrade-19-to-20
   |=  s=state-19
-  ^-  state-32
+  ^-  state-33
   =/  new-seq=(map @ta @ud)
     %-  ~(rep by seq-counters.s)
     |=  [[[a=@p n=@ta] v=@ud] acc=(map @ta @ud)]
@@ -1029,7 +1068,7 @@
 ::  chains through upgrade-21-to-22 → upgrade-22-to-23
 ++  upgrade-20-to-21
   |=  s=state-20
-  ^-  state-32
+  ^-  state-33
   =/  new-msgs=(map @ta (list message:noltbook))
     %-  ~(run by messages.s)
     |=  msgs=(list message-20)
@@ -1071,7 +1110,7 @@
 ::  upgrade-21-to-22: add meta=(unit entry-meta) to envelopes
 ++  upgrade-21-to-22
   |=  s=state-21
-  ^-  state-32
+  ^-  state-33
   =/  new-envs=(map @ta (map @da envelope:noltbook))
     %-  ~(run by gossip-envelopes.s)
     |=  envs=(map @da envelope-21)
@@ -1093,7 +1132,7 @@
 ::  upgrade-22-to-23: enrich mention storage with stable eid
 ++  upgrade-22-to-23
   |=  s=state-22
-  ^-  state-32
+  ^-  state-33
   =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
     %-  ~(urn by mentions.s)
     |=  [nid=@ta mns=(list [id=@da author=@p])]
@@ -1122,7 +1161,7 @@
 ::  in-flight forks to become fetchable.
 ++  upgrade-30-to-31
   |=  s=state-30
-  ^-  state-32
+  ^-  state-33
   =?  s  (gth ~(wyt by pending-fork-invites.s) 0)
     ~&  [%dropping-legacy-pending-fork-invites count=~(wyt by pending-fork-invites.s)]
     s(pending-fork-invites *(map @ta state-30-pending-fork-invite))
@@ -1145,7 +1184,8 @@
 ::  upgrade-31-to-32: add empty contacts set
 ++  upgrade-31-to-32
   |=  s=state-31
-  ^-  state-32
+  ^-  state-33
+  %-  upgrade-32-to-33
   :*  %32
       notes.s  messages.s  artifacts.s  profiles.s
       transactions.s  current-note.s  peers.s  has-avatar.s
@@ -1162,10 +1202,31 @@
       fork-invitees.s
       *(set @p)
   ==
+::  upgrade-32-to-33: add empty dm-prefs map
+++  upgrade-32-to-33
+  |=  s=state-32
+  ^-  state-33
+  :*  %33
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      *(map @p dm-pref)
+  ==
 ::  upgrade-29-to-30: add pending-fork-invites map (empty).
 ++  upgrade-29-to-30
   |=  s=state-29
-  ^-  state-32
+  ^-  state-33
   %-  upgrade-30-to-31
   :*  %30
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1185,7 +1246,7 @@
 ::  note is treated as v1 (origin computed lazily by note-lineage-of helper).
 ++  upgrade-28-to-29
   |=  s=state-28
-  ^-  state-32
+  ^-  state-33
   %-  upgrade-29-to-30
   :*  %29
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1207,7 +1268,7 @@
 ::  remote host issues %remote-note-deleted post-upgrade.
 ++  upgrade-27-to-28
   |=  s=state-27
-  ^-  state-32
+  ^-  state-33
   %-  upgrade-28-to-29
   :*  %28
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1224,7 +1285,7 @@
 ::  upgrade-25-to-26: add blocked-by set
 ++  upgrade-26-to-27
   |=  s=state-26
-  ^-  state-32
+  ^-  state-33
   %-  upgrade-27-to-28
   :*  %27
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1239,7 +1300,7 @@
   ==
 ++  upgrade-25-to-26
   |=  s=state-25
-  ^-  state-32
+  ^-  state-33
   %-  upgrade-26-to-27
   :*  %26
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1254,7 +1315,7 @@
 ::  upgrade-24-to-25: add note-admins and note-muted maps
 ++  upgrade-24-to-25
   |=  s=state-24
-  ^-  state-32
+  ^-  state-33
   %-  upgrade-25-to-26
   :*  %25
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1596,7 +1657,7 @@
 ::  upgrade-23-to-24: add join-requests map
 ++  upgrade-23-to-24
   |=  s=state-23
-  ^-  state-32
+  ^-  state-33
   %-  upgrade-24-to-25
   :*  %24
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1615,6 +1676,31 @@
   =/  hay=tape  (trip txt)
   !=(~ (find needle hay))
 ::
+::  dm-counterparty: return the other ship in a 2-user DM, or ~ if not a
+::  well-formed DM users set including our.bowl.
+++  dm-counterparty
+  |=  [us=(set @p) me=@p]
+  ^-  (unit @p)
+  ?.  =(2 ~(wyt in us))  ~
+  ?.  (~(has in us) me)  ~
+  =/  others=(list @p)  (skim ~(tap in us) |=(p=@p !=(p me)))
+  ?~  others  ~
+  `i.others
+::  apply-dm-pref: overlay local DM prefs onto an incoming/created DM note.
+::  Returns the note with name + icon-url replaced by saved prefs if present.
+++  apply-dm-pref
+  |=  [n=note:noltbook prefs=(map @p dm-pref) me=@p]
+  ^-  note:noltbook
+  ?.  =(%dm type.n)  n
+  =/  cp=(unit @p)  (dm-counterparty users.n me)
+  ?~  cp  n
+  =/  pref=(unit dm-pref)  (~(get by prefs) u.cp)
+  ?~  pref  n
+  =/  with-name=note:noltbook
+    ?~  name.u.pref  n
+    n(name u.name.u.pref)
+  ?~  icon-url.u.pref  with-name
+  with-name(icon-url icon-url.u.pref)
 ::  root-uniqueness helpers
 ::  find-root: first non-cover root note whose users AND type match
 ++  find-root
@@ -1708,7 +1794,7 @@
   [(crip path-tape) args]
 --
 %-  agent:dbug
-=|  state-32
+=|  state-33
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -1726,8 +1812,8 @@
 ++  on-load
   |=  old=vase
   ^-  (quip card _this)
-  ?:  ?=([%32 *] q.old)
-    =/  loaded  !<(state-32 old)
+  ?:  ?=([%33 *] q.old)
+    =/  loaded  !<(state-33 old)
     ::  fix: ensure cover note exists and is keyed as %cover
     ::  (same normalizations carried forward from state-24 load)
     =/  loaded
@@ -1849,6 +1935,9 @@
       ^-  card
       [%pass /prof-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-profile our.bowl prof])]
     [prof-cards this(state loaded(active-calls *(map @ta call-info:noltbook)))]
+  ?:  ?=([%32 *] q.old)
+    =/  s32  !<(state-32 old)
+    $(old !>((upgrade-32-to-33 s32)))
   ?:  ?=([%31 *] q.old)
     =/  s31  !<(state-31 old)
     $(old !>((upgrade-31-to-32 s31)))
@@ -2508,7 +2597,11 @@
         :_  this
         %+  give-simple-payload:app:server  eyre-id
         [[404 ~] ~]
-      ?.  =(our.bowl creator.u.nt)
+      =/  is-dm=?  =(%dm type.u.nt)
+      ::  permission: creator always, or any DM member for local-only DM icon
+      ?.  ?|  =(our.bowl creator.u.nt)
+              &(is-dm (~(has in users.u.nt) our.bowl))
+          ==
         :_  this
         %+  give-simple-payload:app:server  eyre-id
         [[403 ~] ~]
@@ -2531,12 +2624,21 @@
       =/  meta-upd=update:noltbook  [%note-meta-updated nid visibility.u.nt `new-url writable.u.nt]
       =/  ok-payload=simple-payload:http  [[200 ~] ~]
       =/  http-cards  (give-simple-payload:app:server eyre-id ok-payload)
-      :_  this(notes (~(put by notes) nid new-nt))
-      %+  weld  http-cards
-      :~  clay-card
-          [%give %fact ~[/notes] %noltbook-update !>(meta-upd)]
-          [%give %fact ~[/notes/[nid]] %noltbook-update !>(meta-upd)]
-      ==
+      =/  meta-fact-cards=(list card)
+        ?:  is-dm
+          ~[[%give %fact ~[/notes] %noltbook-update !>(meta-upd)]]
+        :~  [%give %fact ~[/notes] %noltbook-update !>(meta-upd)]
+            [%give %fact ~[/notes/[nid]] %noltbook-update !>(meta-upd)]
+        ==
+      ::  persist DM icon as a local pref for the counterparty
+      =/  new-prefs=(map @p dm-pref)
+        ?.  is-dm  dm-prefs
+        =/  cp=(unit @p)  (dm-counterparty users.u.nt our.bowl)
+        ?~  cp  dm-prefs
+        =/  cur=dm-pref  (fall (~(get by dm-prefs) u.cp) [~ ~])
+        (~(put by dm-prefs) u.cp cur(icon-url `new-url))
+      :_  this(notes (~(put by notes) nid new-nt), dm-prefs new-prefs)
+      :(weld http-cards ~[clay-card] meta-fact-cards)
     ::  artifact fetch endpoint — auth-gated
     ::  GET /apps/noltbook/artifact/<aid>?v=<v>&download=1
     ::  - on the byte host (=creator): serve local Clay (404 if bytes missing)
@@ -2822,7 +2924,19 @@
         %rename-note
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
-      ::  only creator can rename
+      ::  DM: local-only rename; either member can rename their copy.
+      ::  Persist as dm-prefs[counterparty] so re-invited DM keeps the label.
+      ?:  =(%dm type.u.old)
+        ?.  (~(has in users.u.old) our.bowl)  `this
+        =/  cp=(unit @p)  (dm-counterparty users.u.old our.bowl)
+        =/  new-prefs=(map @p dm-pref)
+          ?~  cp  dm-prefs
+          =/  cur=dm-pref  (fall (~(get by dm-prefs) u.cp) [~ ~])
+          (~(put by dm-prefs) u.cp cur(name `name.act))
+        =/  upd=update:noltbook  [%note-renamed id.act name.act]
+        :_  this(notes (~(put by notes) id.act u.old(name name.act)), dm-prefs new-prefs)
+        ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
+      ::  non-DM: only creator can rename, broadcast to subscribers
       ?.  =(our.bowl creator.u.old)  `this
       =/  upd=update:noltbook  [%note-renamed id.act name.act]
       :_  this(notes (~(put by notes) id.act u.old(name name.act)))
@@ -3128,9 +3242,13 @@
         =/  upd=update:noltbook  [%new-message msg]
         =/  pax=path  ~[%notes note-id.act]
         =/  upd-note=note:noltbook  u.exists(last-author `our.bowl, last-preview `text.act)
+        ::  atomic DM delivery: ONE poke carrying both note metadata and
+        ::  message, so receiver can recreate the DM if they left without
+        ::  relying on poke ordering or subscriptions.
+        =/  dm-rem=remote:noltbook  [%remote-dm-message u.exists msg]
         =/  peer-cards=(list card)
           ?:  =(other our.bowl)  ~
-          ~[[%pass /dm-msg/[note-id.act] %agent [other %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-message note-id.act msg])]]
+          ~[[%pass /dm-msg/[note-id.act] %agent [other %noltbook] %poke %noltbook-remote !>(dm-rem)]]
         :_  this(notes (~(put by notes) note-id.act upd-note), messages (~(put by messages) note-id.act (snoc cur msg)), seq-counters ?:(is-regular (~(put by seq-counters) note-id.act nxt-seq) seq-counters))
         :(weld ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] peer-cards)
       ::  remote note: forward to creator
@@ -3306,6 +3424,19 @@
       ?:  (is-write-blocked id.act host-status notes our.bowl)  `this
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
+      ::  DM: local-only meta change (icon only); either member can set.
+      ::  Persist icon-url as dm-prefs[counterparty] for re-invited DMs.
+      ?:  =(%dm type.u.old)
+        ?.  (~(has in users.u.old) our.bowl)  `this
+        =/  cp=(unit @p)  (dm-counterparty users.u.old our.bowl)
+        =/  new-prefs=(map @p dm-pref)
+          ?~  cp  dm-prefs
+          =/  cur=dm-pref  (fall (~(get by dm-prefs) u.cp) [~ ~])
+          (~(put by dm-prefs) u.cp cur(icon-url icon-url.act))
+        =/  upd-note=note:noltbook  u.old(icon-url icon-url.act)
+        =/  upd=update:noltbook  [%note-meta-updated id.act visibility.u.old icon-url.act writable.u.old]
+        :_  this(notes (~(put by notes) id.act upd-note), dm-prefs new-prefs)
+        ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
       ::  only creator can change meta
       ?.  =(our.bowl creator.u.old)  `this
       ::  notebook -> group conversion: visibility public/private on a
@@ -4142,11 +4273,13 @@
         ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
       ::  no DM root — create one
       =/  nid=@ta  (crip (weld "note-" (trip (scot %da now.bowl))))
-      =/  new-dm=note:noltbook
+      =/  base-dm=note:noltbook
         :*  nid  (scot %p ship.act)  %dm  our.bowl  target-users  ~  ~  ~  ~  %secret  ~  &  ~  ~
         ==
-      ::  invite counterparty to DM root
-      =/  rem=remote:noltbook  [%remote-invite nid name.new-dm %dm our.bowl target-users %secret &]
+      ::  apply saved local prefs (name/icon) for this counterparty
+      =/  new-dm=note:noltbook  (apply-dm-pref base-dm dm-prefs our.bowl)
+      ::  invite counterparty with the DEFAULT name (do not leak local pref)
+      =/  rem=remote:noltbook  [%remote-invite nid name.base-dm %dm our.bowl target-users %secret &]
       =/  poke-card=card
         [%pass /invite/(scot %p ship.act)/[nid] %agent [ship.act %noltbook] %poke %noltbook-remote !>(rem)]
       ::  peer setup
@@ -4169,10 +4302,10 @@
       :(weld [poke-card [%give %fact ~[/notes] %noltbook-update !>(upd)] ~] ars-cards hey-cards pal-status-upd)
     ::
         %convert-to-dm
-      ::  convert a solo %group note into the canonical DM for {us, ship}
+      ::  convert a solo %notebook/%group note into the canonical DM for {us, ship}
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
-      ?.  =(%group type.u.old)  `this
+      ?.  ?|(=(%notebook type.u.old) =(%group type.u.old))  `this
       ?.  ?=(~ parent.u.old)  `this
       ?.  =(our.bowl creator.u.old)  `this
       ?.  =(~(wyt in users.u.old) 1)  `this
@@ -4208,10 +4341,10 @@
       :(weld [poke-card [%give %fact ~[/notes] %noltbook-update !>(upd)] ~] ars-cards hey-cards pal-status-upd)
     ::
         %merge-into-dm
-      ::  move content from a solo %group note into existing canonical DM, delete source
+      ::  move content from a solo %notebook/%group note into existing canonical DM, delete source
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
-      ?.  =(%group type.u.old)  `this
+      ?.  ?|(=(%notebook type.u.old) =(%group type.u.old))  `this
       ?.  ?=(~ parent.u.old)  `this
       ?.  =(our.bowl creator.u.old)  `this
       ?.  =(~(wyt in users.u.old) 1)  `this
@@ -4674,8 +4807,10 @@
         ?.  =(%dm type.rem)  `this
         :_  this
         ~[[%pass /dm-block-rej/(scot %p src.bowl)/[note-id.rem] %agent [src.bowl %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-dm-blocked note-id.rem])]]
-      =/  new-note=note:noltbook
+      =/  raw-note=note:noltbook
         [note-id.rem name.rem type.rem creator.rem users.rem ~ ~ ~ ~ visibility.rem ~ writable.rem ~ ~]
+      ::  for DMs, overlay saved local prefs (name/icon) — these never travel
+      =/  new-note=note:noltbook  (apply-dm-pref raw-note dm-prefs our.bowl)
       ::  root-uniqueness: dedup dm roots (one root per exact user pair)
       =/  dup
         ?.  =(%dm type.rem)  ~
@@ -4762,6 +4897,72 @@
             headlines  new-headlines
           ==
       :(weld [sub-card [%give %fact ~[/notes] %noltbook-update !>(upd)] ~] ars-cards)
+    ::
+        %remote-dm-message
+      ::  atomic DM delivery: payload carries DM note metadata, so the
+      ::  receiver can recreate the DM if they previously left it. No
+      ::  subscription, no echo poke — avoids ames loops.
+      ?:  (~(has in pal-blocked) src.bowl)  `this
+      ?.  =(%dm type.note.rem)  `this
+      ?.  =(2 ~(wyt in users.note.rem))  `this
+      ?.  (~(has in users.note.rem) our.bowl)  `this
+      ?.  (~(has in users.note.rem) src.bowl)  `this
+      ?.  =(src.bowl author.msg.rem)  `this
+      ::  resolve canonical local nid for this pair (handles re-creation
+      ::  after leave, and possible nid collision via root-wins).
+      =/  existing=(unit note:noltbook)  (find-dm-root notes users.note.rem)
+      =/  install-fresh=note:noltbook  (apply-dm-pref note.rem dm-prefs our.bowl)
+      =/  target-nid=@ta
+        ?~  existing  id.note.rem
+        ?:  =(id.u.existing id.note.rem)  id.u.existing
+        ?:  (root-wins [creator.u.existing id.u.existing] [creator.note.rem id.note.rem])
+          id.u.existing
+        id.note.rem
+      =/  staged-notes=(map @ta note:noltbook)
+        ?~  existing
+          (~(put by notes) target-nid install-fresh)
+        ?:  =(id.u.existing target-nid)  notes
+        ::  remote wins: drop local, install incoming
+        (~(put by (~(del by notes) id.u.existing)) target-nid install-fresh)
+      =/  staged-msgs=(map @ta (list message:noltbook))
+        ?~  existing
+          (~(put by messages) target-nid ~)
+        ?:  =(id.u.existing target-nid)  messages
+        (~(put by (~(del by messages) id.u.existing)) target-nid ~)
+      =/  note-cards=(list card)
+        ?~  existing
+          ~[[%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%note-created install-fresh])]]
+        ?:  =(id.u.existing target-nid)  ~
+        :~  [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%note-redirect id.u.existing target-nid])]
+            [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%note-created install-fresh])]
+        ==
+      ::  dedup message on target nid
+      =/  cur=(list message:noltbook)  (fall (~(get by staged-msgs) target-nid) ~)
+      =/  msg-eid=(unit @uv)  ?~(meta.msg.rem ~ `eid.u.meta.msg.rem)
+      =/  dup=?
+        ?|  (lien cur |=(m=message:noltbook =(id.m id.msg.rem)))
+            ?&  ?=(^ msg-eid)
+                (lien cur |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.msg-eid))))
+            ==
+        ==
+      ?:  dup
+        :_  this(notes staged-notes, messages staged-msgs)
+        note-cards
+      ::  The remote ship may know this DM under a different root id. Store
+      ::  and emit the message under our resolved local DM id so the frontend
+      ::  does not route it to the stale/remote id.
+      =/  local-msg=message:noltbook  msg.rem(note-id target-nid)
+      =/  new-cur=(list message:noltbook)  (snoc cur local-msg)
+      =/  target-note=note:noltbook  (~(got by staged-notes) target-nid)
+      =/  upd-note=note:noltbook
+        target-note(last-author `src.bowl, last-preview `text.local-msg)
+      =/  new-msg-upd=update:noltbook  [%new-message local-msg]
+      =/  msg-cards=(list card)
+        :~  [%give %fact ~[/notes/[target-nid]] %noltbook-update !>(new-msg-upd)]
+            [%give %fact ~[/notes] %noltbook-update !>(new-msg-upd)]
+        ==
+      :_  this(notes (~(put by staged-notes) target-nid upd-note), messages (~(put by staged-msgs) target-nid new-cur))
+      (weld note-cards msg-cards)
     ::
         %remote-message
       ::  a remote user sent a message to a note we host
@@ -5374,11 +5575,12 @@
         ?:  &(=(our.bowl creator.u.loser) ?=(~ parent.u.loser))
           (~(del by messages) losing-id.rem)
         messages
-      ::  install canonical if we don't have it
+      ::  install canonical if we don't have it (apply DM prefs locally)
       =/  have-canonical=?  (~(has by notes) id.canonical.rem)
+      =/  canon-local=note:noltbook  (apply-dm-pref canonical.rem dm-prefs our.bowl)
       =.  notes
         ?:  have-canonical  notes
-        (~(put by notes) id.canonical.rem canonical.rem)
+        (~(put by notes) id.canonical.rem canon-local)
       =.  messages
         ?:  have-canonical  messages
         (~(put by messages) id.canonical.rem ~)
@@ -5388,7 +5590,7 @@
         ?:  =(id.canonical.rem %cover)  ~
         ~[[%pass /remote-note/[id.canonical.rem] %agent [creator.canonical.rem %noltbook] %watch /notes/[id.canonical.rem]]]
       =/  redir=update:noltbook  [%note-redirect losing-id.rem id.canonical.rem]
-      =/  adopt=update:noltbook  [%note-created canonical.rem]
+      =/  adopt=update:noltbook  [%note-created canon-local]
       =/  tail-cards=(list card)
         :~  [%give %fact ~[/notes] %noltbook-update !>(adopt)]
             [%give %fact ~[/notes] %noltbook-update !>(redir)]
@@ -6345,6 +6547,9 @@
       ?~  old  `this
       =/  rev=note:noltbook  u.old(icon-url ~)
       =/  upd=update:noltbook  [%note-meta-updated nid visibility.u.old ~ writable.u.old]
+      ?:  =(%dm type.u.old)
+        :_  this(notes (~(put by notes) nid rev))
+        ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
       :_  this(notes (~(put by notes) nid rev))
       :~  [%give %fact ~[/notes] %noltbook-update !>(upd)]
           [%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]

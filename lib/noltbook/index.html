@@ -1133,19 +1133,30 @@ function isNoteBlocked(note){
 }
 function noteDisplayName(note){
   const cp=dmCounterparty(note);
-  if(cp)return displayName(cp);
+  if(cp){
+    // honor local rename; fall back to profile display when name is still default (@p)
+    if(note.name&&note.name!==cp)return note.name;
+    return displayName(cp);
+  }
   return note.name;
 }
 function resolveNoteIconUrl(note){
   if(!note.iconUrl)return null;
   if(note.iconUrl.startsWith('/apps/noltbook/icon/')){
+    // DM icons are local-only and may be uploaded on a ship that did not
+    // create the canonical DM root; allow local resolution regardless.
+    if(note.type==='dm')return note.iconUrl;
     if(note.creator!=='~'+api.ship)return null;
   }
   return note.iconUrl;
 }
 function noteDisplayIconHtml(note){
   const cp=dmCounterparty(note);
-  if(cp)return avatarHtml(cp);
+  if(cp){
+    const url=resolveNoteIconUrl(note);
+    if(url)return `<img src="${escAttr(url)}" style="width:100%;height:100%;object-fit:cover;border-radius:3px">`;
+    return avatarHtml(cp);
+  }
   const url=resolveNoteIconUrl(note);
   return url?`<img src="${escAttr(url)}" style="width:100%;height:100%;object-fit:cover;border-radius:3px">`:noteInitials(note.name);
 }
@@ -2221,6 +2232,11 @@ function showNoteContextMenu(event,noteId){
   const delItem=isDm?'<div class="context-menu-item danger" data-action="leave">Leave</div>'
     :isCreator?'<div class="context-menu-item danger" data-action="delete">Delete</div>'
     :'<div class="context-menu-item danger" data-action="leave">Leave</div>';
+  if(isDm){
+    menu.innerHTML=`
+      <div class="context-menu-item" data-action="profile">Profile</div>
+      ${delItem}`;
+  }else{
   menu.innerHTML=`
     <div class="context-menu-item${ro}" data-action="visibility" data-val="public"><span class="context-radio ${vis==='public'?'selected':''}"></span> Public</div>
     <div class="context-menu-item${ro}" data-action="visibility" data-val="private"><span class="context-radio ${vis==='private'?'selected':''}"></span> Private</div>
@@ -2235,6 +2251,7 @@ function showNoteContextMenu(event,noteId){
     ${noteCanCopyRef(note)?'<div class="context-menu-item" data-action="copyref">Copy Note Link</div>':''}
     ${isCreator?'<div class="context-menu-item" data-action="rename">Rename</div>':''}
     ${delItem}`;
+  }
   menu.style.left=event.pageX+'px';
   menu.style.top=event.pageY+'px';
   menu.style.visibility='hidden';
@@ -2253,6 +2270,7 @@ function showNoteContextMenu(event,noteId){
     else if(action==='rename'){closeContextMenu();promptRenameNote(noteId)}
     else if(action==='delete'){closeContextMenu();if(confirm('Delete "'+note.name+'"?'))api.poke('noltbook','noltbook-action',{action:'delete-note',data:{id:noteId}})}
     else if(action==='leave'){closeContextMenu();if(confirm('Leave "'+note.name+'"?'))api.poke('noltbook','noltbook-action',{action:'leave-note',data:{id:noteId}})}
+    else if(action==='profile'){closeContextMenu();const cp=dmCounterparty(note);if(cp)viewProfile(cp)}
   });
   document.body.appendChild(menu);
   const mr=menu.getBoundingClientRect();
