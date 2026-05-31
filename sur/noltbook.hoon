@@ -317,7 +317,7 @@
       [%cover-msg-content note-id=@ta msg=message]
       [%rumor-message msg=message]
       [%note-redirect old-id=@ta new-id=@ta]
-      [%note-users-updated id=@ta type=note-type users=(list @p) removed=(list @p)]
+      [%note-users-updated id=@ta type=note-type users=(list @p) removed=(list @p) rev=@ud]
       [%mention-update note-id=@ta mentions=(list [id=@da eid=(unit @uv) author=@p])]
       ::  call updates
       [%call-started note-id=@ta call-id=@ta started-by=@p participants=(list @p)]

@@ -35,6 +35,7 @@
       state-31
       state-32
       state-33
+      state-34
   ==
 ::  pre-entry-meta message shape — used by state-18 for on-load typing
 +$  message-18
@@ -799,6 +800,44 @@
       contacts=(set @p)
       dm-prefs=(map @p dm-pref)
   ==
+::  state-34: durable member-revisions per note. Each users/removed mutation
+::  bumps the note's rev so out-of-order %note-users-updated facts can be
+::  ignored by receivers without back-channel coordination.
++$  state-34
+  $:  %34
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+  ==
 ::  state-26: add durable blocked-by set (ships that have blocked us)
 +$  state-26
   $:  %26
@@ -1048,7 +1087,7 @@
 ::  chains through upgrade-20-to-21 → ... → upgrade-25-to-26
 ++  upgrade-19-to-20
   |=  s=state-19
-  ^-  state-33
+  ^-  state-34
   =/  new-seq=(map @ta @ud)
     %-  ~(rep by seq-counters.s)
     |=  [[[a=@p n=@ta] v=@ud] acc=(map @ta @ud)]
@@ -1068,7 +1107,7 @@
 ::  chains through upgrade-21-to-22 → upgrade-22-to-23
 ++  upgrade-20-to-21
   |=  s=state-20
-  ^-  state-33
+  ^-  state-34
   =/  new-msgs=(map @ta (list message:noltbook))
     %-  ~(run by messages.s)
     |=  msgs=(list message-20)
@@ -1110,7 +1149,7 @@
 ::  upgrade-21-to-22: add meta=(unit entry-meta) to envelopes
 ++  upgrade-21-to-22
   |=  s=state-21
-  ^-  state-33
+  ^-  state-34
   =/  new-envs=(map @ta (map @da envelope:noltbook))
     %-  ~(run by gossip-envelopes.s)
     |=  envs=(map @da envelope-21)
@@ -1132,7 +1171,7 @@
 ::  upgrade-22-to-23: enrich mention storage with stable eid
 ++  upgrade-22-to-23
   |=  s=state-22
-  ^-  state-33
+  ^-  state-34
   =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
     %-  ~(urn by mentions.s)
     |=  [nid=@ta mns=(list [id=@da author=@p])]
@@ -1161,7 +1200,7 @@
 ::  in-flight forks to become fetchable.
 ++  upgrade-30-to-31
   |=  s=state-30
-  ^-  state-33
+  ^-  state-34
   =?  s  (gth ~(wyt by pending-fork-invites.s) 0)
     ~&  [%dropping-legacy-pending-fork-invites count=~(wyt by pending-fork-invites.s)]
     s(pending-fork-invites *(map @ta state-30-pending-fork-invite))
@@ -1184,7 +1223,7 @@
 ::  upgrade-31-to-32: add empty contacts set
 ++  upgrade-31-to-32
   |=  s=state-31
-  ^-  state-33
+  ^-  state-34
   %-  upgrade-32-to-33
   :*  %32
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1205,7 +1244,8 @@
 ::  upgrade-32-to-33: add empty dm-prefs map
 ++  upgrade-32-to-33
   |=  s=state-32
-  ^-  state-33
+  ^-  state-34
+  %-  upgrade-33-to-34
   :*  %33
       notes.s  messages.s  artifacts.s  profiles.s
       transactions.s  current-note.s  peers.s  has-avatar.s
@@ -1223,10 +1263,38 @@
       contacts.s
       *(map @p dm-pref)
   ==
+::  upgrade-33-to-34: seed member-revs with rev=1 for every existing note
+::  so subsequent host-bumped revs are strictly greater than the implicit
+::  pre-migration value.
+++  upgrade-33-to-34
+  |=  s=state-33
+  ^-  state-34
+  =/  seeded-revs=(map @ta @ud)
+    %-  ~(rep by notes.s)
+    |=  [[k=@ta v=note:noltbook] acc=(map @ta @ud)]
+    (~(put by acc) k 1)
+  :*  %34
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      seeded-revs
+  ==
 ::  upgrade-29-to-30: add pending-fork-invites map (empty).
 ++  upgrade-29-to-30
   |=  s=state-29
-  ^-  state-33
+  ^-  state-34
   %-  upgrade-30-to-31
   :*  %30
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1246,7 +1314,7 @@
 ::  note is treated as v1 (origin computed lazily by note-lineage-of helper).
 ++  upgrade-28-to-29
   |=  s=state-28
-  ^-  state-33
+  ^-  state-34
   %-  upgrade-29-to-30
   :*  %29
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1268,7 +1336,7 @@
 ::  remote host issues %remote-note-deleted post-upgrade.
 ++  upgrade-27-to-28
   |=  s=state-27
-  ^-  state-33
+  ^-  state-34
   %-  upgrade-28-to-29
   :*  %28
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1285,7 +1353,7 @@
 ::  upgrade-25-to-26: add blocked-by set
 ++  upgrade-26-to-27
   |=  s=state-26
-  ^-  state-33
+  ^-  state-34
   %-  upgrade-27-to-28
   :*  %27
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1300,7 +1368,7 @@
   ==
 ++  upgrade-25-to-26
   |=  s=state-25
-  ^-  state-33
+  ^-  state-34
   %-  upgrade-26-to-27
   :*  %26
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1315,7 +1383,7 @@
 ::  upgrade-24-to-25: add note-admins and note-muted maps
 ++  upgrade-24-to-25
   |=  s=state-24
-  ^-  state-33
+  ^-  state-34
   %-  upgrade-25-to-26
   :*  %25
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1374,6 +1442,21 @@
   :~  [%give %fact ~[/notes] %noltbook-update !>(cu)]
       [%give %fact ~[/notes/[nid]] %noltbook-update !>(cu)]
   ==
+::  build-type-update-cards-by-ids: emit %note-type-updated facts on both
+::  /notes and /notes/[id] for each id in ids. Caller supplies the exact
+::  list (root + or - descendants) so this can emit for the precise set
+::  that actually changed type.
+++  build-type-update-cards-by-ids
+  |=  ids=(list @ta)
+  ^-  (list card:agent:gall)
+  %-  zing
+  %+  turn  ids
+  |=  nid=@ta
+  ^-  (list card:agent:gall)
+  =/  cu=update:noltbook  [%note-type-updated nid %group]
+  :~  [%give %fact ~[/notes] %noltbook-update !>(cu)]
+      [%give %fact ~[/notes/[nid]] %noltbook-update !>(cu)]
+  ==
 ::  ===== Phase 3: membership propagation helpers =====
 ::  collect-group-descendants: BFS-ordered list of descendant ids (root
 ::  excluded) that are %group type AND share the root's creator. Same-creator
@@ -1394,6 +1477,29 @@
   =/  cur=(unit note:noltbook)  (~(get by nmap) cid)
   ?~  cur  $(queue t.queue)
   ?.  &(=(%group type.u.cur) =(creator.u.cur host))
+    $(queue t.queue)
+  $(queue (weld t.queue children.u.cur), acc [cid acc])
+::  collect-share-descendants: BFS-ordered list of descendant ids (root
+::  excluded) treated as part of the shared subtree at invite time. Unlike
+::  collect-group-descendants this tolerates %notebook nodes (which the
+::  invite path normalizes to %group), so children created before the
+::  share-time conversion are still picked up. Same-creator guard.
+++  collect-share-descendants
+  |=  [root=@ta nmap=(map @ta note:noltbook)]
+  ^-  (list @ta)
+  =/  root-note=(unit note:noltbook)  (~(get by nmap) root)
+  ?~  root-note  ~
+  =/  host=@p  creator.u.root-note
+  =/  queue=(list @ta)  children.u.root-note
+  =/  acc=(list @ta)  ~
+  |-
+  ?~  queue  (flop acc)
+  =/  cid=@ta  i.queue
+  =/  cur=(unit note:noltbook)  (~(get by nmap) cid)
+  ?~  cur  $(queue t.queue)
+  ?.  ?&  ?|(=(%group type.u.cur) =(%notebook type.u.cur))
+          =(creator.u.cur host)
+      ==
     $(queue t.queue)
   $(queue (weld t.queue children.u.cur), acc [cid acc])
 ::  add-ship-to-ids: for each id, add ship to users + remove from removed.
@@ -1427,10 +1533,27 @@
   ?~  cur  $(ids t.ids)
   =/  nu=(set @p)  (~(del in users.u.cur) ship)
   $(ids t.ids, nmap (~(put by nmap) i.ids u.cur(users nu)))
+::  member-rev-of: current member rev for a note id (0 if absent).
+++  member-rev-of
+  |=  [nid=@ta revs=(map @ta @ud)]
+  ^-  @ud
+  (fall (~(get by revs) nid) 0)
+::  bump-member-rev: increment member rev for one note id.
+++  bump-member-rev
+  |=  [nid=@ta revs=(map @ta @ud)]
+  ^-  (map @ta @ud)
+  (~(put by revs) nid (add 1 (member-rev-of nid revs)))
+::  bump-member-revs: fold bump-member-rev over a list of ids.
+++  bump-member-revs
+  |=  [ids=(list @ta) revs=(map @ta @ud)]
+  ^-  (map @ta @ud)
+  ?~  ids  revs
+  $(ids t.ids, revs (bump-member-rev i.ids revs))
 ::  build-users-updated-cards: emit %note-users-updated facts on both /notes
-::  and /notes/[id] for each id, reading current users/removed from nmap.
+::  and /notes/[id] for each id, reading current users/removed/rev from
+::  nmap + revs.
 ++  build-users-updated-cards
-  |=  [ids=(list @ta) nmap=(map @ta note:noltbook)]
+  |=  [ids=(list @ta) nmap=(map @ta note:noltbook) revs=(map @ta @ud)]
   ^-  (list card:agent:gall)
   %-  zing
   %+  turn  ids
@@ -1439,7 +1562,7 @@
   =/  n=(unit note:noltbook)  (~(get by nmap) nid)
   ?~  n  ~
   =/  upd=update:noltbook
-    [%note-users-updated nid type.u.n ~(tap in users.u.n) ~(tap in removed.u.n)]
+    [%note-users-updated nid type.u.n ~(tap in users.u.n) ~(tap in removed.u.n) (member-rev-of nid revs)]
   ^-  (list card:agent:gall)
   :~  [%give %fact ~[/notes] %noltbook-update !>(upd)]
       [%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]
@@ -1657,7 +1780,7 @@
 ::  upgrade-23-to-24: add join-requests map
 ++  upgrade-23-to-24
   |=  s=state-23
-  ^-  state-33
+  ^-  state-34
   %-  upgrade-24-to-25
   :*  %24
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1722,6 +1845,56 @@
     &(?=(~ parent.n) =(users.n us) =(%dm type.n))
   ?~  hits  ~
   `i.hits
+::  append-child-if-missing: snoc a child id onto a children list only if
+::  not already present, preserving order.
+++  append-child-if-missing
+  |=  [c=@ta lst=(list @ta)]
+  ^-  (list @ta)
+  ?:  (lien lst |=(x=@ta =(x c)))  lst
+  (snoc lst c)
+::  find-orphan-children: scan notes for local entries whose parent is pid,
+::  return their ids. Used when a parent root arrives after one of its
+::  child notes — repairs root.children so the subtree renders.
+++  find-orphan-children
+  |=  [pid=@ta nmap=(map @ta note:noltbook)]
+  ^-  (list @ta)
+  %+  murn  ~(tap by nmap)
+  |=  [k=@ta n=note:noltbook]
+  ^-  (unit @ta)
+  ?~  parent.n  ~
+  ?.  =(u.parent.n pid)  ~
+  `k
+::  merge-children: start from base list, append any orphan ids not yet present.
+++  merge-children
+  |=  [base=(list @ta) extra=(list @ta)]
+  ^-  (list @ta)
+  ?~  extra  base
+  $(extra t.extra, base (append-child-if-missing i.extra base))
+::  ensure-system-notes: cover and rumors are infrastructure notes.
+::  Repair them at runtime too, not just during on-load, so a ship with
+::  damaged state can still boot the UI and post to cover.
+++  ensure-system-notes
+  |=  [nmap=(map @ta note:noltbook) mmap=(map @ta (list message:noltbook)) me=@p]
+  ^-  [notes=(map @ta note:noltbook) messages=(map @ta (list message:noltbook))]
+  =/  notes-out=(map @ta note:noltbook)  nmap
+  =/  msgs-out=(map @ta (list message:noltbook))  mmap
+  =/  cover=note:noltbook
+    [%cover 'ARS NOTORIA' %cover me (sy ~[me]) ~ ~ ~ ~ %secret ~ & ~ ~]
+  =/  rumors=note:noltbook
+    [%ars-rumors 'RUMORS' %cover me (sy ~[me]) ~ ~ ~ ~ %secret ~ & ~ ~]
+  =.  notes-out
+    ?:  (~(has by notes-out) %cover)  notes-out
+    (~(put by notes-out) %cover cover)
+  =.  msgs-out
+    ?:  (~(has by msgs-out) %cover)  msgs-out
+    (~(put by msgs-out) %cover ~)
+  =.  notes-out
+    ?:  (~(has by notes-out) %ars-rumors)  notes-out
+    (~(put by notes-out) %ars-rumors rumors)
+  =.  msgs-out
+    ?:  (~(has by msgs-out) %ars-rumors)  msgs-out
+    (~(put by msgs-out) %ars-rumors ~)
+  [notes-out msgs-out]
 ::  root-wins: does candidate a beat candidate b?
 ::  lower creator ship wins; tie → lower id (earlier) wins
 ++  root-wins
@@ -1794,7 +1967,7 @@
   [(crip path-tape) args]
 --
 %-  agent:dbug
-=|  state-33
+=|  state-34
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -1812,8 +1985,8 @@
 ++  on-load
   |=  old=vase
   ^-  (quip card _this)
-  ?:  ?=([%33 *] q.old)
-    =/  loaded  !<(state-33 old)
+  ?:  ?=([%34 *] q.old)
+    =/  loaded  !<(state-34 old)
     ::  fix: ensure cover note exists and is keyed as %cover
     ::  (same normalizations carried forward from state-24 load)
     =/  loaded
@@ -1935,6 +2108,9 @@
       ^-  card
       [%pass /prof-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-profile our.bowl prof])]
     [prof-cards this(state loaded(active-calls *(map @ta call-info:noltbook)))]
+  ?:  ?=([%33 *] q.old)
+    =/  s33  !<(state-33 old)
+    $(old !>((upgrade-33-to-34 s33)))
   ?:  ?=([%32 *] q.old)
     =/  s32  !<(state-32 old)
     $(old !>((upgrade-32-to-33 s32)))
@@ -2258,7 +2434,10 @@
   ?+  path  (on-watch:def path)
       [%notes ~]
     ::  local frontend only
-    =/  note-list=(list note:noltbook)  ~(val by notes)
+    =/  sys  (ensure-system-notes notes messages our.bowl)
+    =/  notes-now=(map @ta note:noltbook)  notes.sys
+    =/  messages-now=(map @ta (list message:noltbook))  messages.sys
+    =/  note-list=(list note:noltbook)  ~(val by notes-now)
     =/  upd=update:noltbook  [%note-list note-list]
     =/  prof-list=(list [@p profile:noltbook])  ~(tap by profiles)
     =/  pupd=update:noltbook  [%profile-list prof-list]
@@ -2295,7 +2474,7 @@
       %-  zing
       %+  turn  ~(tap by join-requests)
       |=  [nid=@ta ships=(set @p)]
-      =/  note  (~(get by notes) nid)
+      =/  note  (~(get by notes-now) nid)
       ?~  note  ~
       (turn ~(tap in ships) |=(s=@p [nid s name.u.note]))
     =/  jr-cards=(list card)
@@ -2304,7 +2483,7 @@
     ::  send admin/muted role state for each note
     =/  role-cards=(list card)
       %-  zing
-      %+  turn  ~(tap by notes)
+      %+  turn  ~(tap by notes-now)
       |=  [nid=@ta n=note:noltbook]
       =/  adms=(set @p)  (fall (~(get by note-admins) nid) ~)
       =/  mts=(set @p)  (fall (~(get by note-muted) nid) ~)
@@ -2328,7 +2507,7 @@
     ::  refresh. Falls back to defaults for notes without explicit lineage
     ::  (origin = sham[creator id], version = 1, fork-of = ~).
     =/  lineage-cards=(list card)
-      %+  turn  ~(tap by notes)
+      %+  turn  ~(tap by notes-now)
       |=  [nid=@ta n=note:noltbook]
       =/  origin=@uv  (lineage-origin-of n fork-origin)
       =/  version=@ud  (lineage-version-of nid fork-version)
@@ -2347,7 +2526,7 @@
           [%give %fact ~ %noltbook-update !>(contactupd)]
           [%give %fact ~ %noltbook-update !>(dialupd)]
       ==
-    :_  this
+    :_  this(notes notes-now, messages messages-now)
     :(weld init-cards mention-cards call-cards jr-cards role-cards bb-cards hs-cards lineage-cards pfi-cards)
   ::
       [%notes @ ~]
@@ -3135,6 +3314,10 @@
       ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
     ::
         %send-message
+      =/  sys-note=?  ?|(=(note-id.act %cover) =(note-id.act %ars-rumors))
+      =/  sys  (ensure-system-notes notes messages our.bowl)
+      =?  notes  sys-note  notes.sys
+      =?  messages  sys-note  messages.sys
       ?:  (is-write-blocked note-id.act host-status notes our.bowl)  `this
       =/  exists  (~(get by notes) note-id.act)
       ?~  exists  `this
@@ -3450,7 +3633,10 @@
       =/  converted=(list @ta)
         ?.  needs-convert  ~
         (collect-notebook-descendants id.act notes)
-      =?  notes  needs-convert  (apply-type-group converted notes)
+      =/  convert-ids=(list @ta)
+        ?.  needs-convert  ~
+        [id.act converted]
+      =?  notes  needs-convert  (apply-type-group convert-ids notes)
       =/  effective-old=note:noltbook
         ?.  needs-convert  u.old
         u.old(type %group)
@@ -3515,20 +3701,30 @@
         `this
       ::  %dm is strictly 2-user; cannot invite into DM
       ?:  =(%dm type.u.old)  `this
-      ::  safety-net notebook -> group conversion: any invite from a %notebook
-      ::  flips it (and any %notebook descendants) to %group before invite
-      ::  fan-out, so the outgoing %remote-invite carries type=%group.
-      =/  needs-convert=?  =(%notebook type.u.old)
-      =/  converted=(list @ta)
-        ?.  needs-convert  ~
-        (collect-notebook-descendants id.act notes)
-      =?  notes  needs-convert  (apply-type-group converted notes)
+      ::  share-time hydration: the entire notebook/group subtree under
+      ::  this root is part of the shared object. Collect it tolerantly
+      ::  (notebook or group), then normalize every notebook node + the
+      ::  root to %group so the outgoing invite + child pokes carry
+      ::  type=%group and the cascade walks the full subtree.
+      =/  share-descs=(list @ta)  (collect-share-descendants id.act notes)
+      =/  root-was-notebook=?  =(%notebook type.u.old)
+      =/  desc-changed=(list @ta)
+        %+  skim  share-descs
+        |=  nid=@ta
+        =/  n=(unit note:noltbook)  (~(get by notes) nid)
+        ?~  n  %.n
+        =(%notebook type.u.n)
+      =/  changed-ids=(list @ta)
+        ?:  root-was-notebook  [id.act desc-changed]
+        desc-changed
+      =/  needs-convert=?  !=(~ changed-ids)
+      =?  notes  needs-convert  (apply-type-group [id.act share-descs] notes)
       =/  effective-old=note:noltbook
-        ?.  needs-convert  u.old
-        u.old(type %group)
+        ?:  root-was-notebook  u.old(type %group)
+        u.old
       =/  type-updates=(list card)
         ?.  needs-convert  ~
-        (build-type-update-cards id.act converted)
+        (build-type-update-cards-by-ids changed-ids)
       ::  non-host group admin: forward invite request to host
       ?:  &(=(%group type.effective-old) !=(our.bowl creator.effective-old))
         =/  host=@p  creator.effective-old
@@ -3570,27 +3766,27 @@
         ?:  (~(has in (fall (~(get by note-admins) id.act) ~)) ship.act)  ~
         =/  mute-upd=update:noltbook  [%muted-updated id.act ~(tap in ro-muted)]
         ~[[%give %fact ~[/notes] %noltbook-update !>(mute-upd)] [%give %fact ~[/notes/[id.act]] %noltbook-update !>(mute-upd)]]
-      ::  Phase 3: cascade membership to %group descendants. Skip for %gossip.
-      =/  group-descs=(list @ta)
-        ?.  =(%group type.effective-old)  ~
-        (collect-group-descendants id.act notes)
+      ::  Phase 3: cascade membership to the shared subtree (root excluded).
+      ::  share-descs already filters non-group/non-notebook ids.
       =.  notes
-        ?:  =(~ group-descs)  notes
-        (add-ship-to-ids ship.act group-descs notes)
+        ?:  =(~ share-descs)  notes
+        (add-ship-to-ids ship.act share-descs notes)
+      =/  new-revs=(map @ta @ud)
+        (bump-member-revs [id.act share-descs] member-revs)
       =/  desc-users-cards=(list card)
-        ?:  =(~ group-descs)  ~
-        (build-users-updated-cards group-descs notes)
+        ?:  =(~ share-descs)  ~
+        (build-users-updated-cards share-descs notes new-revs)
       =/  desc-child-pokes=(list card)
-        ?:  =(~ group-descs)  ~
-        (build-remote-child-notes-to-ship ship.act group-descs notes)
+        ?:  =(~ share-descs)  ~
+        (build-remote-child-notes-to-ship ship.act share-descs notes)
       ::  notify existing remote subscribers of the root note that the
       ::  member list changed; without this they keep a stale users set
       ::  and can miss later invitees on local-only operations like fork.
       =/  root-users-upd=update:noltbook
-        [%note-users-updated id.act type.new-note ~(tap in users.new-note) ~(tap in removed.new-note)]
+        [%note-users-updated id.act type.new-note ~(tap in users.new-note) ~(tap in removed.new-note) (member-rev-of id.act new-revs)]
       =/  root-users-cards=(list card)
         ~[[%give %fact ~[/notes/[id.act]] %noltbook-update !>(root-users-upd)]]
-      :_  this(notes (~(put by notes) id.act new-note), peers new-peers, note-muted (~(put by note-muted) id.act ro-muted))
+      :_  this(notes (~(put by notes) id.act new-note), peers new-peers, note-muted (~(put by note-muted) id.act ro-muted), member-revs new-revs)
       :(weld type-updates [poke-card [%give %fact ~[/notes] %noltbook-update !>(upd)] ~] ars-cards ro-mute-cards desc-users-cards desc-child-pokes root-users-cards)
     ::
         %invite-to-note-batch
@@ -3604,18 +3800,28 @@
           ==
         `this
       ?:  =(%dm type.u.old)  `this
-      ::  one-shot notebook -> group conversion
-      =/  needs-convert=?  =(%notebook type.u.old)
-      =/  converted=(list @ta)
-        ?.  needs-convert  ~
-        (collect-notebook-descendants id.act notes)
-      =?  notes  needs-convert  (apply-type-group converted notes)
+      ::  share-time hydration (batch): walk full notebook/group subtree,
+      ::  flip notebook nodes + root to %group so every invitee sees the
+      ::  whole tree as a group.
+      =/  share-descs=(list @ta)  (collect-share-descendants id.act notes)
+      =/  root-was-notebook=?  =(%notebook type.u.old)
+      =/  desc-changed=(list @ta)
+        %+  skim  share-descs
+        |=  nid=@ta
+        =/  n=(unit note:noltbook)  (~(get by notes) nid)
+        ?~  n  %.n
+        =(%notebook type.u.n)
+      =/  changed-ids=(list @ta)
+        ?:  root-was-notebook  [id.act desc-changed]
+        desc-changed
+      =/  needs-convert=?  !=(~ changed-ids)
+      =?  notes  needs-convert  (apply-type-group [id.act share-descs] notes)
       =/  effective-old=note:noltbook
-        ?.  needs-convert  u.old
-        u.old(type %group)
+        ?:  root-was-notebook  u.old(type %group)
+        u.old
       =/  type-updates=(list card)
         ?.  needs-convert  ~
-        (build-type-update-cards id.act converted)
+        (build-type-update-cards-by-ids changed-ids)
       ::  clean input: dedup, drop self + existing members
       =/  cleaned=(set @p)
         =/  raw=(set @p)  (sy ships.act)
@@ -3684,35 +3890,38 @@
         ?:  =(~ to-mute)  ~
         =/  mute-upd=update:noltbook  [%muted-updated id.act ~(tap in new-muted)]
         ~[[%give %fact ~[/notes] %noltbook-update !>(mute-upd)] [%give %fact ~[/notes/[id.act]] %noltbook-update !>(mute-upd)]]
-      ::  cascade membership to %group descendants once
-      =/  group-descs=(list @ta)
-        ?.  =(%group type.effective-old)  ~
-        (collect-group-descendants id.act notes)
+      ::  cascade membership to shared subtree once; share-descs already
+      ::  filters non-group/non-notebook ids. Explicit trap seeded with
+      ::  current notes — `~(rep in ...)` would bunt nm to the empty map.
       =.  notes
-        ?:  =(~ group-descs)  notes
-        %-  ~(rep in cleaned)
-        |=  [p=@p nm=(map @ta note:noltbook)]
-        (add-ship-to-ids p group-descs nm)
+        ?:  =(~ share-descs)  notes
+        =/  ships=(list @p)  ~(tap in cleaned)
+        =/  nm=(map @ta note:noltbook)  notes
+        |-  ^-  (map @ta note:noltbook)
+        ?~  ships  nm
+        $(ships t.ships, nm (add-ship-to-ids i.ships share-descs nm))
+      =/  new-revs=(map @ta @ud)
+        (bump-member-revs [id.act share-descs] member-revs)
       =/  desc-users-cards=(list card)
-        ?:  =(~ group-descs)  ~
-        (build-users-updated-cards group-descs notes)
+        ?:  =(~ share-descs)  ~
+        (build-users-updated-cards share-descs notes new-revs)
       =/  desc-child-pokes=(list card)
-        ?:  =(~ group-descs)  ~
+        ?:  =(~ share-descs)  ~
         %-  zing
         %+  turn  ~(tap in cleaned)
         |=  p=@p
         ^-  (list card)
-        (build-remote-child-notes-to-ship p group-descs notes)
+        (build-remote-child-notes-to-ship p share-descs notes)
       ::  root /notes/[id] users update with FINAL set so existing subscribers
       ::  refresh in one shot
       =/  root-users-upd=update:noltbook
-        [%note-users-updated id.act type.new-note ~(tap in users.new-note) ~(tap in removed.new-note)]
+        [%note-users-updated id.act type.new-note ~(tap in users.new-note) ~(tap in removed.new-note) (member-rev-of id.act new-revs)]
       =/  root-users-cards=(list card)
         ~[[%give %fact ~[/notes/[id.act]] %noltbook-update !>(root-users-upd)]]
       =/  upd=update:noltbook  [%note-created new-note]
       =/  local-cards=(list card)
         ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
-      :_  this(notes (~(put by notes) id.act new-note), peers new-peers, note-muted (~(put by note-muted) id.act new-muted))
+      :_  this(notes (~(put by notes) id.act new-note), peers new-peers, note-muted (~(put by note-muted) id.act new-muted), member-revs new-revs)
       :(weld type-updates poke-cards local-cards ars-cards ro-mute-cards desc-users-cards desc-child-pokes root-users-cards)
     ::
         %create-artifact
@@ -3908,7 +4117,7 @@
         =/  new-users=(set @p)  (~(del in users.n) ship.act)
         =/  new-removed=(set @p)  (~(put in removed.n) ship.act)
         =/  upd-note=note:noltbook  n(users new-users, removed new-removed)
-        =/  users-upd=update:noltbook  [%note-users-updated nid type.n ~(tap in new-users) ~(tap in new-removed)]
+        =/  users-upd=update:noltbook  [%note-users-updated nid type.n ~(tap in new-users) ~(tap in new-removed) (member-rev-of nid member-revs)]
         =/  kick-card=card
           [%pass /kick/(scot %p ship.act)/[nid] %agent [ship.act %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-kick nid name.n])]
         ::  clean admin/muted role state for removed ship
@@ -4117,8 +4326,6 @@
       =/  sys-msg=message:noltbook  [now.bowl id.act our.bowl sys-text now.bowl ~ %.n ~]
       =/  old-msgs=(list message:noltbook)  (fall (~(get by messages) id.act) ~)
       =/  new-msgs=(list message:noltbook)  (snoc old-msgs sys-msg)
-      =/  users-upd=update:noltbook  [%note-users-updated id.act type.u.old ~(tap in new-users) ~(tap in new-removed)]
-      =/  msg-upd=update:noltbook  [%new-message sys-msg]
       ::  clean up admin/muted sets for removed member
       =/  clean-admins=(map @ta (set @p))
         =/  cur=(set @p)  (fall (~(get by note-admins) id.act) ~)
@@ -4139,10 +4346,14 @@
       =.  notes-after
         ?:  =(~ group-descs)  notes-after
         (remove-ship-from-ids ship.act group-descs notes-after)
+      =/  new-revs=(map @ta @ud)
+        (bump-member-revs [id.act group-descs] member-revs)
+      =/  users-upd=update:noltbook  [%note-users-updated id.act type.u.old ~(tap in new-users) ~(tap in new-removed) (member-rev-of id.act new-revs)]
+      =/  msg-upd=update:noltbook  [%new-message sys-msg]
       =/  desc-users-cards=(list card)
         ?:  =(~ group-descs)  ~
-        (build-users-updated-cards group-descs notes-after)
-      :_  this(notes notes-after, messages (~(put by messages) id.act new-msgs), note-admins clean-admins, note-muted clean-muted)
+        (build-users-updated-cards group-descs notes-after new-revs)
+      :_  this(notes notes-after, messages (~(put by messages) id.act new-msgs), note-admins clean-admins, note-muted clean-muted, member-revs new-revs)
       %+  weld
         ^-  (list card)
         :~  kick-card
@@ -4722,7 +4933,6 @@
       =/  ars-cards=(list card)
         ?.  is-new-peer  ~
         ~[[%pass /ars/(scot %p ship.act) %agent [ship.act %noltbook] %watch /notes/cover]]
-      =/  users-upd=update:noltbook  [%note-users-updated note-id.act type.u.old ~(tap in new-users) ~(tap in new-removed)]
       ::  emit updated join-request-list so host frontend removes processed request
       =/  jr-list=(list [note-id=@ta ship=@p note-name=@t])
         %-  zing
@@ -4747,13 +4957,16 @@
       =.  notes
         ?:  =(~ group-descs)  notes
         (add-ship-to-ids ship.act group-descs notes)
+      =/  new-revs=(map @ta @ud)
+        (bump-member-revs [note-id.act group-descs] member-revs)
+      =/  users-upd=update:noltbook  [%note-users-updated note-id.act type.u.old ~(tap in new-users) ~(tap in new-removed) (member-rev-of note-id.act new-revs)]
       =/  desc-users-cards=(list card)
         ?:  =(~ group-descs)  ~
-        (build-users-updated-cards group-descs notes)
+        (build-users-updated-cards group-descs notes new-revs)
       =/  desc-child-pokes=(list card)
         ?:  =(~ group-descs)  ~
         (build-remote-child-notes-to-ship ship.act group-descs notes)
-      :_  this(notes (~(put by notes) note-id.act new-note), peers new-peers, note-muted (~(put by note-muted) note-id.act ro-muted))
+      :_  this(notes (~(put by notes) note-id.act new-note), peers new-peers, note-muted (~(put by note-muted) note-id.act ro-muted), member-revs new-revs)
       :(weld [poke-card [%give %fact ~[/notes] %noltbook-update !>(users-upd)] [%give %fact ~[/notes/[note-id.act]] %noltbook-update !>(users-upd)] [%give %fact ~[/notes] %noltbook-update !>(jr-upd)] ~] ars-cards ro-mute-cards desc-users-cards desc-child-pokes)
     ::
         %deny-join
@@ -4827,8 +5040,9 @@
       ::  admin: note-scoped block (add to removed)
       =/  new-removed=(set @p)  (~(put in removed.u.old) ship.act)
       =/  upd-note=note:noltbook  u.old(removed new-removed)
-      =/  users-upd=update:noltbook  [%note-users-updated note-id.act type.u.old ~(tap in users.u.old) ~(tap in new-removed)]
-      :_  this(notes (~(put by notes) note-id.act upd-note))
+      =/  new-revs=(map @ta @ud)  (bump-member-rev note-id.act member-revs)
+      =/  users-upd=update:noltbook  [%note-users-updated note-id.act type.u.old ~(tap in users.u.old) ~(tap in new-removed) (member-rev-of note-id.act new-revs)]
+      :_  this(notes (~(put by notes) note-id.act upd-note), member-revs new-revs)
       :~  deny-card
           [%give %fact ~[/notes] %noltbook-update !>(users-upd)]
           [%give %fact ~[/notes/[note-id.act]] %noltbook-update !>(users-upd)]
@@ -4940,6 +5154,12 @@
         [note-id.rem name.rem type.rem creator.rem users.rem ~ ~ ~ ~ visibility.rem ~ writable.rem ~ ~]
       ::  for DMs, overlay saved local prefs (name/icon) — these never travel
       =/  new-note=note:noltbook  (apply-dm-pref raw-note dm-prefs our.bowl)
+      ::  repair children: if orphan child notes for this id already exist
+      ::  locally (delivered before the root invite), merge their ids into
+      ::  new-note.children so the subtree renders on install.
+      =/  orphan-children=(list @ta)  (find-orphan-children note-id.rem notes)
+      =/  new-note=note:noltbook
+        new-note(children (merge-children children.new-note orphan-children))
       ::  root-uniqueness: dedup dm roots (one root per exact user pair)
       =/  dup
         ?.  =(%dm type.rem)  ~
@@ -5585,12 +5805,36 @@
       :(weld ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] broadcast)
     ::
         %remote-child-note
-      ::  host created a child in a shared note; update our tree
+      ::  receive a child note from the host. Tolerate orphan delivery
+      ::  (root invite races behind child poke) by storing the child even
+      ::  if its parent is not yet present; root install repairs children.
+      ?.  =(parent.note.rem `parent-id.rem)  `this
+      ?.  =(creator.note.rem src.bowl)  `this
+      ?.  (~(has in users.note.rem) our.bowl)  `this
+      ?:  (~(has in removed.note.rem) our.bowl)  `this
+      ?.  ?|(=(%group type.note.rem) =(%notebook type.note.rem))  `this
+      =/  have-child=?  (~(has by notes) id.note.rem)
       =/  old-par  (~(get by notes) parent-id.rem)
-      ?~  old-par  `this
-      ::  must come from the host (creator of parent)
+      ?~  old-par
+        ::  parent missing — store as orphan, subscribe, emit %note-created
+        ?:  have-child  `this
+        =/  sub-card=card
+          [%pass /remote-note/[id.note.rem] %agent [creator.note.rem %noltbook] %watch /notes/[id.note.rem]]
+        =/  upd=update:noltbook  [%note-created note.rem]
+        :_  this(notes (~(put by notes) id.note.rem note.rem), messages (~(put by messages) id.note.rem *(list message:noltbook)))
+        :~  sub-card
+            [%give %fact ~[/notes] %noltbook-update !>(upd)]
+        ==
+      ::  parent present — host must match parent creator
       ?.  =(src.bowl creator.u.old-par)  `this
-      =/  new-par=note:noltbook  u.old-par(children (snoc children.u.old-par id.note.rem))
+      =/  new-children=(list @ta)  (append-child-if-missing id.note.rem children.u.old-par)
+      =/  attach-changed=?  !=(new-children children.u.old-par)
+      =/  new-par=note:noltbook  u.old-par(children new-children)
+      ?:  have-child
+        ::  already stored — only ensure parent is attached
+        ?.  attach-changed  `this
+        :_  this(notes (~(put by notes) parent-id.rem new-par))
+        ~
       =/  new-notes=(map @ta note:noltbook)
         (~(put by (~(put by notes) id.note.rem note.rem)) parent-id.rem new-par)
       =/  sub-card=card
@@ -5658,8 +5902,6 @@
       =/  clean-muted=(map @ta (set @p))
         ?.  was-muted  note-muted
         (~(put by note-muted) note-id.rem (~(del in (fall (~(get by note-muted) note-id.rem) ~)) src.bowl))
-      =/  users-upd=update:noltbook
-        [%note-users-updated note-id.rem type.u.old ~(tap in new-users) ~(tap in removed.u.old)]
       =/  admin-cards=(list card)
         ?.  was-admin  ~
         =/  adm-upd=update:noltbook  [%admins-updated note-id.rem ~(tap in (fall (~(get by clean-admins) note-id.rem) ~))]
@@ -5668,10 +5910,6 @@
         ?.  was-muted  ~
         =/  mut-upd=update:noltbook  [%muted-updated note-id.rem ~(tap in (fall (~(get by clean-muted) note-id.rem) ~))]
         [[%give %fact ~[/notes] %noltbook-update !>(mut-upd)] [%give %fact ~[/notes/[note-id.rem]] %noltbook-update !>(mut-upd)] ~]
-      =/  base-cards=(list card)
-        :~  [%give %fact ~[/notes] %noltbook-update !>(users-upd)]
-            [%give %fact ~[/notes/[note-id.rem]] %noltbook-update !>(users-upd)]
-        ==
       ::  Phase 3: cascade leaver removal to %group descendants. Use clear
       ::  (not remove) — leaver wasn't kicked, they left.
       =/  group-descs=(list @ta)
@@ -5682,10 +5920,18 @@
       =.  notes-after
         ?:  =(~ group-descs)  notes-after
         (clear-ship-from-ids src.bowl group-descs notes-after)
+      =/  new-revs=(map @ta @ud)
+        (bump-member-revs [note-id.rem group-descs] member-revs)
+      =/  users-upd=update:noltbook
+        [%note-users-updated note-id.rem type.u.old ~(tap in new-users) ~(tap in removed.u.old) (member-rev-of note-id.rem new-revs)]
+      =/  base-cards=(list card)
+        :~  [%give %fact ~[/notes] %noltbook-update !>(users-upd)]
+            [%give %fact ~[/notes/[note-id.rem]] %noltbook-update !>(users-upd)]
+        ==
       =/  desc-users-cards=(list card)
         ?:  =(~ group-descs)  ~
-        (build-users-updated-cards group-descs notes-after)
-      :_  this(notes notes-after, note-admins clean-admins, note-muted clean-muted)
+        (build-users-updated-cards group-descs notes-after new-revs)
+      :_  this(notes notes-after, note-admins clean-admins, note-muted clean-muted, member-revs new-revs)
       :(weld base-cards admin-cards muted-cards desc-users-cards)
     ::
         %remote-root-exists
@@ -5769,7 +6015,7 @@
         ^-  card
         [%pass /remote-note/[nid] %agent [src.bowl %noltbook] %leave ~]
       =/  users-updated-cards=(list card)
-        (build-users-updated-cards subtree-ids notes-after)
+        (build-users-updated-cards subtree-ids notes-after member-revs)
       :_  this(notes notes-after)
       ^-  (list card)
       :(weld unsub-cards users-updated-cards ^-((list card) ~[[%give %fact ~[/notes] %noltbook-update !>(kick-upd)]]))
@@ -6163,7 +6409,24 @@
         =/  ars-cards=(list card)
           ?.  is-new-peer  ~
           ~[[%pass /ars/(scot %p src.bowl) %agent [src.bowl %noltbook] %watch /notes/cover]]
-        =/  users-upd=update:noltbook  [%note-users-updated note-id.rem type.u.old ~(tap in new-users) ~(tap in new-removed)]
+        ::  Phase 3: cascade auto-approved joiner to %group descendants
+        =/  group-descs=(list @ta)
+          ?.  =(%group type.u.old)  ~
+          (collect-group-descendants note-id.rem notes)
+        =/  notes-after=(map @ta note:noltbook)
+          (~(put by notes) note-id.rem new-note)
+        =.  notes-after
+          ?:  =(~ group-descs)  notes-after
+          (add-ship-to-ids src.bowl group-descs notes-after)
+        =/  new-revs=(map @ta @ud)
+          (bump-member-revs [note-id.rem group-descs] member-revs)
+        =/  users-upd=update:noltbook  [%note-users-updated note-id.rem type.u.old ~(tap in new-users) ~(tap in new-removed) (member-rev-of note-id.rem new-revs)]
+        =/  desc-users-cards=(list card)
+          ?:  =(~ group-descs)  ~
+          (build-users-updated-cards group-descs notes-after new-revs)
+        =/  desc-child-pokes=(list card)
+          ?:  =(~ group-descs)  ~
+          (build-remote-child-notes-to-ship src.bowl group-descs notes-after)
         ::  auto-mute joiner if note is read-only
         =/  ro-muted=(set @p)
           ?.  !writable.u.old  (fall (~(get by note-muted) nid) ~)
@@ -6172,8 +6435,8 @@
           ?.  !writable.u.old  ~
           =/  mute-upd=update:noltbook  [%muted-updated nid ~(tap in ro-muted)]
           ~[[%give %fact ~[/notes] %noltbook-update !>(mute-upd)] [%give %fact ~[/notes/[nid]] %noltbook-update !>(mute-upd)]]
-        :_  this(notes (~(put by notes) note-id.rem new-note), peers new-peers, note-muted (~(put by note-muted) nid ro-muted))
-        :(weld [poke-card [%give %fact ~[/notes] %noltbook-update !>(users-upd)] [%give %fact ~[/notes/[note-id.rem]] %noltbook-update !>(users-upd)] ~] ars-cards ro-mute-cards)
+        :_  this(notes notes-after, peers new-peers, note-muted (~(put by note-muted) nid ro-muted), member-revs new-revs)
+        :(weld [poke-card [%give %fact ~[/notes] %noltbook-update !>(users-upd)] [%give %fact ~[/notes/[note-id.rem]] %noltbook-update !>(users-upd)] ~] ars-cards ro-mute-cards desc-users-cards desc-child-pokes)
       ::  private notes: queue pending request
       =/  pending=(set @p)  (fall (~(get by join-requests) note-id.rem) *(set @p))
       ::  already pending? send pending confirmation, no duplicate
@@ -6234,7 +6497,6 @@
         =/  sys-msg=message:noltbook  [now.bowl note-id.rem our.bowl sys-text now.bowl ~ %.n ~]
         =/  old-msgs=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
         =/  new-msgs=(list message:noltbook)  (snoc old-msgs sys-msg)
-        =/  users-upd=update:noltbook  [%note-users-updated note-id.rem type.u.old ~(tap in new-users) ~(tap in new-removed)]
         =/  msg-upd=update:noltbook  [%new-message sys-msg]
         =/  clean-admins=(map @ta (set @p))
           =/  cur=(set @p)  (fall (~(get by note-admins) note-id.rem) ~)
@@ -6255,10 +6517,13 @@
         =.  notes-after
           ?:  =(~ group-descs)  notes-after
           (remove-ship-from-ids target.rem group-descs notes-after)
+        =/  new-revs=(map @ta @ud)
+          (bump-member-revs [note-id.rem group-descs] member-revs)
+        =/  users-upd=update:noltbook  [%note-users-updated note-id.rem type.u.old ~(tap in new-users) ~(tap in new-removed) (member-rev-of note-id.rem new-revs)]
         =/  desc-users-cards=(list card)
           ?:  =(~ group-descs)  ~
-          (build-users-updated-cards group-descs notes-after)
-        :_  this(notes notes-after, messages (~(put by messages) note-id.rem new-msgs), note-admins clean-admins, note-muted clean-muted)
+          (build-users-updated-cards group-descs notes-after new-revs)
+        :_  this(notes notes-after, messages (~(put by messages) note-id.rem new-msgs), note-admins clean-admins, note-muted clean-muted, member-revs new-revs)
         %+  weld
           ^-  (list card)
           :~  kick-card
@@ -6311,7 +6576,6 @@
         =/  ars-cards=(list card)
           ?.  is-new-peer  ~
           ~[[%pass /ars/(scot %p target.rem) %agent [target.rem %noltbook] %watch /notes/cover]]
-        =/  users-upd=update:noltbook  [%note-users-updated note-id.rem type.u.old ~(tap in new-users) ~(tap in new-removed)]
         =/  jr-list=(list [note-id=@ta ship=@p note-name=@t])
           %-  zing
           %+  turn  ~(tap by join-requests)
@@ -6337,13 +6601,16 @@
         =.  notes-after
           ?:  =(~ group-descs)  notes-after
           (add-ship-to-ids target.rem group-descs notes-after)
+        =/  new-revs=(map @ta @ud)
+          (bump-member-revs [note-id.rem group-descs] member-revs)
+        =/  users-upd=update:noltbook  [%note-users-updated note-id.rem type.u.old ~(tap in new-users) ~(tap in new-removed) (member-rev-of note-id.rem new-revs)]
         =/  desc-users-cards=(list card)
           ?:  =(~ group-descs)  ~
-          (build-users-updated-cards group-descs notes-after)
+          (build-users-updated-cards group-descs notes-after new-revs)
         =/  desc-child-pokes=(list card)
           ?:  =(~ group-descs)  ~
           (build-remote-child-notes-to-ship target.rem group-descs notes-after)
-        :_  this(notes notes-after, peers new-peers, note-muted (~(put by note-muted) note-id.rem ro-muted))
+        :_  this(notes notes-after, peers new-peers, note-muted (~(put by note-muted) note-id.rem ro-muted), member-revs new-revs)
         :(weld [poke-card [%give %fact ~[/notes] %noltbook-update !>(users-upd)] [%give %fact ~[/notes/[note-id.rem]] %noltbook-update !>(users-upd)] [%give %fact ~[/notes] %noltbook-update !>(jr-upd)] ~] ars-cards ro-mute-cards desc-users-cards desc-child-pokes)
       ::
           %deny-join
@@ -6376,7 +6643,8 @@
           (~(put by join-requests) note-id.rem new-pending)
         =/  new-removed=(set @p)  (~(put in removed.u.old) target.rem)
         =/  upd-note=note:noltbook  u.old(removed new-removed)
-        =/  users-upd=update:noltbook  [%note-users-updated note-id.rem type.u.old ~(tap in users.u.old) ~(tap in new-removed)]
+        =/  new-revs=(map @ta @ud)  (bump-member-rev note-id.rem member-revs)
+        =/  users-upd=update:noltbook  [%note-users-updated note-id.rem type.u.old ~(tap in users.u.old) ~(tap in new-removed) (member-rev-of note-id.rem new-revs)]
         =/  jr-list=(list [note-id=@ta ship=@p note-name=@t])
           %-  zing
           %+  turn  ~(tap by join-requests)
@@ -6385,7 +6653,7 @@
           ?~  n  ~
           (turn ~(tap in ships) |=(s=@p [nid s name.u.n]))
         =/  jr-upd=update:noltbook  [%join-request-list jr-list]
-        :_  this(notes (~(put by notes) note-id.rem upd-note))
+        :_  this(notes (~(put by notes) note-id.rem upd-note), member-revs new-revs)
         :~  [%pass /join-deny/(scot %p target.rem)/[note-id.rem] %agent [target.rem %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-join-denied note-id.rem])]
             [%give %fact ~[/notes] %noltbook-update !>(users-upd)]
             [%give %fact ~[/notes/[note-id.rem]] %noltbook-update !>(users-upd)]
@@ -6407,7 +6675,6 @@
         =/  ars-cards=(list card)
           ?.  is-new-peer  ~
           ~[[%pass /ars/(scot %p target.rem) %agent [target.rem %noltbook] %watch /notes/cover]]
-        =/  users-upd=update:noltbook  [%note-users-updated note-id.rem type.u.old ~(tap in new-users) ~(tap in new-removed)]
         =/  pax=path  ~[%notes note-id.rem]
         ::  auto-mute invitee if note is read-only
         =/  ro-muted=(set @p)
@@ -6426,13 +6693,16 @@
         =.  notes-after
           ?:  =(~ group-descs)  notes-after
           (add-ship-to-ids target.rem group-descs notes-after)
+        =/  new-revs=(map @ta @ud)
+          (bump-member-revs [note-id.rem group-descs] member-revs)
+        =/  users-upd=update:noltbook  [%note-users-updated note-id.rem type.u.old ~(tap in new-users) ~(tap in new-removed) (member-rev-of note-id.rem new-revs)]
         =/  desc-users-cards=(list card)
           ?:  =(~ group-descs)  ~
-          (build-users-updated-cards group-descs notes-after)
+          (build-users-updated-cards group-descs notes-after new-revs)
         =/  desc-child-pokes=(list card)
           ?:  =(~ group-descs)  ~
           (build-remote-child-notes-to-ship target.rem group-descs notes-after)
-        :_  this(notes notes-after, peers new-peers, note-muted (~(put by note-muted) note-id.rem ro-muted))
+        :_  this(notes notes-after, peers new-peers, note-muted (~(put by note-muted) note-id.rem ro-muted), member-revs new-revs)
         :(weld ~[poke-card] ~[[%give %fact ~[/notes] %noltbook-update !>(users-upd)]] ~[[%give %fact ~[pax] %noltbook-update !>(users-upd)]] ars-cards ro-mute-cards desc-users-cards desc-child-pokes)
       ==
     ::
@@ -6862,9 +7132,11 @@
           ==
         ::
             %note-users-updated
+          ::  drop strictly-stale snapshots; equal-rev still applies.
+          ?:  (lth rev.upd (member-rev-of id.upd member-revs))  `this
           =?  notes  ?=(^ note)
             (~(put by notes) id.upd u.note(users (sy users.upd), removed (sy removed.upd), type type.upd))
-          :_  this
+          :_  this(member-revs (~(put by member-revs) id.upd rev.upd))
           ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
         ==
       ::  === regular note: persist full messages ===
@@ -6987,10 +7259,11 @@
         ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
       ::
           %note-users-updated
-        ::  host updated the user set; sync locally
+        ::  host updated the user set; drop strictly-stale snapshots.
+        ?:  (lth rev.upd (member-rev-of id.upd member-revs))  `this
         =?  notes  ?=(^ note)
           (~(put by notes) id.upd u.note(users (sy users.upd), removed (sy removed.upd), type type.upd))
-        :_  this
+        :_  this(member-revs (~(put by member-revs) id.upd rev.upd))
         ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
       ::
           %note-renamed

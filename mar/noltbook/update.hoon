@@ -214,6 +214,7 @@
           ['type' s+(crip (trip (scot %tas type.upd)))]
           ['users' a+(turn users.upd |=(p=@p s+(scot %p p)))]
           ['removed' a+(turn removed.upd |=(p=@p s+(scot %p p)))]
+          ['rev' (numb rev.upd)]
       ==
     ::
         %mention-update
