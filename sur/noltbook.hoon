@@ -181,7 +181,7 @@
       [%remote-fork-fetch root-id=@ta]
       ::  fork payload: forker replies with notes + per-node source-id (so the
       ::  receiver can set lineage.fork-of correctly).
-      [%remote-fork-payload root-id=@ta source-root-id=@ta root-note=note descendants=(list [n=note source-id=@ta]) fork-origin=@uv fork-version=@ud]
+      [%remote-fork-payload root-id=@ta source-root-id=@ta root-note=note descendants=(list [n=note source-id=@ta]) fork-origin=@uv fork-version=@ud parent-version=@ud]
       ::  fork denied: forker refuses an unauthorized %remote-fork-fetch.
       [%remote-fork-denied root-id=@ta]
       [%remote-introduce ship=@p]
@@ -290,7 +290,7 @@
       [%note-host-status id=@ta status=(unit ?(%host-deleted %host-unreachable))]
       ::  fork lineage: origin=stable lineage id, version=fork depth (1=original)
       ::  fork-of=direct source pointer (~ for original)
-      [%note-lineage-set id=@ta fork-origin=@uv fork-version=@ud fork-of=(unit [host=@p nid=@ta])]
+      [%note-lineage-set id=@ta fork-origin=@uv fork-version=@ud fork-of=(unit [host=@p nid=@ta]) parent-version=(unit @ud)]
       [%fork-invite-received root-id=@ta source-name=@t source-version=@ud forker=@p]
       [%fork-invite-cleared root-id=@ta]
       [%fork-invite-accepted root-id=@ta]

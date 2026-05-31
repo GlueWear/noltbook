@@ -36,6 +36,7 @@
       state-32
       state-33
       state-34
+      state-35
   ==
 ::  pre-entry-meta message shape — used by state-18 for on-load typing
 +$  message-18
@@ -838,6 +839,44 @@
       dm-prefs=(map @p dm-pref)
       member-revs=(map @ta @ud)
   ==
+::  state-35: explicit parent-version per forked note so future UI can say
+::  "forked from v2 ~u2" without inferring from fork-version-1.
++$  state-35
+  $:  %35
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+  ==
 ::  state-26: add durable blocked-by set (ships that have blocked us)
 +$  state-26
   $:  %26
@@ -1087,7 +1126,7 @@
 ::  chains through upgrade-20-to-21 → ... → upgrade-25-to-26
 ++  upgrade-19-to-20
   |=  s=state-19
-  ^-  state-34
+  ^-  state-35
   =/  new-seq=(map @ta @ud)
     %-  ~(rep by seq-counters.s)
     |=  [[[a=@p n=@ta] v=@ud] acc=(map @ta @ud)]
@@ -1107,7 +1146,7 @@
 ::  chains through upgrade-21-to-22 → upgrade-22-to-23
 ++  upgrade-20-to-21
   |=  s=state-20
-  ^-  state-34
+  ^-  state-35
   =/  new-msgs=(map @ta (list message:noltbook))
     %-  ~(run by messages.s)
     |=  msgs=(list message-20)
@@ -1149,7 +1188,7 @@
 ::  upgrade-21-to-22: add meta=(unit entry-meta) to envelopes
 ++  upgrade-21-to-22
   |=  s=state-21
-  ^-  state-34
+  ^-  state-35
   =/  new-envs=(map @ta (map @da envelope:noltbook))
     %-  ~(run by gossip-envelopes.s)
     |=  envs=(map @da envelope-21)
@@ -1171,7 +1210,7 @@
 ::  upgrade-22-to-23: enrich mention storage with stable eid
 ++  upgrade-22-to-23
   |=  s=state-22
-  ^-  state-34
+  ^-  state-35
   =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
     %-  ~(urn by mentions.s)
     |=  [nid=@ta mns=(list [id=@da author=@p])]
@@ -1200,7 +1239,7 @@
 ::  in-flight forks to become fetchable.
 ++  upgrade-30-to-31
   |=  s=state-30
-  ^-  state-34
+  ^-  state-35
   =?  s  (gth ~(wyt by pending-fork-invites.s) 0)
     ~&  [%dropping-legacy-pending-fork-invites count=~(wyt by pending-fork-invites.s)]
     s(pending-fork-invites *(map @ta state-30-pending-fork-invite))
@@ -1223,7 +1262,7 @@
 ::  upgrade-31-to-32: add empty contacts set
 ++  upgrade-31-to-32
   |=  s=state-31
-  ^-  state-34
+  ^-  state-35
   %-  upgrade-32-to-33
   :*  %32
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1244,7 +1283,7 @@
 ::  upgrade-32-to-33: add empty dm-prefs map
 ++  upgrade-32-to-33
   |=  s=state-32
-  ^-  state-34
+  ^-  state-35
   %-  upgrade-33-to-34
   :*  %33
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1268,11 +1307,12 @@
 ::  pre-migration value.
 ++  upgrade-33-to-34
   |=  s=state-33
-  ^-  state-34
+  ^-  state-35
   =/  seeded-revs=(map @ta @ud)
     %-  ~(rep by notes.s)
     |=  [[k=@ta v=note:noltbook] acc=(map @ta @ud)]
     (~(put by acc) k 1)
+  %-  upgrade-34-to-35
   :*  %34
       notes.s  messages.s  artifacts.s  profiles.s
       transactions.s  current-note.s  peers.s  has-avatar.s
@@ -1291,10 +1331,35 @@
       dm-prefs.s
       seeded-revs
   ==
+::  upgrade-34-to-35: add empty fork-parent-version map. Existing forks
+::  without explicit parent-version fall back to fork-version-1 via the
+::  encoder default.
+++  upgrade-34-to-35
+  |=  s=state-34
+  ^-  state-35
+  :*  %35
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      *(map @ta @ud)
+  ==
 ::  upgrade-29-to-30: add pending-fork-invites map (empty).
 ++  upgrade-29-to-30
   |=  s=state-29
-  ^-  state-34
+  ^-  state-35
   %-  upgrade-30-to-31
   :*  %30
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1314,7 +1379,7 @@
 ::  note is treated as v1 (origin computed lazily by note-lineage-of helper).
 ++  upgrade-28-to-29
   |=  s=state-28
-  ^-  state-34
+  ^-  state-35
   %-  upgrade-29-to-30
   :*  %29
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1336,7 +1401,7 @@
 ::  remote host issues %remote-note-deleted post-upgrade.
 ++  upgrade-27-to-28
   |=  s=state-27
-  ^-  state-34
+  ^-  state-35
   %-  upgrade-28-to-29
   :*  %28
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1353,7 +1418,7 @@
 ::  upgrade-25-to-26: add blocked-by set
 ++  upgrade-26-to-27
   |=  s=state-26
-  ^-  state-34
+  ^-  state-35
   %-  upgrade-27-to-28
   :*  %27
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1368,7 +1433,7 @@
   ==
 ++  upgrade-25-to-26
   |=  s=state-25
-  ^-  state-34
+  ^-  state-35
   %-  upgrade-26-to-27
   :*  %26
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1383,7 +1448,7 @@
 ::  upgrade-24-to-25: add note-admins and note-muted maps
 ++  upgrade-24-to-25
   |=  s=state-24
-  ^-  state-34
+  ^-  state-35
   %-  upgrade-25-to-26
   :*  %25
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1762,6 +1827,7 @@
           fo=(map @ta @uv)
           fv=(map @ta @ud)
           fp=(map @ta [host=@p nid=@ta])
+          fpv=(map @ta @ud)
       ==
   ^-  (list card:agent:gall)
   %-  zing
@@ -1773,14 +1839,21 @@
   =/  origin=@uv  (lineage-origin-of u.n fo)
   =/  version=@ud  (lineage-version-of nid fv)
   =/  parent=(unit [host=@p nid=@ta])  (~(get by fp) nid)
-  =/  upd=update:noltbook  [%note-lineage-set nid origin version parent]
+  ::  prefer stored explicit parent-version; otherwise fall back to v-1
+  ::  for forks (v>1), or ~ for non-forks (v==1).
+  =/  parent-ver=(unit @ud)
+    =/  stored  (~(get by fpv) nid)
+    ?^  stored  `u.stored
+    ?:  (gth version 1)  `(sub version 1)
+    ~
+  =/  upd=update:noltbook  [%note-lineage-set nid origin version parent parent-ver]
   :~  [%give %fact ~[/notes] %noltbook-update !>(upd)]
       [%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]
   ==
 ::  upgrade-23-to-24: add join-requests map
 ++  upgrade-23-to-24
   |=  s=state-23
-  ^-  state-34
+  ^-  state-35
   %-  upgrade-24-to-25
   :*  %24
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1967,7 +2040,7 @@
   [(crip path-tape) args]
 --
 %-  agent:dbug
-=|  state-34
+=|  state-35
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -1985,8 +2058,8 @@
 ++  on-load
   |=  old=vase
   ^-  (quip card _this)
-  ?:  ?=([%34 *] q.old)
-    =/  loaded  !<(state-34 old)
+  ?:  ?=([%35 *] q.old)
+    =/  loaded  !<(state-35 old)
     ::  fix: ensure cover note exists and is keyed as %cover
     ::  (same normalizations carried forward from state-24 load)
     =/  loaded
@@ -2108,6 +2181,9 @@
       ^-  card
       [%pass /prof-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-profile our.bowl prof])]
     [prof-cards this(state loaded(active-calls *(map @ta call-info:noltbook)))]
+  ?:  ?=([%34 *] q.old)
+    =/  s34  !<(state-34 old)
+    $(old !>((upgrade-34-to-35 s34)))
   ?:  ?=([%33 *] q.old)
     =/  s33  !<(state-33 old)
     $(old !>((upgrade-33-to-34 s33)))
@@ -2512,7 +2588,12 @@
       =/  origin=@uv  (lineage-origin-of n fork-origin)
       =/  version=@ud  (lineage-version-of nid fork-version)
       =/  parent=(unit [host=@p nid=@ta])  (~(get by fork-of) nid)
-      [%give %fact ~ %noltbook-update !>(`update:noltbook`[%note-lineage-set nid origin version parent])]
+      =/  parent-ver=(unit @ud)
+        =/  stored  (~(get by fork-parent-version) nid)
+        ?^  stored  `u.stored
+        ?:  (gth version 1)  `(sub version 1)
+        ~
+      [%give %fact ~ %noltbook-update !>(`update:noltbook`[%note-lineage-set nid origin version parent parent-ver])]
     ::  replay pending fork invites so the receiver sees the banner again
     ::  after refresh.
     =/  pfi-cards=(list card)
@@ -4475,7 +4556,10 @@
       =/  src  (~(get by notes) id.act)
       ?~  src  `this
       ?.  =(%group type.u.src)  `this
-      ?.  (~(has in users.u.src) our.bowl)  `this
+      ::  removed archive holders may still fork — match the FE affordance.
+      =/  can-fork=?
+        |((~(has in users.u.src) our.bowl) (~(has in removed.u.src) our.bowl))
+      ?.  can-fork  `this
       ::  collect subtree (%group descendants, same creator as source root)
       =/  desc-ids=(list @ta)  (collect-group-descendants id.act notes)
       =/  src-ids=(list @ta)  [id.act desc-ids]
@@ -4538,6 +4622,12 @@
         |-
         ?~  todo  fork-of
         $(todo t.todo, fork-of (~(put by fork-of) new.i.todo [src-host old.i.todo]))
+      ::  explicit parent-version: every new id was forked from src-version.
+      =/  fork-parent-version-after=(map @ta @ud)
+        =/  todo  pairs
+        |-
+        ?~  todo  fork-parent-version
+        $(todo t.todo, fork-parent-version (~(put by fork-parent-version) new.i.todo src-version))
       ::  outgoing fork invites: metadata-only. Receiver stores as pending
       ::  and must explicitly accept to trigger %remote-fork-fetch.
       =/  new-root-id=@ta  (~(got by id-map) id.act)
@@ -4564,7 +4654,7 @@
         =/  n  (~(got by notes-after) nid)
         [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%note-created n])]
       =/  lineage-cards=(list card)
-        (build-lineage-set-cards new-ids notes-after fork-origin-after fork-version-after fork-of-after)
+        (build-lineage-set-cards new-ids notes-after fork-origin-after fork-version-after fork-of-after fork-parent-version-after)
       :_  %=  this
             notes  notes-after
             messages  messages-after
@@ -4573,6 +4663,7 @@
             fork-origin  fork-origin-after
             fork-version  fork-version-after
             fork-of  fork-of-after
+            fork-parent-version  fork-parent-version-after
             fork-invitees  fork-invitees-after
           ==
       ^-  (list card)
@@ -6122,6 +6213,13 @@
         (lineage-origin-of u.root fork-origin)
       =/  fork-ver=@ud
         (lineage-version-of root-id.rem fork-version)
+      ::  carry our stored parent-version (the source version we forked
+      ::  from); fall back to fork-ver-1 for older state.
+      =/  parent-ver=@ud
+        =/  stored  (~(get by fork-parent-version) root-id.rem)
+        ?^  stored  u.stored
+        ?:  (gth fork-ver 1)  (sub fork-ver 1)
+        0
       =/  desc-pairs=(list [n=note:noltbook source-id=@ta])
         %+  murn  desc-ids
         |=  did=@ta
@@ -6135,7 +6233,7 @@
       =/  pload=remote:noltbook
         :*  %remote-fork-payload
             root-id.rem  src-root-id  u.root  desc-pairs
-            src-origin  fork-ver
+            src-origin  fork-ver  parent-ver
         ==
       :_  this
       ~[[%pass /fork-pay/(scot %p src.bowl)/[root-id.rem] %agent [src.bowl %noltbook] %poke %noltbook-remote !>(pload)]]
@@ -6197,6 +6295,13 @@
         |-
         ?~  todo  fork-of
         $(todo t.todo, fork-of (~(put by fork-of) id.n.i.todo [src.bowl source-id.i.todo]))
+      ::  every incoming node was forked from parent-version.rem on the
+      ::  forker's source — record it for root + descendants.
+      =/  fork-parent-version-after=(map @ta @ud)
+        =/  todo  all-incoming
+        |-
+        ?~  todo  fork-parent-version
+        $(todo t.todo, fork-parent-version (~(put by fork-parent-version) id.i.todo parent-version.rem))
       =/  sub-cards=(list card)
         %+  turn  all-incoming
         |=  n=note:noltbook
@@ -6211,7 +6316,7 @@
         %+  turn  all-incoming
         |=  n=note:noltbook  id.n
       =/  lineage-cards=(list card)
-        (build-lineage-set-cards all-ids notes-after fork-origin-after fork-version-after fork-of-after)
+        (build-lineage-set-cards all-ids notes-after fork-origin-after fork-version-after fork-of-after fork-parent-version-after)
       =/  cleared=update:noltbook  [%fork-invite-cleared root-id.rem]
       =/  accepted=update:noltbook  [%fork-invite-accepted root-id.rem]
       :_  %=  this
@@ -6220,6 +6325,7 @@
             fork-origin  fork-origin-after
             fork-version  fork-version-after
             fork-of  fork-of-after
+            fork-parent-version  fork-parent-version-after
             peers  (~(put in peers) src.bowl)
             pending-fork-invites  (~(del by pending-fork-invites) root-id.rem)
           ==

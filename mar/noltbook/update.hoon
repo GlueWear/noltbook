@@ -60,6 +60,9 @@
           :-  'forkOf'
           ?~  fork-of.upd  ~
           (pairs ~[['host' s+(scot %p host.u.fork-of.upd)] ['nid' s+(crip (trip nid.u.fork-of.upd))]])
+          :-  'parentVersion'
+          ?~  parent-version.upd  ~
+          (numb u.parent-version.upd)
       ==
     ::
         %fork-invite-received
