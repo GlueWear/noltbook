@@ -37,6 +37,7 @@
       state-33
       state-34
       state-35
+      state-36
   ==
 ::  pre-entry-meta message shape — used by state-18 for on-load typing
 +$  message-18
@@ -877,6 +878,46 @@
       member-revs=(map @ta @ud)
       fork-parent-version=(map @ta @ud)
   ==
+::  state-36: in-flight host reachability probes keyed by note id. Maps
+::  to the @da deadline; the deadline is also encoded in the behn wire so
+::  late wakes from prior probes are ignored.
++$  state-36
+  $:  %36
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+  ==
 ::  state-26: add durable blocked-by set (ships that have blocked us)
 +$  state-26
   $:  %26
@@ -1126,7 +1167,7 @@
 ::  chains through upgrade-20-to-21 → ... → upgrade-25-to-26
 ++  upgrade-19-to-20
   |=  s=state-19
-  ^-  state-35
+  ^-  state-36
   =/  new-seq=(map @ta @ud)
     %-  ~(rep by seq-counters.s)
     |=  [[[a=@p n=@ta] v=@ud] acc=(map @ta @ud)]
@@ -1146,7 +1187,7 @@
 ::  chains through upgrade-21-to-22 → upgrade-22-to-23
 ++  upgrade-20-to-21
   |=  s=state-20
-  ^-  state-35
+  ^-  state-36
   =/  new-msgs=(map @ta (list message:noltbook))
     %-  ~(run by messages.s)
     |=  msgs=(list message-20)
@@ -1188,7 +1229,7 @@
 ::  upgrade-21-to-22: add meta=(unit entry-meta) to envelopes
 ++  upgrade-21-to-22
   |=  s=state-21
-  ^-  state-35
+  ^-  state-36
   =/  new-envs=(map @ta (map @da envelope:noltbook))
     %-  ~(run by gossip-envelopes.s)
     |=  envs=(map @da envelope-21)
@@ -1210,7 +1251,7 @@
 ::  upgrade-22-to-23: enrich mention storage with stable eid
 ++  upgrade-22-to-23
   |=  s=state-22
-  ^-  state-35
+  ^-  state-36
   =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
     %-  ~(urn by mentions.s)
     |=  [nid=@ta mns=(list [id=@da author=@p])]
@@ -1239,7 +1280,7 @@
 ::  in-flight forks to become fetchable.
 ++  upgrade-30-to-31
   |=  s=state-30
-  ^-  state-35
+  ^-  state-36
   =?  s  (gth ~(wyt by pending-fork-invites.s) 0)
     ~&  [%dropping-legacy-pending-fork-invites count=~(wyt by pending-fork-invites.s)]
     s(pending-fork-invites *(map @ta state-30-pending-fork-invite))
@@ -1262,7 +1303,7 @@
 ::  upgrade-31-to-32: add empty contacts set
 ++  upgrade-31-to-32
   |=  s=state-31
-  ^-  state-35
+  ^-  state-36
   %-  upgrade-32-to-33
   :*  %32
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1283,7 +1324,7 @@
 ::  upgrade-32-to-33: add empty dm-prefs map
 ++  upgrade-32-to-33
   |=  s=state-32
-  ^-  state-35
+  ^-  state-36
   %-  upgrade-33-to-34
   :*  %33
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1307,7 +1348,7 @@
 ::  pre-migration value.
 ++  upgrade-33-to-34
   |=  s=state-33
-  ^-  state-35
+  ^-  state-36
   =/  seeded-revs=(map @ta @ud)
     %-  ~(rep by notes.s)
     |=  [[k=@ta v=note:noltbook] acc=(map @ta @ud)]
@@ -1336,7 +1377,8 @@
 ::  encoder default.
 ++  upgrade-34-to-35
   |=  s=state-34
-  ^-  state-35
+  ^-  state-36
+  %-  upgrade-35-to-36
   :*  %35
       notes.s  messages.s  artifacts.s  profiles.s
       transactions.s  current-note.s  peers.s  has-avatar.s
@@ -1356,10 +1398,34 @@
       member-revs.s
       *(map @ta @ud)
   ==
+::  upgrade-35-to-36: add empty host-checks map.
+++  upgrade-35-to-36
+  |=  s=state-35
+  ^-  state-36
+  :*  %36
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      fork-parent-version.s
+      *(map @ta @da)
+  ==
 ::  upgrade-29-to-30: add pending-fork-invites map (empty).
 ++  upgrade-29-to-30
   |=  s=state-29
-  ^-  state-35
+  ^-  state-36
   %-  upgrade-30-to-31
   :*  %30
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1379,7 +1445,7 @@
 ::  note is treated as v1 (origin computed lazily by note-lineage-of helper).
 ++  upgrade-28-to-29
   |=  s=state-28
-  ^-  state-35
+  ^-  state-36
   %-  upgrade-29-to-30
   :*  %29
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1401,7 +1467,7 @@
 ::  remote host issues %remote-note-deleted post-upgrade.
 ++  upgrade-27-to-28
   |=  s=state-27
-  ^-  state-35
+  ^-  state-36
   %-  upgrade-28-to-29
   :*  %28
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1418,7 +1484,7 @@
 ::  upgrade-25-to-26: add blocked-by set
 ++  upgrade-26-to-27
   |=  s=state-26
-  ^-  state-35
+  ^-  state-36
   %-  upgrade-27-to-28
   :*  %27
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1433,7 +1499,7 @@
   ==
 ++  upgrade-25-to-26
   |=  s=state-25
-  ^-  state-35
+  ^-  state-36
   %-  upgrade-26-to-27
   :*  %26
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1448,7 +1514,7 @@
 ::  upgrade-24-to-25: add note-admins and note-muted maps
 ++  upgrade-24-to-25
   |=  s=state-24
-  ^-  state-35
+  ^-  state-36
   %-  upgrade-25-to-26
   :*  %25
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1693,22 +1759,29 @@
   [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%note-deleted nid])]
 ::  ===== Phase 5: host-deleted preservation helpers =====
 ::  is-host-deleted: tests whether a note id is marked host-deleted in the
-::  given host-status map. Used as a write-guard at every mutating action.
+::  given host-status map. Used to gate fork-vs-leave decisions where the
+::  distinction between deleted and unreachable matters.
 ++  is-host-deleted
   |=  [nid=@ta hs=(map @ta ?(%host-deleted %host-unreachable))]
   ^-  ?
   =/  st  (~(get by hs) nid)
   ?~  st  %.n
   =(%host-deleted u.st)
+::  is-host-unavailable: host-deleted OR host-unreachable. Either state
+::  blocks writes against a remote-hosted note.
+++  is-host-unavailable
+  |=  [nid=@ta hs=(map @ta ?(%host-deleted %host-unreachable))]
+  ^-  ?
+  ?=(^ (~(get by hs) nid))
 ::  is-removed-self: tests whether we (us) are in note.removed for nid.
-::  Used as a write-guard alongside is-host-deleted.
+::  Used as a write-guard alongside is-host-unavailable.
 ++  is-removed-self
   |=  [nid=@ta nmap=(map @ta note:noltbook) us=@p]
   ^-  ?
   =/  n  (~(get by nmap) nid)
   ?~  n  %.n
   (~(has in removed.u.n) us)
-::  is-write-blocked: convenience OR of host-deleted and removed-self.
+::  is-write-blocked: convenience OR of host-unavailable and removed-self.
 ++  is-write-blocked
   |=  $:  nid=@ta
           hs=(map @ta ?(%host-deleted %host-unreachable))
@@ -1716,7 +1789,7 @@
           us=@p
       ==
   ^-  ?
-  ?:  (is-host-deleted nid hs)  %.y
+  ?:  (is-host-unavailable nid hs)  %.y
   (is-removed-self nid nmap us)
 ::  build-host-status-cards: emit %note-host-status fact for each id setting
 ::  status, on both /notes and /notes/[id] paths.
@@ -1853,7 +1926,7 @@
 ::  upgrade-23-to-24: add join-requests map
 ++  upgrade-23-to-24
   |=  s=state-23
-  ^-  state-35
+  ^-  state-36
   %-  upgrade-24-to-25
   :*  %24
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2040,7 +2113,7 @@
   [(crip path-tape) args]
 --
 %-  agent:dbug
-=|  state-35
+=|  state-36
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -2058,8 +2131,8 @@
 ++  on-load
   |=  old=vase
   ^-  (quip card _this)
-  ?:  ?=([%35 *] q.old)
-    =/  loaded  !<(state-35 old)
+  ?:  ?=([%36 *] q.old)
+    =/  loaded  !<(state-36 old)
     ::  fix: ensure cover note exists and is keyed as %cover
     ::  (same normalizations carried forward from state-24 load)
     =/  loaded
@@ -2181,6 +2254,9 @@
       ^-  card
       [%pass /prof-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-profile our.bowl prof])]
     [prof-cards this(state loaded(active-calls *(map @ta call-info:noltbook)))]
+  ?:  ?=([%35 *] q.old)
+    =/  s35  !<(state-35 old)
+    $(old !>((upgrade-35-to-36 s35)))
   ?:  ?=([%34 *] q.old)
     =/  s34  !<(state-34 old)
     $(old !>((upgrade-34-to-35 s34)))
@@ -3179,7 +3255,29 @@
     =/  act  !<(action:noltbook vase)
     ?-  -.act
         %switch-note
-      `this(current-note id.act)
+      ::  switch + trigger host-reachability probe for remote-hosted %group
+      ::  notes we still belong to. We use a separate /host-probe wire so
+      ::  the probe doesn't disturb the persistent /remote-note/[id]
+      ::  subscription; the probe is left as soon as it acks. Behn timer
+      ::  fires if no ack arrives within 8s.
+      =/  base=_this  this(current-note id.act)
+      =/  n  (~(get by notes) id.act)
+      ?~  n  `base
+      ?.  ?&  =(%group type.u.n)
+              !=(creator.u.n our.bowl)
+              (~(has in users.u.n) our.bowl)
+              !(~(has in removed.u.n) our.bowl)
+              !(is-host-deleted id.act host-status)
+          ==
+        `base
+      =/  deadline=@da  (add now.bowl ~s8)
+      =/  deadline-cord=@ta  (scot %da deadline)
+      =/  watch-card=card
+        [%pass /host-probe/[id.act]/[deadline-cord] %agent [creator.u.n %noltbook] %watch /notes/[id.act]]
+      =/  wait-card=card
+        [%pass /host-check/[id.act]/[deadline-cord] %arvo %b %wait deadline]
+      :_  base(host-checks (~(put by host-checks) id.act deadline))
+      ~[watch-card wait-card]
     ::
         %rename-note
       =/  old  (~(get by notes) id.act)
@@ -3517,8 +3615,23 @@
         :(weld ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] peer-cards)
       ::  remote note: forward to creator
       ?.  =(our.bowl creator.u.exists)
-        :_  this
-        ~[[%pass /msg-fwd/[note-id.act] %agent [creator.u.exists %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-message note-id.act msg])]]
+        =/  fwd-card=card
+          [%pass /msg-fwd/[note-id.act] %agent [creator.u.exists %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-message note-id.act msg])]
+        ::  for remote %group sends, arm the 8s host reachability timer so
+        ::  we surface %host-unreachable even when Ames swallows the ack.
+        =/  arm-timer=?
+          ?&  =(%group type.u.exists)
+              !(is-host-deleted note-id.act host-status)
+          ==
+        ?.  arm-timer
+          :_  this
+          ~[fwd-card]
+        =/  deadline=@da  (add now.bowl ~s8)
+        =/  deadline-cord=@ta  (scot %da deadline)
+        =/  wait-card=card
+          [%pass /host-check/[note-id.act]/[deadline-cord] %arvo %b %wait deadline]
+        :_  this(host-checks (~(put by host-checks) note-id.act deadline))
+        ~[fwd-card wait-card]
       ::  local note: store and fan out
       =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
       =/  upd=update:noltbook  [%new-message msg]
@@ -7060,6 +7173,27 @@
           [%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]
       ==
     `this
+  ::  Behn timer for host-reachability probe. Only fires unreachable if the
+  ::  stored deadline token still matches; stale wakes from prior probes
+  ::  (or wakes after a successful watch-ack) are dropped.
+  ?:  ?=([%host-check @ @ ~] wire)
+    ?.  ?=([%behn %wake *] sign-arvo)  `this
+    =/  nid=@ta  i.t.wire
+    =/  ded=@da  (slav %da i.t.t.wire)
+    =/  stored  (~(get by host-checks) nid)
+    ?~  stored  `this
+    ?.  =(u.stored ded)  `this
+    =.  host-checks  (~(del by host-checks) nid)
+    ::  do not overwrite host-deleted
+    ?:  (is-host-deleted nid host-status)  `this
+    ::  no-op if already marked unreachable
+    ?:  =(`%host-unreachable (~(get by host-status) nid))  `this
+    =.  host-status  (~(put by host-status) nid %host-unreachable)
+    =/  upd=update:noltbook  [%note-host-status nid `%host-unreachable]
+    :_  this
+    :~  [%give %fact ~[/notes] %noltbook-update !>(upd)]
+        [%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]
+    ==
   (on-arvo:def wire sign-arvo)
 ::
 ++  on-leave   on-leave:def
@@ -7069,13 +7203,67 @@
   ^-  (quip card _this)
   ?+  wire  (on-agent:def wire sign)
   ::
+      [%host-probe @ @ ~]
+    ::  ephemeral host-reachability probe. Watch-ack flips host-status
+    ::  and clears the pending check; %leave to immediately tear down the
+    ::  probe subscription regardless of outcome. Any incoming fact is
+    ::  ignored (the persistent /remote-note/[id] subscription is the
+    ::  source of truth for data delivery).
+    =/  nid=@ta  i.t.wire
+    =/  ded=@da  (slav %da i.t.t.wire)
+    =/  leave-card=card
+      [%pass wire %agent [src.bowl %noltbook] %leave ~]
+    ?+  -.sign  `this
+        %watch-ack
+      =/  stored  (~(get by host-checks) nid)
+      =/  match=?  ?~(stored %.n =(u.stored ded))
+      ?~  p.sign
+        ::  reachable
+        =?  host-checks  match  (~(del by host-checks) nid)
+        ?:  =(`%host-unreachable (~(get by host-status) nid))
+          =.  host-status  (~(del by host-status) nid)
+          =/  upd=update:noltbook  [%note-host-status nid ~]
+          :_  this
+          :~  leave-card
+              [%give %fact ~[/notes] %noltbook-update !>(upd)]
+              [%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]
+          ==
+        :_  this  ~[leave-card]
+      ::  watch failed
+      ~&  [%host-probe-failed nid u.p.sign]
+      =?  host-checks  match  (~(del by host-checks) nid)
+      ?:  (is-host-deleted nid host-status)
+        :_  this  ~[leave-card]
+      ?:  =(`%host-unreachable (~(get by host-status) nid))
+        :_  this  ~[leave-card]
+      =.  host-status  (~(put by host-status) nid %host-unreachable)
+      =/  upd=update:noltbook  [%note-host-status nid `%host-unreachable]
+      :_  this
+      :~  leave-card
+          [%give %fact ~[/notes] %noltbook-update !>(upd)]
+          [%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]
+      ==
+    ==
+  ::
       [%remote-note @ ~]
     ::  facts from a note we're subscribed to on a remote creator
     =/  nid=@ta  i.t.wire
     ?+  -.sign  (on-agent:def wire sign)
         %fact
       ?.  =(%noltbook-update p.cage.sign)  `this
-      =/  upd  !<(update:noltbook q.cage.sign)
+      ::  any valid fact on this wire is liveness proof for the host.
+      ::  Clear pending probe + %host-unreachable. Leave %host-deleted.
+      =/  was-unreach=?  =(`%host-unreachable (~(get by host-status) nid))
+      =.  host-checks  (~(del by host-checks) nid)
+      =?  host-status  was-unreach  (~(del by host-status) nid)
+      =/  cleared-cards=(list card)
+        ?.  was-unreach  ~
+        =/  hu=update:noltbook  [%note-host-status nid ~]
+        :~  [%give %fact ~[/notes] %noltbook-update !>(hu)]
+            [%give %fact ~[/notes/[nid]] %noltbook-update !>(hu)]
+        ==
+      =/  result=(quip card _this)
+        =/  upd  !<(update:noltbook q.cage.sign)
       ::  cover is handled by [%ars @ ~], not here — skip to avoid gossip loops
       ?:  =(nid %cover)  `this
       ::  check if this is a gossip-type note (envelope model)
@@ -7422,6 +7610,7 @@
         :_  this
         ~[[%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]]
       ==
+      [(weld cleared-cards -.result) +.result]
     ::
         %kick
       ::  resubscribe on kick (skip cover — ars handles it)
@@ -7434,9 +7623,27 @@
       `this
     ::
         %watch-ack
-      ?~  p.sign  `this
+      ::  use watch-ack as reachability signal too: success clears
+      ::  %host-unreachable, failure marks it (unless %host-deleted).
+      =/  was-unreach=?  =(`%host-unreachable (~(get by host-status) nid))
+      =.  host-checks  (~(del by host-checks) nid)
+      ?~  p.sign
+        ?.  was-unreach  `this
+        =.  host-status  (~(del by host-status) nid)
+        =/  hu=update:noltbook  [%note-host-status nid ~]
+        :_  this
+        :~  [%give %fact ~[/notes] %noltbook-update !>(hu)]
+            [%give %fact ~[/notes/[nid]] %noltbook-update !>(hu)]
+        ==
       ~&  [%remote-note-watch-failed nid u.p.sign]
-      `this
+      ?:  (is-host-deleted nid host-status)  `this
+      ?:  =(`%host-unreachable (~(get by host-status) nid))  `this
+      =.  host-status  (~(put by host-status) nid %host-unreachable)
+      =/  hu=update:noltbook  [%note-host-status nid `%host-unreachable]
+      :_  this
+      :~  [%give %fact ~[/notes] %noltbook-update !>(hu)]
+          [%give %fact ~[/notes/[nid]] %noltbook-update !>(hu)]
+      ==
     ==
   ::
       [%ars @ ~]
@@ -7707,11 +7914,36 @@
   ::
       [%msg-fwd @ ~]
     ::  ack/nack for forwarded messages
+    =/  nid=@ta  i.t.wire
     ?+  -.sign  `this
         %poke-ack
-      ?~  p.sign  `this
+      ?~  p.sign
+        ::  successful ack — host is reachable. Clear pending probe and
+        ::  any prior %host-unreachable (do not touch %host-deleted).
+        =.  host-checks  (~(del by host-checks) nid)
+        ?.  =(`%host-unreachable (~(get by host-status) nid))  `this
+        =.  host-status  (~(del by host-status) nid)
+        =/  hu=update:noltbook  [%note-host-status nid ~]
+        :_  this
+        :~  [%give %fact ~[/notes] %noltbook-update !>(hu)]
+            [%give %fact ~[/notes/[nid]] %noltbook-update !>(hu)]
+        ==
       ~&  [%msg-fwd-failed wire u.p.sign]
-      `this
+      ::  remote host rejected/failed our send — treat as host-unreachable
+      ::  for that note unless it's already %host-deleted or DM-local.
+      =.  host-checks  (~(del by host-checks) nid)
+      =/  n  (~(get by notes) nid)
+      ?~  n  `this
+      ?:  =(%dm type.u.n)  `this
+      ?:  =(creator.u.n our.bowl)  `this
+      ?:  (is-host-deleted nid host-status)  `this
+      ?:  =(`%host-unreachable (~(get by host-status) nid))  `this
+      =.  host-status  (~(put by host-status) nid %host-unreachable)
+      =/  hu=update:noltbook  [%note-host-status nid `%host-unreachable]
+      :_  this
+      :~  [%give %fact ~[/notes] %noltbook-update !>(hu)]
+          [%give %fact ~[/notes/[nid]] %noltbook-update !>(hu)]
+      ==
     ==
   ::
       [%msg-edit @ ~]

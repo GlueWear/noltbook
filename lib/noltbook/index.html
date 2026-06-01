@@ -659,7 +659,7 @@ const api = {
     this.reconnecting=false;
   }
 };
-const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{}};
+const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{}};
 let sigilFn=null;
 const sigilCache={};
 (async function loadSigil(){
@@ -872,8 +872,9 @@ function updateMuteUI(){
   }
   const roLock=isReadOnly&&!isHostOrAdmin;
   const hostDeleted=state.noteHostStatus[nid]==='host-deleted';
+  const hostUnreachable=state.noteHostStatus[nid]==='host-unreachable';
   const removedSelf=!!(note&&note.type==='group'&&(note.removed||[]).includes(me));
-  const locked=dmBlocked||muted||roLock||hostDeleted||removedSelf;
+  const locked=dmBlocked||muted||roLock||hostDeleted||removedSelf||hostUnreachable;
   const sendBtn=document.querySelector('.send-btn');
   const attachWrap=document.querySelector('.attach-wrap');
   let lockBar=document.getElementById('readOnlyLockBar');
@@ -891,6 +892,12 @@ function updateMuteUI(){
       lockBar.innerHTML='<span style="font-size:1rem">&#x26A0;</span><span>Host deleted this group. You can still read or fork.</span><button id="forkGroupBtn" style="margin-left:auto;background:#ffaa00;color:#000;border:none;padding:.2rem .55rem;font-family:var(--font);font-size:.7rem;cursor:pointer;letter-spacing:.04em" onclick="forkGroup(state.currentNoteId)">Fork Group</button>';
     } else if(removedSelf){
       lockBar.innerHTML='<span style="font-size:1rem">&#x26A0;</span><span>You were removed from this group. You can still read or fork.</span><button id="forkGroupBtn" style="margin-left:auto;background:#ffaa00;color:#000;border:none;padding:.2rem .55rem;font-family:var(--font);font-size:.7rem;cursor:pointer;letter-spacing:.04em" onclick="forkGroup(state.currentNoteId)">Fork Group</button>';
+    } else if(hostUnreachable){
+      const retrying=!!(state.retryingHosts&&state.retryingHosts[nid]);
+      const label=retrying?'RETRYING...':'RETRY';
+      const dis=retrying?' disabled':'';
+      const op=retrying?';opacity:.6':'';
+      lockBar.innerHTML='<span style="font-size:1rem">&#x26A0;</span><span>This host is unreachable from your ship.</span><button id="retryHostBtn"'+dis+' style="margin-left:auto;background:transparent;color:var(--text);border:1px solid var(--border);padding:.2rem .55rem;font-family:var(--font);font-size:.7rem;cursor:pointer;letter-spacing:.04em'+op+'" onclick="retryHost(state.currentNoteId)">'+label+'</button>';
     } else {
       const msg=dmBlocked?dmBlockMsg:muted?'You are muted in this note.':'This note is read only.';
       lockBar.innerHTML='<span style="font-size:1rem">&#x1F512;</span><span>'+msg+'</span>';
@@ -940,6 +947,17 @@ function lineageMoniker(note){
   const v=lin.forkVersion||1;
   const host=note.creator||(lin.forkOf&&lin.forkOf.host)||'';
   return'v'+v+(host?' '+host:'');
+}
+function retryHost(noteId){
+  if(!noteId)return;
+  if(state.retryingHosts&&state.retryingHosts[noteId])return;
+  state.retryingHosts[noteId]=true;
+  updateMuteUI();
+  api.poke('noltbook','noltbook-action',{action:'switch-note',data:{id:noteId}});
+  setTimeout(function(){
+    delete state.retryingHosts[noteId];
+    if(state.currentNoteId===noteId&&state.noteHostStatus[noteId]==='host-unreachable')updateMuteUI();
+  },8000);
 }
 function forkGroup(noteId){
   const note=state.notes[noteId];
