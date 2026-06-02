@@ -2081,6 +2081,66 @@
     |=  [a=[@ta v=artifact-envelope:noltbook] b=[@ta w=artifact-envelope:noltbook]]
     (gth timestamp.v.a timestamp.w.b)
   (~(gas by *(map @ta artifact-envelope:noltbook)) (scag art-env-cap sorted))
+::  json-str-field: tolerant scan for `"<key>":"<value>"` in a JSON-ish
+::  tape. The metadata blob is produced by art-meta-json so the shape is
+::  fixed; this is not a general-purpose parser. Returns ~ if absent.
+++  json-str-field
+  |=  [key=@t blob=tape]
+  ^-  (unit @t)
+  =/  needle=tape  :(weld "\"" (trip key) "\":\"")
+  =/  start  (find needle blob)
+  ?~  start  ~
+  =/  tail=tape  (slag (add u.start (lent needle)) blob)
+  =/  end  (find "\"" tail)
+  ?~  end  ~
+  `(crip (scag u.end tail))
+::  json-num-field: tolerant scan for `"<key>":<decimal digits>` in a
+::  JSON-ish tape. Returns 0 when missing or unparseable.
+++  json-num-field
+  |=  [key=@t blob=tape]
+  ^-  @ud
+  =/  needle=tape  :(weld "\"" (trip key) "\":")
+  =/  start  (find needle blob)
+  ?~  start  0
+  =/  tail=tape  (slag (add u.start (lent needle)) blob)
+  =/  digs=tape
+    |-  ^-  tape
+    ?~  tail  ~
+    ?.  &((gte i.tail '0') (lte i.tail '9'))  ~
+    [i.tail $(tail t.tail)]
+  ?:  =(~ digs)  0
+  (rash (crip digs) dem)
+::  artifact-to-envelope-for-note: convert a %file clay-backed artifact
+::  record into a portable artifact-envelope keyed to a new note id.
+::  Used by %fork-note to add references (not byte copies) to forked
+::  notes. Returns ~ for non-file or non-clay artifacts. Mime/kind/size
+::  are parsed from the artifact-version metadata JSON when present; if
+::  parsing fails, safe fallbacks are used. Content-hash is *@uv
+::  (unknown) and downstream fetch validation treats *@uv as
+::  "unverified" rather than mismatch.
+++  artifact-to-envelope-for-note
+  |=  [new-note-id=@ta art=artifact:noltbook]
+  ^-  (unit artifact-envelope:noltbook)
+  ?.  =(%file type.art)  ~
+  ?~  versions.art  ~
+  =/  latest=artifact-version:noltbook  (rear versions.art)
+  =/  ct=tape  (trip content.latest)
+  ?~  (find "\"storage\":\"clay\"" ct)  ~
+  =/  mime=@t   (fall (json-str-field 'mime' ct) 'application/octet-stream')
+  =/  kind=@t   (fall (json-str-field 'kind' ct) 'file')
+  =/  size=@ud  (json-num-field 'size' ct)
+  :-  ~
+  :*  id.art
+      creator.art
+      new-note-id
+      name.art
+      mime
+      kind
+      size
+      *@uv
+      timestamp.latest
+      ~
+  ==
 ::  find-aid-in-envelopes: scan all per-note envelope maps for an aid
 ++  find-aid-in-envelopes
   |=  [aid=@ta envs=(map @ta (map @ta artifact-envelope:noltbook))]
@@ -2773,8 +2833,12 @@
       =/  jr-list=(list [note-id=@ta ship=@p note-name=@t])
         (turn ~(tap in pending) |=(s=@p [nid s name.u.n]))
       ~[[%give %fact ~ %noltbook-update !>(`update:noltbook`[%join-request-list jr-list])]]
+    =/  is-group-note=?
+      ?&  ?=(^ note-for-type)
+          =(%group type.u.note-for-type)
+      ==
     =/  art-env-cards=(list card)
-      ?.  is-gossip-note  ~
+      ?.  |(is-gossip-note is-group-note)  ~
       =/  aenv-map  (fall (~(get by artifact-envelopes) nid) *(map @ta artifact-envelope:noltbook))
       =/  aenvs  ~(val by aenv-map)
       ?~  aenvs  ~
@@ -2996,13 +3060,18 @@
           :_  this
           %+  give-simple-payload:app:server  eyre-id
           [[404 ~] ~]
-        ::  remote-fetch from envelope author, pass expected content-hash
+        ::  remote-fetch from envelope author. Pass expected content-hash
+        ::  when known; *@uv means unknown (e.g. fork envelope copies)
+        ::  and is sent as ~ so the byte host doesn't reject on mismatch.
+        =/  expected=(unit @uv)
+          ?:  =(content-hash.u.env *@uv)  ~
+          `content-hash.u.env
         =/  fetch-card=card
           :*  %pass
               /art-fetch-out/[aid]/[eyre-id]
               %agent  [author.u.env %noltbook]
               %poke   %noltbook-remote
-              !>(`remote:noltbook`[%remote-artifact-fetch aid eyre-id `content-hash.u.env])
+              !>(`remote:noltbook`[%remote-artifact-fetch aid eyre-id expected])
           ==
         :_  this
         ~[fetch-card]
@@ -4746,6 +4815,32 @@
         |-
         ?~  todo  fork-parent-version
         $(todo t.todo, fork-parent-version (~(put by fork-parent-version) new.i.todo src-version))
+      ::  copy %file artifact references into per-fork-note envelopes. No
+      ::  byte duplication: the original artifact records stay untouched,
+      ::  forks carry artifact-envelopes that point back at the original
+      ::  author for fetches.
+      =/  artifact-envelopes-after=(map @ta (map @ta artifact-envelope:noltbook))
+        =/  todo=(list [old=@ta new=@ta])  pairs
+        =/  ae=(map @ta (map @ta artifact-envelope:noltbook))  artifact-envelopes
+        |-
+        ^-  (map @ta (map @ta artifact-envelope:noltbook))
+        ?~  todo  ae
+        =/  src-arts=(list artifact:noltbook)
+          %+  skim  ~(val by artifacts)
+          |=(a=artifact:noltbook =(note-id.a old.i.todo))
+        =/  fork-envs=(map @ta artifact-envelope:noltbook)
+          (fall (~(get by ae) new.i.todo) *(map @ta artifact-envelope:noltbook))
+        =/  fork-envs
+          =/  src-todo=(list artifact:noltbook)  src-arts
+          |-  ^-  (map @ta artifact-envelope:noltbook)
+          ?~  src-todo  fork-envs
+          =/  env  (artifact-to-envelope-for-note new.i.todo i.src-todo)
+          ?~  env  $(src-todo t.src-todo)
+          $(src-todo t.src-todo, fork-envs (~(put by fork-envs) aid.u.env u.env))
+        =/  ae2=(map @ta (map @ta artifact-envelope:noltbook))
+          ?:  =(~ fork-envs)  ae
+          (~(put by ae) new.i.todo (cap-art-envs fork-envs))
+        $(todo t.todo, ae ae2)
       ::  outgoing fork invites: metadata-only. Receiver stores as pending
       ::  and must explicitly accept to trigger %remote-fork-fetch.
       =/  new-root-id=@ta  (~(got by id-map) id.act)
@@ -4773,6 +4868,17 @@
         [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%note-created n])]
       =/  lineage-cards=(list card)
         (build-lineage-set-cards new-ids notes-after fork-origin-after fork-version-after fork-of-after fork-parent-version-after)
+      ::  emit %artifact-envelope-list per forked nid so the local FE can
+      ::  render references immediately without waiting on a watch reply.
+      =/  art-env-cards=(list card)
+        %+  murn  new-ids
+        |=  nid=@ta
+        ^-  (unit card)
+        =/  m  (~(get by artifact-envelopes-after) nid)
+        ?~  m  ~
+        =/  envs=(list artifact-envelope:noltbook)  ~(val by u.m)
+        ?~  envs  ~
+        `[%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%artifact-envelope-list nid envs])]
       :_  %=  this
             notes  notes-after
             messages  messages-after
@@ -4783,9 +4889,10 @@
             fork-of  fork-of-after
             fork-parent-version  fork-parent-version-after
             fork-invitees  fork-invitees-after
+            artifact-envelopes  artifact-envelopes-after
           ==
       ^-  (list card)
-      :(weld created-cards lineage-cards invite-cards)
+      :(weld created-cards lineage-cards art-env-cards invite-cards)
     ::
         %accept-fork-invite
       ::  Phase 6.2: do not install yet. Send a %remote-fork-fetch to the
@@ -6534,11 +6641,21 @@
         =/  fo  (~(get by fork-of) did)
         =/  sid=@ta  ?~(fo did nid.u.fo)
         `[u.n sid]
+      =/  payload-ids=(list @ta)  [root-id.rem desc-ids]
+      =/  fork-art-envs=(list [note-id=@ta envs=(list artifact-envelope:noltbook)])
+        %+  murn  payload-ids
+        |=  nid=@ta
+        ^-  (unit [@ta (list artifact-envelope:noltbook)])
+        =/  m  (~(get by artifact-envelopes) nid)
+        ?~  m  ~
+        =/  envs=(list artifact-envelope:noltbook)  ~(val by u.m)
+        ?~  envs  ~
+        `[nid envs]
       ?~  root  `this
       =/  pload=remote:noltbook
         :*  %remote-fork-payload
             root-id.rem  src-root-id  u.root  desc-pairs
-            src-origin  fork-ver  parent-ver
+            src-origin  fork-ver  parent-ver  fork-art-envs
         ==
       :_  this
       ~[[%pass /fork-pay/(scot %p src.bowl)/[root-id.rem] %agent [src.bowl %noltbook] %poke %noltbook-remote !>(pload)]]
@@ -6558,6 +6675,9 @@
       ::  flatten subtree (root first then descendants)
       =/  all-incoming=(list note:noltbook)
         [root-note.rem (turn descendants.rem |=([n=note:noltbook source-id=@ta] n))]
+      =/  incoming-ids=(set @ta)
+        %-  ~(gas in *(set @ta))
+        (turn all-incoming |=(n=note:noltbook id.n))
       ::  re-check id collisions
       =/  collides=?
         =/  todo  all-incoming
@@ -6607,6 +6727,29 @@
         |-
         ?~  todo  fork-parent-version
         $(todo t.todo, fork-parent-version (~(put by fork-parent-version) id.i.todo parent-version.rem))
+      ::  install fork artifact envelopes carried by the forker. These are
+      ::  metadata references only; bytes stay on the original artifact author.
+      =/  artifact-envelopes-after=(map @ta (map @ta artifact-envelope:noltbook))
+        =/  todo=(list [note-id=@ta envs=(list artifact-envelope:noltbook)])  artifact-envs.rem
+        =/  ae=(map @ta (map @ta artifact-envelope:noltbook))  artifact-envelopes
+        |-
+        ^-  (map @ta (map @ta artifact-envelope:noltbook))
+        ?~  todo  ae
+        =/  nid=@ta  note-id.i.todo
+        ?.  (~(has in incoming-ids) nid)  $(todo t.todo)
+        =/  cur=(map @ta artifact-envelope:noltbook)
+          (fall (~(get by ae) nid) *(map @ta artifact-envelope:noltbook))
+        =/  merged=(map @ta artifact-envelope:noltbook)
+          =/  env-todo=(list artifact-envelope:noltbook)  envs.i.todo
+          |-  ^-  (map @ta artifact-envelope:noltbook)
+          ?~  env-todo  cur
+          =/  e=artifact-envelope:noltbook  i.env-todo
+          ?.  =(note-id.e nid)  $(env-todo t.env-todo)
+          $(env-todo t.env-todo, cur (~(put by cur) aid.e e))
+        =/  ae2=(map @ta (map @ta artifact-envelope:noltbook))
+          ?:  =(~ merged)  ae
+          (~(put by ae) nid (cap-art-envs merged))
+        $(todo t.todo, ae ae2)
       =/  sub-cards=(list card)
         %+  turn  all-incoming
         |=  n=note:noltbook
@@ -6622,6 +6765,16 @@
         |=  n=note:noltbook  id.n
       =/  lineage-cards=(list card)
         (build-lineage-set-cards all-ids notes-after fork-origin-after fork-version-after fork-of-after fork-parent-version-after)
+      =/  art-env-cards=(list card)
+        %+  murn  artifact-envs.rem
+        |=  row=[note-id=@ta envs=(list artifact-envelope:noltbook)]
+        ^-  (unit card)
+        ?.  (~(has in incoming-ids) note-id.row)  ~
+        =/  m  (~(get by artifact-envelopes-after) note-id.row)
+        ?~  m  ~
+        =/  envs=(list artifact-envelope:noltbook)  ~(val by u.m)
+        ?~  envs  ~
+        `[%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%artifact-envelope-list note-id.row envs])]
       =/  cleared=update:noltbook  [%fork-invite-cleared root-id.rem]
       =/  accepted=update:noltbook  [%fork-invite-accepted root-id.rem]
       :_  %=  this
@@ -6631,6 +6784,7 @@
             fork-version  fork-version-after
             fork-of  fork-of-after
             fork-parent-version  fork-parent-version-after
+            artifact-envelopes  artifact-envelopes-after
             peers  (~(put in peers) src.bowl)
             pending-fork-invites  (~(del by pending-fork-invites) root-id.rem)
           ==
@@ -6639,6 +6793,7 @@
       :~  sub-cards
           created-cards
           lineage-cards
+          art-env-cards
           ^-((list card) ~[[%give %fact ~[/notes] %noltbook-update !>(cleared)]])
           ^-((list card) ~[[%give %fact ~[/notes] %noltbook-update !>(accepted)]])
       ==
@@ -7185,11 +7340,15 @@
         =/  =simple-payload:http  [[200 hdrs] `bytes.rem]
         :_  this
         (give-simple-payload:app:server eyre-id.rem simple-payload)
-      ::  envelope path: require known envelope, matching author, matching hash
+      ::  envelope path: require known envelope + matching author. Hash
+      ::  check is strict when envelope carries a non-zero hash, but
+      ::  *@uv (unknown — e.g. fork-copied envelopes) bypasses it.
       =/  env  (find-aid-in-envelopes art-id.rem artifact-envelopes)
       ?~  env  `this
       ?.  =(src.bowl author.u.env)  `this
-      ?.  =(content-hash.u.env (sham q.bytes.rem))
+      ?.  ?|  =(content-hash.u.env *@uv)
+              =(content-hash.u.env (sham q.bytes.rem))
+          ==
         :_  this
         %+  give-simple-payload:app:server  eyre-id.rem
         [[404 ~] ~]

@@ -181,7 +181,7 @@
       [%remote-fork-fetch root-id=@ta]
       ::  fork payload: forker replies with notes + per-node source-id (so the
       ::  receiver can set lineage.fork-of correctly).
-      [%remote-fork-payload root-id=@ta source-root-id=@ta root-note=note descendants=(list [n=note source-id=@ta]) fork-origin=@uv fork-version=@ud parent-version=@ud]
+      [%remote-fork-payload root-id=@ta source-root-id=@ta root-note=note descendants=(list [n=note source-id=@ta]) fork-origin=@uv fork-version=@ud parent-version=@ud artifact-envs=(list [note-id=@ta envs=(list artifact-envelope)])]
       ::  fork denied: forker refuses an unauthorized %remote-fork-fetch.
       [%remote-fork-denied root-id=@ta]
       [%remote-introduce ship=@p]

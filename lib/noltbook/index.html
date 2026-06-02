@@ -1548,11 +1548,24 @@ function renderMessages(noteId){
   const envMap=state.artifactEnvelopes[noteId]||{};
   for(const aid in envMap){
     const env=envMap[aid];
-    // skip if we already have the real artifact (we're the author or this ship was)
-    if(state.artifacts[aid])continue;
+    // skip only if we already hold the REAL artifact for THIS note. A
+    // ship may still have the original artifact record for source note A
+    // while a fork F holds an envelope pointing to the same aid; that
+    // original record should not hide the fork envelope on note F.
+    const real=state.artifacts[aid];
+    if(real&&real.noteId===noteId)continue;
     // dial/hop visibility for cover/gossip envelopes
     if(isGossipNote(noteId)&&!artEnvVisible(env))continue;
-    items.push({type:'artifact-env',env,order:env.timestamp||0});
+    let envOrd=env.timestamp||0;
+    if(useSeq){
+      const ets=env.timestamp||0;
+      let bestSeq=0;
+      for(const m of msgs){
+        if(m.meta&&m.meta.seq&&(m.meta.created||m.id)<=ets&&m.meta.seq>bestSeq)bestSeq=m.meta.seq;
+      }
+      envOrd=bestSeq+0.5;
+    }
+    items.push({type:'artifact-env',env,order:envOrd});
   }
   // merge artifacts into the timeline so they appear in chronological order with messages
   const noteArts=Object.values(state.artifacts).filter(a=>a.noteId===noteId&&(a.type==='app'||a.type==='file'));
@@ -1670,6 +1683,8 @@ function renderMessages(noteId){
         wrap.innerHTML=`<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar">${avatarHtml(art.creator)}</div><div class="msg-body"><div class="msg-header"><span class="msg-author" style="color:${authorColor}">${escHtml(displayName(art.creator))}</span><span class="msg-time">${timeStr}</span>${actions}</div>${fileContent}</div></div>`;
         el.appendChild(wrap);
       }
+      // artifact cards always break message grouping
+      state.lastMsgAuthor=null;state.lastMsgDepth=-1;
     }else if(item.type==='artifact-env'){
       const env=item.env;
       const wrap=document.createElement('div');
@@ -1691,6 +1706,8 @@ function renderMessages(noteId){
       }
       wrap.innerHTML=`<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar">${avatarHtml(env.author)}</div><div class="msg-body"><div class="msg-header"><span class="msg-author" style="color:${authorColor}">${escHtml(displayName(env.author))}</span><span class="msg-time">${ts}</span></div>${body}</div></div>`;
       el.appendChild(wrap);
+      // artifact-env cards always break message grouping
+      state.lastMsgAuthor=null;state.lastMsgDepth=-1;
     }
   }
   // set up mention observer on every render for current note
