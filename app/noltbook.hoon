@@ -3276,8 +3276,13 @@
         [%pass /host-probe/[id.act]/[deadline-cord] %agent [creator.u.n %noltbook] %watch /notes/[id.act]]
       =/  wait-card=card
         [%pass /host-check/[id.act]/[deadline-cord] %arvo %b %wait deadline]
+      ::  also ask the host for an authoritative snapshot of the group tree
+      ::  this id sits in. Host walks up to the topmost same-host group root
+      ::  and returns root + descendants + revs via %remote-note-state.
+      =/  refresh-card=card
+        [%pass /note-refresh/[id.act] %agent [creator.u.n %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-note-state-request id.act])]
       :_  base(host-checks (~(put by host-checks) id.act deadline))
-      ~[watch-card wait-card]
+      ~[watch-card wait-card refresh-card]
     ::
         %rename-note
       =/  old  (~(get by notes) id.act)
@@ -5895,6 +5900,193 @@
       =/  upd=update:noltbook  [%remote-note-list src.bowl notes.rem]
       :_  this
       ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
+    ::
+        %remote-note-state-request
+      ::  requester asked for an authoritative snapshot of the group tree
+      ::  containing this id. We resolve the topmost same-host group root,
+      ::  verify the requester still belongs to it, and reply.
+      ?:  (~(has in pal-blocked) src.bowl)  `this
+      =/  start  (~(get by notes) note-id.rem)
+      ?~  start
+        :_  this
+        ~[[%pass /state-deny/(scot %p src.bowl)/[note-id.rem] %agent [src.bowl %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-note-state-denied note-id.rem])]]
+      ?.  =(our.bowl creator.u.start)
+        :_  this
+        ~[[%pass /state-deny/(scot %p src.bowl)/[note-id.rem] %agent [src.bowl %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-note-state-denied note-id.rem])]]
+      ?.  =(%group type.u.start)
+        :_  this
+        ~[[%pass /state-deny/(scot %p src.bowl)/[note-id.rem] %agent [src.bowl %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-note-state-denied note-id.rem])]]
+      ::  walk parents up while parent exists, we host it, and it's %group
+      =/  root-id=@ta
+        =/  cur=note:noltbook  u.start
+        |-  ^-  @ta
+        ?~  parent.cur  id.cur
+        =/  par  (~(get by notes) u.parent.cur)
+        ?~  par  id.cur
+        ?.  =(our.bowl creator.u.par)  id.cur
+        ?.  =(%group type.u.par)  id.cur
+        $(cur u.par)
+      =/  root-note  (~(get by notes) root-id)
+      ?~  root-note  `this
+      ?.  ?&  (~(has in users.u.root-note) src.bowl)
+              !(~(has in removed.u.root-note) src.bowl)
+          ==
+        :_  this
+        ~[[%pass /state-deny/(scot %p src.bowl)/[note-id.rem] %agent [src.bowl %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-note-state-denied note-id.rem])]]
+      =/  desc-ids=(list @ta)  (collect-group-descendants root-id notes)
+      =/  all-ids=(list @ta)  [root-id desc-ids]
+      =/  snap-notes=(list note:noltbook)
+        %+  murn  all-ids
+        |=  nid=@ta
+        ^-  (unit note:noltbook)
+        =/  n  (~(get by notes) nid)
+        ?~  n  ~
+        `u.n
+      =/  snap-revs=(list [@ta @ud])
+        %+  turn  all-ids
+        |=  nid=@ta
+        [nid (member-rev-of nid member-revs)]
+      =/  resp=remote:noltbook
+        [%remote-note-state root-id snap-notes snap-revs]
+      :_  this
+      ~[[%pass /state-out/(scot %p src.bowl)/[root-id] %agent [src.bowl %noltbook] %poke %noltbook-remote !>(resp)]]
+    ::
+        %remote-note-state
+      ::  host replied with an authoritative snapshot. Validate strictly,
+      ::  then conservatively merge metadata. Do not touch messages,
+      ::  artifacts, mentions, calls, envelopes. Emit a single dedicated
+      ::  %note-state-refreshed update — never %note-created — so the FE
+      ::  doesn't fire spurious notifications for repaired notes.
+      ?:  (~(has in pal-blocked) src.bowl)  `this
+      ?~  notes.rem  `this
+      =/  root=note:noltbook  i.notes.rem
+      ?.  =(id.root root-id.rem)  `this
+      ?.  =(src.bowl creator.root)  `this
+      ?.  =(%group type.root)  `this
+      ?.  ?&  (~(has in users.root) our.bowl)
+              !(~(has in removed.root) our.bowl)
+          ==
+        `this
+      ::  every payload note must be hosted by src.bowl and be %group;
+      ::  parent must be in payload or already-local with src.bowl.
+      =/  payload-ids=(set @ta)
+        %-  ~(gas in *(set @ta))
+        (turn notes.rem |=(n=note:noltbook id.n))
+      =/  desc-valid=?
+        =/  todo=(list note:noltbook)  notes.rem
+        |-  ^-  ?
+        ?~  todo  %.y
+        ?.  =(src.bowl creator.i.todo)  %.n
+        ?.  =(%group type.i.todo)  %.n
+        ?:  =(id.i.todo root-id.rem)  $(todo t.todo)
+        ?~  parent.i.todo  %.n
+        =/  in-payload=?  (~(has in payload-ids) u.parent.i.todo)
+        =/  local-par  (~(get by notes) u.parent.i.todo)
+        =/  local-ok=?
+          ?~  local-par  %.n
+          =(src.bowl creator.u.local-par)
+        ?.  ?|(in-payload local-ok)  %.n
+        $(todo t.todo)
+      ?.  desc-valid  `this
+      ::  pre-index revs by id for fast lookup during merge.
+      =/  revs-map=(map @ta @ud)
+        %-  ~(gas by *(map @ta @ud))
+        revs.rem
+      ::  merge fold: thread notes-map + messages-map + new-subs list.
+      =/  merged
+        =/  todo=(list note:noltbook)  notes.rem
+        =/  nm=(map @ta note:noltbook)  notes
+        =/  mm=(map @ta (list message:noltbook))  messages
+        =/  new-subs=(list @ta)  ~
+        |-
+        ^-  [(map @ta note:noltbook) (map @ta (list message:noltbook)) (list @ta)]
+        ?~  todo  [nm mm (flop new-subs)]
+        =/  inc=note:noltbook  i.todo
+        =/  loc  (~(get by nm) id.inc)
+        ?~  loc
+          =/  nm2=(map @ta note:noltbook)  (~(put by nm) id.inc inc)
+          =/  mm2=(map @ta (list message:noltbook))
+            ?:  (~(has by mm) id.inc)  mm
+            (~(put by mm) id.inc ~)
+          $(todo t.todo, nm nm2, mm mm2, new-subs [id.inc new-subs])
+        ::  present: rev-gated user/removed merge; always repair tree.
+        =/  inc-rev=@ud  (fall (~(get by revs-map) id.inc) 0)
+        =/  loc-rev=@ud  (member-rev-of id.inc member-revs)
+        =/  accept-users=?  (gte inc-rev loc-rev)
+        =/  new-users=(set @p)
+          ?:  accept-users  users.inc
+          users.u.loc
+        =/  new-removed=(set @p)
+          ?:  accept-users  removed.inc
+          removed.u.loc
+        =/  old-parent  parent.u.loc
+        =/  new-parent  parent.inc
+        =/  nm-detached=(map @ta note:noltbook)
+          ?:  =(old-parent new-parent)  nm
+          ?~  old-parent  nm
+          ?:  =(`u.old-parent new-parent)  nm
+          =/  op  (~(get by nm) u.old-parent)
+          ?~  op  nm
+          ?.  =(src.bowl creator.u.op)  nm
+          (~(put by nm) u.old-parent u.op(children (skim children.u.op |=(c=@ta !=(c id.inc)))))
+        =/  new-children=(list @ta)
+          %-  flop
+          %+  roll  children.inc
+          |=  [c=@ta acc=(list @ta)]
+          ?:  (lien acc |=(x=@ta =(x c)))  acc
+          [c acc]
+        =/  repaired=note:noltbook
+          %=  u.loc
+            parent       new-parent
+            children     new-children
+            users        new-users
+            removed      new-removed
+            type         type.inc
+            visibility   visibility.inc
+            writable     writable.inc
+            name         name.inc
+            icon-url     icon-url.inc
+            headline     headline.inc
+          ==
+        =/  nm3=(map @ta note:noltbook)  (~(put by nm-detached) id.inc repaired)
+        =/  mm3=(map @ta (list message:noltbook))
+          ?:  (~(has by mm) id.inc)  mm
+          (~(put by mm) id.inc ~)
+        $(todo t.todo, nm nm3, mm mm3)
+      ::  update member-revs, max(local, incoming) per payload id. Seed
+      ::  the accumulator with the full existing member-revs map so a
+      ::  refresh for one subtree doesn't erase revs for unrelated notes.
+      =/  new-revs=(map @ta @ud)
+        =/  ids=(list @ta)  ~(tap in payload-ids)
+        =/  acc=(map @ta @ud)  member-revs
+        |-
+        ^-  (map @ta @ud)
+        ?~  ids  acc
+        =/  nid=@ta  i.ids
+        =/  inc-rev=@ud  (fall (~(get by revs-map) nid) 0)
+        =/  cur-rev=@ud  (member-rev-of nid acc)
+        =/  next-acc=(map @ta @ud)
+          ?:  (gth inc-rev cur-rev)  (~(put by acc) nid inc-rev)
+          acc
+        $(ids t.ids, acc next-acc)
+      =/  merged-notes=(map @ta note:noltbook)  -.merged
+      =/  merged-msgs=(map @ta (list message:noltbook))  +<.merged
+      =/  merged-subs=(list @ta)  +>.merged
+      =/  sub-cards=(list card)
+        %+  turn  merged-subs
+        |=  nid=@ta
+        ^-  card
+        [%pass /remote-note/[nid] %agent [src.bowl %noltbook] %watch /notes/[nid]]
+      =/  refreshed=update:noltbook
+        [%note-state-refreshed root-id.rem notes.rem revs.rem]
+      =/  fact-card=card
+        [%give %fact ~[/notes] %noltbook-update !>(refreshed)]
+      :_  this(notes merged-notes, messages merged-msgs, member-revs new-revs)
+      (snoc sub-cards fact-card)
+    ::
+        %remote-note-state-denied
+      ::  silent no-op for now; user-facing error deferred.
+      `this
     ::
         %remote-hey
       ::  a ship wants to be pals with us

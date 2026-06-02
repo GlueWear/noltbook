@@ -51,6 +51,15 @@
           ['status' ?~(status.upd ~ s+(crip (trip (scot %tas u.status.upd))))]
       ==
     ::
+        %note-state-refreshed
+      %+  frond  'note-state-refreshed'
+      %-  pairs
+      :~  ['rootId' s+(crip (trip root-id.upd))]
+          ['notes' a+(turn notes.upd note-to-json)]
+          :-  'revs'
+          a+(turn revs.upd |=([i=@ta r=@ud] (pairs ~[['id' s+(crip (trip i))] ['rev' (numb r)]])))
+      ==
+    ::
         %note-lineage-set
       %+  frond  'note-lineage-set'
       %-  pairs

@@ -205,6 +205,13 @@
       [%remote-join-denied note-id=@ta]
       [%remote-join-removed note-id=@ta]
       [%remote-note-deleted note-id=@ta note-name=@t]
+      ::  authoritative group-tree snapshot: requester asks the host, host
+      ::  replies with the topmost same-host group root and its descendants
+      ::  plus per-id member-revs. Metadata-only; never carries messages,
+      ::  artifacts, mentions, calls, or envelopes.
+      [%remote-note-state-request note-id=@ta]
+      [%remote-note-state root-id=@ta notes=(list note) revs=(list [id=@ta rev=@ud])]
+      [%remote-note-state-denied note-id=@ta]
       ::  admin moderation forwarding (remote admin -> host)
       [%remote-mod note-id=@ta mod-type=@tas target=@p]
       ::  artifact fetch flow (member <-> byte host)
@@ -288,6 +295,7 @@
       [%note-meta-updated id=@ta visibility=note-visibility icon-url=(unit @t) writable=?]
       [%note-type-updated id=@ta type=note-type]
       [%note-host-status id=@ta status=(unit ?(%host-deleted %host-unreachable))]
+      [%note-state-refreshed root-id=@ta notes=(list note) revs=(list [id=@ta rev=@ud])]
       ::  fork lineage: origin=stable lineage id, version=fork depth (1=original)
       ::  fork-of=direct source pointer (~ for original)
       [%note-lineage-set id=@ta fork-origin=@uv fork-version=@ud fork-of=(unit [host=@p nid=@ta]) parent-version=(unit @ud)]

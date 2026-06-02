@@ -753,6 +753,45 @@ function handleUpdate(upd){
   else if(upd['note-meta-updated']){const d=upd['note-meta-updated'];const n=state.notes[d.id];if(n){n.visibility=d.visibility;n.iconUrl=d.iconUrl||null;n.writable=d.writable;renderNoteList();if(d.id===state.currentNoteId)updateMuteUI()}}
   else if(upd['note-type-updated']){const d=upd['note-type-updated'];const n=state.notes[d.id];if(n){n.type=d.type;renderNoteList();if(d.id===state.currentNoteId){scheduleRender(d.id);updateMuteUI()}}}
   else if(upd['note-host-status']){const d=upd['note-host-status'];if(d.status)state.noteHostStatus[d.id]=d.status;else delete state.noteHostStatus[d.id];rebuildDurableNotifications();updateLogoBadge();if(d.id===state.currentNoteId)updateMuteUI();renderNoteList()}
+  else if(upd['note-state-refreshed']){
+    const d=upd['note-state-refreshed'];
+    const incomingIds=new Set((d.notes||[]).map(n=>n.id));
+    const revsByNid={};(d.revs||[]).forEach(r=>{revsByNid[r.id]=r.rev});
+    for(const inc of (d.notes||[])){
+      const loc=state.notes[inc.id];
+      const incRev=revsByNid[inc.id]||0;
+      const locRev=state.noteMemberRevs[inc.id]||0;
+      const acceptUsers=incRev>=locRev;
+      if(!loc){
+        state.notes[inc.id]=Object.assign({},inc,{children:(inc.children||[]).slice()});
+        if(!state.messages[inc.id])state.messages[inc.id]=[];
+      }else{
+        const newParent=inc.parent||null;
+        const oldParent=loc.parent||null;
+        if(oldParent&&oldParent!==newParent){
+          const op=state.notes[oldParent];
+          if(op&&op.creator===inc.creator){
+            op.children=(op.children||[]).filter(c=>c!==inc.id);
+          }
+        }
+        const dedupKids=[];const seen=new Set();
+        for(const c of (inc.children||[])){if(seen.has(c))continue;seen.add(c);dedupKids.push(c)}
+        loc.parent=newParent;
+        loc.children=dedupKids;
+        loc.type=inc.type;
+        loc.visibility=inc.visibility;
+        loc.writable=inc.writable;
+        loc.name=inc.name;
+        loc.iconUrl=inc.iconUrl||null;
+        loc.headline=inc.headline||null;
+        if(acceptUsers){loc.users=inc.users||[];loc.removed=inc.removed||[]}
+        if(!state.messages[inc.id])state.messages[inc.id]=[];
+      }
+      if(incRev>locRev)state.noteMemberRevs[inc.id]=incRev;
+    }
+    renderNoteList();
+    if(state.currentNoteId&&incomingIds.has(state.currentNoteId)){scheduleRender(state.currentNoteId);updateMuteUI();refreshNoteInfoMembers(state.currentNoteId)}
+  }
   else if(upd['note-lineage-set']){const d=upd['note-lineage-set'];state.noteLineage[d.id]={forkOrigin:d.forkOrigin,forkVersion:d.forkVersion,forkOf:d.forkOf||null,parentVersion:(d.parentVersion==null?null:d.parentVersion)};if(d.id===state.currentNoteId)scheduleRender(d.id);renderNoteList()}
   else if(upd['fork-invite-received']){const d=upd['fork-invite-received'];console.log('[fork-invite-received v6.2 metadata-only]',d.rootId,'from',d.forker);const wasPending=!!state.pendingForkInvites[d.rootId];state.pendingForkInvites[d.rootId]={rootId:d.rootId,sourceName:d.sourceName,sourceVersion:d.sourceVersion,forker:d.forker,time:Date.now()};if(!wasPending){state.blockNotifications.push({noteId:d.rootId,noteName:d.sourceName,from:d.forker,time:Date.now(),type:'fork-invite',sourceVersion:d.sourceVersion})}updateLogoBadge()}
   else if(upd['fork-invite-cleared']){const d=upd['fork-invite-cleared'];delete state.pendingForkInvites[d.rootId];state.acceptingForkRoots.delete(d.rootId);for(const bn of state.blockNotifications){if(bn.type==='fork-invite'&&bn.noteId===d.rootId){bn.resolved=true;delete bn.fetching}}updateLogoBadge()}
