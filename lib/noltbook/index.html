@@ -388,6 +388,10 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .note-call-badge .call-pip{width:6px;height:6px;border-radius:50%;background:#00ff88;animation:callPulse 1.5s ease-in-out infinite}
 .note-item.has-call .note-call-badge{display:flex}
 .note-item.has-call .note-dot{display:none}
+.artifact-img-box{display:block;width:100%;max-width:400px;min-height:160px;max-height:400px;background:var(--bg2);border:1px solid var(--border);margin-top:.35rem;overflow:hidden}
+.artifact-img-box>img{display:block;width:100%;height:auto;max-height:400px;object-fit:contain}
+.new-messages-divider{display:flex;align-items:center;gap:.5rem;margin:.6rem .75rem;color:#ffaa00;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase}
+.new-messages-divider>.line{flex:1;height:1px;background:#ffaa00;opacity:.5}
 </style>
 <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 </head>
@@ -659,7 +663,7 @@ const api = {
     this.reconnecting=false;
   }
 };
-const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{}};
+const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},forceBottomOnce:{},unreadDividers:{}};
 let sigilFn=null;
 const sigilCache={};
 (async function loadSigil(){
@@ -726,17 +730,178 @@ async function boot(){
   api.init(ship);
   document.getElementById('shipDisplay').textContent='~'+ship;
   document.getElementById('shipDisplay').style.color=shipColor('~'+ship);
+  loadReadCursors();
   await api.subscribe('noltbook','/notes',handleUpdate);
   api.open();
   openNote('cover');
+  resetChatInputHeight();
   setTimeout(walletTryRestore,1500);
 }
 function updateSidebarSigil(){
   const ship='~'+api.ship;
   renderAvatar(ship,document.getElementById('profileSigil'));
 }
+// ===== read cursors + scroll preservation =====
+const READ_CURSORS_KEY='noltbook-read-cursors-v1';
+let _saveCursorsTimer=null;
+function loadReadCursors(){
+  try{
+    const raw=localStorage.getItem(READ_CURSORS_KEY);
+    if(raw){const v=JSON.parse(raw);if(v&&typeof v==='object')state.noteReadCursors=v}
+  }catch(e){state.noteReadCursors={}}
+}
+function saveReadCursors(){
+  if(_saveCursorsTimer)clearTimeout(_saveCursorsTimer);
+  _saveCursorsTimer=setTimeout(function(){
+    _saveCursorsTimer=null;
+    try{localStorage.setItem(READ_CURSORS_KEY,JSON.stringify(state.noteReadCursors||{}))}catch(e){}
+  },250);
+}
+function latestMsgOrder(noteId){
+  const msgs=state.messages[noteId]||[];
+  let max=0;
+  for(const m of msgs){const o=msgOrder(m);if(typeof o==='number'&&o>max)max=o}
+  return max;
+}
+function oldestUnreadMessage(noteId){
+  const msgs=state.messages[noteId]||[];
+  const cur=state.noteReadCursors[noteId];
+  // first viewing in this browser/session: seed cursor to latest so we
+  // don't surface a noisy "New Messages" divider at the top of history.
+  if(cur==null){
+    markNoteReadTo(noteId,latestMsgOrder(noteId));
+    return null;
+  }
+  let best=null,bestOrd=Infinity;
+  for(const m of msgs){
+    const o=msgOrder(m);
+    if(typeof o!=='number'||o<=cur)continue;
+    if(o<bestOrd){best=m;bestOrd=o}
+  }
+  return best;
+}
+function markNoteReadTo(noteId,order){
+  if(!noteId||typeof order!=='number'||!order)return;
+  const cur=state.noteReadCursors[noteId]||0;
+  if(cur>=order)return;
+  state.noteReadCursors[noteId]=order;
+  saveReadCursors();
+}
+function isNearBottom(el,threshold){
+  if(!el)return true;
+  const t=(typeof threshold==='number')?threshold:64;
+  return (el.scrollHeight-el.scrollTop-el.clientHeight)<=t;
+}
+function captureScrollAnchor(el){
+  if(!el)return null;
+  const top=el.scrollTop;
+  const kids=el.children;
+  for(let i=0;i<kids.length;i++){
+    const k=kids[i];
+    if(!k.id)continue;
+    if(k.offsetTop+k.offsetHeight>=top)return {id:k.id,offset:k.offsetTop-top};
+  }
+  return null;
+}
+function restoreScrollAnchor(el,anchor){
+  if(!el||!anchor||!anchor.id)return false;
+  const k=document.getElementById(anchor.id);
+  if(!k)return false;
+  el.scrollTop=k.offsetTop-(anchor.offset||0);
+  return true;
+}
+function makeNewMessagesDivider(){
+  const div=document.createElement('div');
+  div.id='new-messages-divider';
+  div.className='new-messages-divider';
+  div.innerHTML='<div class="line"></div><span>New Messages</span><div class="line"></div>';
+  return div;
+}
+function centerUnreadDivider(el,divEl){
+  if(!el||!divEl)return;
+  el.scrollTop=Math.max(
+    0,
+    divEl.offsetTop-Math.floor((el.clientHeight-divEl.offsetHeight)*0.5)
+  );
+}
+// Persistent unread divider state. Memory-only; on next session the read
+// cursor handles continuity.
+function ensureUnreadDivider(noteId){
+  if(!noteId)return null;
+  if(state.unreadDividers[noteId])return state.unreadDividers[noteId];
+  const u=oldestUnreadMessage(noteId);
+  if(!u)return null;
+  const order=msgOrder(u);
+  if(typeof order!=='number')return null;
+  const until=latestMsgOrder(noteId)||order;
+  state.unreadDividers[noteId]={order:order,until:until};
+  return state.unreadDividers[noteId];
+}
+function clearUnreadDivider(noteId){
+  if(!noteId)return;
+  if(state.unreadDividers[noteId])delete state.unreadDividers[noteId];
+}
+// Mark messages as read as they scroll into view. Uses msg-<id> dom ids
+// and msgOrder() to pick the highest visible order. Cheap enough for
+// noltbook's note sizes; no IntersectionObserver needed.
+function markVisibleMessagesRead(){
+  const el=document.getElementById('chatMessages');
+  const noteId=state.currentNoteId;
+  if(!el||!noteId)return;
+  if(isNearBottom(el)){
+    markNoteReadTo(noteId,latestMsgOrder(noteId));
+    clearUnreadDivider(noteId);
+    return;
+  }
+  const msgs=state.messages[noteId]||[];
+  if(!msgs.length)return;
+  const byId={};
+  for(const m of msgs)byId[String(m.id)]=m;
+  const viewportBottom=el.scrollTop+el.clientHeight;
+  let best=0;
+  const nodes=el.querySelectorAll('[id^="msg-"]');
+  for(const node of nodes){
+    const id=node.id.slice(4);
+    const m=byId[id];
+    if(!m)continue;
+    if(node.offsetTop<viewportBottom-24){
+      const o=msgOrder(m);
+      if(typeof o==='number'&&o>best)best=o;
+    }
+  }
+  if(best>0)markNoteReadTo(noteId,best);
+  // Clear the divider only when the user has visibly scrolled past it
+  // (its bottom edge is above the current viewport top). Cursor reaching
+  // divider.until alone does NOT clear — that was happening invisibly as
+  // unread messages flashed into view.
+  const divEl=document.getElementById('new-messages-divider');
+  if(divEl&&divEl.offsetTop+divEl.offsetHeight<el.scrollTop+8){
+    clearUnreadDivider(noteId);
+    // remove the DOM node now so it doesn't linger until the next render.
+    // The divider is above the viewport, so subtracting its rendered
+    // height from scrollTop keeps visible content perfectly still.
+    const h=divEl.offsetHeight;
+    divEl.remove();
+    el.scrollTop=Math.max(0,el.scrollTop-h);
+  }
+}
+let _readTrackTimer=null;
+function scheduleMarkVisible(){
+  if(_readTrackTimer)return;
+  _readTrackTimer=setTimeout(function(){_readTrackTimer=null;markVisibleMessagesRead()},120);
+}
+(function attachReadTracker(){
+  const el=document.getElementById('chatMessages');
+  if(!el){setTimeout(attachReadTracker,100);return}
+  el.addEventListener('scroll',scheduleMarkVisible,{passive:true});
+})();
 let _renderTimer=null;
-function scheduleRender(noteId){const nid=noteId||state.currentNoteId;const delay=isGossipNote(nid)?150:50;if(_renderTimer)clearTimeout(_renderTimer);_renderTimer=setTimeout(()=>{_renderTimer=null;renderMessages(nid)},delay)}
+function scheduleRender(noteId,opts){
+  const nid=noteId||state.currentNoteId;
+  const delay=isGossipNote(nid)?150:50;
+  if(_renderTimer)clearTimeout(_renderTimer);
+  _renderTimer=setTimeout(()=>{_renderTimer=null;renderMessages(nid,opts||{})},delay);
+}
 let _noteListTimer=null;
 function scheduleNoteList(){if(_noteListTimer)clearTimeout(_noteListTimer);_noteListTimer=setTimeout(()=>{_noteListTimer=null;renderNoteList()},50)}
 let _lastMsgHash={};
@@ -746,7 +911,7 @@ function handleUpdate(upd){
   else if(upd['note-renamed']){const{id,name}=upd['note-renamed'];if(state.notes[id]){state.notes[id].name=name;renderNoteList()}if(state.currentNoteId===id)document.getElementById('chatNoteName').textContent=name}
   else if(upd['note-deleted']){const{id}=upd['note-deleted'];const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];delete state.noteAdmins[id];delete state.noteMuted[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];state.notifications.delete(id);if(state.currentNoteId===id)openNote('cover');renderNoteList()}
   else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];if(noteId==='cover')console.log('[cover:msg-list]',messages.length,'msgs, current=',state.currentNoteId);let maxSeq=0,revSum=0;for(const m of messages){if(m.meta){if(m.meta.seq>maxSeq)maxSeq=m.meta.seq;revSum+=m.meta.rev}}const hash=noteId+':'+messages.length+':'+maxSeq+':'+revSum;if(_lastMsgHash[noteId]===hash){if(noteId==='cover')console.log('[cover:msg-list] hash match, skipping');return}_lastMsgHash[noteId]=hash;state.messages[noteId]=messages;for(const a of artifacts)state.artifacts[a.id]=a;if(state.currentNoteId===noteId)scheduleRender(noteId);updateCoverPreview();scheduleNoteList()}
-  else if(upd['new-message']){const msg=upd['new-message'];if(!state.messages[msg.noteId])state.messages[msg.noteId]=[];if(state.messages[msg.noteId].some(m=>(msg.meta&&msg.meta.eid&&m.meta&&m.meta.eid===msg.meta.eid)||m.id===msg.id))return;state.messages[msg.noteId].push(msg);if(state.notes[msg.noteId]){state.notes[msg.noteId].lastAuthor=msg.author;state.notes[msg.noteId].lastPreview=msg.text}if(state.currentNoteId===msg.noteId)appendMessage(msg);else state.notifications.add(msg.noteId);updateCoverPreview();scheduleNoteList()}
+  else if(upd['new-message']){const msg=upd['new-message'];if(!state.messages[msg.noteId])state.messages[msg.noteId]=[];if(state.messages[msg.noteId].some(m=>(msg.meta&&msg.meta.eid&&m.meta&&m.meta.eid===msg.meta.eid)||m.id===msg.id))return;state.messages[msg.noteId].push(msg);if(state.notes[msg.noteId]){state.notes[msg.noteId].lastAuthor=msg.author;state.notes[msg.noteId].lastPreview=msg.text}if(state.currentNoteId===msg.noteId){const isOwn=msg.author===('~'+api.ship);if(isOwn){clearUnreadDivider(msg.noteId)}else{const _cmEl=document.getElementById('chatMessages');if(_cmEl&&!isNearBottom(_cmEl)&&!state.unreadDividers[msg.noteId]){const _ord=msgOrder(msg);if(typeof _ord==='number')state.unreadDividers[msg.noteId]={order:_ord,until:_ord}}}appendMessage(msg,isOwn)}else state.notifications.add(msg.noteId);updateCoverPreview();scheduleNoteList()}
   else if(upd['artifact-created']){const a=upd['artifact-created'];state.artifacts[a.id]=a;if(a.type==='app'||a.type==='file')scheduleRender()}
   else if(upd['artifact-updated']){const a=upd['artifact-updated'];state.artifacts[a.id]=a;if(state.activeAppBridge&&state.activeAppBridge.artifactId===a.id){const lastVer=a.versions[a.versions.length-1];if(lastVer){try{const meta=JSON.parse(lastVer.content);const iframe=document.getElementById(state.activeAppBridge.iframeId);if(iframe&&iframe.contentWindow){iframe.contentWindow.postMessage({source:'noltbook-host',type:'nb:state',payload:meta.state||{}},'*')}}catch(e){}}}else if(document.getElementById('artifactPanel').classList.contains('open')&&document.getElementById('artifactPanelTitle').textContent===a.name)openArtifactPanel(a.id)}
   else if(upd['artifact-deleted']){delete state.artifacts[upd['artifact-deleted'].id];closeArtifactPanel();scheduleRender()}
@@ -812,7 +977,7 @@ function handleUpdate(upd){
   else if(upd['note-users-updated']){const d=upd['note-users-updated'];const{id,type,users,removed}=d;const rev=d.rev||0;const localRev=state.noteMemberRevs[id]||0;if(rev<localRev){console.log('[note-users-updated:stale]',id,'incoming',rev,'<','local',localRev);return}state.noteMemberRevs[id]=rev;console.log('[note-users-updated]',id,type,users,removed,'rev',rev);if(state.notes[id]){const me='~'+api.ship;const vis=state.notes[id].visibility;const notifyVis=vis==='public'||vis==='private';if(state.notes[id].creator===me&&notifyVis){const oldU=state.notes[id].users||[];const newJ=users.filter(u=>!oldU.includes(u)&&u!==me);for(const j of newJ)state.blockNotifications.push({noteId:id,noteName:state.notes[id].name,from:j,time:Date.now(),type:'joined'});if(newJ.length>0)updateLogoBadge()}state.notes[id].users=users;state.notes[id].removed=removed||[];if(type)state.notes[id].type=type;rebuildDurableNotifications();updateLogoBadge();renderNoteList();if(state.currentNoteId===id){scheduleRender(id);updateMuteUI()}refreshNoteInfoMembers(id)}}
   else if(upd['note-redirect']){const{oldId,newId}=upd['note-redirect'];console.log('[note-redirect]',oldId,'->',newId);delete state.notes[oldId];delete state.messages[oldId];state.notifications.delete(oldId);if(state.currentNoteId===oldId){if(state.notes[newId])openNote(newId);else openNote('cover')}renderNoteList()}
   else if(upd['wallet-update']){wallet.transactions=upd['wallet-update'].map(tx=>({type:tx.type,who:tx.counterparty,amount:tx.amount,time:new Date(tx.timestamp).toLocaleString(),txid:tx.txHash}));renderWalletNotes()}
-  else if(upd['gossip-message']){const{message,hops}=upd['gossip-message'];const nid=message.noteId||'cover';const msgEid=message.meta&&message.meta.eid||null;if(nid==='cover')console.log('[cover:gossip-msg]',message.author,'dup=',(state.messages[nid]||[]).some(m=>(msgEid&&m.meta&&m.meta.eid===msgEid)||m.id===message.id),'viewing=',state.currentNoteId===nid);state.gossipHops[message.id]=hops;if(!state.messages[nid])state.messages[nid]=[];const nenvs=state.gossipEnvelopes[nid]||{};delete nenvs[message.id];if(msgEid)delete nenvs[msgEid];state.gossipEnvelopes[nid]=nenvs;const nfetch=state.gossipFetching[nid];if(nfetch){nfetch.delete(message.id);if(msgEid)nfetch.delete(msgEid)}const isDup=state.messages[nid].some(m=>(msgEid&&m.meta&&m.meta.eid===msgEid)||m.id===message.id);if(!isDup){state.messages[nid].push(message);const visible=coverMsgVisible(message);if(state.currentNoteId===nid&&visible)appendMessage(message);else if(state.currentNoteId!==nid&&visible)state.notifications.add(nid)}const visible=coverMsgVisible(message);if(visible&&state.notes[nid]){state.notes[nid].lastAuthor=message.author;state.notes[nid].lastPreview=message.text}scheduleNoteList()}
+  else if(upd['gossip-message']){const{message,hops}=upd['gossip-message'];const nid=message.noteId||'cover';const msgEid=message.meta&&message.meta.eid||null;if(nid==='cover')console.log('[cover:gossip-msg]',message.author,'dup=',(state.messages[nid]||[]).some(m=>(msgEid&&m.meta&&m.meta.eid===msgEid)||m.id===message.id),'viewing=',state.currentNoteId===nid);state.gossipHops[message.id]=hops;if(!state.messages[nid])state.messages[nid]=[];const nenvs=state.gossipEnvelopes[nid]||{};delete nenvs[message.id];if(msgEid)delete nenvs[msgEid];state.gossipEnvelopes[nid]=nenvs;const nfetch=state.gossipFetching[nid];if(nfetch){nfetch.delete(message.id);if(msgEid)nfetch.delete(msgEid)}const isDup=state.messages[nid].some(m=>(msgEid&&m.meta&&m.meta.eid===msgEid)||m.id===message.id);if(!isDup){state.messages[nid].push(message);const visible=coverMsgVisible(message);if(state.currentNoteId===nid&&visible){const isOwn=message.author===('~'+api.ship);appendMessage(message,isOwn)}else if(state.currentNoteId!==nid&&visible)state.notifications.add(nid)}const visible=coverMsgVisible(message);if(visible&&state.notes[nid]){state.notes[nid].lastAuthor=message.author;state.notes[nid].lastPreview=message.text}scheduleNoteList()}
   else if(upd['gossip-envelope']){const{noteId,envelope,hops}=upd['gossip-envelope'];const nid=noteId||'cover';const envEid=envelope.meta&&envelope.meta.eid||null;if((state.messages[nid]||[]).some(m=>(envEid&&m.meta&&m.meta.eid===envEid)||m.id===envelope.id))return;const nenvs=state.gossipEnvelopes[nid]||{};const envKey=envEid||envelope.id;if(nenvs[envKey])return;envelope._eid=envEid;nenvs[envKey]=envelope;state.gossipEnvelopes[nid]=nenvs;state.gossipHops[envelope.id]=hops;const shell={id:envelope.id,noteId:nid,author:envelope.author,text:null};if(coverMsgVisible(shell))fetchGossipContent(nid,envelope.id,envelope.author,envEid);if(state.currentNoteId!==nid&&coverMsgVisible(shell))state.notifications.add(nid);scheduleNoteList()}
   else if(upd['envelope-list']){const{noteId,envelopes}=upd['envelope-list'];const existingMsgs=state.messages[noteId]||[];const existingIds=new Set(existingMsgs.map(m=>m.id));const existingEids=new Set(existingMsgs.filter(m=>m.meta&&m.meta.eid).map(m=>m.meta.eid));const nenvs=state.gossipEnvelopes[noteId]||{};let fetched=0;for(const env of envelopes){const eeid=env.meta&&env.meta.eid||null;const envKey=eeid||env.id;if(existingIds.has(env.id)||(eeid&&existingEids.has(eeid))||nenvs[envKey])continue;env._eid=eeid;nenvs[envKey]=env;const shell={id:env.id,noteId:noteId,author:env.author,text:null};if(coverMsgVisible(shell)){fetchGossipContent(noteId,env.id,env.author,eeid);fetched++}}state.gossipEnvelopes[noteId]=nenvs;if(fetched>0)scheduleNoteList()}
   else if(upd['cover-msg-content']){const{noteId,message:msg}=upd['cover-msg-content'];const nid=noteId||'cover';const msgEid=msg.meta&&msg.meta.eid||null;const nfetch=state.gossipFetching[nid];if(nfetch){nfetch.delete(msg.id);if(msgEid)nfetch.delete(msgEid)}const nenvs=state.gossipEnvelopes[nid]||{};delete nenvs[msg.id];if(msgEid)delete nenvs[msgEid];state.gossipEnvelopes[nid]=nenvs;if(!state.messages[nid])state.messages[nid]=[];const isDup=state.messages[nid].some(m=>(msgEid&&m.meta&&m.meta.eid===msgEid)||m.id===msg.id);if(!isDup){state.messages[nid].push(msg);const visible=coverMsgVisible(msg);if(state.currentNoteId!==nid&&visible)state.notifications.add(nid)}state.gossipPending[nid]=Math.max(0,(state.gossipPending[nid]||1)-1);if(state.gossipPending[nid]===0){hideGossipLoading();if(state.currentNoteId===nid)scheduleRender(nid);if(state.notes[nid]){const msgs=state.messages[nid]||[];if(msgs.length){const newest=msgs.reduce((a,b)=>b.timestamp>a.timestamp?b:a);state.notes[nid].lastPreview=newest.text;state.notes[nid].lastAuthor=newest.author}}scheduleNoteList()}if(state.pendingGossipRef&&state.pendingGossipRef.noteId===nid){const pr=state.pendingGossipRef;const match=(msgEid&&pr.eid&&msgEid===pr.eid)||String(msg.id)===pr.msgId;if(match){clearTimeout(pr.timer);state.pendingGossipRef=null;setTimeout(function(){scrollToGossipMsg(pr.msgId,pr.eid)},400)}}}
@@ -882,7 +1047,7 @@ async function openNote(id){
   const subId=await api.subscribe('noltbook','/notes/'+id,handleUpdate);
   if(subId===null){console.error('[openNote] subscribe failed, reconnecting');if(!api.reconnecting)api.reconnect();return}
   state.currentNoteSub=subId;
-  if(state.messages[id])renderMessages(id);
+  if(state.messages[id]){ensureUnreadDivider(id);renderMessages(id,{scrollToUnread:true})}
   renderNoteList();
   updateCallUI();
   updateMuteUI();
@@ -1506,8 +1671,32 @@ function msgDepth(msgId,byId,byEid){
   while(cur){const p=getParent(cur,byId,byEid||{});if(!p)break;cur=p;d++}
   return d;
 }
-function renderMessages(noteId){
-  const el=document.getElementById('chatMessages');el.innerHTML='';state.lastMsgAuthor=null;state.lastMsgDepth=-1;
+function renderMessages(noteId,opts){
+  opts=opts||{};
+  const el=document.getElementById('chatMessages');
+  // capture scroll state BEFORE wiping the timeline
+  const wasNearBottom=isNearBottom(el);
+  const anchor=(opts.forceBottom||opts.scrollToUnread)?null:captureScrollAnchor(el);
+  // consume one-shot force-bottom flag (set on local-user sends)
+  let forceBottom=!!opts.forceBottom;
+  if(state.forceBottomOnce&&state.forceBottomOnce[noteId]){
+    forceBottom=true;
+    delete state.forceBottomOnce[noteId];
+  }
+  // Persistent unread divider — placed before the first item whose order
+  // is >= dividerInfo.order. Independent of opts; renders on every pass.
+  const dividerInfo=state.unreadDividers[noteId]||null;
+  let dividerInserted=false;
+  function maybeInsertDivider(itemOrd){
+    if(dividerInserted||!dividerInfo)return;
+    if(typeof itemOrd!=='number')return;
+    if(itemOrd<dividerInfo.order)return;
+    el.appendChild(makeNewMessagesDivider());
+    dividerInserted=true;
+    // break grouping across the divider
+    state.lastMsgAuthor=null;state.lastMsgDepth=-1;
+  }
+  el.innerHTML='';state.lastMsgAuthor=null;state.lastMsgDepth=-1;
   if(noteId==='ars-rumors'){
     const saying=RUMOR_SAYINGS[Math.floor(Math.random()*RUMOR_SAYINGS.length)];
     const hdr=document.createElement('div');
@@ -1582,6 +1771,15 @@ function renderMessages(noteId){
   }
   items.sort((a,b)=>noteId==='ars-rumors'?b.order-a.order:a.order-b.order);
   for(const item of items){
+    // insert "New Messages" divider before the first message/thread item
+    // whose order is >= the divider's anchor order. Artifacts/envelopes
+    // are skipped for placement so they never spuriously clear unread.
+    if(item.type==='msg')maybeInsertDivider(orderKey(item.msg));
+    else if(item.type==='thread'){
+      const root=byId[item.anchorId];
+      if(root)maybeInsertDivider(orderKey(root));
+      else maybeInsertDivider(item.order);
+    }
     if(item.type==='msg'){
       renderMsg(el,item.msg,0);
     }else if(item.type==='thread'){
@@ -1657,14 +1855,14 @@ function renderMessages(noteId){
           const m=meta.mime||'';
           const isImg=meta.kind==='image'||m.startsWith('image/');
           if(isImg){
-            fileContent=`<img src="${artUrl}" alt="${fname}" style="max-width:100%;max-height:400px;border:1px solid var(--border);margin-top:.35rem;cursor:pointer;display:block" onerror="this.outerHTML='<div style=&quot;margin-top:.35rem;font-size:.8rem;color:#ff4444&quot;>[content not yet available on this ship]</div>'" ${dblExpand}>`;
+            fileContent=`<div class="artifact-img-box" style="cursor:pointer" ${dblExpand}><img src="${artUrl}" alt="${fname}" onerror="this.parentElement.outerHTML='<div style=&quot;margin-top:.35rem;font-size:.8rem;color:#ff4444&quot;>[content not yet available on this ship]</div>'"></div>`;
           }else if(isDocMime(m,fname)){
             fileContent=renderDocCard(artUrl,fname,m,meta.size);
           }else{
             fileContent=`<div style="display:flex;align-items:center;gap:.5rem;margin-top:.35rem;padding:.4rem .6rem;border:1px solid var(--border);background:var(--bg2)"><span style="font-size:.85rem;color:var(--text)">${fname}</span><a href="${artUrl}&download=1" style="font-size:.7rem;color:#ffaa00;text-decoration:none;margin-left:auto" download="${fname}">DOWNLOAD</a></div>`;
           }
         }else if(meta.dataUrl&&meta.mimeType&&meta.mimeType.startsWith('image/')){
-          fileContent=`<img src="${escAttr(meta.dataUrl)}" alt="${fname}" style="max-width:100%;max-height:400px;border:1px solid var(--border);margin-top:.35rem;cursor:pointer;display:block" ${dblExpand}>`;
+          fileContent=`<div class="artifact-img-box" style="cursor:pointer" ${dblExpand}><img src="${escAttr(meta.dataUrl)}" alt="${fname}"></div>`;
         }else if(meta.dataUrl&&meta.mimeType==='application/pdf'){
           fileContent=`<div style="margin-top:.35rem" ${dblExpand}><iframe src="${escAttr(meta.dataUrl)}" style="width:100%;height:400px;border:1px solid var(--border);background:#fff;pointer-events:none"></iframe></div>`;
         }else if(meta.dataUrl&&meta.mimeType&&(meta.mimeType.startsWith('text/')||meta.mimeType==='application/json'||meta.mimeType==='application/xml'||meta.mimeType==='application/javascript')){
@@ -1698,7 +1896,7 @@ function renderMessages(noteId){
       const fname=escHtml(rawName);
       let body='';
       if(isImg){
-        body=`<img src="${url}" alt="${fname}" style="max-width:100%;max-height:400px;border:1px solid var(--border);margin-top:.35rem;cursor:pointer;display:block" onerror="this.outerHTML='<div style=&quot;margin-top:.35rem;font-size:.8rem;color:#ff4444&quot;>[content not yet available]</div>'">`;
+        body=`<div class="artifact-img-box"><img src="${url}" alt="${fname}" onerror="this.parentElement.outerHTML='<div style=&quot;margin-top:.35rem;font-size:.8rem;color:#ff4444&quot;>[content not yet available]</div>'"></div>`;
       }else if(isDocMime(env.mime,rawName)){
         body=renderDocCard(url,rawName,env.mime||'',env.size);
       }else{
@@ -1749,8 +1947,38 @@ function renderMessages(noteId){
     }
     return;
   }
-  el.scrollTop=noteId==='ars-rumors'?0:el.scrollHeight;
+  // ===== scroll decision =====
+  const pinIfNB=opts.pinIfNearBottom!==false;
+  if(forceBottom){
+    el.scrollTop=noteId==='ars-rumors'?0:el.scrollHeight;
+    markNoteReadTo(noteId,latestMsgOrder(noteId));
+    clearUnreadDivider(noteId);
+  }else if(opts.scrollToUnread&&dividerInserted){
+    // center the divider vertically when possible. The rAF second pass
+    // recenters after artifacts/images settle their final layout, so the
+    // user lands on a stable centered position rather than a slightly
+    // off-center one.
+    const divEl=document.getElementById('new-messages-divider');
+    if(divEl){
+      centerUnreadDivider(el,divEl);
+      requestAnimationFrame(()=>centerUnreadDivider(el,divEl));
+    }
+    // do not mark read yet; user must scroll past the unread region
+  }else if(opts.scrollToUnread){
+    // no unread for this note — fall back to bottom on note open
+    el.scrollTop=noteId==='ars-rumors'?0:el.scrollHeight;
+    markNoteReadTo(noteId,latestMsgOrder(noteId));
+    clearUnreadDivider(noteId);
+  }else if(pinIfNB&&wasNearBottom){
+    el.scrollTop=noteId==='ars-rumors'?0:el.scrollHeight;
+    markNoteReadTo(noteId,latestMsgOrder(noteId));
+    clearUnreadDivider(noteId);
+  }else{
+    restoreScrollAnchor(el,anchor);
+  }
   if(window.twttr&&twttr.widgets)twttr.widgets.load(el);
+  // after layout settles, sweep visible messages and advance the read cursor.
+  requestAnimationFrame(markVisibleMessagesRead);
 }
 function expandThread(rootId){
   if(!state.expandedThreads)state.expandedThreads=new Set();
@@ -1835,9 +2063,61 @@ function revealBlockedMsg(msgId){
   _revealedBlockedMsgs.add(parseInt(msgId));
   scheduleRender(state.currentNoteId);
 }
-function appendMessage(msg){
+function canAppendMessageFast(msg){
+  const noteId=state.currentNoteId;
+  if(!noteId||msg.noteId!==noteId)return false;
+  if(noteId==='ars-rumors')return false;
+  if(isGossipNote(noteId))return false;
+  if(msg.replyTo)return false;
+  if(msg.meta&&msg.meta.replyToEid)return false;
+  // pending mention jump or visible mentions for this note: full render
+  if(state.mentions[noteId]&&state.mentions[noteId].length)return false;
+  // any expanded threads: full render (collapse housekeeping rerenders)
+  if(state.expandedThreads&&state.expandedThreads.size)return false;
+  // must be the new latest among existing messages
+  const msgs=state.messages[noteId]||[];
+  const myOrd=msgOrder(msg);
+  if(typeof myOrd!=='number')return false;
+  let max=0;
+  for(const m of msgs){
+    if(m.id===msg.id)continue;
+    const o=msgOrder(m);
+    if(typeof o==='number'&&o>max)max=o;
+  }
+  return myOrd>=max;
+}
+function appendMessageFast(msg,isOwn){
+  const el=document.getElementById('chatMessages');
+  if(!el)return false;
+  const noteId=state.currentNoteId;
+  const wasNearBottom=isNearBottom(el);
+  // insert the unread divider in-place if applicable and not yet in DOM
+  const div=state.unreadDividers[noteId];
+  if(div&&!document.getElementById('new-messages-divider')){
+    const myOrd=msgOrder(msg);
+    if(typeof myOrd==='number'&&myOrd>=div.order){
+      el.appendChild(makeNewMessagesDivider());
+      state.lastMsgAuthor=null;state.lastMsgDepth=-1;
+    }
+  }
+  // append the single message; renderMsg maintains grouping state
+  renderMsg(el,msg,0);
+  if(isOwn||wasNearBottom){
+    el.scrollTop=el.scrollHeight;
+    markNoteReadTo(noteId,latestMsgOrder(noteId));
+    clearUnreadDivider(noteId);
+  }
+  // else: preserve current scroll position; do not mark read
+  return true;
+}
+function appendMessage(msg,isOwn){
   if(state.expandedThreads){const byId={};const byEid={};(state.messages[state.currentNoteId]||[]).forEach(m=>{byId[m.id]=m;const eid=getMsgEid(m);if(eid)byEid[eid]=m});const root=findThreadRoot(msg.id,byId,byEid);state.expandedThreads.delete(root)}
-  renderMessages(state.currentNoteId);
+  if(canAppendMessageFast(msg)){
+    if(appendMessageFast(msg,isOwn))return;
+  }
+  // fall back: own sends always pin to bottom; incoming messages defer to
+  // the user's current scroll position (pin only when already near bottom).
+  renderMessages(state.currentNoteId,isOwn?{forceBottom:true}:{});
 }
 let ownAvatarBlobUrl=null;
 function resolveAvatarUrl(ship){
@@ -1959,7 +2239,7 @@ function showUserDropdown(inputEl,containerEl,onSelect,opts){
   _activeDropdown={dd,update,inputEl};
   return{update,destroy:function(){dd.remove();inputEl.removeEventListener('input',update);inputEl.removeEventListener('keydown',handleKey)}};
 }
-function renderText(text){if(!text)return'';var out=escHtml(text);out=out.replace(/`([^`]+)`/g,'<code style="background:var(--bg3);padding:.1rem .3rem">$1</code>');out=out.replace(/(data:image\/[^\s"]+)/g,function(m){var raw=m.replace(/&amp;/g,'&').replace(/&quot;/g,'"');return '<div style="margin:.35rem 0"><img src="'+raw+'" style="max-width:100%;max-height:400px;border:1px solid var(--border);cursor:pointer" ondblclick="openImageFullscreen(this.src)"></div>'});out=out.replace(/(https?:\/\/[^\s]+)/g,function(url){var raw=url.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/[.,;:!?\)]+$/,'');if(/\.(png|jpe?g|gif|webp|svg|bmp|ico)(\?[^\s]*)?$/i.test(raw)){return '<div style="margin:.35rem 0"><img src="'+escAttr(raw)+'" style="max-width:100%;max-height:400px;border:1px solid var(--border);cursor:pointer" ondblclick="openImageFullscreen(this.src)"></div>'}var yt=raw.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/);if(yt){return '<div style="margin:.35rem 0;max-width:480px;aspect-ratio:16/9"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[1]+'" style="width:100%;height:100%;border:1px solid var(--border)" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe></div>'}var tw=raw.match(/(?:twitter\.com|x\.com)\/(\w+)\/status\/(\d+)/);if(tw){return '<div class="tweet-embed" style="margin:.35rem 0;max-width:480px"><blockquote class="twitter-tweet" data-theme="dark" data-conversation="none"><a href="https://twitter.com/'+tw[1]+'/status/'+tw[2]+'"></a></blockquote></div>'}return '<a href="'+escAttr(raw)+'" target="_blank" rel="noopener" style="color:#ffaa00">'+url+'</a>'});out=out.replace(/~ref\[([^\]|]+)\|([^\]]+)\]/g,function(m,nid,cr){var n=state.notes[nid]||state.discoveryNotes[nid];if(n){var iu=resolveNoteIconUrl(n);var ic=iu?'<img src="'+escAttr(iu)+'">':noteInitials(n.name);return '<span class="note-ref" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-icon">'+ic+'</span><span class="note-ref-name">'+escHtml(n.name)+'</span></span>'}return '<span class="note-ref" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-icon">?</span><span class="note-ref-name note-ref-unknown">Note Link</span></span>'});out=out.replace(/~gref\[([^\]|]+)\|([^\]|]+)\|([^\]|]*)\|([^\]]+)\]/g,function(m,nid,author,eid,mid){if(state.palStatus[author]==='blocked')return '<span style="color:#ff4444;font-size:.8rem">[blocked user ref]</span>';var n=state.notes[nid];var noteName=n?noteDisplayName(n):'gossip note';var authorName=displayName(author);var excerpt='';if(n){var msgs=state.messages[nid]||[];var found=msgs.find(function(msg){if(eid&&getMsgEid(msg)===eid)return true;return String(msg.id)===mid});if(found&&found.text)excerpt=found.text.slice(0,60)}var excerptHtml=excerpt?'<span class="gossip-ref-excerpt">\u2014 '+escHtml(excerpt)+'</span>':'<span class="gossip-ref-unavail">gossip post</span>';return '<span class="gossip-ref" onclick="clickGossipRef(\''+escAttr(nid)+'\',\''+escAttr(author)+'\',\''+escAttr(eid)+'\',\''+escAttr(mid)+'\')"><span class="gossip-ref-author">'+escHtml(authorName)+'</span><span class="gossip-ref-note">in '+escHtml(noteName)+'</span>'+excerptHtml+'</span>'});out=out.replace(/@(~[a-z][\w-]*)/g,function(m,ship){return '<span style="color:#ffaa00;font-weight:500">@'+ship+'</span>'});return out}
+function renderText(text){if(!text)return'';var out=escHtml(text);out=out.replace(/`([^`]+)`/g,'<code style="background:var(--bg3);padding:.1rem .3rem">$1</code>');out=out.replace(/(data:image\/[^\s"]+)/g,function(m){var raw=m.replace(/&amp;/g,'&').replace(/&quot;/g,'"');return '<div class="artifact-img-box" style="cursor:pointer"><img src="'+raw+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'});out=out.replace(/(https?:\/\/[^\s]+)/g,function(url){var raw=url.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/[.,;:!?\)]+$/,'');if(/\.(png|jpe?g|gif|webp|svg|bmp|ico)(\?[^\s]*)?$/i.test(raw)){return '<div class="artifact-img-box" style="cursor:pointer"><img src="'+escAttr(raw)+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'}var yt=raw.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/);if(yt){return '<div style="margin:.35rem 0;max-width:480px;aspect-ratio:16/9"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[1]+'" style="width:100%;height:100%;border:1px solid var(--border)" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe></div>'}var tw=raw.match(/(?:twitter\.com|x\.com)\/(\w+)\/status\/(\d+)/);if(tw){return '<div class="tweet-embed" style="margin:.35rem 0;max-width:480px"><blockquote class="twitter-tweet" data-theme="dark" data-conversation="none"><a href="https://twitter.com/'+tw[1]+'/status/'+tw[2]+'"></a></blockquote></div>'}return '<a href="'+escAttr(raw)+'" target="_blank" rel="noopener" style="color:#ffaa00">'+url+'</a>'});out=out.replace(/~ref\[([^\]|]+)\|([^\]]+)\]/g,function(m,nid,cr){var n=state.notes[nid]||state.discoveryNotes[nid];if(n){var iu=resolveNoteIconUrl(n);var ic=iu?'<img src="'+escAttr(iu)+'">':noteInitials(n.name);return '<span class="note-ref" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-icon">'+ic+'</span><span class="note-ref-name">'+escHtml(n.name)+'</span></span>'}return '<span class="note-ref" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-icon">?</span><span class="note-ref-name note-ref-unknown">Note Link</span></span>'});out=out.replace(/~gref\[([^\]|]+)\|([^\]|]+)\|([^\]|]*)\|([^\]]+)\]/g,function(m,nid,author,eid,mid){if(state.palStatus[author]==='blocked')return '<span style="color:#ff4444;font-size:.8rem">[blocked user ref]</span>';var n=state.notes[nid];var noteName=n?noteDisplayName(n):'gossip note';var authorName=displayName(author);var excerpt='';if(n){var msgs=state.messages[nid]||[];var found=msgs.find(function(msg){if(eid&&getMsgEid(msg)===eid)return true;return String(msg.id)===mid});if(found&&found.text)excerpt=found.text.slice(0,60)}var excerptHtml=excerpt?'<span class="gossip-ref-excerpt">\u2014 '+escHtml(excerpt)+'</span>':'<span class="gossip-ref-unavail">gossip post</span>';return '<span class="gossip-ref" onclick="clickGossipRef(\''+escAttr(nid)+'\',\''+escAttr(author)+'\',\''+escAttr(eid)+'\',\''+escAttr(mid)+'\')"><span class="gossip-ref-author">'+escHtml(authorName)+'</span><span class="gossip-ref-note">in '+escHtml(noteName)+'</span>'+excerptHtml+'</span>'});out=out.replace(/@(~[a-z][\w-]*)/g,function(m,ship){return '<span style="color:#ffaa00;font-weight:500">@'+ship+'</span>'});return out}
 function openImageFullscreen(url){var o=document.createElement('div');o.id='file-fullscreen';o.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.92);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer';o.innerHTML='<img src="'+url+'" style="max-width:95%;max-height:90vh">';o.onclick=function(){o.remove()};document.body.appendChild(o)}
 async function sendMessage(){
   const input=document.getElementById('chatInput');const text=input.value.trim();if(!text)return;
@@ -1978,10 +2258,10 @@ async function sendMessage(){
     const editData={noteId:state.currentNoteId,msgId,text};
     if(eid)editData.eid=eid;
     await api.poke('noltbook','noltbook-action',{action:'edit-message',data:editData});
-    input.value='';input.style.height='';cancelEdit();updateInputMirror();
+    input.value='';resetChatInputHeight();cancelEdit();updateInputMirror();
     return;
   }
-  const data={noteId:state.currentNoteId,text};if(state.replyingTo){data.replyTo=state.replyingTo;if(state.replyingToEid)data.replyToEid=state.replyingToEid}const ok=await api.poke('noltbook','noltbook-action',{action:'send-message',data});if(!ok){console.error('[sendMessage] poke failed, retrying after reconnect');if(!api.reconnecting)api.reconnect();return}input.value='';input.style.height='';cancelReply();updateInputMirror()
+  const data={noteId:state.currentNoteId,text};if(state.replyingTo){data.replyTo=state.replyingTo;if(state.replyingToEid)data.replyToEid=state.replyingToEid}const ok=await api.poke('noltbook','noltbook-action',{action:'send-message',data});if(!ok){console.error('[sendMessage] poke failed, retrying after reconnect');if(!api.reconnecting)api.reconnect();return}input.value='';resetChatInputHeight();cancelReply();updateInputMirror()
 }
 let mentionState={active:false,startPos:0,idx:-1};
 function getMentionQuery(){
@@ -2063,7 +2343,51 @@ function updateInputMirror(){
   mirror.scrollTop=inp.scrollTop;
 }
 function syncMirrorScroll(){const inp=document.getElementById('chatInput');const mirror=document.getElementById('chatInputMirror');if(inp&&mirror)mirror.scrollTop=inp.scrollTop}
-function autoResize(el){el.style.height='';el.style.height=Math.min(el.scrollHeight,120)+'px';updateMentionDropdown();updateInputMirror()}
+function chatInputBaseHeight(el){
+  // True one-line resting height: max of CSS min-height and the natural
+  // line-box (line-height + padding + border). CSS min-height alone is
+  // too small for a textarea whose padding+border push the resting size
+  // a few px past min-height, which made the bar grow on first keystroke
+  // and shrink back on send.
+  if(!el)return 38;
+  const cs=getComputedStyle(el);
+  const minH=parseFloat(cs.minHeight)||0;
+  const line=parseFloat(cs.lineHeight)||16;
+  const pad=(parseFloat(cs.paddingTop)||0)+(parseFloat(cs.paddingBottom)||0);
+  const border=(parseFloat(cs.borderTopWidth)||0)+(parseFloat(cs.borderBottomWidth)||0);
+  return Math.ceil(Math.max(minH,line+pad+border));
+}
+function setChatInputHeight(px){
+  const inp=document.getElementById('chatInput');
+  const mirror=document.getElementById('chatInputMirror');
+  const wrap=inp&&inp.closest('.chat-input-wrap');
+  if(!inp)return;
+  const base=chatInputBaseHeight(inp);
+  const requested=(typeof px==='number'&&px>0)?px:base;
+  const h=Math.max(base,Math.min(requested,120));
+  inp.style.height=h+'px';
+  if(mirror)mirror.style.height=h+'px';
+  if(wrap)wrap.style.height=h+'px';
+  inp.style.overflowY=(requested>120)?'auto':'hidden';
+}
+function resetChatInputHeight(){
+  const inp=document.getElementById('chatInput');
+  if(!inp)return;
+  setChatInputHeight(chatInputBaseHeight(inp));
+}
+function autoResize(el){
+  // Measure natural content height. scrollHeight excludes border under
+  // border-box, so add border back in for parity with what the height
+  // style we set later (which DOES include border under border-box).
+  el.style.height='auto';
+  const cs=getComputedStyle(el);
+  const border=(parseFloat(cs.borderTopWidth)||0)+(parseFloat(cs.borderBottomWidth)||0);
+  const measured=Math.ceil(el.scrollHeight+border);
+  const next=Math.max(chatInputBaseHeight(el),Math.min(measured,120));
+  setChatInputHeight(next);
+  updateMentionDropdown();
+  updateInputMirror();
+}
 function startReply(msgId,author){state.replyingTo=parseInt(msgId);const msgs=state.messages[state.currentNoteId]||[];const rm=msgs.find(m=>m.id===parseInt(msgId));state.replyingToEid=rm&&rm.meta&&rm.meta.eid?rm.meta.eid:null;document.getElementById('replyLabel').textContent='↩ replying to '+author;document.getElementById('replyBar').classList.add('visible');document.getElementById('chatInput').focus()}
 function cancelReply(){state.replyingTo=null;state.replyingToEid=null;document.getElementById('replyBar').classList.remove('visible')}
 function editMessage(msgId){
@@ -2087,7 +2411,7 @@ function editMessage(msgId){
   autoResize(input);
   updateInputMirror();
 }
-function cancelEdit(){state.editingMsgId=null;const input=document.getElementById('chatInput');input.value='';input.style.height='';input.placeholder='message...';updateInputMirror()}
+function cancelEdit(){state.editingMsgId=null;const input=document.getElementById('chatInput');input.value='';resetChatInputHeight();input.placeholder='message...';updateInputMirror()}
 async function deleteMessage(msgId){
   const _nid=state.currentNoteId;const _me='~'+api.ship;
   const _note=state.notes[_nid];
