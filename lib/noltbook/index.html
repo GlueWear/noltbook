@@ -841,6 +841,19 @@ function clearUnreadDivider(noteId){
   if(!noteId)return;
   if(state.unreadDividers[noteId])delete state.unreadDividers[noteId];
 }
+// Clears the state entry AND removes the visible #new-messages-divider
+// DOM node when the cleared note is the current note. Use this for paths
+// that won't naturally trigger a full re-render (own-send fast append,
+// force/pin-bottom branches). Scroll-past-divider has its own DOM removal
+// with height-subtraction scroll preservation and should not use this.
+function clearUnreadDividerDom(noteId,opts){
+  clearUnreadDivider(noteId);
+  const removeDom=!opts||opts.removeDom!==false;
+  if(!removeDom)return;
+  if(noteId!==state.currentNoteId)return;
+  const divEl=document.getElementById('new-messages-divider');
+  if(divEl)divEl.remove();
+}
 // Mark messages as read as they scroll into view. Uses msg-<id> dom ids
 // and msgOrder() to pick the highest visible order. Cheap enough for
 // noltbook's note sizes; no IntersectionObserver needed.
@@ -849,8 +862,11 @@ function markVisibleMessagesRead(){
   const noteId=state.currentNoteId;
   if(!el||!noteId)return;
   if(isNearBottom(el)){
+    // advance the read cursor so a future visit won't surface this same
+    // divider, but do NOT clear the visible divider during this visit;
+    // the user only sees it disappear when they scroll past it, post
+    // their own message, or leave & return.
     markNoteReadTo(noteId,latestMsgOrder(noteId));
-    clearUnreadDivider(noteId);
     return;
   }
   const msgs=state.messages[noteId]||[];
@@ -911,7 +927,7 @@ function handleUpdate(upd){
   else if(upd['note-renamed']){const{id,name}=upd['note-renamed'];if(state.notes[id]){state.notes[id].name=name;renderNoteList()}if(state.currentNoteId===id)document.getElementById('chatNoteName').textContent=name}
   else if(upd['note-deleted']){const{id}=upd['note-deleted'];const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];delete state.noteAdmins[id];delete state.noteMuted[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];state.notifications.delete(id);if(state.currentNoteId===id)openNote('cover');renderNoteList()}
   else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];if(noteId==='cover')console.log('[cover:msg-list]',messages.length,'msgs, current=',state.currentNoteId);let maxSeq=0,revSum=0;for(const m of messages){if(m.meta){if(m.meta.seq>maxSeq)maxSeq=m.meta.seq;revSum+=m.meta.rev}}const hash=noteId+':'+messages.length+':'+maxSeq+':'+revSum;if(_lastMsgHash[noteId]===hash){if(noteId==='cover')console.log('[cover:msg-list] hash match, skipping');return}_lastMsgHash[noteId]=hash;state.messages[noteId]=messages;for(const a of artifacts)state.artifacts[a.id]=a;if(state.currentNoteId===noteId)scheduleRender(noteId);updateCoverPreview();scheduleNoteList()}
-  else if(upd['new-message']){const msg=upd['new-message'];if(!state.messages[msg.noteId])state.messages[msg.noteId]=[];if(state.messages[msg.noteId].some(m=>(msg.meta&&msg.meta.eid&&m.meta&&m.meta.eid===msg.meta.eid)||m.id===msg.id))return;state.messages[msg.noteId].push(msg);if(state.notes[msg.noteId]){state.notes[msg.noteId].lastAuthor=msg.author;state.notes[msg.noteId].lastPreview=msg.text}if(state.currentNoteId===msg.noteId){const isOwn=msg.author===('~'+api.ship);if(isOwn){clearUnreadDivider(msg.noteId)}else{const _cmEl=document.getElementById('chatMessages');if(_cmEl&&!isNearBottom(_cmEl)&&!state.unreadDividers[msg.noteId]){const _ord=msgOrder(msg);if(typeof _ord==='number')state.unreadDividers[msg.noteId]={order:_ord,until:_ord}}}appendMessage(msg,isOwn)}else state.notifications.add(msg.noteId);updateCoverPreview();scheduleNoteList()}
+  else if(upd['new-message']){const msg=upd['new-message'];if(!state.messages[msg.noteId])state.messages[msg.noteId]=[];if(state.messages[msg.noteId].some(m=>(msg.meta&&msg.meta.eid&&m.meta&&m.meta.eid===msg.meta.eid)||m.id===msg.id))return;state.messages[msg.noteId].push(msg);if(state.notes[msg.noteId]){state.notes[msg.noteId].lastAuthor=msg.author;state.notes[msg.noteId].lastPreview=msg.text}if(state.currentNoteId===msg.noteId){const isOwn=msg.author===('~'+api.ship);if(isOwn){clearUnreadDividerDom(msg.noteId)}else{const _cmEl=document.getElementById('chatMessages');if(_cmEl&&!isNearBottom(_cmEl)&&!state.unreadDividers[msg.noteId]){const _ord=msgOrder(msg);if(typeof _ord==='number')state.unreadDividers[msg.noteId]={order:_ord,until:_ord}}}appendMessage(msg,isOwn)}else state.notifications.add(msg.noteId);updateCoverPreview();scheduleNoteList()}
   else if(upd['artifact-created']){const a=upd['artifact-created'];state.artifacts[a.id]=a;if(a.type==='app'||a.type==='file')scheduleRender()}
   else if(upd['artifact-updated']){const a=upd['artifact-updated'];state.artifacts[a.id]=a;if(state.activeAppBridge&&state.activeAppBridge.artifactId===a.id){const lastVer=a.versions[a.versions.length-1];if(lastVer){try{const meta=JSON.parse(lastVer.content);const iframe=document.getElementById(state.activeAppBridge.iframeId);if(iframe&&iframe.contentWindow){iframe.contentWindow.postMessage({source:'noltbook-host',type:'nb:state',payload:meta.state||{}},'*')}}catch(e){}}}else if(document.getElementById('artifactPanel').classList.contains('open')&&document.getElementById('artifactPanelTitle').textContent===a.name)openArtifactPanel(a.id)}
   else if(upd['artifact-deleted']){delete state.artifacts[upd['artifact-deleted'].id];closeArtifactPanel();scheduleRender()}
@@ -1030,6 +1046,12 @@ function revealNoteInTree(id){
 }
 let mentionObserver=null;
 async function openNote(id){
+  const prevNoteId=state.currentNoteId;
+  if(prevNoteId&&prevNoteId!==id){
+    // The unread divider is a per-visit marker. Read cursors decide
+    // whether a fresh marker is needed when the note is opened again.
+    clearUnreadDividerDom(prevNoteId);
+  }
   if(state.currentNoteSub!==null){await api.unsubscribe(state.currentNoteSub);state.currentNoteSub=null}
   // tear down previous mention observer
   if(mentionObserver){mentionObserver.disconnect();mentionObserver=null}
@@ -1950,9 +1972,9 @@ function renderMessages(noteId,opts){
   // ===== scroll decision =====
   const pinIfNB=opts.pinIfNearBottom!==false;
   if(forceBottom){
-    el.scrollTop=noteId==='ars-rumors'?0:el.scrollHeight;
     markNoteReadTo(noteId,latestMsgOrder(noteId));
-    clearUnreadDivider(noteId);
+    clearUnreadDividerDom(noteId);
+    el.scrollTop=noteId==='ars-rumors'?0:el.scrollHeight;
   }else if(opts.scrollToUnread&&dividerInserted){
     // center the divider vertically when possible. The rAF second pass
     // recenters after artifacts/images settle their final layout, so the
@@ -1966,14 +1988,20 @@ function renderMessages(noteId,opts){
     // do not mark read yet; user must scroll past the unread region
   }else if(opts.scrollToUnread){
     // no unread for this note — fall back to bottom on note open
-    el.scrollTop=noteId==='ars-rumors'?0:el.scrollHeight;
     markNoteReadTo(noteId,latestMsgOrder(noteId));
-    clearUnreadDivider(noteId);
-  }else if(pinIfNB&&wasNearBottom){
+    clearUnreadDividerDom(noteId);
     el.scrollTop=noteId==='ars-rumors'?0:el.scrollHeight;
+  }else if(pinIfNB&&wasNearBottom&&!dividerInfo){
     markNoteReadTo(noteId,latestMsgOrder(noteId));
-    clearUnreadDivider(noteId);
+    clearUnreadDividerDom(noteId);
+    el.scrollTop=noteId==='ars-rumors'?0:el.scrollHeight;
   }else{
+    if(pinIfNB&&wasNearBottom&&dividerInfo){
+      // Ordinary replay/rerender after opening unread should update the
+      // cursor, but the visible divider is a per-visit marker and should
+      // stay until scroll-past, own-send, or note switch.
+      markNoteReadTo(noteId,latestMsgOrder(noteId));
+    }
     restoreScrollAnchor(el,anchor);
   }
   if(window.twttr&&twttr.widgets)twttr.widgets.load(el);
@@ -2103,9 +2131,9 @@ function appendMessageFast(msg,isOwn){
   // append the single message; renderMsg maintains grouping state
   renderMsg(el,msg,0);
   if(isOwn||wasNearBottom){
-    el.scrollTop=el.scrollHeight;
     markNoteReadTo(noteId,latestMsgOrder(noteId));
-    clearUnreadDivider(noteId);
+    clearUnreadDividerDom(noteId);
+    el.scrollTop=el.scrollHeight;
   }
   // else: preserve current scroll position; do not mark read
   return true;
