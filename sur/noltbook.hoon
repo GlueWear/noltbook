@@ -146,6 +146,17 @@
       status=call-status
   ==
 ::
+::  message-body search result row (Phase 2 sidebar search). Carries enough
+::  for the frontend to render a row and route a click to openNote(note-id).
++$  search-msg-hit
+  $:  note-id=@ta
+      msg-id=@da
+      eid=(unit @uv)
+      author=@p
+      timestamp=@da
+      preview=@t
+  ==
+::
 ::  ship-to-ship remote pokes
 +$  remote
   $%  [%remote-invite note-id=@ta name=@t type=note-type creator=@p users=(set @p) visibility=note-visibility writable=?]
@@ -164,6 +175,11 @@
       [%remote-gossip-msg-reply note-id=@ta requester=@p msg=message]
       [%remote-rumor msg=message hops=@ud]
       [%remote-profile ship=@p profile=profile]
+      ::  Phase 3: explicit profile lookup by ship. Sender is src.bowl on both
+      ::  sides; req-id is echoed so the requester can correlate the response
+      ::  with a specific click.
+      [%remote-profile-request req-id=@ud]
+      [%remote-profile-response req-id=@ud profile=profile]
       [%remote-note-request requester=@p]
       [%remote-note-list notes=(list note)]
       [%remote-hey ~]
@@ -249,6 +265,8 @@
       [%register-wallet address=@t]
       [%nock-send-confirmed to=@t amount=@ud tx-hash=@t]
       [%request-remote-notes ship=@p]
+      [%search-messages query=@t req-id=@ud limit=@ud]
+      [%request-profile ship=@p req-id=@ud]
       [%add-pal ship=@p]
       [%remove-pal ship=@p]
       [%dismiss-pal-request ship=@p]
@@ -352,5 +370,9 @@
       ::  cover/gossip artifact envelope updates
       [%artifact-envelope note-id=@ta env=artifact-envelope hops=@ud]
       [%artifact-envelope-list note-id=@ta envs=(list artifact-envelope)]
+      ::  Phase 2 message-body search result; req-id/query echoed for race-safety
+      [%search-result req-id=@ud query=@t hits=(list search-msg-hit) capped=?]
+      ::  Phase 3 unknown-@p profile lookup outcome.
+      [%profile-lookup-result req-id=@ud ship=@p status=?(%ok %unreachable)]
   ==
 --

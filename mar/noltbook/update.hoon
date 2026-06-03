@@ -373,6 +373,23 @@
       :~  ['noteId' s+(crip (trip note-id.upd))]
           ['envelopes' a+(turn envs.upd art-env-to-json)]
       ==
+    ::
+        %search-result
+      %+  frond  'search-result'
+      %-  pairs
+      :~  ['reqId' (numb req-id.upd)]
+          ['query' s+query.upd]
+          ['hits' a+(turn hits.upd search-hit-to-json)]
+          ['capped' b+capped.upd]
+      ==
+    ::
+        %profile-lookup-result
+      %+  frond  'profile-lookup-result'
+      %-  pairs
+      :~  ['reqId' (numb req-id.upd)]
+          ['ship' s+(scot %p ship.upd)]
+          ['status' s+(crip (trip (scot %tas status.upd)))]
+      ==
     ==
     ::
     ++  call-to-json
@@ -390,6 +407,17 @@
       |=  t=@da
       ^-  @ud
       (div (sub t ~1970.1.1) (div ~s1 1.000))
+    ::
+    ++  search-hit-to-json
+      |=  h=search-msg-hit:noltbook
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.h))]
+          ['msgId' (numb (da-to-ms msg-id.h))]
+          ['eid' ?~(eid.h ~ s+(scot %uv u.eid.h))]
+          ['author' s+(scot %p author.h)]
+          ['timestamp' (numb (da-to-ms timestamp.h))]
+          ['preview' s+preview.h]
+      ==
     ::
     ++  note-to-json
       |=  n=note:noltbook

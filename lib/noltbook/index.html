@@ -42,6 +42,15 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .new-btn:hover{background:rgba(255,170,0,.15)}
 .pals-btn{font-family:var(--font);font-size:.8rem;padding:.25rem .5rem;background:transparent;border:1px solid #4aba8a;color:#4aba8a;cursor:pointer;margin-left:auto}
 .pals-btn:hover{background:rgba(74,186,138,.15)}
+.sidebar-search{padding:.4rem .5rem;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:.4rem;background:var(--bg)}
+.sidebar-search-input{flex:1;min-width:0;font-family:var(--font);font-size:.8rem;background:var(--bg2);border:1px solid var(--border2);color:var(--text);padding:.3rem .5rem;outline:none}
+.sidebar-search-input:focus{border-color:var(--text-dim)}
+.sidebar-search-clear{font-family:var(--font);font-size:.75rem;background:transparent;border:1px solid var(--border2);color:var(--text-dim);padding:.2rem .45rem;cursor:pointer;letter-spacing:.05em}
+.sidebar-search-clear:hover{border-color:#ffaa00;color:#ffaa00}
+.sidebar-results{flex:1;overflow-y:auto;overflow-x:hidden;display:none}
+.sidebar-results.open{display:block}
+.sidebar-results-group-title{font-size:.65rem;color:var(--text-dim);letter-spacing:.12em;padding:.5rem .75rem .25rem;text-transform:uppercase}
+.sidebar-results-empty{padding:1rem;color:var(--text-dim);font-size:.8rem;text-align:center}
 .contact-item{padding:.4rem 1rem;cursor:pointer;display:flex;align-items:flex-start;gap:.5rem;border-bottom:1px solid var(--border)}
 .contact-item:hover{background:var(--bg2)}
 .contact-avatar{width:3.5rem;height:3.5rem;border-radius:3px;flex-shrink:0;display:flex;align-items:center;justify-content:center;background:#000;overflow:hidden}
@@ -421,6 +430,10 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
         <button class="new-btn" id="newBtn" onclick="createNote()">+ NEW</button>
         <button class="pals-btn" id="palsBtn" style="display:none">%PALS</button>
       </div>
+      <div class="sidebar-search">
+        <input class="sidebar-search-input" id="sidebarSearchInput" type="text" placeholder="search notes & people..." autocomplete="off" oninput="setSidebarSearch(this.value)">
+        <button class="sidebar-search-clear" id="sidebarSearchClear" style="display:none" onclick="setSidebarSearch('');document.getElementById('sidebarSearchInput').value='';document.getElementById('sidebarSearchInput').focus()">CLEAR</button>
+      </div>
       <div class="sidebar-scroll">
         <div class="section-header" onclick="toggleSection('notes')">
           <span class="section-arrow open" id="notesArrow">▶</span>
@@ -439,6 +452,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
         <div class="section-body open" id="arsBody"></div>
       </div>
       <div class="sidebar-scroll" id="palsList" style="display:none"></div>
+      <div class="sidebar-results" id="sidebarResults"></div>
       <!-- Wallet panel (bottom of sidebar) -->
       <div class="wallet-sidebar-panel" id="walletPanel">
         <div class="wallet-header">
@@ -663,7 +677,7 @@ const api = {
     this.reconnecting=false;
   }
 };
-const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},forceBottomOnce:{},unreadDividers:{}};
+const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},forceBottomOnce:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{}};
 let sigilFn=null;
 const sigilCache={};
 (async function loadSigil(){
@@ -680,7 +694,9 @@ function shipType(ship){
   if(parts.length===1&&bare.length<=3)return'galaxy';
   if(parts.length===1&&bare.length<=6)return'star';
   if(parts.length===2)return'planet';
-  if(bare.includes('--'))return'moon';
+  const phons=shipPhonemes(ship);
+  if(bare.includes('--')||(phons&&phons.length===16))return'comet';
+  if(phons&&phons.length===8)return'moon';
   return'comet';
 }
 function shipColor(ship){
@@ -688,20 +704,101 @@ function shipColor(ship){
   if(t==='galaxy')return'#bb77ff';
   if(t==='star')return'#ffee55';
   if(t==='planet')return'#ffaa00';
-  if(t==='moon')return'#00ff88';
-  return'#ddd';
+  if(t==='moon')return'#ddd';
+  return'#00ff88';
+}
+function shipPhonemes(ship){
+  // Phonemes are the 3-letter chunks that drive sigil-js's symbol lookup.
+  // galaxy=1, star=2, planet=4, moon=8, comet=16 phonemes.
+  // We strip all dashes (single OR double) and split into 3-letter groups.
+  if(!ship||!ship.startsWith('~'))return null;
+  const flat=ship.slice(1).replace(/-/g,'');
+  if(!/^[a-z]+$/.test(flat)||flat.length%3!==0)return null;
+  const out=[];
+  for(let i=0;i<flat.length;i+=3)out.push(flat.slice(i,i+3));
+  return out;
+}
+function _extractSigilInner(svgStr){
+  const m=String(svgStr||'').match(/<svg[^>]*>([\s\S]*)<\/svg>/);
+  return m?m[1]:'';
+}
+function getTiledExtendedSigilSvg(ship,size){
+  if(!sigilFn)return null;
+  const phons=shipPhonemes(ship);
+  if(!phons)return null;
+  if(phons.length!==8&&phons.length!==16)return null;
+  const color=shipColor(ship);
+  const cfg={size:128,foreground:color,background:'#000000',space:'none',detail:'default'};
+  let subs;
+  try{
+    if(phons.length===8){
+      subs=[
+        sigilFn(Object.assign({},cfg,{point:'~'+phons[0]+phons[1]})),
+        sigilFn(Object.assign({},cfg,{point:'~'+phons[2]+phons[3]})),
+        sigilFn(Object.assign({},cfg,{point:'~'+phons[4]+phons[5]})),
+        sigilFn(Object.assign({},cfg,{point:'~'+phons[6]+phons[7]})),
+      ];
+    }else{
+      subs=[
+        sigilFn(Object.assign({},cfg,{point:'~'+phons[0]+phons[1]+'-'+phons[2]+phons[3]})),
+        sigilFn(Object.assign({},cfg,{point:'~'+phons[4]+phons[5]+'-'+phons[6]+phons[7]})),
+        sigilFn(Object.assign({},cfg,{point:'~'+phons[8]+phons[9]+'-'+phons[10]+phons[11]})),
+        sigilFn(Object.assign({},cfg,{point:'~'+phons[12]+phons[13]+'-'+phons[14]+phons[15]})),
+      ];
+    }
+  }catch(e){console.warn('[sigil] extended tiled fallback error',ship,e);return null}
+  const inners=subs.map(_extractSigilInner);
+  if(inners.some(s=>!s))return null;
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="'+size+'" height="'+size+'" viewBox="0 0 128 128" preserveAspectRatio="xMidYMid meet">'+
+    '<rect width="128" height="128" fill="#000000"/>'+
+    '<g transform="translate(0,0) scale(0.5)">'+inners[0]+'</g>'+
+    '<g transform="translate(64,0) scale(0.5)">'+inners[1]+'</g>'+
+    '<g transform="translate(0,64) scale(0.5)">'+inners[2]+'</g>'+
+    '<g transform="translate(64,64) scale(0.5)">'+inners[3]+'</g>'+
+    '</svg>';
+}
+function getExtendedSigilSvg(ship,size){
+  // Moons (8 phonemes) and comets (16 phonemes) aren't natively supported
+  // by @urbit/sigil-js. For those ships, render the individual phoneme
+  // symbols in the 4x4 layout used by Tlon Groups' /lib/sigil: moons use
+  // the corners and center cells, comets fill the whole grid.
+  if(!sigilFn)return null;
+  const phons=shipPhonemes(ship);
+  if(!phons)return null;
+  if(phons.length!==8&&phons.length!==16)return null;
+  const color=shipColor(ship);
+  const cfg={size:128,foreground:color,background:'#000000',space:'none',detail:'default'};
+  const moonPos=[[0,0],[3,0],[0,3],[3,3],[1,1],[2,1],[1,2],[2,2]];
+  const positions=phons.length===8?moonPos:phons.map((_,i)=>[i%4,Math.floor(i/4)]);
+  let inners;
+  try{
+    inners=phons.map(p=>_extractSigilInner(sigilFn(Object.assign({},cfg,{point:'~'+p}))));
+  }catch(e){console.warn('[sigil] extended phoneme error',ship,e);return getTiledExtendedSigilSvg(ship,size)}
+  if(inners.some(s=>!s))return getTiledExtendedSigilSvg(ship,size);
+  const cells=inners.map((inner,i)=>{
+    const pos=positions[i];
+    return '<g transform="translate('+(pos[0]*32)+','+(pos[1]*32)+') scale(0.25)">'+inner+'</g>';
+  }).join('');
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="'+size+'" height="'+size+'" viewBox="0 0 128 128" preserveAspectRatio="xMidYMid meet"><rect width="128" height="128" fill="#000000"/>'+cells+'</svg>';
 }
 function getSigilSvg(ship){
   if(sigilCache[ship])return sigilCache[ship];
-  if(!ship.startsWith('~'))return null;
-  const parts=ship.slice(1).split('-');
-  if(parts.length>2)return null;
+  if(!ship||!ship.startsWith('~'))return null;
   if(!sigilFn)return null;
+  const phons=shipPhonemes(ship);
+  if(!phons)return null;
   try{
-    const color=shipColor(ship);
-    const svg=sigilFn({point:ship,size:44,foreground:color,background:'#000000',space:'none',detail:'default'});
-    sigilCache[ship]=svg;
-    return svg;
+    let svg;
+    if(phons.length<=4){
+      const color=shipColor(ship);
+      svg=sigilFn({point:ship,size:44,foreground:color,background:'#000000',space:'none',detail:'default'});
+    }else if(phons.length===8||phons.length===16){
+      svg=getExtendedSigilSvg(ship,44);
+    }else{
+      return null;
+    }
+    if(svg)sigilCache[ship]=svg;
+    return svg||null;
   }catch(e){console.warn('[sigil] error',ship,e);return null}
 }
 function getLastMessage(noteId){
@@ -982,6 +1079,8 @@ function handleUpdate(upd){
   else if(upd['artifact-envelope-list']){const d=upd['artifact-envelope-list'];const nid=d.noteId;if(!state.artifactEnvelopes[nid])state.artifactEnvelopes[nid]={};let added=0;for(const e of d.envelopes||[]){if(state.artifactEnvelopes[nid][e.aid])continue;state.artifactEnvelopes[nid][e.aid]=e;if(state.artifactEnvHops[e.aid]===undefined)state.artifactEnvHops[e.aid]=1;added++}if(added&&state.currentNoteId===nid)scheduleRender(nid)}
   else if(upd['message-edited']){const{noteId,message}=upd['message-edited'];const msgs=state.messages[noteId]||[];const eid=message.meta&&message.meta.eid;const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===message.id);if(fi>=0){msgs[fi]=message}if(state.currentNoteId===noteId)scheduleRender(noteId)}
   else if(upd['message-deleted']){const{noteId,msgId,eid}=upd['message-deleted'];const msgs=state.messages[noteId]||[];const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===msgId);if(fi>=0)msgs.splice(fi,1);if(state.currentNoteId===noteId)scheduleRender(noteId)}
+  else if(upd['search-result']){const{reqId,query,hits,capped}=upd['search-result'];if(reqId!==state.searchReqInFlight)return;if(String(query||'')!==state.searchQuery)return;state.searchMessageHits=Array.isArray(hits)?hits:[];state.searchMessageCapped=!!capped;if(state.searchQuery)renderSidebarSearchResults()}
+  else if(upd['profile-lookup-result']){const{reqId,ship,status}=upd['profile-lookup-result'];if(state.profileLookupInFlight[reqId]!==ship)return;delete state.profileLookupInFlight[reqId];if(state.profileLookupTimers[ship]){clearTimeout(state.profileLookupTimers[ship]);delete state.profileLookupTimers[ship]}if(status==='ok'){delete state.profileLookupStatus[ship];if(state.searchQuery)renderSidebarSearchResults();viewProfile(ship)}else{state.profileLookupStatus[ship]='unreachable';if(state.searchQuery)renderSidebarSearchResults()}}
   else if(upd['profile-list']){for(const entry of upd['profile-list']){state.profiles[entry.ship]=entry.profile}const me=state.profiles['~'+api.ship];if(me){if(me.displayName)document.getElementById('shipDisplay').textContent=me.displayName;updateSidebarSigil()}if(state.palsView)renderPalsList();if(state.currentNoteId)scheduleRender()}
   else if(upd['profile-updated']){const{ship,profile}=upd['profile-updated'];state.profiles[ship]=profile;if(ship==='~'+api.ship){document.getElementById('shipDisplay').textContent=profile.displayName||'~'+api.ship;updateSidebarSigil()}if(state.palsView)renderPalsList();if(state.currentNoteId)scheduleRender()}
   else if(upd['remote-note-list']){const{ship,notes}=upd['remote-note-list'];Object.keys(state.discoveryNotes).forEach(k=>{if(state.discoveryNotes[k].creator===ship)delete state.discoveryNotes[k]});for(const n of notes)state.discoveryNotes[n.id]=n;const el=document.getElementById('viewProfileNotes');if(el&&state.viewingProfileShip===ship){el.innerHTML=renderProfileNotesHtml(ship,'none available')}if(state.pendingRefOpen&&state.pendingRefOpen.creator===ship){const _pnid=state.pendingRefOpen.noteId;clearTimeout(state.pendingRefOpen.timer);state.pendingRefOpen=null;if(state.discoveryNotes[_pnid]){openNoteDetailModal(_pnid)}else{showRefUnavailable(_pnid,'Note unavailable')}}}
@@ -1455,6 +1554,7 @@ function computeTrickle(){
   return {dotted,sections};
 }
 function renderNoteList(){
+  if(state.searchQuery){renderSidebarSearchResults();return}
   const arsEl=document.getElementById('arsBody'),notesEl=document.getElementById('notesBody'),sharedEl=document.getElementById('sharedBody');
   arsEl.innerHTML='';notesEl.innerHTML='';sharedEl.innerHTML='';
   const trickle=computeTrickle();
@@ -1577,22 +1677,28 @@ function switchView(mode){
   const palsBtn=document.getElementById('palsBtn');
   const noteScroll=document.querySelector('.sidebar-scroll:not(#palsList)');
   const palsList=document.getElementById('palsList');
+  const results=document.getElementById('sidebarResults');
   notesBtn.classList.toggle('active',!state.palsView);
   contactBtn.classList.toggle('active',state.palsView);
+  const searching=!!state.searchQuery;
   if(state.palsView){
     noteScroll.style.display='none';
-    palsList.style.display='block';
+    palsList.style.display=searching?'none':'block';
     newBtn.style.display='none';
     palsBtn.style.display='';
-    renderPalsList();
+    if(searching){if(results)results.classList.add('open');renderSidebarSearchResults()}
+    else{if(results)results.classList.remove('open');renderPalsList()}
   }else{
-    noteScroll.style.display='';
+    noteScroll.style.display=searching?'none':'';
     palsList.style.display='none';
     newBtn.style.display='';
     palsBtn.style.display='none';
+    if(searching){if(results)results.classList.add('open');renderSidebarSearchResults()}
+    else{if(results)results.classList.remove('open')}
   }
 }
 function renderPalsList(){
+  if(state.searchQuery){renderSidebarSearchResults();return}
   const el=document.getElementById('palsList');
   el.innerHTML='';
   const me='~'+api.ship;
@@ -1632,6 +1738,256 @@ function makeContactItem(ship){
   const palInfo=isBlocked?{cls:'contact-tag blocked',label:'BLOCKED'}:palStatusLabel(status);
   div.innerHTML=`<div class="contact-avatar">${av}</div><div class="contact-info"><span class="contact-name">${escHtml(name)}</span><span class="contact-ship">${escHtml(ship)}</span><div class="contact-tags"><span class="${palInfo.cls} pal-slot" data-ship="${escAttr(ship)}" data-tag="pal" onclick="event.stopPropagation();toggleContactTag(this)">${palInfo.label}</span><span class="${blockInfo.cls} block-slot" data-ship="${escAttr(ship)}" data-tag="block" onclick="event.stopPropagation();toggleContactTag(this)">${blockInfo.label}</span></div></div>`;
   div.onclick=()=>{viewProfile(ship)};
+  return div;
+}
+/* ========== SIDEBAR SEARCH (Phase 1+2: notes by name + people + message bodies) ========== */
+function normalizeSearch(s){return String(s||'').trim().toLowerCase().replace(/^[@~]+/,'')}
+function setSidebarSearch(q){
+  const norm=String(q||'');
+  const trimmed=norm.trim();
+  state.searchQuery=trimmed;
+  // Fresh user search input clears any stale "this user can't be reached"
+  // for the typed candidate so the row shows LOOK UP again. Active
+  // 'looking' lookups are untouched so a click in flight survives input.
+  const _candidate=normalizeShipCandidate(trimmed);
+  if(_candidate&&state.profileLookupStatus[_candidate]==='unreachable'){
+    delete state.profileLookupStatus[_candidate];
+  }
+  const clearBtn=document.getElementById('sidebarSearchClear');
+  if(clearBtn)clearBtn.style.display=trimmed?'':'none';
+  const noteScroll=document.querySelector('.sidebar-scroll:not(#palsList)');
+  const palsList=document.getElementById('palsList');
+  const results=document.getElementById('sidebarResults');
+  // any change cancels a pending debounce so we never fire stale pokes
+  if(state.searchDebounce){clearTimeout(state.searchDebounce);state.searchDebounce=null}
+  if(!trimmed){
+    state.searchMessageHits=[];
+    state.searchMessageCapped=false;
+    if(results){results.classList.remove('open');results.innerHTML=''}
+    if(state.palsView){if(noteScroll)noteScroll.style.display='none';if(palsList)palsList.style.display='block';renderPalsList()}
+    else{if(noteScroll)noteScroll.style.display='';if(palsList)palsList.style.display='none';renderNoteList()}
+    return;
+  }
+  if(noteScroll)noteScroll.style.display='none';
+  if(palsList)palsList.style.display='none';
+  if(results)results.classList.add('open');
+  // body-search gating: ≥2 chars, debounce 250ms before pokin' agent
+  const nq=normalizeSearch(trimmed);
+  if(nq.length<2){
+    state.searchMessageHits=[];
+    state.searchMessageCapped=false;
+  }else{
+    state.searchDebounce=setTimeout(()=>{state.searchDebounce=null;sendMessageSearch(trimmed)},250);
+  }
+  renderSidebarSearchResults();
+}
+async function sendMessageSearch(q){
+  state.searchReqCounter+=1;
+  const reqId=state.searchReqCounter;
+  state.searchReqInFlight=reqId;
+  try{
+    await api.poke('noltbook','noltbook-action',{action:'search-messages',data:{query:q,reqId,limit:50}});
+  }catch(e){console.warn('[search-messages] poke failed',e)}
+}
+function collectKnownShips(){
+  const me='~'+api.ship;
+  const set=new Set();
+  for(const s of state.contacts)set.add(s);
+  for(const s of Object.keys(state.palStatus))set.add(s);
+  for(const n of Object.values(state.notes)){
+    if(n.users)for(const s of n.users)set.add(s);
+    if(n.removed)for(const s of n.removed)set.add(s);
+  }
+  for(const s of Object.keys(state.profiles))set.add(s);
+  for(const nid of Object.keys(state.messages)){
+    const msgs=state.messages[nid]||[];
+    for(const m of msgs)if(m&&m.author)set.add(m.author);
+  }
+  set.delete(me);
+  return set;
+}
+function runSidebarSearch(q){
+  const nq=normalizeSearch(q);
+  if(!nq)return{notes:[],messages:[],people:[],unknownShip:null};
+  // NOTES: local note names only. Skips cover and ars-* system notes.
+  const notes=[];
+  for(const n of Object.values(state.notes)){
+    if(!n||!n.id)continue;
+    if(n.id==='cover'||String(n.id).startsWith('ars-'))continue;
+    const dn=noteDisplayName(n)||'';
+    if(dn.toLowerCase().includes(nq))notes.push(n);
+  }
+  notes.sort((a,b)=>noteDisplayName(a).toLowerCase().localeCompare(noteDisplayName(b).toLowerCase()));
+  // MESSAGES: Phase 2 — comes from the agent via %search-result. Hits are
+  //   only valid for the currently-typed query (back-compat guard for any
+  //   in-flight or stale results lingering after fast typing).
+  const messages=state.searchMessageHits||[];
+  // PEOPLE: known ships by display name and @p
+  const people=[];
+  for(const ship of collectKnownShips()){
+    const dn=(state.profiles[ship]&&state.profiles[ship].displayName)||'';
+    if(ship.toLowerCase().includes(nq)||dn.toLowerCase().includes(nq))people.push(ship);
+  }
+  people.sort((a,b)=>{
+    const ac=state.contacts.has(a)?0:1;
+    const bc=state.contacts.has(b)?0:1;
+    if(ac!==bc)return ac-bc;
+    const ap=state.palStatus[a]?0:1;
+    const bp=state.palStatus[b]?0:1;
+    if(ap!==bp)return ap-bp;
+    const an=((state.profiles[a]&&state.profiles[a].displayName)||a).toLowerCase();
+    const bn=((state.profiles[b]&&state.profiles[b].displayName)||b).toLowerCase();
+    return an.localeCompare(bn);
+  });
+  // Phase 3 unknown @p row: only when the typed query looks like a valid
+  // @p AND we don't already know that ship from local state.
+  let unknownShip=null;
+  const candidate=normalizeShipCandidate(q);
+  if(candidate){
+    const known=collectKnownShips();
+    if(!known.has(candidate)&&!people.includes(candidate))unknownShip=candidate;
+  }
+  return{notes,messages,people,unknownShip};
+}
+function renderSidebarSearchResults(){
+  const el=document.getElementById('sidebarResults');
+  if(!el)return;
+  const q=state.searchQuery;
+  if(!q){el.classList.remove('open');el.innerHTML='';return}
+  el.classList.add('open');
+  const nq=normalizeSearch(q);
+  const tooShort=nq.length<2;
+  const{notes,messages,people,unknownShip}=runSidebarSearch(q);
+  el.innerHTML='';
+  if(notes.length===0&&messages.length===0&&people.length===0&&!unknownShip&&!tooShort){
+    el.innerHTML='<div class="sidebar-results-empty">No matches</div>';
+    return;
+  }
+  if(notes.length){
+    const h=document.createElement('div');h.className='sidebar-results-group-title';h.textContent='NOTES';el.appendChild(h);
+    for(const n of notes)el.appendChild(makeSearchNoteResult(n));
+  }
+  // MESSAGES section: shown even when empty if query is long enough, so users
+  // see a hint while the agent is still processing or if no body matches.
+  const msgHeader=document.createElement('div');msgHeader.className='sidebar-results-group-title';msgHeader.textContent='MESSAGES';el.appendChild(msgHeader);
+  if(tooShort){
+    const hint=document.createElement('div');hint.className='sidebar-results-empty';hint.textContent='type 2+ characters to search messages';el.appendChild(hint);
+  }else if(messages.length===0){
+    const hint=document.createElement('div');hint.className='sidebar-results-empty';hint.textContent='no message matches';el.appendChild(hint);
+  }else{
+    for(const hit of messages)el.appendChild(makeSearchMessageResult(hit));
+    if(state.searchMessageCapped){
+      const foot=document.createElement('div');foot.className='sidebar-results-empty';foot.style.fontSize='.7rem';foot.textContent='showing first 50 — refine your search';el.appendChild(foot);
+    }
+  }
+  if(people.length||unknownShip){
+    const h=document.createElement('div');h.className='sidebar-results-group-title';h.textContent='PEOPLE';el.appendChild(h);
+    for(const s of people)el.appendChild(makeSearchPersonResult(s));
+    if(unknownShip)el.appendChild(makeSearchUnknownPersonResult(unknownShip));
+  }
+}
+function makeSearchNoteResult(n){
+  const div=document.createElement('div');
+  div.className='note-item';
+  div.setAttribute('data-note-id',n.id);
+  const iconContent=noteDisplayIconHtml(n);
+  const displayNameStr=noteDisplayName(n);
+  const hasCustomIcon=!!n.iconUrl||!!dmCounterparty(n);
+  const typeLabel=n.type==='dm'?'DM':(n.type==='group'?'GROUP':(n.type==='gossip'?'%GOSSIP':(n.type==='notebook'?'NOTE':'')));
+  div.innerHTML=`<span class="note-arrow" style="visibility:hidden">&#9654;</span><div class="note-icon" ${hasCustomIcon?'style="display:flex"':''}>${iconContent}</div><div class="note-text"><span class="note-name">${escHtml(displayNameStr)}</span><span class="note-source">${typeLabel}</span></div>`;
+  div.onclick=()=>openNote(n.id);
+  return div;
+}
+function makeSearchPersonResult(ship){
+  const div=document.createElement('div');
+  div.className='contact-item';
+  const prof=state.profiles[ship]||{};
+  const name=prof.displayName||ship;
+  const av=avatarHtml(ship);
+  const status=state.palStatus[ship];
+  const isBlocked=status==='blocked';
+  const hasDm=!!findDmRoot(ship);
+  const tag=isBlocked?'<span class="contact-tag blocked" style="pointer-events:none">BLOCKED</span>':(hasDm?'<span class="contact-tag" style="border-color:#ffaa00;color:#ffaa00;pointer-events:none">DM</span>':(status==='mutual'?'<span class="contact-tag mutual" style="pointer-events:none">PALS</span>':''));
+  div.innerHTML=`<div class="contact-avatar">${av}</div><div class="contact-info"><span class="contact-name">${escHtml(name)}</span><span class="contact-ship">${escHtml(ship)}</span>${tag?'<div class="contact-tags">'+tag+'</div>':''}</div>`;
+  div.onclick=()=>openPersonResult(ship);
+  return div;
+}
+function openPersonResult(ship){
+  const dm=findDmRoot(ship);
+  if(dm){openNote(dm.id);return}
+  viewProfile(ship);
+}
+// Phase 3: normalize a typed string into a plausible @p, or null. When
+// @urbit/aura is loaded we delegate to its strict validator; otherwise we
+// fall back to a permissive shape check that accepts galaxy/star/planet/
+// moon/comet forms (including comets' double-dash pair separators). The
+// agent's `slav %p` is the final authority on click — a bad string slipped
+// through here just turns into "this user can't be reached".
+function normalizeShipCandidate(q){
+  if(!q)return null;
+  let s=String(q).trim().toLowerCase().replace(/^[@~]+/,'');
+  if(!s||s.length>64)return null;
+  const candidate='~'+s;
+  if(candidate==='~'+api.ship)return null;
+  if(obLib&&obLib.patp2dec){
+    try{obLib.patp2dec(candidate);return candidate}catch(e){return null}
+  }
+  if(!/^[a-z]+(-+[a-z]+)*$/.test(s))return null;
+  const parts=s.split(/-+/);
+  if(parts.length>8)return null;
+  for(const p of parts)if(p.length!==3&&p.length!==6)return null;
+  return candidate;
+}
+function lookupUnknownShip(ship){
+  if(state.profileLookupStatus[ship]==='looking')return;
+  state.profileLookupReqCounter+=1;
+  const reqId=state.profileLookupReqCounter;
+  state.profileLookupInFlight[reqId]=ship;
+  state.profileLookupStatus[ship]='looking';
+  if(state.profileLookupTimers[ship]){clearTimeout(state.profileLookupTimers[ship]);delete state.profileLookupTimers[ship]}
+  state.profileLookupTimers[ship]=setTimeout(()=>{
+    delete state.profileLookupTimers[ship];
+    if(state.profileLookupInFlight[reqId]===ship){
+      delete state.profileLookupInFlight[reqId];
+      state.profileLookupStatus[ship]='unreachable';
+      if(state.searchQuery)renderSidebarSearchResults();
+    }
+  },9000);
+  api.poke('noltbook','noltbook-action',{action:'request-profile',data:{ship,reqId}});
+  if(state.searchQuery)renderSidebarSearchResults();
+}
+function makeSearchUnknownPersonResult(ship){
+  const div=document.createElement('div');
+  div.className='contact-item';
+  div.setAttribute('data-ship',ship);
+  const status=state.profileLookupStatus[ship];
+  let statusText='LOOK UP';
+  let statusColor='#ffaa00';
+  let clickable=true;
+  if(status==='looking'){statusText='LOOKING...';statusColor='#3b82f6';clickable=false}
+  else if(status==='unreachable'){statusText="this user can't be reached";statusColor='#ff4444'}
+  const av=avatarHtml(ship);
+  div.innerHTML=`<div class="contact-avatar">${av}</div><div class="contact-info"><span class="contact-name">${escHtml(ship)}</span><span class="contact-ship" style="color:${statusColor}">${escHtml(statusText)}</span></div>`;
+  if(clickable)div.onclick=()=>lookupUnknownShip(ship);
+  else div.style.cursor='default';
+  return div;
+}
+function makeSearchMessageResult(hit){
+  const div=document.createElement('div');
+  div.className='note-item';
+  div.setAttribute('data-note-id',hit.noteId);
+  div.setAttribute('data-msg-id',String(hit.msgId));
+  if(hit.eid)div.setAttribute('data-eid',hit.eid);
+  const note=state.notes[hit.noteId];
+  const iconContent=note?noteDisplayIconHtml(note):'<span>?</span>';
+  const hasCustomIcon=note&&(!!note.iconUrl||!!dmCounterparty(note));
+  const noteName=note?noteDisplayName(note):hit.noteId;
+  const authorName=displayName(hit.author);
+  const authorColor=shipColor(hit.author);
+  // Plain escaped preview — no markdown/embed/image rendering for result rows.
+  const previewHtml=escHtml(String(hit.preview||''));
+  div.innerHTML=`<span class="note-arrow" style="visibility:hidden">&#9654;</span><div class="note-icon" ${hasCustomIcon?'style="display:flex"':''}>${iconContent}</div><div class="note-text"><span class="note-name"><span style="color:${authorColor}">${escHtml(authorName)}</span> <span style="color:var(--text-dim)">in</span> ${escHtml(noteName)}</span><span class="note-preview">${previewHtml}</span></div>`;
+  div.onclick=()=>openNote(hit.noteId);
   return div;
 }
 function toggleContactTag(el){
@@ -3450,7 +3806,7 @@ function openCurrentNoteMenu(event){
 function noteCanCopyRef(note){
   return note&&note.type==='group'&&(note.visibility==='public'||note.visibility==='private');
 }
-function renderNoteInfoMemberRows(note){
+function renderNoteInfoMemberRows(note,query){
   const me='~'+api.ship;
   const host=note.creator;
   const admins=state.noteAdmins[note.id]||[];
@@ -3461,7 +3817,14 @@ function renderNoteInfoMemberRows(note){
     const nb=(state.profiles[b]&&state.profiles[b].displayName||b).toLowerCase();
     return na.localeCompare(nb);
   });
-  const ordered=users.includes(host)?[host,...others]:others;
+  let ordered=users.includes(host)?[host,...others]:others;
+  const nq=normalizeSearch(query);
+  if(nq){
+    ordered=ordered.filter(m=>{
+      const dn=(state.profiles[m]&&state.profiles[m].displayName)||'';
+      return m.toLowerCase().includes(nq)||dn.toLowerCase().includes(nq);
+    });
+  }
   const rows=ordered.map(m=>{
     const prof=state.profiles[m]||{};
     const name=prof.displayName||m;
@@ -3472,7 +3835,13 @@ function renderNoteInfoMemberRows(note){
     const meTag=m===me?'<span style="color:var(--dim);font-size:.65rem;margin-left:.4rem">(you)</span>':'';
     return `<div class="contact-item ni-member" data-member="${escAttr(m)}" style="padding:.3rem .25rem;gap:.5rem"><div class="contact-avatar" style="width:1.75rem;height:1.75rem">${av}</div><div class="contact-info" style="min-width:0"><div style="display:flex;align-items:center;flex-wrap:wrap"><span class="contact-name" style="font-size:.8rem">${escHtml(name)}</span>${hostTag}${adminTag}${mutedTag}${meTag}</div><span class="contact-ship" style="font-size:.65rem">${escHtml(m)}</span></div></div>`;
   }).join('');
-  const removed=(note.removed||[]).slice().sort();
+  let removed=(note.removed||[]).slice().sort();
+  if(nq){
+    removed=removed.filter(m=>{
+      const dn=(state.profiles[m]&&state.profiles[m].displayName)||'';
+      return m.toLowerCase().includes(nq)||dn.toLowerCase().includes(nq);
+    });
+  }
   const removedRows=removed.map(m=>{
     const prof=state.profiles[m]||{};
     const name=prof.displayName||m;
@@ -3511,7 +3880,8 @@ function refreshNoteInfoMembers(noteId){
   const note=state.notes[noteId];if(!note)return;
   const container=modal.querySelector('#noteInfoMembers');
   if(!container)return;
-  container.innerHTML=renderNoteInfoMemberRows(note);
+  const q=modal.dataset.memberQuery||'';
+  container.innerHTML=renderNoteInfoMemberRows(note,q);
   bindNoteInfoMemberRows(modal,note);
   const countEl=modal.querySelector('#noteInfoMemberCount');
   if(countEl){const c=(note.users||[]).length;countEl.textContent=c+' member'+(c!==1?'s':'')}
@@ -3530,7 +3900,7 @@ function openNoteInfoModal(note){
   const titleRo=isCreator?'':'readonly';
   const descRo=isCreator?'':'readonly';
   const descVal=note.headline||'';
-  const memberRows=renderNoteInfoMemberRows(note);
+  const memberRows=renderNoteInfoMemberRows(note,'');
   const lineageBadge=lineageMoniker(note);
   modal.innerHTML=`
     <div style="font-size:.75rem;color:var(--text-dim);letter-spacing:.1em">NOTE INFO${lineageBadge?' <span style="color:#ffaa00;margin-left:.5rem">'+lineageBadge+'</span>':''}</div>
@@ -3547,6 +3917,7 @@ function openNoteInfoModal(note){
       <span id="noteInfoMemberCount">${memberCount} member${memberCount!==1?'s':''}</span>
       <span style="margin-left:auto;font-size:.65rem;opacity:.6">${note.type}</span>
     </div>
+    <input class="modal-input" id="noteInfoMemberSearch" type="text" placeholder="search members..." autocomplete="off" style="font-size:.75rem;padding:.25rem .4rem">
     <div id="noteInfoMembers" style="display:flex;flex-direction:column;gap:.1rem;max-height:40vh;overflow:auto;border:1px solid var(--border);padding:.25rem">${memberRows}</div>
     <div class="modal-actions" style="margin-top:.25rem">
       <button class="modal-btn cancel-red" id="noteInfoClose">CLOSE</button>
@@ -3557,6 +3928,17 @@ function openNoteInfoModal(note){
   overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove()});
   document.body.appendChild(overlay);
   bindNoteInfoMemberRows(modal,note);
+  overlay.dataset.memberQuery='';
+  const memberSearchInp=modal.querySelector('#noteInfoMemberSearch');
+  if(memberSearchInp){
+    memberSearchInp.addEventListener('input',()=>{
+      overlay.dataset.memberQuery=memberSearchInp.value.trim();
+      const cur=state.notes[overlay.dataset.noteId];
+      if(!cur)return;
+      const container=modal.querySelector('#noteInfoMembers');
+      if(container){container.innerHTML=renderNoteInfoMemberRows(cur,overlay.dataset.memberQuery);bindNoteInfoMemberRows(modal,cur)}
+    });
+  }
   const copyRefBtn=modal.querySelector('#noteInfoCopyRef');
   if(copyRefBtn)copyRefBtn.onclick=()=>{copyNoteRef(note.id,note.creator);copyRefBtn.textContent='COPIED';setTimeout(()=>{copyRefBtn.textContent='COPY NOTE LINK'},1500)};
   const closeBtn=modal.querySelector('#noteInfoClose');

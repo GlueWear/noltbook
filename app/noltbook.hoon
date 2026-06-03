@@ -4277,6 +4277,70 @@
       :_  this(transactions new-txs)
       ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
     ::
+        %search-messages
+      ::  Phase 2 sidebar search. Case-insensitive substring scan over the
+      ::  local messages map. No state mutation. Skips only %cover and
+      ::  %ars-rumors system surfaces; user-created gossip notes are kept.
+      ::  Skips notes missing from the notes map and authors in pal-blocked.
+      =/  q-tape=tape  (cass (trip query.act))
+      =/  hard-cap=@ud  50
+      =/  cap=@ud  ?:(=(0 limit.act) hard-cap (min limit.act hard-cap))
+      =/  pairs=(list [@ta (list message:noltbook)])  ~(tap by messages)
+      =|  acc=(list search-msg-hit:noltbook)
+      =/  all-hits=(list search-msg-hit:noltbook)
+        |-  ^-  (list search-msg-hit:noltbook)
+        ?~  pairs  acc
+        =*  nid  -.i.pairs
+        =*  msgs  +.i.pairs
+        ?:  =(nid 'cover')           $(pairs t.pairs)
+        ?:  =(nid 'ars-rumors')      $(pairs t.pairs)
+        ?~  (~(get by notes) nid)    $(pairs t.pairs)
+        =/  ms=(list message:noltbook)  msgs
+        =/  note-acc=(list search-msg-hit:noltbook)  ~
+        =.  note-acc
+          |-  ^-  (list search-msg-hit:noltbook)
+          ?~  ms  note-acc
+          ?:  (~(has in pal-blocked) author.i.ms)
+            $(ms t.ms)
+          =/  body=tape  (cass (trip text.i.ms))
+          ?:  =(~ (find q-tape body))
+            $(ms t.ms)
+          =/  pv=@t  (crip (scag 160 (trip text.i.ms)))
+          =/  eid-u=(unit @uv)
+            ?~  meta.i.ms  ~
+            `eid.u.meta.i.ms
+          =/  hit=search-msg-hit:noltbook
+            [nid id.i.ms eid-u author.i.ms timestamp.i.ms pv]
+          $(ms t.ms, note-acc [hit note-acc])
+        $(pairs t.pairs, acc (weld note-acc acc))
+      =/  sorted=(list search-msg-hit:noltbook)
+        %+  sort  all-hits
+        |=  [a=search-msg-hit:noltbook b=search-msg-hit:noltbook]
+        (gth timestamp.a timestamp.b)
+      =/  total=@ud  (lent sorted)
+      =/  capped=?  (gth total cap)
+      =/  hits=(list search-msg-hit:noltbook)  (scag cap sorted)
+      =/  upd=update:noltbook  [%search-result req-id.act query.act hits capped]
+      :_  this
+      ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
+    ::
+        %request-profile
+      ::  Phase 3: explicit profile lookup. Triggered by an unknown @p row in
+      ::  the sidebar search results. Self-lookup short-circuits locally; any
+      ::  other ship is poked on /profile-lookup/[ship]/[req-id] so the
+      ::  on-agent arm can flip status to %unreachable on poke-ack failure.
+      ?:  =(ship.act our.bowl)
+        =/  prof  (fall (~(get by profiles) our.bowl) *profile:noltbook)
+        =/  pupd=update:noltbook  [%profile-updated our.bowl prof]
+        =/  rupd=update:noltbook  [%profile-lookup-result req-id.act our.bowl %ok]
+        :_  this
+        :~  [%give %fact ~[/notes] %noltbook-update !>(pupd)]
+            [%give %fact ~[/notes] %noltbook-update !>(rupd)]
+        ==
+      =/  req=remote:noltbook  [%remote-profile-request req-id.act]
+      :_  this
+      ~[[%pass /profile-lookup/(scot %p ship.act)/(scot %ud req-id.act) %agent [ship.act %noltbook] %poke %noltbook-remote !>(req)]]
+    ::
         %request-remote-notes
       ::  frontend wants another ship's public/private notes
       =/  who=@p  ship.act
@@ -5985,6 +6049,25 @@
       =/  upd=update:noltbook  [%profile-updated ship.rem profile.rem]
       :_  this(profiles (~(put by profiles) ship.rem profile.rem))
       ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
+    ::
+        %remote-profile-request
+      ::  Phase 3: a peer is asking us for our profile. Silently drop if they
+      ::  are blocked — they get an unreachable timeout on their end.
+      ?:  (~(has in pal-blocked) src.bowl)  `this
+      =/  prof  (fall (~(get by profiles) our.bowl) *profile:noltbook)
+      =/  resp=remote:noltbook  [%remote-profile-response req-id.rem prof]
+      :_  this
+      ~[[%pass /profile-resp/(scot %p src.bowl)/(scot %ud req-id.rem) %agent [src.bowl %noltbook] %poke %noltbook-remote !>(resp)]]
+    ::
+        %remote-profile-response
+      ::  Phase 3: peer replied to our lookup. Hydrate profile, then emit a
+      ::  %profile-lookup-result %ok so the sidebar can open the modal.
+      =/  pupd=update:noltbook  [%profile-updated src.bowl profile.rem]
+      =/  rupd=update:noltbook  [%profile-lookup-result req-id.rem src.bowl %ok]
+      :_  this(profiles (~(put by profiles) src.bowl profile.rem))
+      :~  [%give %fact ~[/notes] %noltbook-update !>(pupd)]
+          [%give %fact ~[/notes] %noltbook-update !>(rupd)]
+      ==
     ::
         %remote-note-request
       ::  someone is asking for our joinable notes
@@ -8303,6 +8386,22 @@
       ?~  p.sign  `this
       ~&  [%msg-edit-failed wire u.p.sign]
       `this
+    ==
+  ::
+      [%profile-lookup @ @ ~]
+    ::  Phase 3: a profile-lookup poke to a remote ship returned. Failure =>
+    ::  emit %profile-lookup-result %unreachable so the sidebar row can flip
+    ::  to "this user can't be reached". Success = wait for the actual
+    ::  %remote-profile-response; do nothing here.
+    =/  who=@p   (slav %p i.t.wire)
+    =/  rid=@ud  (slav %ud i.t.t.wire)
+    ?+  -.sign  `this
+        %poke-ack
+      ?~  p.sign  `this
+      ~&  [%profile-lookup-failed wire u.p.sign]
+      =/  upd=update:noltbook  [%profile-lookup-result rid who %unreachable]
+      :_  this
+      ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
     ==
   ::
       [%msg-del @ ~]

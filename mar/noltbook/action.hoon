@@ -241,6 +241,22 @@
       =/  ship-nd  (need (~(get by d) 'ship'))
       ?>  ?=([%s *] ship-nd)
       [%request-remote-notes (slav %p p.ship-nd)]
+    ::  search-messages
+    ?:  =('search-messages' tag)
+      =/  q-nd  (need (~(get by d) 'query'))
+      ?>  ?=([%s *] q-nd)
+      =/  req-nd  (need (~(get by d) 'reqId'))
+      ?>  ?=([%n *] req-nd)
+      =/  lim-nd  (need (~(get by d) 'limit'))
+      ?>  ?=([%n *] lim-nd)
+      [%search-messages p.q-nd (rash p.req-nd dem) (rash p.lim-nd dem)]
+    ::  request-profile (Phase 3 unknown @p lookup)
+    ?:  =('request-profile' tag)
+      =/  ship-nd  (need (~(get by d) 'ship'))
+      ?>  ?=([%s *] ship-nd)
+      =/  req-nd  (need (~(get by d) 'reqId'))
+      ?>  ?=([%n *] req-nd)
+      [%request-profile (slav %p p.ship-nd) (rash p.req-nd dem)]
     ::  nock-send-confirmed
     ?:  =('nock-send-confirmed' tag)
       =/  to-nd  (need (~(get by d) 'to'))
