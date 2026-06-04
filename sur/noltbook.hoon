@@ -16,6 +16,11 @@
 ::  note types
 +$  note-type  ?(%notebook %dm %group %cover %gossip)
 +$  note-visibility  ?(%public %private %secret)
+::  durable high-level notification acks. Only passive condition rows that
+::  the backend regenerates after refresh get a durable seen-ack; actionable
+::  queues (fork-invite, join-request) intentionally stay red until resolved.
++$  durable-notification-kind  ?(%removed-status %host-deleted-status)
++$  durable-notification-ack  [kind=durable-notification-kind note-id=@ta]
 ::
 +$  note
   $:  id=@ta
@@ -303,6 +308,8 @@
       [%remove-admin id=@ta ship=@p]
       [%mute-member id=@ta ship=@p]
       [%unmute-member id=@ta ship=@p]
+      ::  durable ack for passive high-level condition notifications
+      [%ack-durable-notification kind=durable-notification-kind note-id=@ta]
   ==
 ::  subscription updates (agent to client)
 +$  update
@@ -374,5 +381,7 @@
       [%search-result req-id=@ud query=@t hits=(list search-msg-hit) capped=?]
       ::  Phase 3 unknown-@p profile lookup outcome.
       [%profile-lookup-result req-id=@ud ship=@p status=?(%ok %unreachable)]
+      ::  durable acks for passive high-level condition notifications
+      [%notification-acks acks=(list durable-notification-ack)]
   ==
 --

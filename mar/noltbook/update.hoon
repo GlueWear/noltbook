@@ -390,6 +390,16 @@
           ['ship' s+(scot %p ship.upd)]
           ['status' s+(crip (trip (scot %tas status.upd)))]
       ==
+    ::
+        %notification-acks
+      %+  frond  'notification-acks'
+      :-  %a
+      %+  turn  acks.upd
+      |=  ack=durable-notification-ack:noltbook
+      %-  pairs
+      :~  ['kind' s+(crip (trip (scot %tas kind.ack)))]
+          ['noteId' s+(crip (trip note-id.ack))]
+      ==
     ==
     ::
     ++  call-to-json

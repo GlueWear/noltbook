@@ -677,7 +677,10 @@ const api = {
     this.reconnecting=false;
   }
 };
-const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},forceBottomOnce:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{}};
+const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},forceBottomOnce:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set()};
+// durable notification ack key: kind + noteId. Mirrors backend
+// durable-notification-ack (removed-status / host-deleted-status only).
+function notifAckKey(kind,noteId){return kind+'|'+noteId}
 let sigilFn=null;
 const sigilCache={};
 (async function loadSigil(){
@@ -1022,7 +1025,7 @@ function handleUpdate(upd){
   if(upd['note-list']){console.log('[note-list]',JSON.stringify(upd['note-list']));for(const n of upd['note-list'])state.notes[n.id]=n;rebuildDurableNotifications();updateLogoBadge();renderNoteList()}
   else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));const wasPendingJoin=!!state.pendingJoins[n.id];const wasAcceptedFork=state.acceptingForkRoots.has(n.id);if(wasAcceptedFork)state.acceptingForkRoots.delete(n.id);delete state.pendingJoins[n.id];delete state.removedFromNotes[n.id];state.notes[n.id]=n;if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id)}if(state.pendingWalletMsg&&n.type==='dm'){const pw=state.pendingWalletMsg;if(n.users&&n.users.length===2&&n.users.includes(pw.ship)){api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:n.id,text:pw.text}});state.pendingWalletMsg=null}}if(n.creator==='~'+api.ship){if(n.parent)state.expandedNotes.add(n.parent);openNote(n.id)}else if(wasAcceptedFork){if(state.palsView)switchView('notes');openNote(n.id)}else if(wasPendingJoin){document.querySelectorAll('.profile-flow-modal').forEach(el=>el.remove());state.viewingProfileShip=null;if(state.palsView)switchView('notes');if(n.visibility==='public'){openNote(n.id)}else{state.notifications.add(n.id)}}else{if(state.palsView)switchView('notes');state.notifications.add(n.id)}renderNoteList()}
   else if(upd['note-renamed']){const{id,name}=upd['note-renamed'];if(state.notes[id]){state.notes[id].name=name;renderNoteList()}if(state.currentNoteId===id)document.getElementById('chatNoteName').textContent=name}
-  else if(upd['note-deleted']){const{id}=upd['note-deleted'];const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];delete state.noteAdmins[id];delete state.noteMuted[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];state.notifications.delete(id);if(state.currentNoteId===id)openNote('cover');renderNoteList()}
+  else if(upd['note-deleted']){const{id}=upd['note-deleted'];const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];delete state.noteAdmins[id];delete state.noteMuted[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];state.notifications.delete(id);state.notificationAcks.delete(notifAckKey('removed-status',id));state.notificationAcks.delete(notifAckKey('host-deleted-status',id));if(state.currentNoteId===id)openNote('cover');renderNoteList()}
   else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];if(noteId==='cover')console.log('[cover:msg-list]',messages.length,'msgs, current=',state.currentNoteId);let maxSeq=0,revSum=0;for(const m of messages){if(m.meta){if(m.meta.seq>maxSeq)maxSeq=m.meta.seq;revSum+=m.meta.rev}}const hash=noteId+':'+messages.length+':'+maxSeq+':'+revSum;if(_lastMsgHash[noteId]===hash){if(noteId==='cover')console.log('[cover:msg-list] hash match, skipping');return}_lastMsgHash[noteId]=hash;state.messages[noteId]=messages;for(const a of artifacts)state.artifacts[a.id]=a;if(state.currentNoteId===noteId)scheduleRender(noteId);updateCoverPreview();scheduleNoteList()}
   else if(upd['new-message']){const msg=upd['new-message'];if(!state.messages[msg.noteId])state.messages[msg.noteId]=[];if(state.messages[msg.noteId].some(m=>(msg.meta&&msg.meta.eid&&m.meta&&m.meta.eid===msg.meta.eid)||m.id===msg.id))return;state.messages[msg.noteId].push(msg);if(state.notes[msg.noteId]){state.notes[msg.noteId].lastAuthor=msg.author;state.notes[msg.noteId].lastPreview=msg.text}if(state.currentNoteId===msg.noteId){const isOwn=msg.author===('~'+api.ship);if(isOwn){clearUnreadDividerDom(msg.noteId)}else{const _cmEl=document.getElementById('chatMessages');if(_cmEl&&!isNearBottom(_cmEl)&&!state.unreadDividers[msg.noteId]){const _ord=msgOrder(msg);if(typeof _ord==='number')state.unreadDividers[msg.noteId]={order:_ord,until:_ord}}}appendMessage(msg,isOwn)}else state.notifications.add(msg.noteId);updateCoverPreview();scheduleNoteList()}
   else if(upd['artifact-created']){const a=upd['artifact-created'];state.artifacts[a.id]=a;if(a.type==='app'||a.type==='file')scheduleRender()}
@@ -1030,7 +1033,7 @@ function handleUpdate(upd){
   else if(upd['artifact-deleted']){delete state.artifacts[upd['artifact-deleted'].id];closeArtifactPanel();scheduleRender()}
   else if(upd['note-meta-updated']){const d=upd['note-meta-updated'];const n=state.notes[d.id];if(n){n.visibility=d.visibility;n.iconUrl=d.iconUrl||null;n.writable=d.writable;renderNoteList();if(d.id===state.currentNoteId)updateMuteUI()}}
   else if(upd['note-type-updated']){const d=upd['note-type-updated'];const n=state.notes[d.id];if(n){n.type=d.type;renderNoteList();if(d.id===state.currentNoteId){scheduleRender(d.id);updateMuteUI()}}}
-  else if(upd['note-host-status']){const d=upd['note-host-status'];if(d.status)state.noteHostStatus[d.id]=d.status;else delete state.noteHostStatus[d.id];rebuildDurableNotifications();updateLogoBadge();if(d.id===state.currentNoteId)updateMuteUI();renderNoteList()}
+  else if(upd['note-host-status']){const d=upd['note-host-status'];if(d.status)state.noteHostStatus[d.id]=d.status;else delete state.noteHostStatus[d.id];if(d.status!=='host-deleted')state.notificationAcks.delete(notifAckKey('host-deleted-status',d.id));rebuildDurableNotifications();updateLogoBadge();if(d.id===state.currentNoteId)updateMuteUI();renderNoteList()}
   else if(upd['note-state-refreshed']){
     const d=upd['note-state-refreshed'];
     const incomingIds=new Set((d.notes||[]).map(n=>n.id));
@@ -1062,7 +1065,7 @@ function handleUpdate(upd){
         loc.name=inc.name;
         loc.iconUrl=inc.iconUrl||null;
         loc.headline=inc.headline||null;
-        if(acceptUsers){loc.users=inc.users||[];loc.removed=inc.removed||[]}
+        if(acceptUsers){loc.users=inc.users||[];loc.removed=inc.removed||[];if(!(loc.removed).includes('~'+api.ship))state.notificationAcks.delete(notifAckKey('removed-status',inc.id))}
         if(!state.messages[inc.id])state.messages[inc.id]=[];
       }
       if(incRev>locRev)state.noteMemberRevs[inc.id]=incRev;
@@ -1089,7 +1092,7 @@ function handleUpdate(upd){
   else if(upd['pal-removed']){const{ship}=upd['pal-removed'];delete state.palStatus[ship];if(state.palsView)renderPalsList();if(state.viewingProfileShip===ship)updateViewProfileTags(ship)}
   else if(upd['pal-update']){const{ship,status}=upd['pal-update'];const wasBlocked=state.palStatus[ship]==='blocked';state.palStatus[ship]=status;if(wasBlocked&&status!=='blocked'){Object.keys(state.removedFromNotes).forEach(nid=>{if(state.removedFromNotes[nid]===ship)delete state.removedFromNotes[nid]});api.poke('noltbook','noltbook-action',{action:'request-remote-notes',data:{ship}})}if(status!=='blocked')delete state.blockedBy[ship];if(state.palsView)renderPalsList();renderNoteList();fetchVisibleEnvelopes();if(isGossipNote(state.currentNoteId))scheduleRender(state.currentNoteId);if(state.currentNoteId){const cn=state.notes[state.currentNoteId];if(cn&&cn.type==='dm'){const cp=dmCounterparty(cn);if(cp===ship)updateMuteUI()}}}
   else if(upd['dial-update']){state.dial=upd['dial-update'];updateDialUI();if(isGossipNote(state.currentNoteId))scheduleRender(state.currentNoteId);scheduleNoteList();fetchVisibleEnvelopes()}
-  else if(upd['note-users-updated']){const d=upd['note-users-updated'];const{id,type,users,removed}=d;const rev=d.rev||0;const localRev=state.noteMemberRevs[id]||0;if(rev<localRev){console.log('[note-users-updated:stale]',id,'incoming',rev,'<','local',localRev);return}state.noteMemberRevs[id]=rev;console.log('[note-users-updated]',id,type,users,removed,'rev',rev);if(state.notes[id]){const me='~'+api.ship;const vis=state.notes[id].visibility;const notifyVis=vis==='public'||vis==='private';if(state.notes[id].creator===me&&notifyVis){const oldU=state.notes[id].users||[];const newJ=users.filter(u=>!oldU.includes(u)&&u!==me);for(const j of newJ)state.blockNotifications.push({noteId:id,noteName:state.notes[id].name,from:j,time:Date.now(),type:'joined'});if(newJ.length>0)updateLogoBadge()}state.notes[id].users=users;state.notes[id].removed=removed||[];if(type)state.notes[id].type=type;rebuildDurableNotifications();updateLogoBadge();renderNoteList();if(state.currentNoteId===id){scheduleRender(id);updateMuteUI()}refreshNoteInfoMembers(id)}}
+  else if(upd['note-users-updated']){const d=upd['note-users-updated'];const{id,type,users,removed}=d;const rev=d.rev||0;const localRev=state.noteMemberRevs[id]||0;if(rev<localRev){console.log('[note-users-updated:stale]',id,'incoming',rev,'<','local',localRev);return}state.noteMemberRevs[id]=rev;console.log('[note-users-updated]',id,type,users,removed,'rev',rev);if(state.notes[id]){const me='~'+api.ship;const vis=state.notes[id].visibility;const notifyVis=vis==='public'||vis==='private';if(state.notes[id].creator===me&&notifyVis){const oldU=state.notes[id].users||[];const newJ=users.filter(u=>!oldU.includes(u)&&u!==me);for(const j of newJ)state.blockNotifications.push({noteId:id,noteName:state.notes[id].name,from:j,time:Date.now(),type:'joined'});if(newJ.length>0)updateLogoBadge()}state.notes[id].users=users;state.notes[id].removed=removed||[];if(type)state.notes[id].type=type;if(!(removed||[]).includes(me))state.notificationAcks.delete(notifAckKey('removed-status',id));rebuildDurableNotifications();updateLogoBadge();renderNoteList();if(state.currentNoteId===id){scheduleRender(id);updateMuteUI()}refreshNoteInfoMembers(id)}}
   else if(upd['note-redirect']){const{oldId,newId}=upd['note-redirect'];console.log('[note-redirect]',oldId,'->',newId);delete state.notes[oldId];delete state.messages[oldId];state.notifications.delete(oldId);if(state.currentNoteId===oldId){if(state.notes[newId])openNote(newId);else openNote('cover')}renderNoteList()}
   else if(upd['wallet-update']){wallet.transactions=upd['wallet-update'].map(tx=>({type:tx.type,who:tx.counterparty,amount:tx.amount,time:new Date(tx.timestamp).toLocaleString(),txid:tx.txHash}));renderWalletNotes()}
   else if(upd['gossip-message']){const{message,hops}=upd['gossip-message'];const nid=message.noteId||'cover';const msgEid=message.meta&&message.meta.eid||null;if(nid==='cover')console.log('[cover:gossip-msg]',message.author,'dup=',(state.messages[nid]||[]).some(m=>(msgEid&&m.meta&&m.meta.eid===msgEid)||m.id===message.id),'viewing=',state.currentNoteId===nid);state.gossipHops[message.id]=hops;if(!state.messages[nid])state.messages[nid]=[];const nenvs=state.gossipEnvelopes[nid]||{};delete nenvs[message.id];if(msgEid)delete nenvs[msgEid];state.gossipEnvelopes[nid]=nenvs;const nfetch=state.gossipFetching[nid];if(nfetch){nfetch.delete(message.id);if(msgEid)nfetch.delete(msgEid)}const isDup=state.messages[nid].some(m=>(msgEid&&m.meta&&m.meta.eid===msgEid)||m.id===message.id);if(!isDup){state.messages[nid].push(message);const visible=coverMsgVisible(message);if(state.currentNoteId===nid&&visible){const isOwn=message.author===('~'+api.ship);appendMessage(message,isOwn)}else if(state.currentNoteId!==nid&&visible)state.notifications.add(nid)}const visible=coverMsgVisible(message);if(visible&&state.notes[nid]){state.notes[nid].lastAuthor=message.author;state.notes[nid].lastPreview=message.text}scheduleNoteList()}
@@ -1114,6 +1117,7 @@ function handleUpdate(upd){
   else if(upd['join-request-received']){const{noteId,ship,noteName}=upd['join-request-received'];if(!state.joinRequests.some(r=>r.noteId===noteId&&r.ship===ship)){state.joinRequests.push({noteId,ship,noteName,time:Date.now()})}updateLogoBadge();console.log('[join-request-received]',noteId,ship,noteName)}
   else if(upd['join-request-list']){const list=upd['join-request-list'];state.joinRequests=list.map(r=>({noteId:r.noteId,ship:r.ship,noteName:r.noteName,time:Date.now()}));updateLogoBadge();const gm=document.getElementById('grimoireMenu');if(gm){gm.remove();openGrimoireMenu()}console.log('[join-request-list]',list.length,'requests')}
   else if(upd['note-deleted-notification']){const{noteId,noteName}=upd['note-deleted-notification'];state.blockNotifications.push({noteId,noteName,from:null,time:Date.now(),type:'deleted'});updateLogoBadge()}
+  else if(upd['notification-acks']){const acks=upd['notification-acks']||[];state.notificationAcks=new Set(acks.map(a=>notifAckKey(a.kind,a.noteId)));console.log('[notification-acks]',state.notificationAcks.size,'acked');rebuildDurableNotifications();updateLogoBadge()}
   else if(upd['admins-updated']){const{id,admins}=upd['admins-updated'];state.noteAdmins[id]=admins;console.log('[admins-updated]',id,admins);refreshNoteInfoMembers(id)}
   else if(upd['muted-updated']){const{id,muted}=upd['muted-updated'];state.noteMuted[id]=muted;console.log('[muted-updated]',id,muted);if(state.currentNoteId===id)updateMuteUI();refreshNoteInfoMembers(id)}
 }
@@ -3736,13 +3740,29 @@ function rebuildDurableNotifications(){
     const note=state.notes[id];
     if(!note||note.type!=='group')continue;
     if(state.noteHostStatus[id]==='host-deleted'){
-      state.blockNotifications.push({noteId:id,noteName:note.name,from:note.creator,time:Date.now(),type:'host-deleted-status'});
+      const seen=state.notificationAcks.has(notifAckKey('host-deleted-status',id));
+      state.blockNotifications.push({noteId:id,noteName:note.name,from:note.creator,time:Date.now(),type:'host-deleted-status',seen});
     }else if((note.removed||[]).includes(me)){
-      state.blockNotifications.push({noteId:id,noteName:note.name,from:note.creator,time:Date.now(),type:'removed-status'});
+      const seen=state.notificationAcks.has(notifAckKey('removed-status',id));
+      state.blockNotifications.push({noteId:id,noteName:note.name,from:note.creator,time:Date.now(),type:'removed-status',seen});
     }
   }
 }
 function updateLogoBadge(){const el=document.getElementById('noltbookLogo');if(el)el.classList.toggle('has-notif',state.blockNotifications.some(bn=>!bn.seen)||state.joinRequests.length>0)}
+// Durably ack passive condition rows (removed-status / host-deleted-status)
+// so the red dot stays clear across hard refresh. Optimistically marks the
+// ack locally and pokes the backend once per key. Fork-invite / join-request
+// rows are intentionally untouched — they stay red until resolved.
+function ackDurableNotifications(rows){
+  for(const bn of rows){
+    if(bn.type!=='removed-status'&&bn.type!=='host-deleted-status')continue;
+    if(!bn.noteId)continue;
+    const key=notifAckKey(bn.type,bn.noteId);
+    if(state.notificationAcks.has(key))continue;
+    state.notificationAcks.add(key);
+    api.poke('noltbook','noltbook-action',{action:'ack-durable-notification',data:{kind:bn.type,noteId:bn.noteId}});
+  }
+}
 function handleJoinAction(noteId,ship,action){
   if(action==='approve'){api.poke('noltbook','noltbook-action',{action:'approve-join',data:{noteId,ship}})}
   else if(action==='deny'){api.poke('noltbook','noltbook-action',{action:'deny-join',data:{noteId,ship}})}
@@ -3751,6 +3771,7 @@ function handleJoinAction(noteId,ship,action){
 function openGrimoireMenu(){
   const existing=document.getElementById('grimoireMenu');if(existing){existing.remove();return}
   for(const bn of state.blockNotifications)bn.seen=true;
+  ackDurableNotifications(state.blockNotifications);
   updateLogoBadge();
   const menu=document.createElement('div');menu.id='grimoireMenu';menu.className='context-menu';
   let html='';
@@ -3785,7 +3806,7 @@ function openGrimoireMenu(){
       </div>`;
     }
     if(state.blockNotifications.length>0){
-      html+=`<div class="context-menu-item" style="font-size:.7rem;color:var(--text-dim);cursor:pointer" onclick="state.blockNotifications=[];updateLogoBadge();openGrimoireMenu();openGrimoireMenu()">CLEAR</div>`;
+      html+=`<div class="context-menu-item" style="font-size:.7rem;color:var(--text-dim);cursor:pointer" onclick="ackDurableNotifications(state.blockNotifications);state.blockNotifications=[];updateLogoBadge();openGrimoireMenu();openGrimoireMenu()">CLEAR</div>`;
     }
   }else{
     html='<div class="context-menu-item" style="color:var(--text-dim)">No notifications</div>';

@@ -38,6 +38,7 @@
       state-34
       state-35
       state-36
+      state-37
   ==
 ::  pre-entry-meta message shape — used by state-18 for on-load typing
 +$  message-18
@@ -918,6 +919,47 @@
       fork-parent-version=(map @ta @ud)
       host-checks=(map @ta @da)
   ==
+::  state-37: durable acks for passive high-level condition notifications
+::  (removed-status, host-deleted-status). Lets the logo red dot stay clear
+::  after a hard refresh once the user has opened the grimoire menu.
++$  state-37
+  $:  %37
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+  ==
 ::  state-26: add durable blocked-by set (ships that have blocked us)
 +$  state-26
   $:  %26
@@ -1167,7 +1209,7 @@
 ::  chains through upgrade-20-to-21 → ... → upgrade-25-to-26
 ++  upgrade-19-to-20
   |=  s=state-19
-  ^-  state-36
+  ^-  state-37
   =/  new-seq=(map @ta @ud)
     %-  ~(rep by seq-counters.s)
     |=  [[[a=@p n=@ta] v=@ud] acc=(map @ta @ud)]
@@ -1187,7 +1229,7 @@
 ::  chains through upgrade-21-to-22 → upgrade-22-to-23
 ++  upgrade-20-to-21
   |=  s=state-20
-  ^-  state-36
+  ^-  state-37
   =/  new-msgs=(map @ta (list message:noltbook))
     %-  ~(run by messages.s)
     |=  msgs=(list message-20)
@@ -1229,7 +1271,7 @@
 ::  upgrade-21-to-22: add meta=(unit entry-meta) to envelopes
 ++  upgrade-21-to-22
   |=  s=state-21
-  ^-  state-36
+  ^-  state-37
   =/  new-envs=(map @ta (map @da envelope:noltbook))
     %-  ~(run by gossip-envelopes.s)
     |=  envs=(map @da envelope-21)
@@ -1251,7 +1293,7 @@
 ::  upgrade-22-to-23: enrich mention storage with stable eid
 ++  upgrade-22-to-23
   |=  s=state-22
-  ^-  state-36
+  ^-  state-37
   =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
     %-  ~(urn by mentions.s)
     |=  [nid=@ta mns=(list [id=@da author=@p])]
@@ -1280,7 +1322,7 @@
 ::  in-flight forks to become fetchable.
 ++  upgrade-30-to-31
   |=  s=state-30
-  ^-  state-36
+  ^-  state-37
   =?  s  (gth ~(wyt by pending-fork-invites.s) 0)
     ~&  [%dropping-legacy-pending-fork-invites count=~(wyt by pending-fork-invites.s)]
     s(pending-fork-invites *(map @ta state-30-pending-fork-invite))
@@ -1303,7 +1345,7 @@
 ::  upgrade-31-to-32: add empty contacts set
 ++  upgrade-31-to-32
   |=  s=state-31
-  ^-  state-36
+  ^-  state-37
   %-  upgrade-32-to-33
   :*  %32
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1324,7 +1366,7 @@
 ::  upgrade-32-to-33: add empty dm-prefs map
 ++  upgrade-32-to-33
   |=  s=state-32
-  ^-  state-36
+  ^-  state-37
   %-  upgrade-33-to-34
   :*  %33
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1348,7 +1390,7 @@
 ::  pre-migration value.
 ++  upgrade-33-to-34
   |=  s=state-33
-  ^-  state-36
+  ^-  state-37
   =/  seeded-revs=(map @ta @ud)
     %-  ~(rep by notes.s)
     |=  [[k=@ta v=note:noltbook] acc=(map @ta @ud)]
@@ -1377,7 +1419,7 @@
 ::  encoder default.
 ++  upgrade-34-to-35
   |=  s=state-34
-  ^-  state-36
+  ^-  state-37
   %-  upgrade-35-to-36
   :*  %35
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1401,7 +1443,8 @@
 ::  upgrade-35-to-36: add empty host-checks map.
 ++  upgrade-35-to-36
   |=  s=state-35
-  ^-  state-36
+  ^-  state-37
+  %-  upgrade-36-to-37
   :*  %36
       notes.s  messages.s  artifacts.s  profiles.s
       transactions.s  current-note.s  peers.s  has-avatar.s
@@ -1422,10 +1465,35 @@
       fork-parent-version.s
       *(map @ta @da)
   ==
+::  upgrade-36-to-37: add empty notification-acks set.
+++  upgrade-36-to-37
+  |=  s=state-36
+  ^-  state-37
+  :*  %37
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      fork-parent-version.s
+      host-checks.s
+      *(set durable-notification-ack:noltbook)
+  ==
 ::  upgrade-29-to-30: add pending-fork-invites map (empty).
 ++  upgrade-29-to-30
   |=  s=state-29
-  ^-  state-36
+  ^-  state-37
   %-  upgrade-30-to-31
   :*  %30
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1445,7 +1513,7 @@
 ::  note is treated as v1 (origin computed lazily by note-lineage-of helper).
 ++  upgrade-28-to-29
   |=  s=state-28
-  ^-  state-36
+  ^-  state-37
   %-  upgrade-29-to-30
   :*  %29
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1467,7 +1535,7 @@
 ::  remote host issues %remote-note-deleted post-upgrade.
 ++  upgrade-27-to-28
   |=  s=state-27
-  ^-  state-36
+  ^-  state-37
   %-  upgrade-28-to-29
   :*  %28
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1484,7 +1552,7 @@
 ::  upgrade-25-to-26: add blocked-by set
 ++  upgrade-26-to-27
   |=  s=state-26
-  ^-  state-36
+  ^-  state-37
   %-  upgrade-27-to-28
   :*  %27
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1499,7 +1567,7 @@
   ==
 ++  upgrade-25-to-26
   |=  s=state-25
-  ^-  state-36
+  ^-  state-37
   %-  upgrade-26-to-27
   :*  %26
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1514,7 +1582,7 @@
 ::  upgrade-24-to-25: add note-admins and note-muted maps
 ++  upgrade-24-to-25
   |=  s=state-24
-  ^-  state-36
+  ^-  state-37
   %-  upgrade-25-to-26
   :*  %25
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1926,7 +1994,7 @@
 ::  upgrade-23-to-24: add join-requests map
 ++  upgrade-23-to-24
   |=  s=state-23
-  ^-  state-36
+  ^-  state-37
   %-  upgrade-24-to-25
   :*  %24
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2173,7 +2241,7 @@
   [(crip path-tape) args]
 --
 %-  agent:dbug
-=|  state-36
+=|  state-37
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -2191,8 +2259,8 @@
 ++  on-load
   |=  old=vase
   ^-  (quip card _this)
-  ?:  ?=([%36 *] q.old)
-    =/  loaded  !<(state-36 old)
+  ?:  ?=([%37 *] q.old)
+    =/  loaded  !<(state-37 old)
     ::  fix: ensure cover note exists and is keyed as %cover
     ::  (same normalizations carried forward from state-24 load)
     =/  loaded
@@ -2314,6 +2382,9 @@
       ^-  card
       [%pass /prof-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-profile our.bowl prof])]
     [prof-cards this(state loaded(active-calls *(map @ta call-info:noltbook)))]
+  ?:  ?=([%36 *] q.old)
+    =/  s36  !<(state-36 old)
+    $(old !>((upgrade-36-to-37 s36)))
   ?:  ?=([%35 *] q.old)
     =/  s35  !<(state-35 old)
     $(old !>((upgrade-35-to-36 s35)))
@@ -2736,6 +2807,30 @@
       %+  turn  ~(tap by pending-fork-invites)
       |=  [nid=@ta pi=pending-fork-invite:noltbook]
       [%give %fact ~ %noltbook-update !>(`update:noltbook`[%fork-invite-received root-id.pi source-name.pi source-version.pi sender.pi])]
+    ::  prune stale acks against live conditions, then replay so passive
+    ::  condition red dots stay cleared after a hard refresh. Centralizing the
+    ::  cleanup here (rather than in every delete/membership/host-status path)
+    ::  drops acks for notes that vanished, where we were re-added, or whose
+    ::  host-deleted flag cleared — so a fresh removal/host-delete re-alerts.
+    =/  pruned-acks=(set durable-notification-ack:noltbook)
+      %-  ~(rep in notification-acks)
+      |=  [ack=durable-notification-ack:noltbook acc=(set durable-notification-ack:noltbook)]
+      =/  n=(unit note:noltbook)  (~(get by notes-now) note-id.ack)
+      ?~  n  acc
+      ?-  kind.ack
+          %removed-status
+        ?.  (~(has in removed.u.n) our.bowl)  acc
+        (~(put in acc) ack)
+      ::
+          %host-deleted-status
+        ?.  =(`%host-deleted (~(get by host-status) note-id.ack))  acc
+        (~(put in acc) ack)
+      ==
+    ::  always emit, even when empty, so a reconnect/live resubscribe replaces
+    ::  any stale frontend ack state rather than leaving it untouched.
+    =/  ack-cards=(list card)
+      =/  ack-list=(list durable-notification-ack:noltbook)  ~(tap in pruned-acks)
+      ~[[%give %fact ~ %noltbook-update !>(`update:noltbook`[%notification-acks ack-list])]]
     =/  init-cards=(list card)
       :~  [%give %fact ~ %noltbook-update !>(upd)]
           [%give %fact ~ %noltbook-update !>(pupd)]
@@ -2743,8 +2838,8 @@
           [%give %fact ~ %noltbook-update !>(contactupd)]
           [%give %fact ~ %noltbook-update !>(dialupd)]
       ==
-    :_  this(notes notes-now, messages messages-now)
-    :(weld init-cards mention-cards call-cards jr-cards role-cards bb-cards hs-cards lineage-cards pfi-cards)
+    :_  this(notes notes-now, messages messages-now, notification-acks pruned-acks)
+    :(weld init-cards mention-cards call-cards jr-cards role-cards bb-cards hs-cards lineage-cards pfi-cards ack-cards)
   ::
       [%notes @ ~]
     =/  nid=@ta  i.t.path
@@ -4599,6 +4694,16 @@
       =/  upd=update:noltbook  [%dial-update new-dial]
       :_  this(dial new-dial)
       ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
+    ::
+        %ack-durable-notification
+      ::  durable seen-ack for a passive condition row. Touches only the
+      ::  notification-acks set — never notes, membership, host-status,
+      ::  pending invites, or join requests.
+      =/  ackd=(set durable-notification-ack:noltbook)
+        (~(put in notification-acks) [kind.act note-id.act])
+      =/  ack-list=(list durable-notification-ack:noltbook)  ~(tap in ackd)
+      :_  this(notification-acks ackd)
+      ~[[%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%notification-acks ack-list])]]
     ::
         %reparent-note
       =/  old  (~(get by notes) id.act)

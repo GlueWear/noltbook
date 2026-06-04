@@ -467,6 +467,18 @@
       =/  ship-nd  (need (~(get by d) 'ship'))
       ?>  ?=([%s *] ship-nd)
       [%unmute-member `@ta`p.id-nd (slav %p p.ship-nd)]
+    ::  ack-durable-notification: durable seen-ack for a passive condition row.
+    ::  kind constrained to the typed union; unknown kinds crash (rejected).
+    ?:  =('ack-durable-notification' tag)
+      =/  kind-nd  (need (~(get by d) 'kind'))
+      ?>  ?=([%s *] kind-nd)
+      =/  note-id-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] note-id-nd)
+      =/  kind=durable-notification-kind:noltbook
+        ?:  =('removed-status' p.kind-nd)  %removed-status
+        ?>  =('host-deleted-status' p.kind-nd)
+        %host-deleted-status
+      [%ack-durable-notification kind `@ta`p.note-id-nd]
     ::  set-dial (final case)
     ?>  =('set-dial' tag)
     =/  dial-nd  (need (~(get by d) 'dial'))
