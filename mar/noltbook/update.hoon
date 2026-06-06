@@ -400,6 +400,23 @@
       :~  ['kind' s+(crip (trip (scot %tas kind.ack)))]
           ['noteId' s+(crip (trip note-id.ack))]
       ==
+    ::
+        %note-activity
+      %+  frond  'note-activity'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['activity' (numb (da-to-ms activity.upd))]
+      ==
+    ::
+        %note-activity-list
+      %+  frond  'note-activity-list'
+      :-  %a
+      %+  turn  activities.upd
+      |=  [note-id=@ta activity=@da]
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id))]
+          ['activity' (numb (da-to-ms activity))]
+      ==
     ==
     ::
     ++  call-to-json

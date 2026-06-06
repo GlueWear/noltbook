@@ -383,5 +383,8 @@
       [%profile-lookup-result req-id=@ud ship=@p status=?(%ok %unreachable)]
       ::  durable acks for passive high-level condition notifications
       [%notification-acks acks=(list durable-notification-ack)]
+      ::  durable per-note recency for sidebar ordering
+      [%note-activity note-id=@ta activity=@da]
+      [%note-activity-list activities=(list [note-id=@ta activity=@da])]
   ==
 --

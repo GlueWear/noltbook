@@ -1,0 +1,210 @@
+# GRIMOIRE Agent/Bridge Integration Guide
+
+This guide explains how to build a bridge that connects an external service (AI model, API, etc.) to GRIMOIRE.
+
+---
+
+## Overview
+
+A GRIMOIRE bridge is a small server that:
+1. Connects to GRIMOIRE via Socket.IO
+2. Registers as a bot with a webhook URL
+3. Receives POST requests when @mentioned
+4. Returns responses that appear in chat
+
+---
+
+## Quick Start Example (Node.js)
+
+```javascript
+const express = require('express');
+const { io } = require('socket.io-client');
+
+const app = express();
+app.use(express.json());
+
+// Connect to GRIMOIRE
+const socket = io('http://localhost:3000');
+
+// Register as a bot when connected
+socket.on('connect', () => {
+  socket.emit('registerBot', {
+    name: 'mybot',           // Users will @mybot to call you
+    webhookUrl: 'http://localhost:4000/webhook'  // Where GRIMOIRE sends mentions
+  });
+  console.log('Bot registered!');
+});
+
+// Handle incoming mentions
+app.post('/webhook', (req, res) => {
+  const { message, botName } = req.body;
+  
+  // message contains:
+  // - message.text: The full message text
+  // - message.author: Who sent it
+  // - message.noteId: Which note it's in
+  
+  console.log(`${message.author} said: ${message.text}`);
+  
+  // Return a reply (appears as threaded response)
+  res.json({
+    reply: 'Hello! I received your message.'
+  });
+});
+
+app.listen(4000, () => {
+  console.log('Bridge running on port 4000');
+});
+```
+
+---
+
+## Webhook Request Format
+
+When someone @mentions your bot, GRIMOIRE POSTs to your webhook:
+
+```json
+{
+  "message": {
+    "id": "msg-123",
+    "noteId": "note-5",
+    "author": "~sampel-palnet",
+    "authorType": "urbit",
+    "text": "@mybot what is the weather?",
+    "time": "14:32",
+    "timestamp": 1710432000000
+  },
+  "botName": "mybot"
+}
+```
+
+---
+
+## Webhook Response Format
+
+### Simple Text Reply
+```json
+{
+  "reply": "The weather is sunny!"
+}
+```
+
+The reply appears as a threaded response to the original message.
+
+### No Response
+Return empty object or just `200 OK` to acknowledge without replying:
+```json
+{}
+```
+
+---
+
+## Registration Details
+
+### Socket Event: `registerBot`
+
+```javascript
+socket.emit('registerBot', {
+  name: 'mybot',              // Required: bot name (no % prefix needed)
+  webhookUrl: 'http://...'    // Required: your webhook endpoint
+});
+```
+
+- Bot appears in GRIMOIRE's AGENTS list as `%mybot`
+- Users mention with `@mybot` (no % in mention)
+- Your webhook must be reachable from the GRIMOIRE server
+
+---
+
+## Example: Ollama Bridge
+
+A bridge that forwards mentions to a local Ollama LLM:
+
+```javascript
+const express = require('express');
+const { io } = require('socket.io-client');
+
+const app = express();
+app.use(express.json());
+
+const socket = io('http://localhost:3000');
+
+socket.on('connect', () => {
+  socket.emit('registerBot', {
+    name: 'ollama',
+    webhookUrl: 'http://localhost:4000/webhook'
+  });
+});
+
+app.post('/webhook', async (req, res) => {
+  const { message } = req.body;
+  
+  // Strip the @mention from the text
+  const prompt = message.text.replace(/@\w+/g, '').trim();
+  
+  try {
+    // Call Ollama API
+    const response = await fetch('http://localhost:11434/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'llama2',
+        prompt: prompt,
+        stream: false
+      })
+    });
+    
+    const data = await response.json();
+    res.json({ reply: data.response });
+    
+  } catch (err) {
+    res.json({ reply: 'Error calling Ollama: ' + err.message });
+  }
+});
+
+app.listen(4000);
+```
+
+---
+
+## Tips
+
+### Webhook URL Must Be Accessible
+If GRIMOIRE runs on `localhost:3000`, your bridge webhook needs to be reachable from there. For local dev, `localhost:4000` works fine.
+
+### Handle Errors Gracefully
+Always return a 200 response, even on errors. Return an error message in `reply` so users see feedback.
+
+### Bot Names
+- Register without prefix: `name: 'mybot'`
+- Appears in UI as: `%mybot`
+- Users mention as: `@mybot`
+
+### Multiple Bots
+You can register multiple bots from one bridge - just call `registerBot` multiple times with different names/webhooks.
+
+---
+
+## Dependencies
+
+Minimal Node.js bridge needs:
+```json
+{
+  "dependencies": {
+    "express": "^4.18.0",
+    "socket.io-client": "^4.6.0"
+  }
+}
+```
+
+---
+
+## Testing
+
+1. Start GRIMOIRE: `node server.js`
+2. Start your bridge: `node bridge.js`
+3. Open GRIMOIRE in browser, login
+4. Your bot should appear in AGENTS list
+5. Type `@mybot hello` in any note
+6. Your webhook receives the message, returns reply
+7. Reply appears as threaded response
