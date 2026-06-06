@@ -1122,6 +1122,7 @@ function handleUpdate(upd){
   else if(upd['muted-updated']){const{id,muted}=upd['muted-updated'];state.noteMuted[id]=muted;console.log('[muted-updated]',id,muted);if(state.currentNoteId===id)updateMuteUI();refreshNoteInfoMembers(id)}
   else if(upd['note-activity-list']){const list=upd['note-activity-list']||[];state.noteActivity={};for(const a of list)state.noteActivity[a.noteId]=a.activity;console.log('[note-activity-list]',list.length,'entries');scheduleNoteList()}
   else if(upd['note-activity']){const d=upd['note-activity'];const cur=state.noteActivity[d.noteId]||0;if(d.activity>cur)state.noteActivity[d.noteId]=d.activity;scheduleNoteList()}
+  else if(upd['note-sidebar-signal']){const{noteId,author,preview,kind,time}=upd['note-sidebar-signal'];if(preview!==null&&state.notes[noteId]){state.notes[noteId].lastAuthor=author;state.notes[noteId].lastPreview=preview}if(state.currentNoteId===noteId){state.notifications.delete(noteId)}else if(author!==('~'+api.ship)){state.notifications.add(noteId)}scheduleNoteList()}
 }
 function revealNoteInTree(id){
   // expand ancestors and open the containing section so the note is visible
@@ -1638,9 +1639,9 @@ function makeNoteItem(n,depth){
   const last=getLastMessage(n.id);
   const iconContent=noteDisplayIconHtml(n);
   const displayNameStr=noteDisplayName(n);
-  const rawSource=last?last.author:(n.lastAuthor||'');
+  const rawSource=n.lastAuthor||(last?last.author:'');
   const source=rawSource?displayName(rawSource):'';
-  const rawPreview=last?last.text.replace(/\n/g,' '):(n.lastPreview?n.lastPreview.replace(/\n/g,' '):'');
+  const rawPreview=n.lastPreview?n.lastPreview.replace(/\n/g,' '):(last?last.text.replace(/\n/g,' '):'');
   let previewHtml;
   if(hasMention){previewHtml='<span style="color:#ffaa00">@you:</span> '+escHtml(rawPreview)}else{previewHtml=escHtml(rawPreview)}
   const chevron=hasChildren?`<span class="note-arrow ${isExpanded?'open':''}" onclick="event.stopPropagation();toggleNoteExpand('${n.id}')">&#9654;</span>`:`<span class="note-arrow" style="visibility:hidden">&#9654;</span>`;

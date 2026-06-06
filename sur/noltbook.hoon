@@ -386,5 +386,9 @@
       ::  durable per-note recency for sidebar ordering
       [%note-activity note-id=@ta activity=@da]
       [%note-activity-list activities=(list [note-id=@ta activity=@da])]
+      ::  compact live sidebar signal: closed-note dot/preview without routing
+      ::  full artifact/gossip content facts to global /notes. preview=~ means
+      ::  dot-only (do not overwrite an existing preview).
+      [%note-sidebar-signal note-id=@ta author=@p preview=(unit @t) kind=?(%message %artifact %gossip) time=@da]
   ==
 --

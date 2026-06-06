@@ -417,6 +417,16 @@
       :~  ['noteId' s+(crip (trip note-id))]
           ['activity' (numb (da-to-ms activity))]
       ==
+    ::
+        %note-sidebar-signal
+      %+  frond  'note-sidebar-signal'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['author' s+(scot %p author.upd)]
+          ['preview' ?~(preview.upd ~ s+u.preview.upd)]
+          ['kind' s+(crip (trip (scot %tas kind.upd)))]
+          ['time' (numb (da-to-ms time.upd))]
+      ==
     ==
     ::
     ++  call-to-json

@@ -1944,6 +1944,30 @@
   |=  [nid=@ta time=@da]
   ^-  card
   [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%note-activity nid time])]
+::  artifact-preview: compact sidebar preview text for a newly-created
+::  artifact. "shared <name>" when named, else type-based fallback.
+++  artifact-preview
+  |=  art=artifact:noltbook
+  ^-  @t
+  ?.  =('' name.art)  (rap 3 'shared ' name.art ~)
+  ?-  type.art
+    %app   'shared an app'
+    %file  'shared a file'
+    %code  'shared a file'
+  ==
+::  art-env-preview: same, for a propagated artifact envelope (always %file).
+++  art-env-preview
+  |=  env=artifact-envelope:noltbook
+  ^-  @t
+  ?.  =('' name.env)  (rap 3 'shared ' name.env ~)
+  'shared a file'
+::  sidebar-signal: compact /notes fact for a closed-note dot/preview without
+::  shipping full content. preview=~ = dot-only (frontend won't overwrite an
+::  existing preview). Callers must not emit for pinned notes (cover/rumors).
+++  sidebar-signal
+  |=  [nid=@ta author=@p preview=(unit @t) kind=?(%message %artifact %gossip) time=@da]
+  ^-  card
+  [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%note-sidebar-signal nid author preview kind time])]
 ::  is-host-unavailable: host-deleted OR host-unreachable. Either state
 ::  blocks writes against a remote-hosted note.
 ++  is-host-unavailable
@@ -3459,12 +3483,21 @@
           [%pass /art-env-out/(scot %p p)/[aid] %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-artifact-envelope-ref nid env 0])]
         =/  envs-cur=(map @ta artifact-envelope:noltbook)
           (fall (~(get by artifact-envelopes) nid) *(map @ta artifact-envelope:noltbook))
-        ::  recency: gossip notes participate; cover is pinned (no fact). put-
-        ::  activity is a no-op for cover, so persisting it unconditionally is safe.
+        ::  recency + sidebar signal + preview persistence: gossip notes
+        ::  participate; cover is pinned (none of these). put-activity is a
+        ::  no-op for cover, so persisting it unconditionally is safe.
+        =/  prev=@t  (art-env-preview env)
         =/  act-cards=(list card)
           ?:  is-gossipy-note  ~[(activity-fact nid now.bowl)]
           ~
+        =/  sig-cards=(list card)
+          ?:  is-gossipy-note  ~[(sidebar-signal nid our.bowl `prev %artifact now.bowl)]
+          ~
+        =/  new-notes=(map @ta note:noltbook)
+          ?.  is-gossipy-note  notes
+          (~(put by notes) nid u.nt(last-author `our.bowl, last-preview `prev))
         :_  %=  this
+              notes  new-notes
               artifacts  (~(put by artifacts) aid new-art)
               artifact-envelopes
                 (~(put by artifact-envelopes) nid (cap-art-envs (~(put by envs-cur) aid env)))
@@ -3475,7 +3508,7 @@
           :~  clay-card
               [%give %fact ~[pax] %noltbook-update !>(upd)]
           ==
-        (weld gossip-cards act-cards)
+        :(weld gossip-cards act-cards sig-cards)
       ?:  is-dm
         ::  DM path: write own Clay, store metadata, broadcast locally, ship
         ::  metadata + bytes to counterparty (symmetric duplication).
@@ -3485,6 +3518,8 @@
         =/  counterparty=@p  ?~(others our.bowl i.others)
         =/  upd=update:noltbook  [%artifact-created new-art]
         =/  pax=path  ~[%notes nid]
+        =/  prev=@t  (artifact-preview new-art)
+        =/  upd-note=note:noltbook  u.nt(last-author `our.bowl, last-preview `prev)
         =/  dm-card=(list card)
           ?:  =(counterparty our.bowl)  ~
           :~  :*  %pass
@@ -3494,23 +3529,27 @@
                   !>(`remote:noltbook`[%remote-dm-artifact new-art mtype u.bod])
               ==
           ==
-        :_  this(artifacts (~(put by artifacts) aid new-art), note-activity (put-activity note-activity nid now.bowl))
+        :_  this(notes (~(put by notes) nid upd-note), artifacts (~(put by artifacts) aid new-art), note-activity (put-activity note-activity nid now.bowl))
         %+  weld  http-cards
         %+  weld
           :~  clay-card
               [%give %fact ~[pax] %noltbook-update !>(upd)]
               (activity-fact nid now.bowl)
+              (sidebar-signal nid our.bowl `prev %artifact now.bowl)
           ==
         dm-card
       ?:  is-host
         ::  host path: store ref + broadcast group history
         =/  upd=update:noltbook  [%artifact-created new-art]
         =/  pax=path  ~[%notes nid]
-        :_  this(artifacts (~(put by artifacts) aid new-art), note-activity (put-activity note-activity nid now.bowl))
+        =/  prev=@t  (artifact-preview new-art)
+        =/  upd-note=note:noltbook  u.nt(last-author `our.bowl, last-preview `prev)
+        :_  this(notes (~(put by notes) nid upd-note), artifacts (~(put by artifacts) aid new-art), note-activity (put-activity note-activity nid now.bowl))
         %+  weld  http-cards
         :~  clay-card
             [%give %fact ~[pax] %noltbook-update !>(upd)]
             (activity-fact nid now.bowl)
+            (sidebar-signal nid our.bowl `prev %artifact now.bowl)
         ==
       ::  non-host path: write own Clay, ship metadata to host; no local broadcast
       =/  create-card=card
@@ -4452,9 +4491,14 @@
         ==
       =/  upd=update:noltbook  [%artifact-created new-art]
       =/  pax=path  ~[%notes note-id.act]
-      :_  this(artifacts (~(put by artifacts) aid new-art), note-activity (put-activity note-activity note-id.act now.bowl))
+      =/  prev=@t  (artifact-preview new-art)
+      =/  upd-note=note:noltbook  u.exists(last-author `our.bowl, last-preview `prev)
+      :_  this(notes (~(put by notes) note-id.act upd-note), artifacts (~(put by artifacts) aid new-art), note-activity (put-activity note-activity note-id.act now.bowl))
       ^-  (list card:agent:gall)
-      ~[[%give %fact ~[pax] %noltbook-update !>(upd)] (activity-fact note-id.act now.bowl)]
+      :~  [%give %fact ~[pax] %noltbook-update !>(upd)]
+          (activity-fact note-id.act now.bowl)
+          (sidebar-signal note-id.act our.bowl `prev %artifact now.bowl)
+      ==
     ::
         %edit-artifact
       =/  old  (~(get by artifacts) id.act)
@@ -6212,7 +6256,10 @@
         ?:  =(p author.env)  ~
         `[%pass /gossip-out/(scot %p p)/[nid] %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-gossip-ref nid env my-hops])]
       =/  head-cards=(list card:agent:gall)
-        ~[[%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)] (activity-fact nid now.bowl)]
+        :~  [%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]
+            (activity-fact nid now.bowl)
+            (sidebar-signal nid author.env ~ %gossip now.bowl)
+        ==
       :_  this(gossip-envelopes (~(put by gossip-envelopes) nid (cap-envs (~(put by nenv) msg-id.env env))), gossip-hops (~(put by gossip-hops) msg-id.env my-hops), note-activity (put-activity note-activity nid now.bowl))
       (weld head-cards relay)
     ::
@@ -6277,8 +6324,19 @@
         (~(put by mentions) nid (snoc cur-m [id.msg meid author.msg]))
       ::  do NOT persist full message — ephemeral forward only
       =/  upd=update:noltbook  [%cover-msg-content nid msg]
-      :_  this(gossip-envelopes new-envs, mentions new-mentions)
-      (weld ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] mention-cards)
+      ::  sidebar signal + preview persistence for user gossip notes only
+      ::  (this path also serves %cover content fetches — never signal cover).
+      =/  note-u  (~(get by notes) nid)
+      =/  is-user-gossip=?  &(?=(^ note-u) =(%gossip type.u.note-u))
+      =/  new-notes2=(map @ta note:noltbook)
+        ?.  ?=(^ note-u)  notes
+        ?.  =(%gossip type.u.note-u)  notes
+        (~(put by notes) nid u.note-u(last-author `author.msg, last-preview `text.msg))
+      =/  sig-cards=(list card)
+        ?.  is-user-gossip  ~
+        ~[(sidebar-signal nid author.msg `text.msg %gossip now.bowl)]
+      :_  this(gossip-envelopes new-envs, mentions new-mentions, notes new-notes2)
+      :(weld ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] mention-cards sig-cards)
     ::
         %remote-rumor
       ::  RUMORS: anonymous gossip from a peer. Identity model is
@@ -7779,9 +7837,14 @@
       ::  store ref + broadcast group history; bytes stay on src.bowl
       =/  upd=update:noltbook  [%artifact-created art]
       =/  pax=path  ~[%notes nid]
-      :_  this(artifacts (~(put by artifacts) id.art art), note-activity (put-activity note-activity nid now.bowl))
+      =/  prev=@t  (artifact-preview art)
+      =/  upd-note=note:noltbook  u.nt(last-author `creator.art, last-preview `prev)
+      :_  this(notes (~(put by notes) nid upd-note), artifacts (~(put by artifacts) id.art art), note-activity (put-activity note-activity nid now.bowl))
       ^-  (list card:agent:gall)
-      ~[[%give %fact ~[pax] %noltbook-update !>(upd)] (activity-fact nid now.bowl)]
+      :~  [%give %fact ~[pax] %noltbook-update !>(upd)]
+          (activity-fact nid now.bowl)
+          (sidebar-signal nid creator.art `prev %artifact now.bowl)
+      ==
     ::
         %remote-dm-artifact
       ::  counterparty shipped a DM artifact (metadata + bytes). Store both.
@@ -7814,11 +7877,14 @@
       =/  clay-card=card  [%pass /art-dm-in/[id.art] %arvo %c %info q.byk.bowl nori]
       =/  upd=update:noltbook  [%artifact-created art]
       =/  pax=path  ~[%notes nid]
-      :_  this(artifacts (~(put by artifacts) id.art art), note-activity (put-activity note-activity nid now.bowl))
+      =/  prev=@t  (artifact-preview art)
+      =/  upd-note=note:noltbook  u.nt(last-author `creator.art, last-preview `prev)
+      :_  this(notes (~(put by notes) nid upd-note), artifacts (~(put by artifacts) id.art art), note-activity (put-activity note-activity nid now.bowl))
       :~  clay-card
           [%give %fact ~[pax] %noltbook-update !>(upd)]
           [%give %fact ~[/notes] %noltbook-update !>(upd)]
           (activity-fact nid now.bowl)
+          (sidebar-signal nid creator.art `prev %artifact now.bowl)
       ==
     ::
         %remote-artifact-envelope-ref
@@ -7856,12 +7922,21 @@
         `[%pass /art-env-out/(scot %p p)/[aid.env.rem] %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-artifact-envelope-ref nid env.rem my-hops])]
       =/  upd=update:noltbook  [%artifact-envelope nid env.rem my-hops]
       =/  pax=path  ~[%notes nid]
-      ::  cover is pinned; only gossip notes get recency. put-activity already
-      ::  skips cover, and we suppress the fact for pinned notes too.
+      ::  cover is pinned; only user gossip notes get recency/signal/preview.
+      ::  put-activity already skips cover; suppress fact + signal for cover too.
+      =/  is-user-gossip=?  ?=(%gossip type.u.nt)
+      =/  prev=@t  (art-env-preview env.rem)
       =/  act-cards=(list card)
-        ?:((is-pinned-note nid) ~ ~[(activity-fact nid now.bowl)])
-      :_  this(artifact-envelopes (~(put by artifact-envelopes) nid (cap-art-envs (~(put by envs) aid.env.rem env.rem))), note-activity (put-activity note-activity nid now.bowl))
-      :(weld ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] relay act-cards)
+        ?:  is-user-gossip  ~[(activity-fact nid now.bowl)]
+        ~
+      =/  sig-cards=(list card)
+        ?:  is-user-gossip  ~[(sidebar-signal nid author.env.rem `prev %artifact now.bowl)]
+        ~
+      =/  new-notes=(map @ta note:noltbook)
+        ?.  is-user-gossip  notes
+        (~(put by notes) nid u.nt(last-author `author.env.rem, last-preview `prev))
+      :_  this(notes new-notes, artifact-envelopes (~(put by artifact-envelopes) nid (cap-art-envs (~(put by envs) aid.env.rem env.rem))), note-activity (put-activity note-activity nid now.bowl))
+      :(weld ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] relay act-cards sig-cards)
     ==
   ==
 ::
@@ -8016,9 +8091,13 @@
           =.  gossip-envelopes  (~(put by gossip-envelopes) nid (cap-envs (~(put by note-envs) msg-id.env env)))
           =.  gossip-hops  (~(put by gossip-hops) msg-id.env my-hops)
           =.  note-activity  (put-activity note-activity nid now.bowl)
+          ::  dot-only signal: text not yet fetched, so preview ~ (no overwrite).
           :_  this
           ^-  (list card:agent:gall)
-          ~[[%give %fact ~[/notes/[nid]] %noltbook-update !>(gupd)] (activity-fact nid now.bowl)]
+          :~  [%give %fact ~[/notes/[nid]] %noltbook-update !>(gupd)]
+              (activity-fact nid now.bowl)
+              (sidebar-signal nid author.env ~ %gossip now.bowl)
+          ==
         ::
             %envelope-list
           =/  new-envs=(list envelope:noltbook)
@@ -8067,8 +8146,15 @@
           ?.  |(=(content-hash.u.env *@uv) =(content-hash.u.env (sham text.msg)))
             ~&  [%gossip-msg-hash-mismatch-sub note=nid id=id.msg]
             `this
+          ::  text now known: fill preview + sidebar signal (recency untouched).
+          =/  prev=@t  text.msg
+          =?  notes  ?=(^ note)
+            (~(put by notes) nid u.note(last-author `author.msg, last-preview `prev))
           :_  this
-          ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
+          ^-  (list card:agent:gall)
+          :~  [%give %fact ~[/notes] %noltbook-update !>(upd)]
+              (sidebar-signal nid author.msg `prev %gossip now.bowl)
+          ==
         ::
             %gossip-message
           ::  full gossip from subscription — convert to envelope
@@ -8095,13 +8181,19 @@
           =/  env=envelope:noltbook  [author.msg id.msg timestamp.msg reply-to.msg (sham text.msg) meta.msg]
           =/  eupd=update:noltbook  [%gossip-envelope nid env my-hops]
           =/  pax=path  /notes/[nid]
+          =/  prev=@t  text.msg
+          =?  notes  ?=(^ note)
+            (~(put by notes) nid u.note(last-author `author.msg, last-preview `prev))
           ?:  =(author.msg our.bowl)
             =.  messages  (~(put by messages) nid (cap-msgs (snoc cur msg) %.y))
             =.  gossip-hops  (~(put by gossip-hops) id.msg my-hops)
             =.  note-activity  (put-activity note-activity nid now.bowl)
             :_  this
             ^-  (list card:agent:gall)
-            ~[[%give %fact ~[pax] %noltbook-update !>(eupd)] (activity-fact nid now.bowl)]
+            :~  [%give %fact ~[pax] %noltbook-update !>(eupd)]
+                (activity-fact nid now.bowl)
+                (sidebar-signal nid author.msg `prev %gossip now.bowl)
+            ==
           =/  content-upd=update:noltbook  [%cover-msg-content nid msg]
           =.  gossip-envelopes  (~(put by gossip-envelopes) nid (cap-envs (~(put by note-envs) id.msg env)))
           =.  gossip-hops  (~(put by gossip-hops) id.msg my-hops)
@@ -8111,6 +8203,7 @@
           :~  [%give %fact ~[pax] %noltbook-update !>(eupd)]
               [%give %fact ~[/notes] %noltbook-update !>(content-upd)]
               (activity-fact nid now.bowl)
+              (sidebar-signal nid author.msg `prev %gossip now.bowl)
           ==
         ::
             %new-message
@@ -8137,13 +8230,19 @@
           =/  env=envelope:noltbook  [author.msg id.msg timestamp.msg reply-to.msg (sham text.msg) meta.msg]
           =/  eupd=update:noltbook  [%gossip-envelope nid env 1]
           =/  pax=path  /notes/[nid]
+          =/  prev=@t  text.msg
+          =?  notes  ?=(^ note)
+            (~(put by notes) nid u.note(last-author `author.msg, last-preview `prev))
           ?:  =(author.msg our.bowl)
             =.  messages  (~(put by messages) nid (cap-msgs (snoc cur msg) %.y))
             =.  gossip-hops  (~(put by gossip-hops) id.msg 1)
             =.  note-activity  (put-activity note-activity nid now.bowl)
             :_  this
             ^-  (list card:agent:gall)
-            ~[[%give %fact ~[pax] %noltbook-update !>(eupd)] (activity-fact nid now.bowl)]
+            :~  [%give %fact ~[pax] %noltbook-update !>(eupd)]
+                (activity-fact nid now.bowl)
+                (sidebar-signal nid author.msg `prev %gossip now.bowl)
+            ==
           =/  content-upd=update:noltbook  [%cover-msg-content nid msg]
           =.  gossip-envelopes  (~(put by gossip-envelopes) nid (cap-envs (~(put by note-envs) id.msg env)))
           =.  gossip-hops  (~(put by gossip-hops) id.msg 1)
@@ -8153,6 +8252,7 @@
           :~  [%give %fact ~[pax] %noltbook-update !>(eupd)]
               [%give %fact ~[/notes] %noltbook-update !>(content-upd)]
               (activity-fact nid now.bowl)
+              (sidebar-signal nid author.msg `prev %gossip now.bowl)
           ==
         ::
             %note-users-updated
@@ -8330,9 +8430,16 @@
         =.  artifacts  (~(put by artifacts) id.artifact.upd artifact.upd)
         ::  recency: a genuinely-new artifact from the host bumps this note.
         =.  note-activity  (put-activity note-activity nid now.bowl)
+        ::  sidebar signal + preview persistence for the closed-note case.
+        =/  prev=@t  (artifact-preview artifact.upd)
+        =?  notes  ?=(^ note)
+          (~(put by notes) nid u.note(last-author `creator.artifact.upd, last-preview `prev))
         :_  this
         ^-  (list card:agent:gall)
-        ~[[%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)] (activity-fact nid now.bowl)]
+        :~  [%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]
+            (activity-fact nid now.bowl)
+            (sidebar-signal nid creator.artifact.upd `prev %artifact now.bowl)
+        ==
       ::
           %artifact-updated
         ::  host updated an artifact; store locally and relay to frontend
