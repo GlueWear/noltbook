@@ -310,6 +310,8 @@
       [%unmute-member id=@ta ship=@p]
       ::  durable ack for passive high-level condition notifications
       [%ack-durable-notification kind=durable-notification-kind note-id=@ta]
+      ::  durable green sidebar unread: mark a note read (last-opened time)
+      [%mark-note-read note-id=@ta]
   ==
 ::  subscription updates (agent to client)
 +$  update
@@ -386,6 +388,9 @@
       ::  durable per-note recency for sidebar ordering
       [%note-activity note-id=@ta activity=@da]
       [%note-activity-list activities=(list [note-id=@ta activity=@da])]
+      ::  durable per-note last-read for green sidebar unread dots
+      [%note-read note-id=@ta read=@da]
+      [%note-read-list reads=(list [note-id=@ta read=@da])]
       ::  compact live sidebar signal: closed-note dot/preview without routing
       ::  full artifact/gossip content facts to global /notes. preview=~ means
       ::  dot-only (do not overwrite an existing preview).

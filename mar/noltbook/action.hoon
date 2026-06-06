@@ -479,6 +479,11 @@
         ?>  =('host-deleted-status' p.kind-nd)
         %host-deleted-status
       [%ack-durable-notification kind `@ta`p.note-id-nd]
+    ::  mark-note-read: durable green-unread last-read stamp for a note.
+    ?:  =('mark-note-read' tag)
+      =/  note-id-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] note-id-nd)
+      [%mark-note-read `@ta`p.note-id-nd]
     ::  set-dial (final case)
     ?>  =('set-dial' tag)
     =/  dial-nd  (need (~(get by d) 'dial'))

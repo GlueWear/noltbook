@@ -427,6 +427,23 @@
           ['kind' s+(crip (trip (scot %tas kind.upd)))]
           ['time' (numb (da-to-ms time.upd))]
       ==
+    ::
+        %note-read
+      %+  frond  'note-read'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['read' (numb (da-to-ms read.upd))]
+      ==
+    ::
+        %note-read-list
+      %+  frond  'note-read-list'
+      :-  %a
+      %+  turn  reads.upd
+      |=  [note-id=@ta read=@da]
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id))]
+          ['read' (numb (da-to-ms read))]
+      ==
     ==
     ::
     ++  call-to-json
