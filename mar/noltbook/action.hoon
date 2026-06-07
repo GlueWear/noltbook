@@ -173,7 +173,13 @@
         %file
       =/  cnt-nd  (need (~(get by d) 'content'))
       ?>  ?=([%s *] cnt-nd)
-      [%create-artifact `@ta`p.nid-nd p.nm-nd art-type p.cnt-nd]
+      ::  optional reply context (eid); absent for existing callers
+      =/  rte-raw  (~(get by d) 'replyToEid')
+      =/  rte=(unit @uv)
+        ?~  rte-raw  ~
+        ?.  ?=([%s *] u.rte-raw)  ~
+        `(slav %uv p.u.rte-raw)
+      [%create-artifact `@ta`p.nid-nd p.nm-nd art-type p.cnt-nd rte]
     ::  edit-artifact
     ?:  =('edit-artifact' tag)
       =/  id-nd  (need (~(get by d) 'id'))

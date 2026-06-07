@@ -87,6 +87,20 @@
       creator=@p
       note-id=@ta
       versions=(list artifact-version)
+      ::  Phase A: stable timeline identity. meta.eid is deterministic
+      ::  (sham [creator id]); reply-to-eid carries reply context. Threading
+      ::  and top-100 use this later; byte-hosting is unchanged.
+      meta=(unit entry-meta)
+  ==
+::  artifact-pre40: the pre-state-40 artifact shape (no meta). Used only for
+::  on-load typing of states <= 39; upgrade-39-to-40 appends meta=~.
++$  artifact-pre40
+  $:  id=@ta
+      name=@t
+      type=artifact-type
+      creator=@p
+      note-id=@ta
+      versions=(list artifact-version)
   ==
 ::
 ::  artifact-envelope: small metadata propagated through cover/gossip mesh.
@@ -262,7 +276,7 @@
       [%set-note-meta id=@ta visibility=note-visibility icon-url=(unit @t) writable=?]
       [%invite-to-note id=@ta ship=@p]
       [%invite-to-note-batch id=@ta ships=(list @p)]
-      [%create-artifact note-id=@ta name=@t type=artifact-type content=@t]
+      [%create-artifact note-id=@ta name=@t type=artifact-type content=@t reply-to-eid=(unit @uv)]
       [%edit-artifact id=@ta content=@t]
       [%delete-artifact id=@ta]
       [%file-save id=@ta data=@t]

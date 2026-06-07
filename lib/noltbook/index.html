@@ -397,8 +397,14 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .note-call-badge .call-pip{width:6px;height:6px;border-radius:50%;background:#00ff88;animation:callPulse 1.5s ease-in-out infinite}
 .note-item.has-call .note-call-badge{display:flex}
 .note-item.has-call .note-dot{display:none}
-.artifact-img-box{display:block;width:100%;max-width:400px;min-height:160px;max-height:400px;background:var(--bg2);border:1px solid var(--border);margin-top:.35rem;overflow:hidden}
-.artifact-img-box>img{display:block;width:100%;height:auto;max-height:400px;object-fit:contain}
+/* fixed footprint: the box reserves its final size before the image loads, so
+   late artifact image loads do not expand the card and yank the timeline. */
+.artifact-img-box{display:block;width:100%;max-width:400px;height:300px;background:var(--bg2);border:1px solid var(--border);margin-top:.35rem;overflow:hidden}
+.artifact-img-box>img{display:block;width:100%;height:100%;object-fit:contain}
+/* inline images inside text posts — own stable footprint (smaller than artifact
+   cards) so async image loads inside a message don't grow the post height. */
+.inline-img-box{display:block;max-width:360px;height:240px;background:var(--bg2);border:1px solid var(--border);margin:.35rem 0;overflow:hidden;cursor:pointer}
+.inline-img-box>img{display:block;width:100%;height:100%;object-fit:contain}
 .new-messages-divider{display:flex;align-items:center;gap:.5rem;margin:.6rem .75rem;color:#ffaa00;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase}
 .new-messages-divider>.line{flex:1;height:1px;background:#ffaa00;opacity:.5}
 </style>
@@ -677,7 +683,7 @@ const api = {
     this.reconnecting=false;
   }
 };
-const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},forceBottomOnce:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteRead:{},coverPreview:null};
+const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteRead:{},coverPreview:null};
 // durable green sidebar unread: a non-pinned note is unread when its latest
 // activity time exceeds its last-read time. Both maps are replayed on boot.
 function isPinnedUnreadNote(id){return id==='cover'||(''+id).startsWith('ars-')}
@@ -937,6 +943,81 @@ function restoreScrollAnchor(el,anchor){
   el.scrollTop=k.offsetTop-(anchor.offset||0);
   return true;
 }
+// Apply a scroll target and KEEP it applied as the timeline reflows. A full
+// rerender wipes innerHTML and recreates every <img>/iframe; their late load
+// grows scrollHeight after we set scrollTop, which otherwise yanks the viewport
+// upward (the reply-rerender jump bug). We re-apply across rAF passes and on
+// each media load, but stop the moment the user scrolls so we never fight them.
+// ===== scroll coordinator =====
+// Single owner of timeline scroll policy. It holds three things:
+//  - the open-scroll intent (what a freshly opened note should land on),
+//  - "recent own action" protection (own send/reply/upload should stay at bottom
+//    through the resulting facts/backfill), and
+//  - one persistent post-render lock that keeps either the bottom or a captured
+//    anchor stable while artifact/image/iframe layout settles.
+// The lock cancels the instant the user scrolls (wheel/touch, or scrolling away
+// from the bottom), preserving their position. renderMessages asks it to
+// pin('bottom'|'preserve'); handlers set intent / mark own actions. ars-rumors
+// is excluded from the lock (it renders newest-first; bottom is not its latest).
+const ScrollCo=(function(){
+  let _lock=null;     // {nid,mode,el,anchor,onScroll,cancel,ro,iv,to}
+  let _intent=null;   // {nid,target}  target: 'bottom' | 'unread'
+  let _own={};        // nid -> expiry ms (recent own action)
+  const hasMentions=(nid)=>!!(state.mentions[nid]&&state.mentions[nid].length);
+  function stop(){
+    if(!_lock)return;
+    const l=_lock;_lock=null;
+    clearInterval(l.iv);clearTimeout(l.to);
+    if(l.ro){try{l.ro.disconnect()}catch(e){}}
+    l.el.removeEventListener('scroll',l.onScroll);
+    l.el.removeEventListener('wheel',l.cancel);
+    l.el.removeEventListener('touchmove',l.cancel);
+  }
+  // Pin bottom or a captured anchor, and KEEP it pinned across reflow. A
+  // ResizeObserver catches container/layout changes; a 120ms interval catches
+  // scrollHeight growth from late media (RO on a scroll container does not fire
+  // on content growth). Manual scroll cancels.
+  function pin(nid,mode,anchor){
+    if(state.currentNoteId!==nid||nid==='ars-rumors')return;
+    stop();
+    const el=document.getElementById('chatMessages');
+    if(!el)return;
+    let pinning=false;
+    const apply=()=>{pinning=true;if(mode==='bottom')el.scrollTop=el.scrollHeight;else if(anchor)restoreScrollAnchor(el,anchor);pinning=false};
+    // user-initiated cancel: also drop recent-own protection for THIS note so a
+    // late auto render won't force bottom again. Programmatic stop() never does
+    // this (note switch / pin restart must not erase a fresh own-action window).
+    const manualStop=()=>{delete _own[nid];stop()};
+    const onScroll=()=>{if(pinning)return;if(mode==='bottom'&&(el.scrollHeight-el.scrollTop-el.clientHeight)>120)manualStop()};
+    const cancel=()=>manualStop();
+    el.addEventListener('scroll',onScroll,{passive:true});
+    el.addEventListener('wheel',cancel,{passive:true});
+    el.addEventListener('touchmove',cancel,{passive:true});
+    let ro=null;
+    try{ro=new ResizeObserver(()=>{if(state.currentNoteId!==nid){stop();return}apply()});ro.observe(el)}catch(e){}
+    const iv=setInterval(()=>{if(state.currentNoteId!==nid){stop();return}apply()},120);
+    const to=setTimeout(stop,10000);
+    _lock={nid,mode,el,anchor,onScroll,cancel,ro,iv,to};
+    apply();
+  }
+  return {
+    pin:pin,
+    stop:stop,
+    // true when a BOTTOM lock is currently holding this note (drives auto target)
+    activeBottom(nid){return !!(_lock&&_lock.mode==='bottom'&&(nid===undefined||_lock.nid===nid))},
+    // extend an active lock ~4s past late backfill (cover/gossip content stream)
+    bump(){if(_lock){clearTimeout(_lock.to);_lock.to=setTimeout(stop,4000)}},
+    // openNote records intent BEFORE subscribe; pre-pin bottom so cold-cache
+    // backfill stays at bottom even before the first snapshot arrives.
+    beginOpen(nid,target){_intent={nid:nid,target:target};if(target==='bottom'&&!hasMentions(nid))pin(nid,'bottom',null)},
+    hasOpenIntent(nid){return !!(_intent&&_intent.nid===nid)},
+    consumeOpenIntent(nid){if(!_intent||_intent.nid!==nid)return false;const t=_intent.target;_intent=null;renderMessages(nid,t);return true},
+    // own send/reply/upload: protect bottom through the resulting render(s)
+    beginOwnAction(nid){if(!nid)return;_own[nid]=Date.now()+6000;if(state.currentNoteId===nid)pin(nid,'bottom',null)},
+    cancelOwnAction(nid){if(nid)delete _own[nid]},
+    recentOwn(nid){return !!(nid&&_own[nid]&&Date.now()<_own[nid])}
+  };
+})();
 function makeNewMessagesDivider(){
   const div=document.createElement('div');
   div.id='new-messages-divider';
@@ -955,6 +1036,9 @@ function centerUnreadDivider(el,divEl){
 // cursor handles continuity.
 function ensureUnreadDivider(noteId){
   if(!noteId)return null;
+  // cover is pinned/system: never center on a new-messages divider (ars-rumors
+  // unaffected — it has no unread divider semantics either).
+  if(noteId==='cover')return null;
   if(state.unreadDividers[noteId])return state.unreadDividers[noteId];
   const u=oldestUnreadMessage(noteId);
   if(!u)return null;
@@ -1038,13 +1122,32 @@ function scheduleMarkVisible(){
   if(!el){setTimeout(attachReadTracker,100);return}
   el.addEventListener('scroll',scheduleMarkVisible,{passive:true});
 })();
+// Debounce wrapper only — no scroll policy here. renderMessages resolves the
+// scroll target itself (via ScrollCo). target is optional ('bottom'|'unread'|
+// 'preserve'); omitted lets renderMessages auto-resolve.
 let _renderTimer=null;
-function scheduleRender(noteId,opts){
+let _pendingRenderNid=null;
+let _pendingRenderTarget=undefined;
+function scheduleRender(noteId,target){
   const nid=noteId||state.currentNoteId;
+  // a same-note explicit target wins over a queued auto; otherwise keep prior.
+  if(_pendingRenderNid!==nid){_pendingRenderNid=nid;_pendingRenderTarget=target;}
+  else if(target)_pendingRenderTarget=target;
   const delay=isGossipNote(nid)?150:50;
   if(_renderTimer)clearTimeout(_renderTimer);
-  _renderTimer=setTimeout(()=>{_renderTimer=null;renderMessages(nid,opts||{})},delay);
+  _renderTimer=setTimeout(()=>{
+    _renderTimer=null;
+    const n=_pendingRenderNid,t=_pendingRenderTarget;
+    _pendingRenderNid=null;_pendingRenderTarget=undefined;
+    // guard: a note switch may have happened during the debounce. Never render a
+    // stale note into the shared #chatMessages element.
+    if(n!==state.currentNoteId)return;
+    renderMessages(n,t);
+  },delay);
 }
+// cancel any queued render (called on note switch so a pending stale render for
+// the previous note cannot fire after the new note has opened).
+function cancelPendingRender(){if(_renderTimer){clearTimeout(_renderTimer);_renderTimer=null}_pendingRenderNid=null;_pendingRenderTarget=undefined}
 let _noteListTimer=null;
 function scheduleNoteList(){if(_noteListTimer)clearTimeout(_noteListTimer);_noteListTimer=setTimeout(()=>{_noteListTimer=null;renderNoteList()},50)}
 let _lastMsgHash={};
@@ -1053,9 +1156,9 @@ function handleUpdate(upd){
   else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));const wasPendingJoin=!!state.pendingJoins[n.id];const wasAcceptedFork=state.acceptingForkRoots.has(n.id);if(wasAcceptedFork)state.acceptingForkRoots.delete(n.id);delete state.pendingJoins[n.id];delete state.removedFromNotes[n.id];state.notes[n.id]=n;if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id)}if(state.pendingWalletMsg&&n.type==='dm'){const pw=state.pendingWalletMsg;if(n.users&&n.users.length===2&&n.users.includes(pw.ship)){api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:n.id,text:pw.text}});state.pendingWalletMsg=null}}if(n.creator==='~'+api.ship){if(n.parent)state.expandedNotes.add(n.parent);openNote(n.id)}else if(wasAcceptedFork){if(state.palsView)switchView('notes');openNote(n.id)}else if(wasPendingJoin){document.querySelectorAll('.profile-flow-modal').forEach(el=>el.remove());state.viewingProfileShip=null;if(state.palsView)switchView('notes');if(n.visibility==='public'){openNote(n.id)}else{state.notifications.add(n.id)}}else{if(state.palsView)switchView('notes');state.notifications.add(n.id)}renderNoteList()}
   else if(upd['note-renamed']){const{id,name}=upd['note-renamed'];if(state.notes[id]){state.notes[id].name=name;renderNoteList()}if(state.currentNoteId===id)document.getElementById('chatNoteName').textContent=name}
   else if(upd['note-deleted']){const{id}=upd['note-deleted'];const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];delete state.noteAdmins[id];delete state.noteMuted[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];state.notifications.delete(id);state.notificationAcks.delete(notifAckKey('removed-status',id));state.notificationAcks.delete(notifAckKey('host-deleted-status',id));delete state.noteActivity[id];delete state.noteRead[id];if(state.currentNoteId===id)openNote('cover');renderNoteList()}
-  else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];if(noteId==='cover')console.log('[cover:msg-list]',messages.length,'msgs, current=',state.currentNoteId);let maxSeq=0,revSum=0;for(const m of messages){if(m.meta){if(m.meta.seq>maxSeq)maxSeq=m.meta.seq;revSum+=m.meta.rev}}const hash=noteId+':'+messages.length+':'+maxSeq+':'+revSum;if(_lastMsgHash[noteId]===hash){if(noteId==='cover')console.log('[cover:msg-list] hash match, skipping');return}_lastMsgHash[noteId]=hash;state.messages[noteId]=messages;for(const a of artifacts)state.artifacts[a.id]=a;if(state.currentNoteId===noteId)scheduleRender(noteId);updateCoverPreview();scheduleNoteList()}
+  else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];let maxSeq=0,revSum=0;for(const m of messages){if(m.meta){if(m.meta.seq>maxSeq)maxSeq=m.meta.seq;revSum+=m.meta.rev}}const hash=noteId+':'+messages.length+':'+maxSeq+':'+revSum;if(_lastMsgHash[noteId]===hash)return;_lastMsgHash[noteId]=hash;state.messages[noteId]=messages;for(const a of artifacts)state.artifacts[a.id]=a;if(state.currentNoteId===noteId){if(!ScrollCo.consumeOpenIntent(noteId))scheduleRender(noteId)}updateCoverPreview();scheduleNoteList()}
   else if(upd['new-message']){const msg=upd['new-message'];if(!state.messages[msg.noteId])state.messages[msg.noteId]=[];if(state.messages[msg.noteId].some(m=>(msg.meta&&msg.meta.eid&&m.meta&&m.meta.eid===msg.meta.eid)||m.id===msg.id))return;state.messages[msg.noteId].push(msg);if(state.notes[msg.noteId]){state.notes[msg.noteId].lastAuthor=msg.author;state.notes[msg.noteId].lastPreview=msg.text}if(state.currentNoteId===msg.noteId){const isOwn=msg.author===('~'+api.ship);if(isOwn){clearUnreadDividerDom(msg.noteId)}else{const _cmEl=document.getElementById('chatMessages');if(_cmEl&&!isNearBottom(_cmEl)&&!state.unreadDividers[msg.noteId]){const _ord=msgOrder(msg);if(typeof _ord==='number')state.unreadDividers[msg.noteId]={order:_ord,until:_ord}}}appendMessage(msg,isOwn)}else state.notifications.add(msg.noteId);updateCoverPreview();markOpenNoteReadSoon(msg.noteId);scheduleNoteList()}
-  else if(upd['artifact-created']){const a=upd['artifact-created'];state.artifacts[a.id]=a;if(a.type==='app'||a.type==='file')scheduleRender()}
+  else if(upd['artifact-created']){const a=upd['artifact-created'];state.artifacts[a.id]=a;if((a.type==='app'||a.type==='file')&&a.noteId===state.currentNoteId)scheduleRender(a.noteId)}
   else if(upd['artifact-updated']){const a=upd['artifact-updated'];state.artifacts[a.id]=a;if(state.activeAppBridge&&state.activeAppBridge.artifactId===a.id){const lastVer=a.versions[a.versions.length-1];if(lastVer){try{const meta=JSON.parse(lastVer.content);const iframe=document.getElementById(state.activeAppBridge.iframeId);if(iframe&&iframe.contentWindow){iframe.contentWindow.postMessage({source:'noltbook-host',type:'nb:state',payload:meta.state||{}},'*')}}catch(e){}}}else if(document.getElementById('artifactPanel').classList.contains('open')&&document.getElementById('artifactPanelTitle').textContent===a.name)openArtifactPanel(a.id)}
   else if(upd['artifact-deleted']){delete state.artifacts[upd['artifact-deleted'].id];closeArtifactPanel();scheduleRender()}
   else if(upd['note-meta-updated']){const d=upd['note-meta-updated'];const n=state.notes[d.id];if(n){n.visibility=d.visibility;n.iconUrl=d.iconUrl||null;n.writable=d.writable;renderNoteList();if(d.id===state.currentNoteId)updateMuteUI()}}
@@ -1122,10 +1225,10 @@ function handleUpdate(upd){
   else if(upd['note-users-updated']){const d=upd['note-users-updated'];const{id,type,users,removed}=d;const rev=d.rev||0;const localRev=state.noteMemberRevs[id]||0;if(rev<localRev){console.log('[note-users-updated:stale]',id,'incoming',rev,'<','local',localRev);return}state.noteMemberRevs[id]=rev;console.log('[note-users-updated]',id,type,users,removed,'rev',rev);if(state.notes[id]){const me='~'+api.ship;const vis=state.notes[id].visibility;const notifyVis=vis==='public'||vis==='private';if(state.notes[id].creator===me&&notifyVis){const oldU=state.notes[id].users||[];const newJ=users.filter(u=>!oldU.includes(u)&&u!==me);for(const j of newJ)state.blockNotifications.push({noteId:id,noteName:state.notes[id].name,from:j,time:Date.now(),type:'joined'});if(newJ.length>0)updateLogoBadge()}state.notes[id].users=users;state.notes[id].removed=removed||[];if(type)state.notes[id].type=type;if(!(removed||[]).includes(me))state.notificationAcks.delete(notifAckKey('removed-status',id));rebuildDurableNotifications();updateLogoBadge();renderNoteList();if(state.currentNoteId===id){scheduleRender(id);updateMuteUI()}refreshNoteInfoMembers(id)}}
   else if(upd['note-redirect']){const{oldId,newId}=upd['note-redirect'];console.log('[note-redirect]',oldId,'->',newId);if(state.noteActivity[oldId]!==undefined&&state.noteActivity[newId]===undefined)state.noteActivity[newId]=state.noteActivity[oldId];delete state.noteActivity[oldId];if(state.noteRead[oldId]!==undefined&&state.noteRead[newId]===undefined)state.noteRead[newId]=state.noteRead[oldId];delete state.noteRead[oldId];delete state.notes[oldId];delete state.messages[oldId];state.notifications.delete(oldId);if(state.currentNoteId===oldId){if(state.notes[newId])openNote(newId);else openNote('cover')}renderNoteList()}
   else if(upd['wallet-update']){wallet.transactions=upd['wallet-update'].map(tx=>({type:tx.type,who:tx.counterparty,amount:tx.amount,time:new Date(tx.timestamp).toLocaleString(),txid:tx.txHash}));renderWalletNotes()}
-  else if(upd['gossip-message']){const{message,hops}=upd['gossip-message'];const nid=message.noteId||'cover';const msgEid=message.meta&&message.meta.eid||null;if(nid==='cover')console.log('[cover:gossip-msg]',message.author,'dup=',(state.messages[nid]||[]).some(m=>(msgEid&&m.meta&&m.meta.eid===msgEid)||m.id===message.id),'viewing=',state.currentNoteId===nid);state.gossipHops[message.id]=hops;if(!state.messages[nid])state.messages[nid]=[];const nenvs=state.gossipEnvelopes[nid]||{};delete nenvs[message.id];if(msgEid)delete nenvs[msgEid];state.gossipEnvelopes[nid]=nenvs;const nfetch=state.gossipFetching[nid];if(nfetch){nfetch.delete(message.id);if(msgEid)nfetch.delete(msgEid)}const isDup=state.messages[nid].some(m=>(msgEid&&m.meta&&m.meta.eid===msgEid)||m.id===message.id);if(!isDup){state.messages[nid].push(message);const visible=coverMsgVisible(message);if(state.currentNoteId===nid&&visible){const isOwn=message.author===('~'+api.ship);appendMessage(message,isOwn)}else if(state.currentNoteId!==nid&&visible&&!isPinnedUnreadNote(nid))state.notifications.add(nid)}const visible=coverMsgVisible(message);if(visible&&state.notes[nid]){state.notes[nid].lastAuthor=message.author;state.notes[nid].lastPreview=message.text}if(nid==='cover'&&visible)state.coverPreview={author:message.author,preview:message.text};markOpenNoteReadSoon(nid);scheduleNoteList()}
+  else if(upd['gossip-message']){const{message,hops}=upd['gossip-message'];const nid=message.noteId||'cover';const msgEid=message.meta&&message.meta.eid||null;state.gossipHops[message.id]=hops;if(!state.messages[nid])state.messages[nid]=[];const nenvs=state.gossipEnvelopes[nid]||{};delete nenvs[message.id];if(msgEid)delete nenvs[msgEid];state.gossipEnvelopes[nid]=nenvs;const nfetch=state.gossipFetching[nid];if(nfetch){nfetch.delete(message.id);if(msgEid)nfetch.delete(msgEid)}const isDup=state.messages[nid].some(m=>(msgEid&&m.meta&&m.meta.eid===msgEid)||m.id===message.id);if(!isDup){state.messages[nid].push(message);const visible=coverMsgVisible(message);if(state.currentNoteId===nid&&visible){const isOwn=message.author===('~'+api.ship);appendMessage(message,isOwn)}else if(state.currentNoteId!==nid&&visible&&!isPinnedUnreadNote(nid))state.notifications.add(nid)}const visible=coverMsgVisible(message);if(visible&&state.notes[nid]){state.notes[nid].lastAuthor=message.author;state.notes[nid].lastPreview=message.text}if(nid==='cover'&&visible)state.coverPreview={author:message.author,preview:message.text};markOpenNoteReadSoon(nid);scheduleNoteList()}
   else if(upd['gossip-envelope']){const{noteId,envelope,hops}=upd['gossip-envelope'];const nid=noteId||'cover';const envEid=envelope.meta&&envelope.meta.eid||null;if((state.messages[nid]||[]).some(m=>(envEid&&m.meta&&m.meta.eid===envEid)||m.id===envelope.id))return;const nenvs=state.gossipEnvelopes[nid]||{};const envKey=envEid||envelope.id;if(nenvs[envKey])return;envelope._eid=envEid;nenvs[envKey]=envelope;state.gossipEnvelopes[nid]=nenvs;state.gossipHops[envelope.id]=hops;const shell={id:envelope.id,noteId:nid,author:envelope.author,text:null};if(coverMsgVisible(shell))fetchGossipContent(nid,envelope.id,envelope.author,envEid);if(state.currentNoteId!==nid&&coverMsgVisible(shell))state.notifications.add(nid);markOpenNoteReadSoon(nid);scheduleNoteList()}
   else if(upd['envelope-list']){const{noteId,envelopes}=upd['envelope-list'];const existingMsgs=state.messages[noteId]||[];const existingIds=new Set(existingMsgs.map(m=>m.id));const existingEids=new Set(existingMsgs.filter(m=>m.meta&&m.meta.eid).map(m=>m.meta.eid));const nenvs=state.gossipEnvelopes[noteId]||{};let fetched=0;for(const env of envelopes){const eeid=env.meta&&env.meta.eid||null;const envKey=eeid||env.id;if(existingIds.has(env.id)||(eeid&&existingEids.has(eeid))||nenvs[envKey])continue;env._eid=eeid;nenvs[envKey]=env;const shell={id:env.id,noteId:noteId,author:env.author,text:null};if(coverMsgVisible(shell)){fetchGossipContent(noteId,env.id,env.author,eeid);fetched++}}state.gossipEnvelopes[noteId]=nenvs;if(fetched>0)scheduleNoteList()}
-  else if(upd['cover-msg-content']){const{noteId,message:msg}=upd['cover-msg-content'];const nid=noteId||'cover';markOpenNoteReadSoon(nid);const msgEid=msg.meta&&msg.meta.eid||null;const nfetch=state.gossipFetching[nid];if(nfetch){nfetch.delete(msg.id);if(msgEid)nfetch.delete(msgEid)}const nenvs=state.gossipEnvelopes[nid]||{};delete nenvs[msg.id];if(msgEid)delete nenvs[msgEid];state.gossipEnvelopes[nid]=nenvs;if(!state.messages[nid])state.messages[nid]=[];const isDup=state.messages[nid].some(m=>(msgEid&&m.meta&&m.meta.eid===msgEid)||m.id===msg.id);let _appendedCover=false;if(!isDup){state.messages[nid].push(msg);const visible=coverMsgVisible(msg);if(nid==='cover'&&state.currentNoteId===nid&&visible){const _isOwn=msg.author===('~'+api.ship);appendMessage(msg,_isOwn);_appendedCover=true}else if(state.currentNoteId!==nid&&visible&&!isPinnedUnreadNote(nid))state.notifications.add(nid);if(nid==='cover'){const _lc=getLastMessage('cover');if(_lc)state.coverPreview={author:_lc.author,preview:_lc.text}}}state.gossipPending[nid]=Math.max(0,(state.gossipPending[nid]||1)-1);if(state.gossipPending[nid]===0){hideGossipLoading();if(state.currentNoteId===nid&&!_appendedCover)scheduleRender(nid);if(state.notes[nid]){const msgs=state.messages[nid]||[];if(msgs.length){const newest=msgs.reduce((a,b)=>b.timestamp>a.timestamp?b:a);state.notes[nid].lastPreview=newest.text;state.notes[nid].lastAuthor=newest.author}}scheduleNoteList()}if(state.pendingGossipRef&&state.pendingGossipRef.noteId===nid){const pr=state.pendingGossipRef;const match=(msgEid&&pr.eid&&msgEid===pr.eid)||String(msg.id)===pr.msgId;if(match){clearTimeout(pr.timer);state.pendingGossipRef=null;setTimeout(function(){scrollToGossipMsg(pr.msgId,pr.eid)},400)}}}
+  else if(upd['cover-msg-content']){const{noteId,message:msg}=upd['cover-msg-content'];const nid=noteId||'cover';markOpenNoteReadSoon(nid);if(state.currentNoteId===nid)ScrollCo.bump();const msgEid=msg.meta&&msg.meta.eid||null;const nfetch=state.gossipFetching[nid];if(nfetch){nfetch.delete(msg.id);if(msgEid)nfetch.delete(msgEid)}const nenvs=state.gossipEnvelopes[nid]||{};delete nenvs[msg.id];if(msgEid)delete nenvs[msgEid];state.gossipEnvelopes[nid]=nenvs;if(!state.messages[nid])state.messages[nid]=[];const isDup=state.messages[nid].some(m=>(msgEid&&m.meta&&m.meta.eid===msgEid)||m.id===msg.id);let _appendedGossipText=false;if(!isDup){state.messages[nid].push(msg);const visible=coverMsgVisible(msg);const _isGossipy=nid==='cover'||(state.notes[nid]&&state.notes[nid].type==='gossip');if(_isGossipy&&state.currentNoteId===nid&&visible){const _isOwn=msg.author===('~'+api.ship);appendMessage(msg,_isOwn);_appendedGossipText=true}else if(state.currentNoteId!==nid&&visible&&!isPinnedUnreadNote(nid))state.notifications.add(nid);if(nid==='cover'){const _lc=getLastMessage('cover');if(_lc)state.coverPreview={author:_lc.author,preview:_lc.text}}}state.gossipPending[nid]=Math.max(0,(state.gossipPending[nid]||1)-1);if(state.gossipPending[nid]===0){hideGossipLoading();if(state.currentNoteId===nid&&!_appendedGossipText)scheduleRender(nid);if(state.notes[nid]){const msgs=state.messages[nid]||[];if(msgs.length){const newest=msgs.reduce((a,b)=>b.timestamp>a.timestamp?b:a);state.notes[nid].lastPreview=newest.text;state.notes[nid].lastAuthor=newest.author}}scheduleNoteList()}if(state.pendingGossipRef&&state.pendingGossipRef.noteId===nid){const pr=state.pendingGossipRef;const match=(msgEid&&pr.eid&&msgEid===pr.eid)||String(msg.id)===pr.msgId;if(match){clearTimeout(pr.timer);state.pendingGossipRef=null;setTimeout(function(){scrollToGossipMsg(pr.msgId,pr.eid)},400)}}}
   else if(upd['rumor-message']){const msg=upd['rumor-message'].message;if(!state.messages['ars-rumors'])state.messages['ars-rumors']=[];const isDup=state.messages['ars-rumors'].some(m=>m.text===msg.text);if(!isDup){state.messages['ars-rumors'].unshift(msg);if(state.currentNoteId==='ars-rumors')renderMessages('ars-rumors');else state.notifications.add('ars-rumors');scheduleNoteList()}}
   else if(upd['mention-update']){const{noteId,mentions}=upd['mention-update'];if(!state.mentions[noteId])state.mentions[noteId]=[];for(const m of mentions){const mEid=m.eid||null;const dup=state.mentions[noteId].some(x=>(mEid&&x.eid&&x.eid===mEid)||x.id===m.id);if(!dup)state.mentions[noteId].push({id:m.id,eid:mEid,author:m.author})}scheduleNoteList()}
   else if(upd['call-state']){const{noteId,call}=upd['call-state'];console.log('[call-state]',noteId,call);if(call.status==='active'){state.activeCalls[noteId]=call}else{delete state.activeCalls[noteId]}updateCallUI()}
@@ -1191,7 +1294,7 @@ async function openNote(id){
   // tear down previous mention observer
   if(mentionObserver){mentionObserver.disconnect();mentionObserver=null}
   delete _lastMsgHash[id];  // clear so fresh snapshot on subscribe is always accepted
-  hideGossipLoading();state.currentNoteId=id;state.notifications.delete(id);state.lastMsgAuthor=null;
+  hideGossipLoading();ScrollCo.stop();cancelPendingRender();state.currentNoteId=id;state.notifications.delete(id);state.lastMsgAuthor=null;
   state._mentionJumpDone=false;
   revealNoteInTree(id);
   // expand the explicitly-opened note so its children are visible. Notification
@@ -1201,11 +1304,22 @@ async function openNote(id){
   document.getElementById('shareBtn').style.display=(id==='cover'||id==='ars-rumors'||(state.notes[id]&&state.notes[id].type==='dm'))?'none':'block';
   const _dw=document.getElementById('dialWrap');if(_dw)_dw.style.display=isGossipNote(id)?'':'none';
   document.getElementById('chatMessages').innerHTML='';
+  // Record open-scroll intent BEFORE subscribe so the first message-list snapshot
+  // scrolls correctly even on a cold cache where state.messages[id] doesn't exist
+  // yet (hard refresh). Durable unread (server activity>read), NOT just the local
+  // read cursor, decides unread-divider vs open-bottom. cover always opens bottom;
+  // ars-rumors keeps its newest-first divider/scroll behavior.
+  const _durableUnread=!isPinnedUnreadNote(id)&&((state.noteActivity[id]||0)>(state.noteRead[id]||0));
+  const _openTarget=(id==='cover'?'bottom':id==='ars-rumors'?'unread':(_durableUnread?'unread':'bottom'));
+  // record + pre-pin (bottom intent) so cold-cache backfill stays put before the snapshot
+  ScrollCo.beginOpen(id,_openTarget);
   await api.poke('noltbook','noltbook-action',{action:'switch-note',data:{id}});
   const subId=await api.subscribe('noltbook','/notes/'+id,handleUpdate);
   if(subId===null){console.error('[openNote] subscribe failed, reconnecting');if(!api.reconnecting)api.reconnect();return}
   state.currentNoteSub=subId;
-  if(state.messages[id]){ensureUnreadDivider(id);renderMessages(id,{scrollToUnread:true})}
+  // messages already cached: consume the intent now. Otherwise the message-list
+  // snapshot handler consumes it when it arrives.
+  if(state.messages[id]){ScrollCo.consumeOpenIntent(id)}
   renderNoteList();
   updateCallUI();
   updateMuteUI();
@@ -1466,7 +1580,7 @@ function renderDocCard(url,name,mime,size){
     +'<span style="opacity:.7">'+escHtml(labelType)+(sizeLabel?' · '+sizeLabel:'')+'</span>'
     +'<a href="'+escAttr(url)+'&download=1" style="margin-left:auto;color:#ffaa00;text-decoration:none;font-size:.7rem" download="'+escAttr(name)+'">DOWNLOAD</a>'
     +'</div>'
-    +'<pre id="'+previewId+'" style="max-height:240px;overflow:auto;padding:.5rem .6rem;margin:0;font-size:.75rem;color:#ddd;white-space:pre-wrap;word-break:break-word">loading preview...</pre>'
+    +'<pre id="'+previewId+'" style="height:240px;overflow:auto;padding:.5rem .6rem;margin:0;font-size:.75rem;color:#ddd;white-space:pre-wrap;word-break:break-word">loading preview...</pre>'
     +'</div>';
 }
 function fetchVisibleEnvelopes(){
@@ -2102,20 +2216,122 @@ function msgDepth(msgId,byId,byEid){
   while(cur){const p=getParent(cur,byId,byEid||{});if(!p)break;cur=p;d++}
   return d;
 }
-function renderMessages(noteId,opts){
-  opts=opts||{};
+// ===== unified timeline card renderers (root or nested-reply via depth) =====
+// Render a real artifact as a timeline card. Extracted so artifacts can appear
+// both as root items and as nested replies inside a thread container.
+function renderArtifactCard(el,art,depth,isThreadAnchor){
+  const wrap=document.createElement('div');
+  wrap.className='msg'+(depth>0?' depth-'+Math.min(depth,5):'');
+  // canonical ids live on the standalone/root timeline item + nested replies
+  // (each unique). The thread-anchor copy is a duplicate of the root, so it
+  // gets a noncanonical suffix to avoid duplicate DOM ids.
+  const idSuf=isThreadAnchor?'-ta':'';
+  wrap.id=(art.type==='app'?'inline-app-':'inline-file-')+art.id+idSuf;
+  const authorColor=art.creator.startsWith('~')?shipColor(art.creator):'var(--visitor)';
+  const lastVer=art.versions[art.versions.length-1];
+  const timeStr=lastVer?new Date(lastVer.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
+  const actions=`<div class="msg-actions"><button class="msg-action-btn" onclick="startReply('${art.id}','${escAttr(art.creator)}')">REPLY</button><button class="msg-action-btn send-msg" onclick="sendToUser('${escAttr(art.creator)}','${art.id}')">SEND</button><button class="msg-action-btn delete-msg" onclick="deleteArtifact('${art.id}')">DELETE</button></div>`;
+  if(art.type==='app'){
+    let meta={};if(lastVer){try{meta=JSON.parse(lastVer.content)}catch(e){}}
+    const iframeId='app-iframe-'+art.id+idSuf;
+    wrap.innerHTML=`<div class="msg-header" style="padding-left:0"><span class="msg-author" style="color:${authorColor}">${escHtml(displayName(art.creator))}</span><span class="msg-time">${timeStr}</span>${actions}</div><iframe id="${iframeId}" src="/apps/noltbook/pkg/${meta.packageId||'canvas'}" sandbox="allow-scripts" scrolling="no" style="width:100%;height:760px;border:none;background:#181818;overflow:hidden"></iframe>`;
+    wrap.style.cssText='display:block;padding:0 1rem;margin-top:.6rem';
+    el.appendChild(wrap);
+    initHostBridge(iframeId,art.id,meta);
+  }else{
+    let fileContent='';
+    let meta={};if(lastVer){try{meta=JSON.parse(lastVer.content)}catch(e){}}
+    const fname=escHtml(meta.fileName||art.name);
+    const dblExpand=`ondblclick="openFileFullscreen('${art.id}')"`;
+    if(meta.storage==='clay'){
+      const v=meta.version||1;
+      const artUrl='/apps/noltbook/artifact/'+encodeURIComponent(art.id)+'?v='+v;
+      const dlUrl=artUrl+'&download=1';
+      const m=meta.mime||'';
+      const isImg=meta.kind==='image'||m.startsWith('image/');
+      if(isImg){
+        fileContent=`<div class="artifact-img-box" style="cursor:pointer" ${dblExpand}><img src="${artUrl}" alt="${fname}" onerror="this.parentElement.outerHTML='<div style=&quot;margin-top:.35rem;font-size:.8rem;color:#ff4444&quot;>[content not yet available on this ship]</div>'"></div>`;
+      }else if(isDocMime(m,fname)){
+        fileContent=renderDocCard(artUrl,fname,m,meta.size);
+      }else{
+        fileContent=`<div style="display:flex;align-items:center;gap:.5rem;margin-top:.35rem;padding:.4rem .6rem;border:1px solid var(--border);background:var(--bg2)"><span style="font-size:.85rem;color:var(--text)">${fname}</span><a href="${artUrl}&download=1" style="font-size:.7rem;color:#ffaa00;text-decoration:none;margin-left:auto" download="${fname}">DOWNLOAD</a></div>`;
+      }
+    }else if(meta.dataUrl&&meta.mimeType&&meta.mimeType.startsWith('image/')){
+      fileContent=`<div class="artifact-img-box" style="cursor:pointer" ${dblExpand}><img src="${escAttr(meta.dataUrl)}" alt="${fname}"></div>`;
+    }else if(meta.dataUrl&&meta.mimeType==='application/pdf'){
+      fileContent=`<div style="margin-top:.35rem" ${dblExpand}><iframe src="${escAttr(meta.dataUrl)}" style="width:100%;height:400px;border:1px solid var(--border);background:#fff;pointer-events:none"></iframe></div>`;
+    }else if(meta.dataUrl&&meta.mimeType&&(meta.mimeType.startsWith('text/')||meta.mimeType==='application/json'||meta.mimeType==='application/xml'||meta.mimeType==='application/javascript')){
+      const textId='file-text-'+art.id+idSuf;
+      fileContent=`<pre id="${textId}" style="height:300px;overflow:auto;border:1px solid var(--border);margin-top:.35rem;padding:.5rem;font-size:.8rem;color:var(--text);background:var(--bg2);white-space:pre-wrap;margin-bottom:0;cursor:pointer" ${dblExpand}></pre>`;
+      setTimeout(()=>{const el=document.getElementById(textId);if(el)fetch(meta.dataUrl).then(r=>r.text()).then(t=>{el.textContent=t})},0);
+    }else if(meta.dataUrl&&meta.mimeType&&meta.mimeType.startsWith('audio/')){
+      fileContent=`<div style="margin-top:.35rem" ${dblExpand}><div style="font-size:.85rem;color:var(--text-dim);margin-bottom:.25rem">${fname}</div><audio controls src="${escAttr(meta.dataUrl)}" style="width:100%;max-width:400px"></audio></div>`;
+    }else if(meta.dataUrl&&meta.mimeType&&meta.mimeType.startsWith('video/')){
+      fileContent=`<video controls src="${escAttr(meta.dataUrl)}" style="max-width:100%;max-height:400px;border:1px solid var(--border);margin-top:.35rem" ${dblExpand}></video>`;
+    }else if(meta.dataUrl){
+      fileContent=`<div style="display:flex;align-items:center;gap:.5rem;margin-top:.35rem;padding:.4rem .6rem;border:1px solid var(--border);background:var(--bg2);cursor:pointer" ${dblExpand}><span style="font-size:.85rem;color:var(--text)">${fname}</span></div>`;
+    }else{
+      fileContent=`<div style="margin-top:.35rem;font-size:.85rem;color:var(--text-dim)">${escHtml(lastVer.content).slice(0,200)}</div>`;
+    }
+    wrap.innerHTML=`<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar">${avatarHtml(art.creator)}</div><div class="msg-body"><div class="msg-header"><span class="msg-author" style="color:${authorColor}">${escHtml(displayName(art.creator))}</span><span class="msg-time">${timeStr}</span>${actions}</div>${fileContent}</div></div>`;
+    el.appendChild(wrap);
+  }
+  // artifact cards always break message grouping
+  state.lastMsgAuthor=null;state.lastMsgDepth=-1;
+}
+// Render an artifact-envelope (cover/gossip mesh) as a timeline card.
+function renderEnvCard(el,env,depth,isThreadAnchor){
+  const wrap=document.createElement('div');
+  wrap.className='msg'+(depth>0?' depth-'+Math.min(depth,5):'');
+  // thread-anchor copy gets a noncanonical id (see renderArtifactCard)
+  const idSuf=isThreadAnchor?'-ta':'';
+  wrap.id='inline-art-env-'+env.aid+idSuf;
+  const authorColor=env.author.startsWith('~')?shipColor(env.author):'var(--visitor)';
+  const ts=env.timestamp?new Date(env.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
+  const url='/apps/noltbook/artifact/'+encodeURIComponent(env.aid)+'?v=1';
+  const isImg=(env.kind==='image')||((env.mime||'').startsWith('image/'));
+  const rawName=env.name||env.aid;
+  const fname=escHtml(rawName);
+  // reply parity: envelopes with a stable eid can be replied to
+  const canReply=!!(env.meta&&env.meta.eid);
+  const replyBtn=canReply?`<button class="msg-action-btn" onclick="startReply('${env.aid}','${escAttr(env.author)}')">REPLY</button>`:'';
+  const actions=replyBtn?`<div class="msg-actions">${replyBtn}</div>`:'';
+  let body='';
+  if(isImg){
+    body=`<div class="artifact-img-box"><img src="${url}" alt="${fname}" onerror="this.parentElement.outerHTML='<div style=&quot;margin-top:.35rem;font-size:.8rem;color:#ff4444&quot;>[content not yet available]</div>'"></div>`;
+  }else if(isDocMime(env.mime,rawName)){
+    body=renderDocCard(url,rawName,env.mime||'',env.size);
+  }else{
+    body=`<div style="display:flex;align-items:center;gap:.5rem;margin-top:.35rem;padding:.4rem .6rem;border:1px solid var(--border);background:var(--bg2)"><span style="font-size:.85rem;color:var(--text)">${fname}</span><a href="${url}&download=1" style="font-size:.7rem;color:#ffaa00;text-decoration:none;margin-left:auto" download="${fname}">DOWNLOAD</a></div>`;
+  }
+  wrap.innerHTML=`<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar">${avatarHtml(env.author)}</div><div class="msg-body"><div class="msg-header"><span class="msg-author" style="color:${authorColor}">${escHtml(displayName(env.author))}</span><span class="msg-time">${ts}</span>${actions}</div>${body}</div></div>`;
+  el.appendChild(wrap);
+  state.lastMsgAuthor=null;state.lastMsgDepth=-1;
+}
+// render a unified node (message / artifact / artifact-envelope) at depth
+function renderNode(el,node,depth,isThreadAnchor){
+  if(node.kind==='msg')renderMsg(el,node.raw,depth,isThreadAnchor);
+  else if(node.kind==='art')renderArtifactCard(el,node.raw,depth,isThreadAnchor);
+  else if(node.kind==='env')renderEnvCard(el,node.raw,depth,isThreadAnchor);
+}
+function renderMessages(noteId,target){
   const el=document.getElementById('chatMessages');
   // capture scroll state BEFORE wiping the timeline
   const wasNearBottom=isNearBottom(el);
-  const anchor=(opts.forceBottom||opts.scrollToUnread)?null:captureScrollAnchor(el);
-  // consume one-shot force-bottom flag (set on local-user sends)
-  let forceBottom=!!opts.forceBottom;
-  if(state.forceBottomOnce&&state.forceBottomOnce[noteId]){
-    forceBottom=true;
-    delete state.forceBottomOnce[noteId];
+  // Normalize to one scroll target: 'bottom' | 'unread' | 'preserve'. When the
+  // caller doesn't specify, auto-resolve: a recent own action or an active
+  // bottom lock keeps bottom; near-bottom-with-no-unread opens bottom; otherwise
+  // preserve the user's position.
+  let scrollTarget=target;
+  if(!scrollTarget){
+    if(ScrollCo.recentOwn(noteId)||ScrollCo.activeBottom(noteId))scrollTarget='bottom';
+    else if(wasNearBottom&&!state.unreadDividers[noteId])scrollTarget='bottom';
+    else scrollTarget='preserve';
   }
+  if(scrollTarget==='unread')ensureUnreadDivider(noteId);
+  const anchor=(scrollTarget==='preserve')?captureScrollAnchor(el):null;
   // Persistent unread divider — placed before the first item whose order
-  // is >= dividerInfo.order. Independent of opts; renders on every pass.
+  // is >= dividerInfo.order. Independent of target; renders on every pass.
   const dividerInfo=state.unreadDividers[noteId]||null;
   let dividerInserted=false;
   function maybeInsertDivider(itemOrd){
@@ -2137,206 +2353,118 @@ function renderMessages(noteId,opts){
   }
   let msgs=state.messages[noteId]||[];
   if(isGossipNote(noteId)){msgs=msgs.filter(coverMsgVisible)}
-  const byId={};const byEid={};msgs.forEach(m=>{byId[m.id]=m;const eid=getMsgEid(m);if(eid)byEid[eid]=m});
-  // determine if note uses seq ordering (all messages have meta with seq)
+  // seq ordering only when every message carries meta.seq (regular notes);
+  // gossip/cover order by id/timestamp.
   const useSeq=!isGossipNote(noteId)&&msgs.length>0&&msgs.every(m=>m.meta&&m.meta.seq);
-  const orderKey=useSeq?(m=>m.meta.seq):(m=>m.id);
-  const children={};msgs.forEach(m=>{const p=getParent(m,byId,byEid);if(p){if(!children[p.id])children[p.id]=[];children[p.id].push(m)}});
-  // canonical reply order inside threads: sort by orderKey so expanded threads are deterministic
-  for(const k in children)children[k].sort((a,b)=>orderKey(a)-orderKey(b));
-  const threadMap={};const threads={};
-  for(const m of msgs){
-    const root=findThreadRoot(m.id,byId,byEid);
-    threadMap[m.id]=root;
-    if(!threads[root])threads[root]={root,replies:[],lastOrder:0,newestId:null};
-    if(m.id!==root)threads[root].replies.push(m);
-    const mOrd=orderKey(m);
-    if(mOrd>threads[root].lastOrder){threads[root].lastOrder=mOrd;threads[root].newestId=m.id}
+  const msgNodeOrder=(m)=>useSeq?m.meta.seq:m.id;
+  // map an artifact/envelope timestamp into the active ordering space
+  function tsToOrder(ts){
+    if(!useSeq)return ts||0;
+    let bestSeq=0;
+    for(const m of msgs){if(m.meta&&m.meta.seq&&(m.meta.created||m.id)<=ts&&m.meta.seq>bestSeq)bestSeq=m.meta.seq}
+    return bestSeq+0.5;
   }
-  const items=[];
-  for(const tid in threads){
-    const t=threads[tid];
-    const rootMsg=byId[tid];
-    // original message at its canonical order position
-    items.push({type:'msg',msg:rootMsg,order:orderKey(rootMsg)});
-    // separate thread container only if replies exist, sorted by newest reply
-    if(t.replies.length>0){
-      items.push({type:'thread',anchorId:parseInt(tid),order:t.lastOrder,newestId:t.newestId});
-    }
-  }
-  // merge artifact envelopes (cover/gossip mesh) into the timeline
+  // ===== unified timeline nodes: messages + artifacts + artifact-envelopes =====
+  // node: {key,kind:'msg'|'art'|'env',raw,id,eid,replyToEid,legacyReplyTo,order}
+  const nodes=[];
+  msgs.forEach(m=>nodes.push({key:'m:'+m.id,kind:'msg',raw:m,id:m.id,eid:getMsgEid(m),replyToEid:(m.meta&&m.meta.replyToEid)||null,legacyReplyTo:(m.replyTo!=null?m.replyTo:null),order:msgNodeOrder(m)}));
   const envMap=state.artifactEnvelopes[noteId]||{};
   for(const aid in envMap){
     const env=envMap[aid];
-    // skip only if we already hold the REAL artifact for THIS note. A
-    // ship may still have the original artifact record for source note A
-    // while a fork F holds an envelope pointing to the same aid; that
-    // original record should not hide the fork envelope on note F.
+    // skip only if we already hold the REAL artifact for THIS note (a fork may
+    // hold an envelope for an aid whose original record lives on another note).
     const real=state.artifacts[aid];
     if(real&&real.noteId===noteId)continue;
-    // dial/hop visibility for cover/gossip envelopes
     if(isGossipNote(noteId)&&!artEnvVisible(env))continue;
-    let envOrd=env.timestamp||0;
-    if(useSeq){
-      const ets=env.timestamp||0;
-      let bestSeq=0;
-      for(const m of msgs){
-        if(m.meta&&m.meta.seq&&(m.meta.created||m.id)<=ets&&m.meta.seq>bestSeq)bestSeq=m.meta.seq;
-      }
-      envOrd=bestSeq+0.5;
-    }
-    items.push({type:'artifact-env',env,order:envOrd});
+    nodes.push({key:'e:'+env.aid,kind:'env',raw:env,id:env.aid,eid:(env.meta&&env.meta.eid)||null,replyToEid:(env.meta&&env.meta.replyToEid)||null,legacyReplyTo:null,order:tsToOrder(env.timestamp||0)});
   }
-  // merge artifacts into the timeline so they appear in chronological order with messages
-  const noteArts=Object.values(state.artifacts).filter(a=>a.noteId===noteId&&(a.type==='app'||a.type==='file'));
-  for(const art of noteArts){
+  Object.values(state.artifacts).filter(a=>a.noteId===noteId&&(a.type==='app'||a.type==='file')).forEach(art=>{
     const lv=art.versions.length?art.versions[art.versions.length-1]:null;
-    let artOrd=lv?lv.timestamp:0;
-    if(useSeq&&lv){
-      // map artifact timestamp into seq space: find highest seq with created <= art timestamp
-      let bestSeq=0;
-      for(const m of msgs){if(m.meta&&m.meta.seq&&(m.meta.created||m.id)<=lv.timestamp&&m.meta.seq>bestSeq)bestSeq=m.meta.seq}
-      artOrd=bestSeq+0.5;
-    }
-    items.push({type:'artifact',art,order:artOrd});
+    nodes.push({key:'a:'+art.id,kind:'art',raw:art,id:art.id,eid:(art.meta&&art.meta.eid)||null,replyToEid:(art.meta&&art.meta.replyToEid)||null,legacyReplyTo:null,order:tsToOrder(lv?lv.timestamp:0)});
+  });
+  const byKey={};const byEidN={};
+  nodes.forEach(n=>{byKey[n.key]=n;if(n.eid)byEidN[n.eid]=n});
+  // parent resolution: prefer reply-to-eid (works across all node types);
+  // legacy @da reply-to only for message->message. Unresolvable parent => root.
+  function nodeParent(n){
+    if(n.replyToEid&&byEidN[n.replyToEid])return byEidN[n.replyToEid];
+    if(n.kind==='msg'&&n.legacyReplyTo!=null&&byKey['m:'+n.legacyReplyTo])return byKey['m:'+n.legacyReplyTo];
+    return null;
+  }
+  const childrenN={};
+  nodes.forEach(n=>{const p=nodeParent(n);if(p){(childrenN[p.key]=childrenN[p.key]||[]).push(n)}});
+  for(const k in childrenN)childrenN[k].sort((a,b)=>a.order-b.order);
+  function nodeRoot(n){let cur=n,g=0;while(cur){const p=nodeParent(cur);if(!p||g++>500)break;cur=p}return cur}
+  function flattenThread(rootKey,depth){let out=[];const kids=childrenN[rootKey]||[];for(const c of kids){out.push({node:c,depth});out=out.concat(flattenThread(c.key,depth+1))}return out}
+  function nodeAncestorChain(key){const out=[];let cur=byKey[key];while(cur){const p=nodeParent(cur);if(!p)break;out.push(p.key);cur=p}return out}
+  // group nodes into threads keyed by their root
+  const threadsN={};
+  nodes.forEach(n=>{
+    const root=nodeRoot(n);
+    if(!threadsN[root.key])threadsN[root.key]={rootKey:root.key,rootOrder:root.order,replies:0,lastOrder:root.order,newestKey:root.key};
+    const t=threadsN[root.key];
+    if(n.key!==root.key)t.replies++;
+    if(n.order>t.lastOrder){t.lastOrder=n.order;t.newestKey=n.key}
+  });
+  const items=[];
+  for(const rk in threadsN){
+    const t=threadsN[rk];
+    // original item at its canonical position
+    items.push({type:'root',rootKey:rk,order:t.rootOrder});
+    // separate thread container only if replies exist, at newest-reply position
+    if(t.replies>0)items.push({type:'thread',rootKey:rk,order:t.lastOrder,newestKey:t.newestKey});
   }
   items.sort((a,b)=>noteId==='ars-rumors'?b.order-a.order:a.order-b.order);
   for(const item of items){
-    // insert "New Messages" divider before the first message/thread item
-    // whose order is >= the divider's anchor order. Artifacts/envelopes
-    // are skipped for placement so they never spuriously clear unread.
-    if(item.type==='msg')maybeInsertDivider(orderKey(item.msg));
-    else if(item.type==='thread'){
-      const root=byId[item.anchorId];
-      if(root)maybeInsertDivider(orderKey(root));
-      else maybeInsertDivider(item.order);
-    }
-    if(item.type==='msg'){
-      renderMsg(el,item.msg,0);
-    }else if(item.type==='thread'){
-      const anchorId=item.anchorId;
-      const anchor=byId[anchorId];
-      const flat=collectThreadFlat(anchorId,children,byId,1);
-      const expanded=state.expandedThreads&&state.expandedThreads.has(anchorId);
+    const rootNode=byKey[item.rootKey];
+    if(!rootNode)continue;
+    // dividers anchor only on message roots; artifacts never clear unread
+    if(rootNode.kind==='msg')maybeInsertDivider(rootNode.order);
+    if(item.type==='root'){
+      renderNode(el,rootNode,0);
+    }else{
+      const anchorKey=item.rootKey;
+      const anchorRawId=rootNode.id;
+      const flat=flattenThread(anchorKey,1);
+      const expanded=state.expandedThreads&&state.expandedThreads.has(anchorRawId);
       const wrap=document.createElement('div');
       wrap.className='msg-thread';
-      wrap.id='thread-'+anchorId;
+      wrap.id='thread-'+anchorRawId;
       state.lastMsgAuthor=null;state.lastMsgDepth=-1;
-      renderMsg(wrap,anchor,0,true);
+      renderNode(wrap,rootNode,0,true);
       if(expanded||flat.length<=2){
-        for(const f of flat)renderMsg(wrap,f.msg,f.depth);
+        for(const f of flat)renderNode(wrap,f.node,f.depth);
       }else{
-        const newest=byId[item.newestId];
-        const newestDepth=msgDepth(item.newestId,byId,byEid);
-        const parentOfNewest=getParent(newest,byId,byEid);
-        const visibleIds=new Set();
-        if(parentOfNewest&&parentOfNewest.id!==anchorId)visibleIds.add(parentOfNewest.id);
-        visibleIds.add(newest.id);
-        if(parentOfNewest){const chain=getAncestorChain(parentOfNewest.id,byId,byEid);chain.forEach(id=>{if(id!==anchorId)visibleIds.add(id)})}
-        const hiddenCount=flat.filter(f=>!visibleIds.has(f.msg.id)).length;
+        const newest=byKey[item.newestKey];
+        const parentOfNewest=nodeParent(newest);
+        const visible=new Set();
+        if(parentOfNewest&&parentOfNewest.key!==anchorKey)visible.add(parentOfNewest.key);
+        visible.add(newest.key);
+        if(parentOfNewest){nodeAncestorChain(parentOfNewest.key).forEach(k=>{if(k!==anchorKey)visible.add(k)})}
+        const hiddenCount=flat.filter(f=>!visible.has(f.node.key)).length;
         let shownMore=false;
         for(const f of flat){
-          if(visibleIds.has(f.msg.id)){
-            if(!shownMore&&hiddenCount>0&&(f.msg.id===(parentOfNewest?parentOfNewest.id:newest.id))){
+          if(visible.has(f.node.key)){
+            if(!shownMore&&hiddenCount>0&&(f.node.key===(parentOfNewest?parentOfNewest.key:newest.key))){
               const moreBtn=document.createElement('button');
               moreBtn.className='msg-thread-more';
               moreBtn.textContent='show '+hiddenCount+' more repl'+(hiddenCount===1?'y':'ies');
-              moreBtn.onclick=()=>expandThread(anchorId);
+              moreBtn.onclick=()=>expandThread(anchorRawId);
               wrap.appendChild(moreBtn);
               shownMore=true;
             }
-            renderMsg(wrap,f.msg,f.depth);
+            renderNode(wrap,f.node,f.depth);
           }
         }
         if(!shownMore&&hiddenCount>0){
           const moreBtn=document.createElement('button');
           moreBtn.className='msg-thread-more';
           moreBtn.textContent='show '+hiddenCount+' more repl'+(hiddenCount===1?'y':'ies');
-          moreBtn.onclick=()=>expandThread(anchorId);
+          moreBtn.onclick=()=>expandThread(anchorRawId);
           wrap.appendChild(moreBtn);
         }
       }
       el.appendChild(wrap);
-    }else if(item.type==='artifact'){
-      const art=item.art;
-      const wrap=document.createElement('div');
-      wrap.className='msg';
-      wrap.id=(art.type==='app'?'inline-app-':'inline-file-')+art.id;
-      const authorColor=art.creator.startsWith('~')?shipColor(art.creator):'var(--visitor)';
-      const lastVer=art.versions[art.versions.length-1];
-      const timeStr=lastVer?new Date(lastVer.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
-      const actions=`<div class="msg-actions"><button class="msg-action-btn" onclick="startReply('${art.id}','${escAttr(art.creator)}')">REPLY</button><button class="msg-action-btn send-msg" onclick="sendToUser('${escAttr(art.creator)}','${art.id}')">SEND</button><button class="msg-action-btn delete-msg" onclick="deleteArtifact('${art.id}')">DELETE</button></div>`;
-      if(art.type==='app'){
-        let meta={};if(lastVer){try{meta=JSON.parse(lastVer.content)}catch(e){}}
-        const iframeId='app-iframe-'+art.id;
-        wrap.innerHTML=`<div class="msg-header" style="padding-left:0"><span class="msg-author" style="color:${authorColor}">${escHtml(displayName(art.creator))}</span><span class="msg-time">${timeStr}</span>${actions}</div><iframe id="${iframeId}" src="/apps/noltbook/pkg/${meta.packageId||'canvas'}" sandbox="allow-scripts" scrolling="no" style="width:100%;height:760px;border:none;background:#181818;overflow:hidden"></iframe>`;
-        wrap.style.cssText='display:block;padding:0 1rem;margin-top:.6rem';
-        // hover handled by CSS .msg:hover .msg-actions
-        el.appendChild(wrap);
-        initHostBridge(iframeId,art.id,meta);
-      }else{
-        let fileContent='';
-        let meta={};if(lastVer){try{meta=JSON.parse(lastVer.content)}catch(e){}}
-        const fname=escHtml(meta.fileName||art.name);
-        const dblExpand=`ondblclick="openFileFullscreen('${art.id}')"`;
-        if(meta.storage==='clay'){
-          const v=meta.version||1;
-          const artUrl='/apps/noltbook/artifact/'+encodeURIComponent(art.id)+'?v='+v;
-          const dlUrl=artUrl+'&download=1';
-          const m=meta.mime||'';
-          const isImg=meta.kind==='image'||m.startsWith('image/');
-          if(isImg){
-            fileContent=`<div class="artifact-img-box" style="cursor:pointer" ${dblExpand}><img src="${artUrl}" alt="${fname}" onerror="this.parentElement.outerHTML='<div style=&quot;margin-top:.35rem;font-size:.8rem;color:#ff4444&quot;>[content not yet available on this ship]</div>'"></div>`;
-          }else if(isDocMime(m,fname)){
-            fileContent=renderDocCard(artUrl,fname,m,meta.size);
-          }else{
-            fileContent=`<div style="display:flex;align-items:center;gap:.5rem;margin-top:.35rem;padding:.4rem .6rem;border:1px solid var(--border);background:var(--bg2)"><span style="font-size:.85rem;color:var(--text)">${fname}</span><a href="${artUrl}&download=1" style="font-size:.7rem;color:#ffaa00;text-decoration:none;margin-left:auto" download="${fname}">DOWNLOAD</a></div>`;
-          }
-        }else if(meta.dataUrl&&meta.mimeType&&meta.mimeType.startsWith('image/')){
-          fileContent=`<div class="artifact-img-box" style="cursor:pointer" ${dblExpand}><img src="${escAttr(meta.dataUrl)}" alt="${fname}"></div>`;
-        }else if(meta.dataUrl&&meta.mimeType==='application/pdf'){
-          fileContent=`<div style="margin-top:.35rem" ${dblExpand}><iframe src="${escAttr(meta.dataUrl)}" style="width:100%;height:400px;border:1px solid var(--border);background:#fff;pointer-events:none"></iframe></div>`;
-        }else if(meta.dataUrl&&meta.mimeType&&(meta.mimeType.startsWith('text/')||meta.mimeType==='application/json'||meta.mimeType==='application/xml'||meta.mimeType==='application/javascript')){
-          const textId='file-text-'+art.id;
-          fileContent=`<pre id="${textId}" style="max-height:300px;overflow:auto;border:1px solid var(--border);margin-top:.35rem;padding:.5rem;font-size:.8rem;color:var(--text);background:var(--bg2);white-space:pre-wrap;margin-bottom:0;cursor:pointer" ${dblExpand}></pre>`;
-          setTimeout(()=>{const el=document.getElementById(textId);if(el)fetch(meta.dataUrl).then(r=>r.text()).then(t=>{el.textContent=t})},0);
-        }else if(meta.dataUrl&&meta.mimeType&&meta.mimeType.startsWith('audio/')){
-          fileContent=`<div style="margin-top:.35rem" ${dblExpand}><div style="font-size:.85rem;color:var(--text-dim);margin-bottom:.25rem">${fname}</div><audio controls src="${escAttr(meta.dataUrl)}" style="width:100%;max-width:400px"></audio></div>`;
-        }else if(meta.dataUrl&&meta.mimeType&&meta.mimeType.startsWith('video/')){
-          fileContent=`<video controls src="${escAttr(meta.dataUrl)}" style="max-width:100%;max-height:400px;border:1px solid var(--border);margin-top:.35rem" ${dblExpand}></video>`;
-        }else if(meta.dataUrl){
-          fileContent=`<div style="display:flex;align-items:center;gap:.5rem;margin-top:.35rem;padding:.4rem .6rem;border:1px solid var(--border);background:var(--bg2);cursor:pointer" ${dblExpand}><span style="font-size:.85rem;color:var(--text)">${fname}</span></div>`;
-        }else{
-          fileContent=`<div style="margin-top:.35rem;font-size:.85rem;color:var(--text-dim)">${escHtml(lastVer.content).slice(0,200)}</div>`;
-        }
-        wrap.innerHTML=`<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar">${avatarHtml(art.creator)}</div><div class="msg-body"><div class="msg-header"><span class="msg-author" style="color:${authorColor}">${escHtml(displayName(art.creator))}</span><span class="msg-time">${timeStr}</span>${actions}</div>${fileContent}</div></div>`;
-        el.appendChild(wrap);
-      }
-      // artifact cards always break message grouping
-      state.lastMsgAuthor=null;state.lastMsgDepth=-1;
-    }else if(item.type==='artifact-env'){
-      const env=item.env;
-      const wrap=document.createElement('div');
-      wrap.className='msg';
-      wrap.id='inline-art-env-'+env.aid;
-      const authorColor=env.author.startsWith('~')?shipColor(env.author):'var(--visitor)';
-      const ts=env.timestamp?new Date(env.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
-      const url='/apps/noltbook/artifact/'+encodeURIComponent(env.aid)+'?v=1';
-      const isImg=(env.kind==='image')||((env.mime||'').startsWith('image/'));
-      const rawName=env.name||env.aid;
-      const fname=escHtml(rawName);
-      let body='';
-      if(isImg){
-        body=`<div class="artifact-img-box"><img src="${url}" alt="${fname}" onerror="this.parentElement.outerHTML='<div style=&quot;margin-top:.35rem;font-size:.8rem;color:#ff4444&quot;>[content not yet available]</div>'"></div>`;
-      }else if(isDocMime(env.mime,rawName)){
-        body=renderDocCard(url,rawName,env.mime||'',env.size);
-      }else{
-        body=`<div style="display:flex;align-items:center;gap:.5rem;margin-top:.35rem;padding:.4rem .6rem;border:1px solid var(--border);background:var(--bg2)"><span style="font-size:.85rem;color:var(--text)">${fname}</span><a href="${url}&download=1" style="font-size:.7rem;color:#ffaa00;text-decoration:none;margin-left:auto" download="${fname}">DOWNLOAD</a></div>`;
-      }
-      wrap.innerHTML=`<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar">${avatarHtml(env.author)}</div><div class="msg-body"><div class="msg-header"><span class="msg-author" style="color:${authorColor}">${escHtml(displayName(env.author))}</span><span class="msg-time">${ts}</span></div>${body}</div></div>`;
-      el.appendChild(wrap);
-      // artifact-env cards always break message grouping
-      state.lastMsgAuthor=null;state.lastMsgDepth=-1;
     }
   }
   // set up mention observer on every render for current note
@@ -2378,40 +2506,31 @@ function renderMessages(noteId,opts){
     }
     return;
   }
-  // ===== scroll decision =====
-  const pinIfNB=opts.pinIfNearBottom!==false;
-  if(forceBottom){
+  // ===== scroll apply (one normalized target) =====
+  if(noteId==='ars-rumors'){
+    // newest-first, no bottom lock: land at top unless preserving position
+    if(scrollTarget==='preserve')restoreScrollAnchor(el,anchor);else el.scrollTop=0;
+  }else if(scrollTarget==='bottom'){
     markNoteReadTo(noteId,latestMsgOrder(noteId));
     clearUnreadDividerDom(noteId);
-    el.scrollTop=noteId==='ars-rumors'?0:el.scrollHeight;
-  }else if(opts.scrollToUnread&&dividerInserted){
-    // center the divider vertically when possible. The rAF second pass
-    // recenters after artifacts/images settle their final layout, so the
-    // user lands on a stable centered position rather than a slightly
-    // off-center one.
-    const divEl=document.getElementById('new-messages-divider');
-    if(divEl){
-      centerUnreadDivider(el,divEl);
-      requestAnimationFrame(()=>centerUnreadDivider(el,divEl));
-    }
-    // do not mark read yet; user must scroll past the unread region
-  }else if(opts.scrollToUnread){
-    // no unread for this note — fall back to bottom on note open
-    markNoteReadTo(noteId,latestMsgOrder(noteId));
-    clearUnreadDividerDom(noteId);
-    el.scrollTop=noteId==='ars-rumors'?0:el.scrollHeight;
-  }else if(pinIfNB&&wasNearBottom&&!dividerInfo){
-    markNoteReadTo(noteId,latestMsgOrder(noteId));
-    clearUnreadDividerDom(noteId);
-    el.scrollTop=noteId==='ars-rumors'?0:el.scrollHeight;
-  }else{
-    if(pinIfNB&&wasNearBottom&&dividerInfo){
-      // Ordinary replay/rerender after opening unread should update the
-      // cursor, but the visible divider is a per-visit marker and should
-      // stay until scroll-past, own-send, or note switch.
+    ScrollCo.pin(noteId,'bottom',null);
+  }else if(scrollTarget==='unread'){
+    if(dividerInserted){
+      // center the divider; rAF second pass recenters after media settles. Do
+      // not mark read — the user must scroll past the unread region.
+      const divEl=document.getElementById('new-messages-divider');
+      if(divEl){centerUnreadDivider(el,divEl);requestAnimationFrame(()=>centerUnreadDivider(el,divEl))}
+    }else{
+      // no actual unread → behave like bottom open
       markNoteReadTo(noteId,latestMsgOrder(noteId));
+      clearUnreadDividerDom(noteId);
+      ScrollCo.pin(noteId,'bottom',null);
     }
-    restoreScrollAnchor(el,anchor);
+  }else{
+    // preserve: hold the captured anchor through reflow. If we were near bottom
+    // with a visible divider, advance the read cursor (per-visit marker stays).
+    if(wasNearBottom&&dividerInfo)markNoteReadTo(noteId,latestMsgOrder(noteId));
+    ScrollCo.pin(noteId,'preserve',anchor);
   }
   if(window.twttr&&twttr.widgets)twttr.widgets.load(el);
   // after layout settles, sweep visible messages and advance the read cursor.
@@ -2425,13 +2544,17 @@ function expandThread(rootId){
 function jumpToOriginal(msgId){const orig=document.getElementById('msg-'+msgId);if(orig){orig.scrollIntoView({behavior:'smooth'});orig.style.background='rgba(255,170,0,.12)';setTimeout(function(){orig.style.background=''},1500)}}
 const _revealedBlockedMsgs=new Set();
 function renderMsg(el,msg,depth,isThreadAnchor){
+  // thread-anchor copy duplicates the canonical root item; give it a
+  // noncanonical id so mention/jumpToOriginal/scrollToGossipMsg still resolve
+  // the single canonical msg-<id> (standalone root or unique nested reply).
+  const idSuf=isThreadAnchor?'-ta':'';
   if(msg.text&&msg.text.charCodeAt(0)===1){
     const parts=msg.text.slice(1).split(':');
     if(parts[0]==='SYS'&&parts[1]==='host-delete'){
       const victim=parts[2]||'';
       const div=document.createElement('div');
       div.className='msg-system';
-      div.id='msg-'+msg.id;
+      div.id='msg-'+msg.id+idSuf;
       div.innerHTML=`<div style="text-align:center;opacity:.6;font-size:.85rem;padding:.4rem 0;font-style:italic">host deleted message from ${escHtml(displayName(victim))}</div>`;
       el.appendChild(div);
       state.lastMsgAuthor=null;state.lastMsgDepth=-1;
@@ -2443,7 +2566,7 @@ function renderMsg(el,msg,depth,isThreadAnchor){
     const msgDisplay=renderText(msg.text);
     const div=document.createElement('div');
     div.className='rumor-post';
-    div.id='msg-'+msg.id;
+    div.id='msg-'+msg.id+idSuf;
     div.innerHTML=`<div class="rumor-text">${msgDisplay}</div><div class="rumor-sep"></div>`;
     el.appendChild(div);
     state.lastMsgAuthor=null;state.lastMsgDepth=-1;
@@ -2453,7 +2576,7 @@ function renderMsg(el,msg,depth,isThreadAnchor){
   if(state.palStatus[msg.author]==='blocked'&&!_revealedBlockedMsgs.has(msg.id)){
     const div=document.createElement('div');
     div.className='msg';
-    div.id='msg-'+msg.id;
+    div.id='msg-'+msg.id+idSuf;
     div.innerHTML=`<div style="padding:.5rem 1rem;color:#ff4444;font-size:.8rem;display:flex;align-items:center;gap:.5rem"><span>[you have this user blocked]</span><button style="font-family:var(--font);font-size:.7rem;padding:.15rem .4rem;background:transparent;border:1px solid #ff4444;color:#ff4444;cursor:pointer" onclick="revealBlockedMsg('${msg.id}')">VIEW</button></div>`;
     el.appendChild(div);
     state.lastMsgAuthor=null;state.lastMsgDepth=-1;
@@ -2486,11 +2609,11 @@ function renderMsg(el,msg,depth,isThreadAnchor){
   const msgDisplay=isNockSend(msg.text)?parseNockSend(msg.text):renderText(msg.text);
   if(grouped){
     div.className='msg grouped'+depthClass;
-    div.id='msg-'+msg.id;
+    div.id='msg-'+msg.id+idSuf;
     div.innerHTML=`<div style="display:flex;align-items:baseline;padding-left:calc(2.8rem + .6rem)"><div class="msg-text${nockSendClass}" style="flex:1">${msgDisplay}${editedStamp}</div>${actions}</div>`;
   }else{
     div.className='msg'+depthClass;
-    div.id='msg-'+msg.id;
+    div.id='msg-'+msg.id+idSuf;
     const authorColor=isUrbit?shipColor(msg.author):'var(--visitor)';
     div.innerHTML=`<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar" style="cursor:pointer" onclick="event.stopPropagation();viewProfile('${escAttr(msg.author)}')">${avatarHtml(msg.author)}</div><div class="msg-body"><div class="msg-header"><span class="msg-author" style="color:${authorColor};cursor:pointer" onclick="event.stopPropagation();viewProfile('${escAttr(msg.author)}')">${escHtml(displayName(msg.author))}</span><span class="msg-time">${timeStr}</span>${actions}</div><div class="msg-text${nockSendClass}">${msgDisplay}${editedStamp}</div></div></div>`;
   }
@@ -2500,28 +2623,33 @@ function revealBlockedMsg(msgId){
   _revealedBlockedMsgs.add(parseInt(msgId));
   scheduleRender(state.currentNoteId);
 }
+// latest-comparison order key. Must match renderMessages' ordering model:
+// gossip-style notes (cover + user gossip) order by message id/timestamp,
+// not meta.seq (seq is per-author, not host-authoritative across authors).
+// Regular notes keep the seq-based msgOrder.
+function appendOrder(noteId,msg){return isGossipNote(noteId)?msg.id:msgOrder(msg)}
 function canAppendMessageFast(msg){
   const noteId=state.currentNoteId;
   if(!noteId||msg.noteId!==noteId)return false;
   if(noteId==='ars-rumors')return false;
-  // cover is gossip-style but a top-level visible text post can fast-append
-  // safely; full rerender otherwise yanks scroll to artifact cards above.
-  // User gossip notes stay on the conservative full-render path for now.
-  if(noteId!=='cover'&&isGossipNote(noteId))return false;
+  // cover and user-gossip are gossip-style: a top-level visible text post can
+  // fast-append safely; full rerender otherwise yanks scroll to artifact cards
+  // above. ars-rumors stays on the full-render path (rejected above). All the
+  // guards below still apply, so replies/mentions/non-latest fall back.
   if(msg.replyTo)return false;
   if(msg.meta&&msg.meta.replyToEid)return false;
   // pending mention jump or visible mentions for this note: full render
   if(state.mentions[noteId]&&state.mentions[noteId].length)return false;
   // any expanded threads: full render (collapse housekeeping rerenders)
   if(state.expandedThreads&&state.expandedThreads.size)return false;
-  // must be the new latest among existing messages
+  // must be the new latest among existing messages (gossip: by id; else seq)
   const msgs=state.messages[noteId]||[];
-  const myOrd=msgOrder(msg);
+  const myOrd=appendOrder(noteId,msg);
   if(typeof myOrd!=='number')return false;
   let max=0;
   for(const m of msgs){
     if(m.id===msg.id)continue;
-    const o=msgOrder(m);
+    const o=appendOrder(noteId,m);
     if(typeof o==='number'&&o>max)max=o;
   }
   return myOrd>=max;
@@ -2534,7 +2662,7 @@ function appendMessageFast(msg,isOwn){
   // insert the unread divider in-place if applicable and not yet in DOM
   const div=state.unreadDividers[noteId];
   if(div&&!document.getElementById('new-messages-divider')){
-    const myOrd=msgOrder(msg);
+    const myOrd=appendOrder(noteId,msg);
     if(typeof myOrd==='number'&&myOrd>=div.order){
       el.appendChild(makeNewMessagesDivider());
       state.lastMsgAuthor=null;state.lastMsgDepth=-1;
@@ -2555,9 +2683,9 @@ function appendMessage(msg,isOwn){
   if(canAppendMessageFast(msg)){
     if(appendMessageFast(msg,isOwn))return;
   }
-  // fall back: own sends always pin to bottom; incoming messages defer to
-  // the user's current scroll position (pin only when already near bottom).
-  renderMessages(state.currentNoteId,isOwn?{forceBottom:true}:{});
+  // fall back: own sends pin to bottom; incoming messages auto-resolve (preserve
+  // unless near bottom / recent own action).
+  renderMessages(state.currentNoteId,isOwn?'bottom':undefined);
 }
 let ownAvatarBlobUrl=null;
 function resolveAvatarUrl(ship){
@@ -2679,7 +2807,7 @@ function showUserDropdown(inputEl,containerEl,onSelect,opts){
   _activeDropdown={dd,update,inputEl};
   return{update,destroy:function(){dd.remove();inputEl.removeEventListener('input',update);inputEl.removeEventListener('keydown',handleKey)}};
 }
-function renderText(text){if(!text)return'';var out=escHtml(text);out=out.replace(/`([^`]+)`/g,'<code style="background:var(--bg3);padding:.1rem .3rem">$1</code>');out=out.replace(/(data:image\/[^\s"]+)/g,function(m){var raw=m.replace(/&amp;/g,'&').replace(/&quot;/g,'"');return '<div class="artifact-img-box" style="cursor:pointer"><img src="'+raw+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'});out=out.replace(/(https?:\/\/[^\s]+)/g,function(url){var raw=url.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/[.,;:!?\)]+$/,'');if(/\.(png|jpe?g|gif|webp|svg|bmp|ico)(\?[^\s]*)?$/i.test(raw)){return '<div class="artifact-img-box" style="cursor:pointer"><img src="'+escAttr(raw)+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'}var yt=raw.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/);if(yt){return '<div style="margin:.35rem 0;max-width:480px;aspect-ratio:16/9"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[1]+'" style="width:100%;height:100%;border:1px solid var(--border)" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe></div>'}var tw=raw.match(/(?:twitter\.com|x\.com)\/(\w+)\/status\/(\d+)/);if(tw){return '<div class="tweet-embed" style="margin:.35rem 0;max-width:480px"><blockquote class="twitter-tweet" data-theme="dark" data-conversation="none"><a href="https://twitter.com/'+tw[1]+'/status/'+tw[2]+'"></a></blockquote></div>'}return '<a href="'+escAttr(raw)+'" target="_blank" rel="noopener" style="color:#ffaa00">'+url+'</a>'});out=out.replace(/~ref\[([^\]|]+)\|([^\]]+)\]/g,function(m,nid,cr){var n=state.notes[nid]||state.discoveryNotes[nid];if(n){var iu=resolveNoteIconUrl(n);var ic=iu?'<img src="'+escAttr(iu)+'">':noteInitials(n.name);return '<span class="note-ref" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-icon">'+ic+'</span><span class="note-ref-name">'+escHtml(n.name)+'</span></span>'}return '<span class="note-ref" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-icon">?</span><span class="note-ref-name note-ref-unknown">Note Link</span></span>'});out=out.replace(/~gref\[([^\]|]+)\|([^\]|]+)\|([^\]|]*)\|([^\]]+)\]/g,function(m,nid,author,eid,mid){if(state.palStatus[author]==='blocked')return '<span style="color:#ff4444;font-size:.8rem">[blocked user ref]</span>';var n=state.notes[nid];var noteName=n?noteDisplayName(n):'gossip note';var authorName=displayName(author);var excerpt='';if(n){var msgs=state.messages[nid]||[];var found=msgs.find(function(msg){if(eid&&getMsgEid(msg)===eid)return true;return String(msg.id)===mid});if(found&&found.text)excerpt=found.text.slice(0,60)}var excerptHtml=excerpt?'<span class="gossip-ref-excerpt">\u2014 '+escHtml(excerpt)+'</span>':'<span class="gossip-ref-unavail">gossip post</span>';return '<span class="gossip-ref" onclick="clickGossipRef(\''+escAttr(nid)+'\',\''+escAttr(author)+'\',\''+escAttr(eid)+'\',\''+escAttr(mid)+'\')"><span class="gossip-ref-author">'+escHtml(authorName)+'</span><span class="gossip-ref-note">in '+escHtml(noteName)+'</span>'+excerptHtml+'</span>'});out=out.replace(/@(~[a-z][\w-]*)/g,function(m,ship){return '<span style="color:#ffaa00;font-weight:500">@'+ship+'</span>'});return out}
+function renderText(text){if(!text)return'';var out=escHtml(text);out=out.replace(/`([^`]+)`/g,'<code style="background:var(--bg3);padding:.1rem .3rem">$1</code>');out=out.replace(/(data:image\/[^\s"]+)/g,function(m){var raw=m.replace(/&amp;/g,'&').replace(/&quot;/g,'"');return '<div class="inline-img-box"><img src="'+raw+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'});out=out.replace(/(https?:\/\/[^\s]+)/g,function(url){var raw=url.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/[.,;:!?\)]+$/,'');if(/\.(png|jpe?g|gif|webp|svg|bmp|ico)(\?[^\s]*)?$/i.test(raw)){return '<div class="inline-img-box"><img src="'+escAttr(raw)+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'}var yt=raw.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/);if(yt){return '<div style="margin:.35rem 0;max-width:480px;aspect-ratio:16/9"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[1]+'" style="width:100%;height:100%;border:1px solid var(--border)" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe></div>'}var tw=raw.match(/(?:twitter\.com|x\.com)\/(\w+)\/status\/(\d+)/);if(tw){return '<div class="tweet-embed" style="margin:.35rem 0;max-width:480px"><blockquote class="twitter-tweet" data-theme="dark" data-conversation="none"><a href="https://twitter.com/'+tw[1]+'/status/'+tw[2]+'"></a></blockquote></div>'}return '<a href="'+escAttr(raw)+'" target="_blank" rel="noopener" style="color:#ffaa00">'+url+'</a>'});out=out.replace(/~ref\[([^\]|]+)\|([^\]]+)\]/g,function(m,nid,cr){var n=state.notes[nid]||state.discoveryNotes[nid];if(n){var iu=resolveNoteIconUrl(n);var ic=iu?'<img src="'+escAttr(iu)+'">':noteInitials(n.name);return '<span class="note-ref" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-icon">'+ic+'</span><span class="note-ref-name">'+escHtml(n.name)+'</span></span>'}return '<span class="note-ref" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-icon">?</span><span class="note-ref-name note-ref-unknown">Note Link</span></span>'});out=out.replace(/~gref\[([^\]|]+)\|([^\]|]+)\|([^\]|]*)\|([^\]]+)\]/g,function(m,nid,author,eid,mid){if(state.palStatus[author]==='blocked')return '<span style="color:#ff4444;font-size:.8rem">[blocked user ref]</span>';var n=state.notes[nid];var noteName=n?noteDisplayName(n):'gossip note';var authorName=displayName(author);var excerpt='';if(n){var msgs=state.messages[nid]||[];var found=msgs.find(function(msg){if(eid&&getMsgEid(msg)===eid)return true;return String(msg.id)===mid});if(found&&found.text)excerpt=found.text.slice(0,60)}var excerptHtml=excerpt?'<span class="gossip-ref-excerpt">\u2014 '+escHtml(excerpt)+'</span>':'<span class="gossip-ref-unavail">gossip post</span>';return '<span class="gossip-ref" onclick="clickGossipRef(\''+escAttr(nid)+'\',\''+escAttr(author)+'\',\''+escAttr(eid)+'\',\''+escAttr(mid)+'\')"><span class="gossip-ref-author">'+escHtml(authorName)+'</span><span class="gossip-ref-note">in '+escHtml(noteName)+'</span>'+excerptHtml+'</span>'});out=out.replace(/@(~[a-z][\w-]*)/g,function(m,ship){return '<span style="color:#ffaa00;font-weight:500">@'+ship+'</span>'});return out}
 function openImageFullscreen(url){var o=document.createElement('div');o.id='file-fullscreen';o.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.92);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer';o.innerHTML='<img src="'+url+'" style="max-width:95%;max-height:90vh">';o.onclick=function(){o.remove()};document.body.appendChild(o)}
 async function sendMessage(){
   const input=document.getElementById('chatInput');const text=input.value.trim();if(!text)return;
@@ -2701,7 +2829,11 @@ async function sendMessage(){
     input.value='';resetChatInputHeight();cancelEdit();updateInputMirror();
     return;
   }
-  const data={noteId:state.currentNoteId,text};if(state.replyingTo){data.replyTo=state.replyingTo;if(state.replyingToEid)data.replyToEid=state.replyingToEid}const ok=await api.poke('noltbook','noltbook-action',{action:'send-message',data});if(!ok){console.error('[sendMessage] poke failed, retrying after reconnect');if(!api.reconnecting)api.reconnect();return}input.value='';resetChatInputHeight();cancelReply();updateInputMirror()
+  const data={noteId:_nid,text};if(state.replyingTo)data.replyTo=state.replyingTo;if(state.replyingToEid)data.replyToEid=state.replyingToEid;
+  // own send/reply: pin the next render of this note to bottom regardless of
+  // which fact path renders it (new-message, message-list, generic scheduleRender).
+  ScrollCo.beginOwnAction(_nid);
+  const ok=await api.poke('noltbook','noltbook-action',{action:'send-message',data});if(!ok){ScrollCo.cancelOwnAction(_nid);console.error('[sendMessage] poke failed, retrying after reconnect');if(!api.reconnecting)api.reconnect();return}input.value='';resetChatInputHeight();cancelReply();updateInputMirror()
 }
 let mentionState={active:false,startPos:0,idx:-1};
 function getMentionQuery(){
@@ -2770,7 +2902,7 @@ function handleInputKey(e){
     if(e.key==='Escape'){e.preventDefault();dd.classList.remove('open');mentionState.active=false;return}
     if(e.key==='Tab'&&items.length>0){e.preventDefault();const el=items[Math.max(0,mentionState.idx)];const ship=el.dataset.ship;const prof=state.profiles[ship]||{};insertMention({ship,displayName:prof.displayName||''});return}
   }
-  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage()}if(e.key==='Escape'){if(state.editingMsgId)cancelEdit();else if(state.replyingTo)cancelReply()}
+  if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage()}if(e.key==='Escape'){if(state.editingMsgId)cancelEdit();else if(state.replyingTo||state.replyingToEid)cancelReply()}
 }
 function updateInputMirror(){
   const inp=document.getElementById('chatInput');
@@ -2828,7 +2960,31 @@ function autoResize(el){
   updateMentionDropdown();
   updateInputMirror();
 }
-function startReply(msgId,author){state.replyingTo=parseInt(msgId);const msgs=state.messages[state.currentNoteId]||[];const rm=msgs.find(m=>m.id===parseInt(msgId));state.replyingToEid=rm&&rm.meta&&rm.meta.eid?rm.meta.eid:null;document.getElementById('replyLabel').textContent='↩ replying to '+author;document.getElementById('replyBar').classList.add('visible');document.getElementById('chatInput').focus()}
+// startReply: target can be a message (@da numeric id), a real artifact id,
+// or an artifact-envelope aid. Prefer eid as the durable parent identity;
+// keep legacy @da replyTo only for message targets so text->text is unchanged.
+function startReply(targetId,author){
+  const nid=state.currentNoteId;
+  let legacy=null,eid=null;
+  const numId=Number(targetId);
+  const msgs=state.messages[nid]||[];
+  const rm=(!isNaN(numId)&&(''+numId)===(''+targetId))?msgs.find(m=>m.id===numId):null;
+  if(rm){legacy=rm.id;eid=(rm.meta&&rm.meta.eid)||null}
+  else{
+    // not a message: artifact target. Prefer the artifact-envelope rendered on
+    // THIS note (cover/gossip/fork timelines display the envelope, not a global
+    // artifact record), then fall back to a real artifact record. Use the eid
+    // of the displayed node; never legacy replyTo, never parse the id as a num.
+    const env=(state.artifactEnvelopes[nid]||{})[targetId];
+    if(env&&env.meta&&env.meta.eid)eid=env.meta.eid;
+    else{const art=state.artifacts[targetId];if(art&&art.meta&&art.meta.eid)eid=art.meta.eid}
+  }
+  state.replyingTo=legacy;
+  state.replyingToEid=eid;
+  document.getElementById('replyLabel').textContent='↩ replying to '+author;
+  document.getElementById('replyBar').classList.add('visible');
+  document.getElementById('chatInput').focus();
+}
 function cancelReply(){state.replyingTo=null;state.replyingToEid=null;document.getElementById('replyBar').classList.remove('visible')}
 function editMessage(msgId){
   cancelReply();
@@ -3092,7 +3248,7 @@ function showNoteContextMenu(event,noteId){
     <div class="context-menu-item${ro}" data-action="writable" data-val="true"><span class="context-radio ${wr?'selected':''}"></span> Write</div>
     <div class="context-menu-item${ro}" data-action="writable" data-val="false"><span class="context-radio ${!wr?'selected':''}"></span> Read Only</div>
     <div class="context-menu-divider"></div>
-    ${(note.type==='notebook'||note.type==='group')?'<div class="context-menu-item" data-action="child">+ Note</div>':''}
+    ${(note.type==='notebook'||note.type==='group')?'<div class="context-menu-item'+ro+'" data-action="child">+ Note</div>':''}
     <div class="context-menu-item${ro}" data-action="img">+ Img</div>
     ${note.type==='group'?(isCreator?'':'<div class="context-menu-item" data-action="fork-group">Fork Group</div>'):'<div class="context-menu-item" data-action="duplicate">Duplicate</div>'}
     ${noteCanCopyRef(note)?'<div class="context-menu-item" data-action="copyref">Copy Note Link</div>':''}
@@ -3165,14 +3321,17 @@ async function uploadFile(file){
   if(file.size>5*1024*1024){alert('File too large (5 MB max).');return}
   const mime=file.type||'application/octet-stream';
   const kind=mime.startsWith('image/')?'image':'file';
-  const qs='?name='+encodeURIComponent(file.name)+'&kind='+kind+'&mime='+encodeURIComponent(mime);
+  let qs='?name='+encodeURIComponent(file.name)+'&kind='+kind+'&mime='+encodeURIComponent(mime);
+  // carry reply context so an uploaded artifact threads under its parent
+  if(state.replyingToEid)qs+='&replyToEid='+encodeURIComponent(state.replyingToEid);
+  // own artifact send/reply: keep this note pinned to bottom through the
+  // resulting artifact-created/artifact-envelope fact + image load.
+  ScrollCo.beginOwnAction(nid);
   try{
     const r=await fetch('/apps/noltbook/upload-artifact/'+encodeURIComponent(nid)+qs,{method:'POST',body:file,headers:{'Content-Type':mime}});
-    if(!r.ok){alert('Upload failed: '+r.status);return}
-    if(note.creator!==me){
-      console.log('[upload-artifact] sent to host; waiting for broadcast');
-    }
-  }catch(e){console.error('[upload-artifact]',e);alert('Upload error: '+e.message)}
+    if(!r.ok){ScrollCo.cancelOwnAction(nid);alert('Upload failed: '+r.status);return}
+    cancelReply();
+  }catch(e){ScrollCo.cancelOwnAction(nid);console.error('[upload-artifact]',e);alert('Upload error: '+e.message)}
 }
 function openFileFullscreen(artId){const art=state.artifacts[artId];if(!art)return;const lastVer=art.versions[art.versions.length-1];if(!lastVer)return;let meta={};try{meta=JSON.parse(lastVer.content)}catch(e){return}const overlay=document.createElement('div');overlay.id='file-fullscreen';overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.92);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center';const bar=document.createElement('div');bar.style.cssText='position:absolute;top:0;right:0;padding:.75rem 1rem;display:flex;gap:.5rem;z-index:1';let srcUrl,downloadUrl,mtype;if(meta.storage==='clay'){const v=meta.version||1;srcUrl='/apps/noltbook/artifact/'+encodeURIComponent(art.id)+'?v='+v;downloadUrl=srcUrl+'&download=1';mtype=meta.mime||'';}else{srcUrl=meta.dataUrl;downloadUrl=meta.dataUrl;mtype=meta.mimeType||'';}bar.innerHTML=`<a href="${escAttr(downloadUrl)}" download="${escAttr(meta.fileName||art.name)}" style="font-family:var(--font);font-size:.75rem;padding:.25rem .6rem;border:1px solid #555;color:#aaa;text-decoration:none;cursor:pointer">DOWNLOAD</a><button onclick="this.closest('#file-fullscreen').remove()" style="font-family:var(--font);font-size:.75rem;padding:.25rem .6rem;border:1px solid #555;color:#aaa;background:none;cursor:pointer">CLOSE</button>`;overlay.appendChild(bar);const body=document.createElement('div');body.style.cssText='max-width:95%;max-height:90%;overflow:auto';if(mtype.startsWith('image/')){body.innerHTML=`<img src="${escAttr(srcUrl)}" style="max-width:100%;max-height:90vh">`}else if(mtype==='application/pdf'){body.innerHTML=`<iframe src="${escAttr(srcUrl)}" style="width:90vw;height:85vh;border:none;background:#fff"></iframe>`}else if(mtype.startsWith('text/')||mtype==='application/json'){fetch(srcUrl).then(r=>r.text()).then(t=>{body.innerHTML=`<pre style="color:#ddd;font-size:.85rem;white-space:pre-wrap;padding:1rem">${escHtml(t)}</pre>`})}else{body.innerHTML=`<div style="color:#aaa;font-size:1rem;text-align:center"><div style="font-size:2rem;margin-bottom:.5rem">📄</div>${escHtml(meta.fileName||art.name)}</div>`}overlay.appendChild(body);overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove()});document.body.appendChild(overlay)}
 function openArtifactPanel(id){const art=state.artifacts[id];if(!art)return;document.getElementById('artifactPanel').classList.add('open');document.getElementById('artifactPanelTitle').textContent=art.name;const lastVer=art.versions[art.versions.length-1];const content=lastVer?lastVer.content:'';const body=document.getElementById('artifactPanelBody');if(art.type==='file'){let meta={};try{meta=JSON.parse(content)}catch(e){}if(meta.storage==='clay'){const v=meta.version||1;const src='/apps/noltbook/artifact/'+encodeURIComponent(id)+'?v='+v;const m=meta.mime||'';if(meta.kind==='image'||m.startsWith('image/')){body.innerHTML=`<img src="${escAttr(src)}" alt="${escAttr(art.name)}" style="max-width:100%" onerror="this.outerHTML='<div style=&quot;color:#ff4444;font-size:.85rem&quot;>[content not yet available on this ship]</div>'">`}else{body.innerHTML=`<a href="${escAttr(src)}&download=1" download="${escAttr(art.name)}" style="color:var(--amber)">${escHtml(art.name)}</a>`}}else if(meta.dataUrl&&meta.mimeType&&meta.mimeType.startsWith('image/')){body.innerHTML=`<img src="${escAttr(meta.dataUrl)}" alt="${escAttr(art.name)}" style="max-width:100%">`}else if(meta.dataUrl){body.innerHTML=`<a href="${escAttr(meta.dataUrl)}" download="${escAttr(meta.fileName||art.name)}" style="color:var(--amber)">${escHtml(meta.fileName||art.name)}</a>`}else{body.innerHTML=`<div class="artifact-file-wrap">${escHtml(content)}</div>`}}else if(art.type==='app'){let meta={};try{meta=JSON.parse(content)}catch(e){}const iframeId='app-iframe-'+id;body.innerHTML=`<iframe id="${iframeId}" src="/apps/noltbook/pkg/${meta.packageId||'canvas'}" sandbox="allow-scripts" style="width:100%;height:600px;border:none;background:#181818"></iframe>`;initHostBridge(iframeId,id,meta)}else{body.innerHTML=`<pre class="artifact-code">${escHtml(content)}</pre>`}document.getElementById('artifactPanelMeta').textContent=`v${art.versions.length} · ${art.creator} · ${new Date(lastVer?lastVer.timestamp:Date.now()).toLocaleDateString()}`}
@@ -4546,6 +4705,9 @@ async function walletSend(){
       const paymentText=NOCK_SEND_PREFIX+' sent '+amount.toFixed(4)+' $NOCK to '+recipientName+(txHash?' (tx:'+txHash.slice(0,12)+'...)':'');
       const dm=findDmRoot(recipientName);
       if(dm){
+        // own payment message: pin bottom only if we're actually viewing this
+        // DM, so we don't leave a stale flag that hijacks a later note open.
+        if(state.currentNoteId===dm.id)ScrollCo.beginOwnAction(dm.id);
         api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:dm.id,text:paymentText}});
       }else{
         // create-dm creates the DM root; pendingWalletMsg fires when note-created arrives

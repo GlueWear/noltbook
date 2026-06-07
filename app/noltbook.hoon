@@ -41,6 +41,8 @@
       state-37
       state-38
       state-39
+      state-40
+      state-41
   ==
 ::  pre-entry-meta message shape — used by state-18 for on-load typing
 +$  message-18
@@ -168,7 +170,7 @@
   $:  %3
       notes=(map @ta note-3:noltbook)
       messages=(map @ta (list message-legacy))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile-2)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -177,7 +179,7 @@
   $:  %4
       notes=(map @ta note-4)
       messages=(map @ta (list message-legacy))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile-2)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -186,7 +188,7 @@
   $:  %5
       notes=(map @ta note-4)
       messages=(map @ta (list message-legacy))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile-2)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -196,7 +198,7 @@
   $:  %6
       notes=(map @ta note-4)
       messages=(map @ta (list message-legacy))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -215,7 +217,7 @@
   $:  %7
       notes=(map @ta note-4)
       messages=(map @ta (list message-legacy))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -233,7 +235,7 @@
   $:  %8
       notes=(map @ta note-4)
       messages=(map @ta (list message-legacy))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -251,7 +253,7 @@
   $:  %9
       notes=(map @ta note-4)
       messages=(map @ta (list message-18))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -268,7 +270,7 @@
   $:  %10
       notes=(map @ta note-4)
       messages=(map @ta (list message-18))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -287,7 +289,7 @@
   $:  %11
       notes=(map @ta note-4)
       messages=(map @ta (list message-18))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -306,7 +308,7 @@
   $:  %12
       notes=(map @ta note-4)
       messages=(map @ta (list message-18))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -325,7 +327,7 @@
   $:  %13
       notes=(map @ta note-4)
       messages=(map @ta (list message-18))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -344,7 +346,7 @@
   $:  %14
       notes=(map @ta note-4)
       messages=(map @ta (list message-18))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -362,7 +364,7 @@
   $:  %15
       notes=(map @ta note-17)
       messages=(map @ta (list message-18))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -380,7 +382,7 @@
   $:  %16
       notes=(map @ta note-17)
       messages=(map @ta (list message-18))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -399,7 +401,7 @@
   $:  %17
       notes=(map @ta note-17)
       messages=(map @ta (list message-18))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -418,7 +420,7 @@
   $:  %18
       notes=(map @ta note:noltbook)
       messages=(map @ta (list message-18))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -438,7 +440,7 @@
   $:  %19
       notes=(map @ta note:noltbook)
       messages=(map @ta (list message-20))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -459,7 +461,7 @@
   $:  %20
       notes=(map @ta note:noltbook)
       messages=(map @ta (list message-20))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -481,7 +483,7 @@
   $:  %21
       notes=(map @ta note:noltbook)
       messages=(map @ta (list message:noltbook))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -503,7 +505,7 @@
   $:  %22
       notes=(map @ta note:noltbook)
       messages=(map @ta (list message:noltbook))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -525,7 +527,7 @@
   $:  %23
       notes=(map @ta note:noltbook)
       messages=(map @ta (list message:noltbook))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -547,7 +549,7 @@
   $:  %24
       notes=(map @ta note:noltbook)
       messages=(map @ta (list message:noltbook))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -570,7 +572,7 @@
   $:  %27
       notes=(map @ta note:noltbook)
       messages=(map @ta (list message:noltbook))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -599,7 +601,7 @@
   $:  %28
       notes=(map @ta note:noltbook)
       messages=(map @ta (list message:noltbook))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -630,7 +632,7 @@
   $:  %29
       notes=(map @ta note:noltbook)
       messages=(map @ta (list message:noltbook))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -671,7 +673,7 @@
   $:  %30
       notes=(map @ta note:noltbook)
       messages=(map @ta (list message:noltbook))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -704,7 +706,7 @@
   $:  %31
       notes=(map @ta note:noltbook)
       messages=(map @ta (list message:noltbook))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -738,7 +740,7 @@
   $:  %32
       notes=(map @ta note:noltbook)
       messages=(map @ta (list message:noltbook))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -775,7 +777,7 @@
   $:  %33
       notes=(map @ta note:noltbook)
       messages=(map @ta (list message:noltbook))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -812,7 +814,7 @@
   $:  %34
       notes=(map @ta note:noltbook)
       messages=(map @ta (list message:noltbook))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -849,7 +851,7 @@
   $:  %35
       notes=(map @ta note:noltbook)
       messages=(map @ta (list message:noltbook))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -888,7 +890,7 @@
   $:  %36
       notes=(map @ta note:noltbook)
       messages=(map @ta (list message:noltbook))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -928,7 +930,7 @@
   $:  %37
       notes=(map @ta note:noltbook)
       messages=(map @ta (list message:noltbook))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -969,7 +971,7 @@
   $:  %38
       notes=(map @ta note:noltbook)
       messages=(map @ta (list message:noltbook))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -1010,6 +1012,91 @@
 ::  posts never show as unread.
 +$  state-39
   $:  %39
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact-pre40:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+  ==
+::  state-40: artifacts gain meta=(unit entry-meta) for durable timeline
+::  identity (Phase A). Only the artifacts map's value shape changes.
++$  state-40
+  $:  %40
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+  ==
+::  state-41: durable backfill of artifact meta on legacy artifacts (same shape
+::  as state-40; data-only migration). Every artifact with meta=~ gets a
+::  deterministic eid so pre-Phase-A artifacts can be replied to / threaded.
++$  state-41
+  $:  %41
       notes=(map @ta note:noltbook)
       messages=(map @ta (list message:noltbook))
       artifacts=(map @ta artifact:noltbook)
@@ -1053,7 +1140,7 @@
   $:  %26
       notes=(map @ta note:noltbook)
       messages=(map @ta (list message:noltbook))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -1079,7 +1166,7 @@
   $:  %25
       notes=(map @ta note:noltbook)
       messages=(map @ta (list message:noltbook))
-      artifacts=(map @ta artifact:noltbook)
+      artifacts=(map @ta artifact-pre40:noltbook)
       profiles=(map @p profile:noltbook)
       transactions=(list transaction:noltbook)
       current-note=@ta
@@ -1297,7 +1384,7 @@
 ::  chains through upgrade-20-to-21 → ... → upgrade-25-to-26
 ++  upgrade-19-to-20
   |=  s=state-19
-  ^-  state-39
+  ^-  state-41
   =/  new-seq=(map @ta @ud)
     %-  ~(rep by seq-counters.s)
     |=  [[[a=@p n=@ta] v=@ud] acc=(map @ta @ud)]
@@ -1317,7 +1404,7 @@
 ::  chains through upgrade-21-to-22 → upgrade-22-to-23
 ++  upgrade-20-to-21
   |=  s=state-20
-  ^-  state-39
+  ^-  state-41
   =/  new-msgs=(map @ta (list message:noltbook))
     %-  ~(run by messages.s)
     |=  msgs=(list message-20)
@@ -1359,7 +1446,7 @@
 ::  upgrade-21-to-22: add meta=(unit entry-meta) to envelopes
 ++  upgrade-21-to-22
   |=  s=state-21
-  ^-  state-39
+  ^-  state-41
   =/  new-envs=(map @ta (map @da envelope:noltbook))
     %-  ~(run by gossip-envelopes.s)
     |=  envs=(map @da envelope-21)
@@ -1381,7 +1468,7 @@
 ::  upgrade-22-to-23: enrich mention storage with stable eid
 ++  upgrade-22-to-23
   |=  s=state-22
-  ^-  state-39
+  ^-  state-41
   =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
     %-  ~(urn by mentions.s)
     |=  [nid=@ta mns=(list [id=@da author=@p])]
@@ -1410,7 +1497,7 @@
 ::  in-flight forks to become fetchable.
 ++  upgrade-30-to-31
   |=  s=state-30
-  ^-  state-39
+  ^-  state-41
   =?  s  (gth ~(wyt by pending-fork-invites.s) 0)
     ~&  [%dropping-legacy-pending-fork-invites count=~(wyt by pending-fork-invites.s)]
     s(pending-fork-invites *(map @ta state-30-pending-fork-invite))
@@ -1433,7 +1520,7 @@
 ::  upgrade-31-to-32: add empty contacts set
 ++  upgrade-31-to-32
   |=  s=state-31
-  ^-  state-39
+  ^-  state-41
   %-  upgrade-32-to-33
   :*  %32
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1454,7 +1541,7 @@
 ::  upgrade-32-to-33: add empty dm-prefs map
 ++  upgrade-32-to-33
   |=  s=state-32
-  ^-  state-39
+  ^-  state-41
   %-  upgrade-33-to-34
   :*  %33
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1478,7 +1565,7 @@
 ::  pre-migration value.
 ++  upgrade-33-to-34
   |=  s=state-33
-  ^-  state-39
+  ^-  state-41
   =/  seeded-revs=(map @ta @ud)
     %-  ~(rep by notes.s)
     |=  [[k=@ta v=note:noltbook] acc=(map @ta @ud)]
@@ -1507,7 +1594,7 @@
 ::  encoder default.
 ++  upgrade-34-to-35
   |=  s=state-34
-  ^-  state-39
+  ^-  state-41
   %-  upgrade-35-to-36
   :*  %35
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1531,7 +1618,7 @@
 ::  upgrade-35-to-36: add empty host-checks map.
 ++  upgrade-35-to-36
   |=  s=state-35
-  ^-  state-39
+  ^-  state-41
   %-  upgrade-36-to-37
   :*  %36
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1556,7 +1643,7 @@
 ::  upgrade-36-to-37: add empty notification-acks set.
 ++  upgrade-36-to-37
   |=  s=state-36
-  ^-  state-39
+  ^-  state-41
   %-  upgrade-37-to-38
   :*  %37
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1585,7 +1672,7 @@
 ::  (cover, ars-rumors) are excluded from seeding.
 ++  upgrade-37-to-38
   |=  s=state-37
-  ^-  state-39
+  ^-  state-41
   =/  seeded=(map @ta @da)
     =/  pairs=(list [nid=@ta msgs=(list message:noltbook)])  ~(tap by messages.s)
     =/  acc=(map @ta @da)  *(map @ta @da)
@@ -1631,7 +1718,8 @@
 ::  upgrade (unread is strict activity > read; equal seeds = read).
 ++  upgrade-38-to-39
   |=  s=state-38
-  ^-  state-39
+  ^-  state-41
+  %-  upgrade-39-to-40
   :*  %39
       notes.s  messages.s  artifacts.s  profiles.s
       transactions.s  current-note.s  peers.s  has-avatar.s
@@ -1655,10 +1743,87 @@
       note-activity.s
       note-activity.s
   ==
+::  upgrade-39-to-40: artifacts gain meta=~ (durable timeline identity is
+::  stamped going forward; existing artifacts have no meta).
+++  upgrade-39-to-40
+  |=  s=state-39
+  ^-  state-41
+  =/  new-arts=(map @ta artifact:noltbook)
+    %-  ~(run by artifacts.s)
+    |=  a=artifact-pre40:noltbook
+    ^-  artifact:noltbook
+    [id.a name.a type.a creator.a note-id.a versions.a ~]
+  ::  pipe through upgrade-40-to-41 so the meta=~ artifacts just built get their
+  ::  durable eid backfilled in the same load (chain terminates at state-41).
+  %-  upgrade-40-to-41
+  :*  %40
+      notes.s  messages.s  new-arts  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      fork-parent-version.s
+      host-checks.s
+      notification-acks.s
+      note-activity.s
+      note-read.s
+  ==
+::  upgrade-40-to-41: durable backfill of artifact meta. Every artifact with
+::  meta=~ gets meta=(artifact-meta creator id created ~), where `created` is the
+::  FIRST version's timestamp (artifact creation time); eid is deterministic
+::  (sham [creator id]) so the same artifact resolves identically across ships,
+::  enabling replies/threading on pre-Phase-A artifacts. Existing meta preserved.
+::  Byte hosting unchanged (only the meta field is populated).
+++  upgrade-40-to-41
+  |=  s=state-40
+  ^-  state-41
+  =/  new-arts=(map @ta artifact:noltbook)
+    %-  ~(run by artifacts.s)
+    |=  a=artifact:noltbook
+    ^-  artifact:noltbook
+    ?^  meta.a  a
+    =/  when=@da
+      ?~  versions.a  *@da
+      timestamp.i.versions.a
+    a(meta `(artifact-meta creator.a id.a when ~))
+  :*  %41
+      notes.s  messages.s  new-arts  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      fork-parent-version.s
+      host-checks.s
+      notification-acks.s
+      note-activity.s
+      note-read.s
+  ==
 ::  upgrade-29-to-30: add pending-fork-invites map (empty).
 ++  upgrade-29-to-30
   |=  s=state-29
-  ^-  state-39
+  ^-  state-41
   %-  upgrade-30-to-31
   :*  %30
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1678,7 +1843,7 @@
 ::  note is treated as v1 (origin computed lazily by note-lineage-of helper).
 ++  upgrade-28-to-29
   |=  s=state-28
-  ^-  state-39
+  ^-  state-41
   %-  upgrade-29-to-30
   :*  %29
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1700,7 +1865,7 @@
 ::  remote host issues %remote-note-deleted post-upgrade.
 ++  upgrade-27-to-28
   |=  s=state-27
-  ^-  state-39
+  ^-  state-41
   %-  upgrade-28-to-29
   :*  %28
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1717,7 +1882,7 @@
 ::  upgrade-25-to-26: add blocked-by set
 ++  upgrade-26-to-27
   |=  s=state-26
-  ^-  state-39
+  ^-  state-41
   %-  upgrade-27-to-28
   :*  %27
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1732,7 +1897,7 @@
   ==
 ++  upgrade-25-to-26
   |=  s=state-25
-  ^-  state-39
+  ^-  state-41
   %-  upgrade-26-to-27
   :*  %26
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1747,7 +1912,7 @@
 ::  upgrade-24-to-25: add note-admins and note-muted maps
 ++  upgrade-24-to-25
   |=  s=state-24
-  ^-  state-39
+  ^-  state-41
   %-  upgrade-25-to-26
   :*  %25
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2216,7 +2381,7 @@
 ::  upgrade-23-to-24: add join-requests map
 ++  upgrade-23-to-24
   |=  s=state-23
-  ^-  state-39
+  ^-  state-41
   %-  upgrade-24-to-25
   :*  %24
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2429,8 +2594,17 @@
       size
       *@uv
       timestamp.latest
-      ~
+      ::  carry the source artifact's timeline identity into the envelope
+      ::  (was dropped to ~ before Phase A). Reply linkage stays eid-based.
+      meta.art
   ==
+::  artifact-meta: stable timeline identity for a new artifact. eid is
+::  deterministic (sham [creator id]) so it matches across ships/forks.
+::  seq is non-authoritative (0) in Phase A; created/updated = creation time.
+++  artifact-meta
+  |=  [creator=@p aid=@ta when=@da reply-eid=(unit @uv)]
+  ^-  entry-meta:noltbook
+  [(sham [creator aid]) 0 0 when when reply-eid]
 ::  find-aid-in-envelopes: scan all per-note envelope maps for an aid
 ++  find-aid-in-envelopes
   |=  [aid=@ta envs=(map @ta (map @ta artifact-envelope:noltbook))]
@@ -2463,7 +2637,7 @@
   [(crip path-tape) args]
 --
 %-  agent:dbug
-=|  state-39
+=|  state-41
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -2481,8 +2655,8 @@
 ++  on-load
   |=  old=vase
   ^-  (quip card _this)
-  ?:  ?=([%39 *] q.old)
-    =/  loaded  !<(state-39 old)
+  ?:  ?=([%41 *] q.old)
+    =/  loaded  !<(state-41 old)
     ::  fix: ensure cover note exists and is keyed as %cover
     ::  (same normalizations carried forward from state-24 load)
     =/  loaded
@@ -2604,6 +2778,12 @@
       ^-  card
       [%pass /prof-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-profile our.bowl prof])]
     [prof-cards this(state loaded(active-calls *(map @ta call-info:noltbook)))]
+  ?:  ?=([%40 *] q.old)
+    =/  s40  !<(state-40 old)
+    $(old !>((upgrade-40-to-41 s40)))
+  ?:  ?=([%39 *] q.old)
+    =/  s39  !<(state-39 old)
+    $(old !>((upgrade-39-to-40 s39)))
   ?:  ?=([%38 *] q.old)
     =/  s38  !<(state-38 old)
     $(old !>((upgrade-38-to-39 s38)))
@@ -2890,10 +3070,10 @@
     `this(state (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))))))
   ?:  ?=([%2 *] q.old)
     =/  s2  !<(state-2 old)
-    =/  new-arts=(map @ta artifact:noltbook)
+    =/  new-arts=(map @ta artifact-pre40:noltbook)
       %-  ~(run by artifacts.s2)
       |=  a=artifact-2
-      ^-  artifact:noltbook
+      ^-  artifact-pre40:noltbook
       =/  new-type=artifact-type:noltbook
         ?:  =(%code type.a)  %code
         %file
@@ -2922,10 +3102,10 @@
     |=  p=profile-1
     ^-  profile:noltbook
     [display-name.p ~ wallet-address.p ~]
-  =/  new-arts=(map @ta artifact:noltbook)
+  =/  new-arts=(map @ta artifact-pre40:noltbook)
     %-  ~(run by artifacts.s1)
     |=  a=artifact-2
-    ^-  artifact:noltbook
+    ^-  artifact-pre40:noltbook
     =/  new-type=artifact-type:noltbook
       ?:  =(%code type.a)  %code
       %file
@@ -3551,6 +3731,13 @@
       =/  qarg-name  (query-arg q-args 'name')
       =/  qarg-kind  (query-arg q-args 'kind')
       =/  qarg-mime  (query-arg q-args 'mime')
+      ::  optional reply context (eid). slaw returns ~ on malformed input, so
+      ::  a bad replyToEid is safely ignored (artifact stays a root).
+      =/  qarg-rte  (query-arg q-args 'replyToEid')
+      =/  reply-eid=(unit @uv)
+        ?~  qarg-rte  ~
+        ^-  (unit @uv)
+        (slaw %uv u.qarg-rte)
       =/  fname=@t  (fall qarg-name 'untitled')
       =/  kind=@t   (fall qarg-kind 'file')
       =/  mtype=@t  (fall qarg-mime 'application/octet-stream')
@@ -3563,6 +3750,7 @@
       =/  new-art=artifact:noltbook
         :*  aid  fname  %file  our.bowl  nid
             ~[[1 meta-content our.bowl now.bowl]]
+            `(artifact-meta our.bowl aid now.bowl reply-eid)
         ==
       =/  resp-body=@t  (rap 3 ['{"id":"' aid '","version":1}' ~])
       =/  ok-payload=simple-payload:http
@@ -3573,8 +3761,10 @@
         ::  build envelope, broadcast %artifact-envelope locally + gossip
         ::  %remote-artifact-envelope-ref to mesh recipients. Never ship bytes.
         =/  hash=@uv  (sham q.u.bod)
+        ::  carry the new artifact's meta (eid + reply-to-eid) so remote
+        ::  recipients can reply to / unified-thread this envelope.
         =/  env=artifact-envelope:noltbook
-          [aid our.bowl nid fname mtype kind p.u.bod hash now.bowl ~]
+          [aid our.bowl nid fname mtype kind p.u.bod hash now.bowl meta.new-art]
         =/  upd=update:noltbook  [%artifact-envelope nid env 0]
         =/  pax=path  ~[%notes nid]
         =/  targets=(list @p)
@@ -3920,10 +4110,9 @@
       =/  par=note:noltbook  u.par-u
       =/  child-type=note-type:noltbook  type.par
       =/  is-shared=?  (gth ~(wyt in users.par) 1)
-      ::  shared & not host: forward to host (only meaningful for %group)
-      ?:  ?&  is-shared  !=(our.bowl creator.par)  ==
-        :_  this
-        ~[[%pass /create-child/[pid] %agent [creator.par %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-create-child pid name.act])]]
+      ::  host-only: only the parent's creator may add child notes. A member of
+      ::  a shared note can no longer create children (UI grays this out too).
+      ?.  =(our.bowl creator.par)  `this
       ::  local create; inherit users and creator from parent; mirror type;
       ::  factory metadata; no admin/mute inheritance
       =/  nid=@ta  (crip (weld "note-" (trip (scot %da now.bowl))))
@@ -4606,6 +4795,7 @@
       =/  new-art=artifact:noltbook
         :*  aid  name.act  type.act  our.bowl  note-id.act
             ~[[1 content.act our.bowl now.bowl]]
+            `(artifact-meta our.bowl aid now.bowl reply-to-eid.act)
         ==
       =/  upd=update:noltbook  [%artifact-created new-art]
       =/  pax=path  ~[%notes note-id.act]
@@ -6833,29 +7023,9 @@
       ==
     ::
         %remote-create-child
-      ::  a user in our shared note asked us to create a child
-      =/  old  (~(get by notes) parent-id.rem)
-      ?~  old  `this
-      ?.  =(our.bowl creator.u.old)  `this
-      ?.  (~(has in users.u.old) src.bowl)  `this
-      ::  only %notebook and %group parents may have children;
-      ::  reject %dm, %cover, %gossip
-      ?.  ?|(=(%notebook type.u.old) =(%group type.u.old))  `this
-      =/  child-type=note-type:noltbook  type.u.old
-      =/  nid=@ta  (crip (weld "note-" (trip (scot %da now.bowl))))
-      =/  new-note=note:noltbook
-        :*  nid  name.rem  child-type  our.bowl  users.u.old  ~  `parent-id.rem  ~  ~  %secret  ~  &  ~  ~
-        ==
-      =/  new-par=note:noltbook  u.old(children (snoc children.u.old nid))
-      =/  all-notes  (~(put by (~(put by notes) nid new-note)) parent-id.rem new-par)
-      =/  upd=update:noltbook  [%note-created new-note]
-      =/  broadcast=(list card)
-        %+  murn  ~(tap in users.u.old)
-        |=  p=@p
-        ?:  =(p our.bowl)  ~
-        `[%pass /child-out/(scot %p p)/[nid] %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-child-note parent-id.rem new-note])]
-      :_  this(notes all-notes, messages (~(put by messages) nid *(list message:noltbook)))
-      :(weld ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] broadcast)
+      ::  host-only child creation: members may no longer ask us to create a
+      ::  child in our shared note. Reject all such requests.
+      `this
     ::
         %remote-child-note
       ::  receive a child note from the host. Tolerate orphan delivery

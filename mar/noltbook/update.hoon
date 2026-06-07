@@ -536,6 +536,7 @@
           ['creator' s+(scot %p creator.a)]
           ['noteId' s+(crip (trip note-id.a))]
           ['versions' a+(turn versions.a ver-to-json)]
+          ['meta' ?~(meta.a ~ (meta-to-json u.meta.a))]
       ==
     ::
     ++  art-env-to-json
