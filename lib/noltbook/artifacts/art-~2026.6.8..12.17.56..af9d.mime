@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>NOLTBOOK</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#111;display:flex;align-items:center;justify-content:center;height:100vh}
+.logo{font-family:'Share Tech Mono',monospace;font-size:6rem;letter-spacing:.3em;cursor:pointer}
+.logo span{transition:color .3s}
+</style>
+</head>
+<body>
+<div class="logo" id="logo" onclick="randomize()"></div>
+<script>
+const colors=['#ffaa00','#bb77ff','#ffee55','#00ff88','#652287','#4aba8a','#569CD6','#ff4444'];
+const word='NOLTBOOK';
+function randomize(){
+  const el=document.getElementById('logo');
+  el.innerHTML=word.split('').map(c=>'<span style="color:'+colors[Math.floor(Math.random()*colors.length)]+'">'+c+'</span>').join('');
+}
+randomize();
+</script>
+</body>
+</html>

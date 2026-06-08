@@ -1208,8 +1208,8 @@ function handleUpdate(upd){
   else if(upd['fork-invite-cleared']){const d=upd['fork-invite-cleared'];delete state.pendingForkInvites[d.rootId];state.acceptingForkRoots.delete(d.rootId);for(const bn of state.blockNotifications){if(bn.type==='fork-invite'&&bn.noteId===d.rootId){bn.resolved=true;delete bn.fetching}}updateLogoBadge()}
   else if(upd['fork-invite-accepted']){const d=upd['fork-invite-accepted'];state.acceptingForkRoots.delete(d.rootId);state.notifications.delete(d.rootId);for(const bn of state.blockNotifications){if(bn.type==='fork-invite'&&bn.noteId===d.rootId){bn.resolved=true;delete bn.fetching}}const gm=document.getElementById('grimoireMenu');if(gm)gm.remove();if(state.palsView)switchView('notes');if(state.notes[d.rootId])openNote(d.rootId);renderNoteList()}
   else if(upd['headline-updated']){const d=upd['headline-updated'];const n=state.notes[d.id];if(n){n.headline=d.headline||null;renderNoteList()}}
-  else if(upd['artifact-envelope']){const d=upd['artifact-envelope'];const nid=d.noteId;const env=d.envelope;if(!state.artifactEnvelopes[nid])state.artifactEnvelopes[nid]={};if(state.artifactEnvelopes[nid][env.aid])return;state.artifactEnvelopes[nid][env.aid]=env;state.artifactEnvHops[env.aid]=(typeof d.hops==='number')?d.hops:1;if(state.currentNoteId===nid)scheduleRender(nid);else if(artEnvVisible(env))state.notifications.add(nid);markOpenNoteReadSoon(nid);scheduleNoteList()}
-  else if(upd['artifact-envelope-list']){const d=upd['artifact-envelope-list'];const nid=d.noteId;if(!state.artifactEnvelopes[nid])state.artifactEnvelopes[nid]={};let added=0;for(const e of d.envelopes||[]){if(state.artifactEnvelopes[nid][e.aid])continue;state.artifactEnvelopes[nid][e.aid]=e;if(state.artifactEnvHops[e.aid]===undefined)state.artifactEnvHops[e.aid]=1;added++}if(added&&state.currentNoteId===nid)scheduleRender(nid)}
+  else if(upd['artifact-envelope']){const d=upd['artifact-envelope'];const nid=d.noteId;const env=d.envelope;if(!state.artifactEnvelopes[nid])state.artifactEnvelopes[nid]={};if(state.artifactEnvelopes[nid][env.aid])return;state.artifactEnvelopes[nid][env.aid]=env;state.artifactEnvHops[env.aid]=(typeof d.hops==='number')?d.hops:1;fetchTopWindowEnvelopes(nid);if(state.currentNoteId===nid)scheduleRender(nid);else if(artEnvVisible(env))state.notifications.add(nid);markOpenNoteReadSoon(nid);scheduleNoteList()}
+  else if(upd['artifact-envelope-list']){const d=upd['artifact-envelope-list'];const nid=d.noteId;if(!state.artifactEnvelopes[nid])state.artifactEnvelopes[nid]={};let added=0;for(const e of d.envelopes||[]){if(state.artifactEnvelopes[nid][e.aid])continue;state.artifactEnvelopes[nid][e.aid]=e;if(state.artifactEnvHops[e.aid]===undefined)state.artifactEnvHops[e.aid]=1;added++}if(added)fetchTopWindowEnvelopes(nid);if(added&&state.currentNoteId===nid)scheduleRender(nid)}
   else if(upd['message-edited']){const{noteId,message}=upd['message-edited'];const msgs=state.messages[noteId]||[];const eid=message.meta&&message.meta.eid;const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===message.id);if(fi>=0){msgs[fi]=message}if(state.currentNoteId===noteId)scheduleRender(noteId)}
   else if(upd['message-deleted']){const{noteId,msgId,eid}=upd['message-deleted'];const msgs=state.messages[noteId]||[];const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===msgId);if(fi>=0)msgs.splice(fi,1);if(state.currentNoteId===noteId)scheduleRender(noteId)}
   else if(upd['search-result']){const{reqId,query,hits,capped}=upd['search-result'];if(reqId!==state.searchReqInFlight)return;if(String(query||'')!==state.searchQuery)return;state.searchMessageHits=Array.isArray(hits)?hits:[];state.searchMessageCapped=!!capped;if(state.searchQuery)renderSidebarSearchResults()}
@@ -1226,8 +1226,8 @@ function handleUpdate(upd){
   else if(upd['note-redirect']){const{oldId,newId}=upd['note-redirect'];console.log('[note-redirect]',oldId,'->',newId);if(state.noteActivity[oldId]!==undefined&&state.noteActivity[newId]===undefined)state.noteActivity[newId]=state.noteActivity[oldId];delete state.noteActivity[oldId];if(state.noteRead[oldId]!==undefined&&state.noteRead[newId]===undefined)state.noteRead[newId]=state.noteRead[oldId];delete state.noteRead[oldId];delete state.notes[oldId];delete state.messages[oldId];state.notifications.delete(oldId);if(state.currentNoteId===oldId){if(state.notes[newId])openNote(newId);else openNote('cover')}renderNoteList()}
   else if(upd['wallet-update']){wallet.transactions=upd['wallet-update'].map(tx=>({type:tx.type,who:tx.counterparty,amount:tx.amount,time:new Date(tx.timestamp).toLocaleString(),txid:tx.txHash}));renderWalletNotes()}
   else if(upd['gossip-message']){const{message,hops}=upd['gossip-message'];const nid=message.noteId||'cover';const msgEid=message.meta&&message.meta.eid||null;state.gossipHops[message.id]=hops;if(!state.messages[nid])state.messages[nid]=[];const nenvs=state.gossipEnvelopes[nid]||{};delete nenvs[message.id];if(msgEid)delete nenvs[msgEid];state.gossipEnvelopes[nid]=nenvs;const nfetch=state.gossipFetching[nid];if(nfetch){nfetch.delete(message.id);if(msgEid)nfetch.delete(msgEid)}const isDup=state.messages[nid].some(m=>(msgEid&&m.meta&&m.meta.eid===msgEid)||m.id===message.id);if(!isDup){state.messages[nid].push(message);const visible=coverMsgVisible(message);if(state.currentNoteId===nid&&visible){const isOwn=message.author===('~'+api.ship);appendMessage(message,isOwn)}else if(state.currentNoteId!==nid&&visible&&!isPinnedUnreadNote(nid))state.notifications.add(nid)}const visible=coverMsgVisible(message);if(visible&&state.notes[nid]){state.notes[nid].lastAuthor=message.author;state.notes[nid].lastPreview=message.text}if(nid==='cover'&&visible)state.coverPreview={author:message.author,preview:message.text};markOpenNoteReadSoon(nid);scheduleNoteList()}
-  else if(upd['gossip-envelope']){const{noteId,envelope,hops}=upd['gossip-envelope'];const nid=noteId||'cover';const envEid=envelope.meta&&envelope.meta.eid||null;if((state.messages[nid]||[]).some(m=>(envEid&&m.meta&&m.meta.eid===envEid)||m.id===envelope.id))return;const nenvs=state.gossipEnvelopes[nid]||{};const envKey=envEid||envelope.id;if(nenvs[envKey])return;envelope._eid=envEid;nenvs[envKey]=envelope;state.gossipEnvelopes[nid]=nenvs;state.gossipHops[envelope.id]=hops;const shell={id:envelope.id,noteId:nid,author:envelope.author,text:null};if(coverMsgVisible(shell))fetchGossipContent(nid,envelope.id,envelope.author,envEid);if(state.currentNoteId!==nid&&coverMsgVisible(shell))state.notifications.add(nid);markOpenNoteReadSoon(nid);scheduleNoteList()}
-  else if(upd['envelope-list']){const{noteId,envelopes}=upd['envelope-list'];const existingMsgs=state.messages[noteId]||[];const existingIds=new Set(existingMsgs.map(m=>m.id));const existingEids=new Set(existingMsgs.filter(m=>m.meta&&m.meta.eid).map(m=>m.meta.eid));const nenvs=state.gossipEnvelopes[noteId]||{};let fetched=0;for(const env of envelopes){const eeid=env.meta&&env.meta.eid||null;const envKey=eeid||env.id;if(existingIds.has(env.id)||(eeid&&existingEids.has(eeid))||nenvs[envKey])continue;env._eid=eeid;nenvs[envKey]=env;const shell={id:env.id,noteId:noteId,author:env.author,text:null};if(coverMsgVisible(shell)){fetchGossipContent(noteId,env.id,env.author,eeid);fetched++}}state.gossipEnvelopes[noteId]=nenvs;if(fetched>0)scheduleNoteList()}
+  else if(upd['gossip-envelope']){const{noteId,envelope,hops}=upd['gossip-envelope'];const nid=noteId||'cover';const envEid=envelope.meta&&envelope.meta.eid||null;if((state.messages[nid]||[]).some(m=>(envEid&&m.meta&&m.meta.eid===envEid)||m.id===envelope.id))return;const nenvs=state.gossipEnvelopes[nid]||{};const envKey=envEid||envelope.id;if(nenvs[envKey])return;envelope._eid=envEid;nenvs[envKey]=envelope;state.gossipEnvelopes[nid]=nenvs;state.gossipHops[envelope.id]=hops;const shell={id:envelope.id,noteId:nid,author:envelope.author,text:null};fetchTopWindowEnvelopes(nid);if(state.currentNoteId!==nid&&coverMsgVisible(shell))state.notifications.add(nid);markOpenNoteReadSoon(nid);scheduleNoteList()}
+  else if(upd['envelope-list']){const{noteId,envelopes}=upd['envelope-list'];const existingMsgs=state.messages[noteId]||[];const existingIds=new Set(existingMsgs.map(m=>m.id));const existingEids=new Set(existingMsgs.filter(m=>m.meta&&m.meta.eid).map(m=>m.meta.eid));const nenvs=state.gossipEnvelopes[noteId]||{};for(const env of envelopes){const eeid=env.meta&&env.meta.eid||null;const envKey=eeid||env.id;if(existingIds.has(env.id)||(eeid&&existingEids.has(eeid))||nenvs[envKey])continue;env._eid=eeid;nenvs[envKey]=env}state.gossipEnvelopes[noteId]=nenvs;const fetched=fetchTopWindowEnvelopes(noteId);if(fetched>0)scheduleNoteList()}
   else if(upd['cover-msg-content']){const{noteId,message:msg}=upd['cover-msg-content'];const nid=noteId||'cover';markOpenNoteReadSoon(nid);if(state.currentNoteId===nid)ScrollCo.bump();const msgEid=msg.meta&&msg.meta.eid||null;const nfetch=state.gossipFetching[nid];if(nfetch){nfetch.delete(msg.id);if(msgEid)nfetch.delete(msgEid)}const nenvs=state.gossipEnvelopes[nid]||{};delete nenvs[msg.id];if(msgEid)delete nenvs[msgEid];state.gossipEnvelopes[nid]=nenvs;if(!state.messages[nid])state.messages[nid]=[];const isDup=state.messages[nid].some(m=>(msgEid&&m.meta&&m.meta.eid===msgEid)||m.id===msg.id);let _appendedGossipText=false;if(!isDup){state.messages[nid].push(msg);const visible=coverMsgVisible(msg);const _isGossipy=nid==='cover'||(state.notes[nid]&&state.notes[nid].type==='gossip');if(_isGossipy&&state.currentNoteId===nid&&visible){const _isOwn=msg.author===('~'+api.ship);appendMessage(msg,_isOwn);_appendedGossipText=true}else if(state.currentNoteId!==nid&&visible&&!isPinnedUnreadNote(nid))state.notifications.add(nid);if(nid==='cover'){const _lc=getLastMessage('cover');if(_lc)state.coverPreview={author:_lc.author,preview:_lc.text}}}state.gossipPending[nid]=Math.max(0,(state.gossipPending[nid]||1)-1);if(state.gossipPending[nid]===0){hideGossipLoading();if(state.currentNoteId===nid&&!_appendedGossipText)scheduleRender(nid);if(state.notes[nid]){const msgs=state.messages[nid]||[];if(msgs.length){const newest=msgs.reduce((a,b)=>b.timestamp>a.timestamp?b:a);state.notes[nid].lastPreview=newest.text;state.notes[nid].lastAuthor=newest.author}}scheduleNoteList()}if(state.pendingGossipRef&&state.pendingGossipRef.noteId===nid){const pr=state.pendingGossipRef;const match=(msgEid&&pr.eid&&msgEid===pr.eid)||String(msg.id)===pr.msgId;if(match){clearTimeout(pr.timer);state.pendingGossipRef=null;setTimeout(function(){scrollToGossipMsg(pr.msgId,pr.eid)},400)}}}
   else if(upd['rumor-message']){const msg=upd['rumor-message'].message;if(!state.messages['ars-rumors'])state.messages['ars-rumors']=[];const isDup=state.messages['ars-rumors'].some(m=>m.text===msg.text);if(!isDup){state.messages['ars-rumors'].unshift(msg);if(state.currentNoteId==='ars-rumors')renderMessages('ars-rumors');else state.notifications.add('ars-rumors');scheduleNoteList()}}
   else if(upd['mention-update']){const{noteId,mentions}=upd['mention-update'];if(!state.mentions[noteId])state.mentions[noteId]=[];for(const m of mentions){const mEid=m.eid||null;const dup=state.mentions[noteId].some(x=>(mEid&&x.eid&&x.eid===mEid)||x.id===m.id);if(!dup)state.mentions[noteId].push({id:m.id,eid:mEid,author:m.author})}scheduleNoteList()}
@@ -1548,6 +1548,138 @@ function artEnvVisible(env){
   if(h===undefined)return true;
   return h<=state.dial+1;
 }
+// ===== top-100 visible window (cover / user-gossip only) — PURE SCAFFOLD =====
+// Separates "what you store/pass" (the un-pruned reservoir) from "what you can
+// see". Builds the candidate pool (fetched text msgs + visible unfetched text
+// envelopes + real artifacts + artifact envelopes), applies the EXISTING dial/
+// pals visibility FIRST, then ranks and selects up to `limit` DATA POSTS (not
+// rendered DOM items). Roots stay alive by activity anywhere beneath them;
+// individual old replies age out ("replies are lives for the root"); selecting a
+// reply force-includes its ancestor chain (ancestors count toward the limit).
+// NOT applied to ars-rumors / regular / shared / DM. NOT wired into render or
+// fetch yet — this only computes; callers come in later phases.
+function isTopWindowNote(noteId){
+  if(noteId==='ars-rumors')return false;
+  if(noteId==='cover')return true;
+  const n=state.notes[noteId];
+  return !!(n&&n.type==='gossip');
+}
+function computeVisibleTopPosts(noteId,limit){
+  limit=limit||100;
+  const out={noteId:noteId,limit:limit,applies:isTopWindowNote(noteId),candidates:[],selected:[],selectedKeys:new Set(),allowed:new Set(),total:0,dropped:0};
+  if(!out.applies)return out;
+  // ---- candidate pool, deduped IDENTITY-FIRST: meta.eid when present, else the
+  // render node key ('m:'+id / 'a:'+id / 'e:'+aid). Mirrors the live handler dedup
+  // (eid-first, id fallback). priority: real text message > text envelope, real
+  // artifact > artifact envelope — so a fetched post beats its unfetched envelope
+  // for the same eid even if their raw ids differ.
+  const byIdent={};
+  const add=(c,prio)=>{const ident=c.eid?('eid#'+c.eid):('key#'+c.key);const ex=byIdent[ident];if(ex&&ex._prio>=prio)return;c._prio=prio;byIdent[ident]=c};
+  // 1) fetched text messages (visible)
+  for(const m of (state.messages[noteId]||[])){
+    if(!coverMsgVisible(m))continue;
+    add({key:'m:'+m.id,kind:'msg',id:m.id,eid:(m.meta&&m.meta.eid)||null,replyToEid:(m.meta&&m.meta.replyToEid)||null,legacyReplyTo:(m.replyTo!=null?m.replyTo:null),order:m.id,hasContent:true,raw:m},3);
+  }
+  // 2) unfetched visible text envelopes. Order by env.id (NOT env.timestamp):
+  // once fetched the message keeps this id, and renderMessages orders cover/gossip
+  // text by message id, so ranking by id guarantees parity with the rendered order
+  // (timestamp could diverge from the id). Same 'm:'+id key space → dedups vs (1).
+  const tEnvs=state.gossipEnvelopes[noteId]||{};
+  for(const k in tEnvs){
+    const env=tEnvs[k];
+    const shell={id:env.id,noteId:noteId,author:env.author,text:null};
+    if(!coverMsgVisible(shell))continue;
+    add({key:'m:'+env.id,kind:'text-env',id:env.id,eid:(env.meta&&env.meta.eid)||env._eid||null,replyToEid:(env.meta&&env.meta.replyToEid)||null,legacyReplyTo:(env.replyTo!=null?env.replyTo:null),order:env.id,hasContent:false,raw:env},1);
+  }
+  // 3) real artifacts in this note (artifacts are posts; always visible like render)
+  for(const art of Object.values(state.artifacts)){
+    if(art.noteId!==noteId)continue;
+    if(art.type!=='app'&&art.type!=='file')continue;
+    const lv=art.versions&&art.versions.length?art.versions[art.versions.length-1]:null;
+    add({key:'a:'+art.id,kind:'art',id:art.id,eid:(art.meta&&art.meta.eid)||null,replyToEid:(art.meta&&art.meta.replyToEid)||null,legacyReplyTo:null,order:lv?lv.timestamp:0,hasContent:true,raw:art},3);
+  }
+  // 4) artifact envelopes (visible) — skip if the REAL artifact for this note exists
+  const aEnvs=state.artifactEnvelopes[noteId]||{};
+  for(const aid in aEnvs){
+    const env=aEnvs[aid];
+    const real=state.artifacts[aid];
+    if(real&&real.noteId===noteId)continue;
+    if(!artEnvVisible(env))continue;
+    add({key:'e:'+env.aid,kind:'art-env',id:env.aid,eid:(env.meta&&env.meta.eid)||null,replyToEid:(env.meta&&env.meta.replyToEid)||null,legacyReplyTo:null,order:env.timestamp||0,hasContent:false,raw:env},1);
+  }
+  const cands=Object.values(byIdent);
+  out.candidates=cands;out.total=cands.length;
+  // ---- parent/root resolution: eid-first, legacy @da only for text msg/env ----
+  // render-key index (post-dedup) for legacy @da parent lookup + isRoot key compare
+  const byKey={};cands.forEach(c=>{byKey[c.key]=c});
+  const byEid={};cands.forEach(c=>{if(c.eid)byEid[c.eid]=c});
+  function parentOf(c){
+    if(c.replyToEid&&byEid[c.replyToEid])return byEid[c.replyToEid];
+    if((c.kind==='msg'||c.kind==='text-env')&&c.legacyReplyTo!=null&&byKey['m:'+c.legacyReplyTo])return byKey['m:'+c.legacyReplyTo];
+    return null; // unresolved parent => treated as a root (no hidden-parent UI)
+  }
+  function rootOf(c){let cur=c,g=0;while(cur){const p=parentOf(cur);if(!p||g++>500)break;cur=p}return cur}
+  function ancestorChain(c){const a=[];let cur=parentOf(c),g=0;while(cur&&g++<500){a.push(cur);cur=parentOf(cur)}return a}
+  cands.forEach(c=>{c.root=rootOf(c);c.isRoot=(c.root.key===c.key)});
+  // root activity score = max order across the root's whole visible subtree
+  const rootScore={};
+  cands.forEach(c=>{const rk=c.root.key;if(rootScore[rk]===undefined||c.order>rootScore[rk])rootScore[rk]=c.order});
+  cands.forEach(c=>{c.rootActivity=rootScore[c.root.key];c.rankScore=c.isRoot?c.rootActivity:c.order});
+  // ---- select by descending rank; pull unselected ancestors atomically ----
+  const ranked=cands.slice().sort((a,b)=>b.rankScore-a.rankScore);
+  const sel=new Set();const selected=[];
+  for(const c of ranked){
+    if(sel.has(c.key))continue;
+    if(selected.length>=limit)break;
+    const anc=ancestorChain(c).filter(a=>!sel.has(a.key)).reverse();
+    const chain=anc.concat([c]);
+    if(selected.length+chain.length>limit){out.dropped++;continue} // won't fit whole chain → drop (no orphan)
+    for(const node of chain){if(!sel.has(node.key)){sel.add(node.key);selected.push(node)}}
+  }
+  out.selected=selected;out.selectedKeys=sel;
+  // identity set for the fetch gate: match by node key, eid, or raw id/aid
+  selected.forEach(c=>{out.allowed.add(c.key);if(c.eid)out.allowed.add(c.eid);out.allowed.add(c.id)});
+  return out;
+}
+// Fetch gate for cover/user-gossip text envelopes. Dial/pals visibility is
+// applied FIRST (unchanged), then the top-100 window decides whether to fetch.
+// Pass a precomputed `top` to avoid recomputing per envelope in a batch. Other
+// note types keep prior behavior (visible => fetch); ars-rumors never fetches here.
+function shouldFetchTopEnvelope(noteId,env,top){
+  const shell={id:env.id,noteId:noteId,author:env.author,text:null};
+  if(!coverMsgVisible(shell))return false;
+  if(!isTopWindowNote(noteId))return true;
+  top=top||computeVisibleTopPosts(noteId,100);
+  if(!top.applies)return true;
+  // inside the top window? match eid-first, then raw id (allowed holds each
+  // selected candidate's key, eid, and id — so selected ancestors fetch too).
+  const eid=(env.meta&&env.meta.eid)||env._eid||null;
+  return (eid&&top.allowed.has(eid))||top.allowed.has(env.id);
+}
+// Note-level scan: fetch ALL currently-selected unresolved text envelopes for a
+// cover/user-gossip note. The top window shifts (e.g. a new reply pulls an OLD
+// unfetched root into the top-100), so gating only the just-arrived envelope is
+// not enough — rescan the whole stored set whenever the window may have changed.
+// Computes the window once, skips already-resolved envelopes (by id or eid), and
+// relies on fetchGossipContent's own dedup. Returns the number of fetch calls.
+// No-op for ars-rumors / non-top-window notes. Stored envelopes are never deleted.
+function fetchTopWindowEnvelopes(noteId){
+  if(!isTopWindowNote(noteId))return 0;
+  const envMap=state.gossipEnvelopes[noteId];
+  if(!envMap)return 0;
+  const msgs=state.messages[noteId]||[];
+  const resolvedIds=new Set(msgs.map(m=>m.id));
+  const resolvedEids=new Set(msgs.filter(m=>m.meta&&m.meta.eid).map(m=>m.meta.eid));
+  const top=computeVisibleTopPosts(noteId,100);
+  let n=0;
+  for(const k in envMap){
+    const env=envMap[k];
+    const eeid=(env.meta&&env.meta.eid)||env._eid||null;
+    if(resolvedIds.has(env.id)||(eeid&&resolvedEids.has(eeid)))continue;
+    if(shouldFetchTopEnvelope(noteId,env,top)){fetchGossipContent(noteId,env.id,env.author,eeid);n++}
+  }
+  return n;
+}
 function isDocMime(mime,name){
   var m=(mime||'').toLowerCase();
   if(m.startsWith('text/'))return true;
@@ -1584,14 +1716,8 @@ function renderDocCard(url,name,mime,size){
     +'</div>';
 }
 function fetchVisibleEnvelopes(){
-  for(const[nid,envMap]of Object.entries(state.gossipEnvelopes)){
-    const resolved=new Set((state.messages[nid]||[]).map(m=>m.id));
-    for(const[id,env]of Object.entries(envMap)){
-      if(resolved.has(env.id))continue;
-      const shell={id:env.id,noteId:nid,author:env.author,text:null};
-      if(coverMsgVisible(shell))fetchGossipContent(nid,env.id,env.author,env._eid||null);
-    }
-  }
+  // per note: fetch all currently-selected unresolved text envelopes (top window)
+  for(const nid of Object.keys(state.gossipEnvelopes))fetchTopWindowEnvelopes(nid);
 }
 const arsEntries=[
   {id:'cover',name:'%Grimoire',color:'#ffaa00',icon:null,bgColor:null},
@@ -2366,7 +2492,7 @@ function renderMessages(noteId,target){
   }
   // ===== unified timeline nodes: messages + artifacts + artifact-envelopes =====
   // node: {key,kind:'msg'|'art'|'env',raw,id,eid,replyToEid,legacyReplyTo,order}
-  const nodes=[];
+  let nodes=[];
   msgs.forEach(m=>nodes.push({key:'m:'+m.id,kind:'msg',raw:m,id:m.id,eid:getMsgEid(m),replyToEid:(m.meta&&m.meta.replyToEid)||null,legacyReplyTo:(m.replyTo!=null?m.replyTo:null),order:msgNodeOrder(m)}));
   const envMap=state.artifactEnvelopes[noteId]||{};
   for(const aid in envMap){
@@ -2382,6 +2508,18 @@ function renderMessages(noteId,target){
     const lv=art.versions.length?art.versions[art.versions.length-1]:null;
     nodes.push({key:'a:'+art.id,kind:'art',raw:art,id:art.id,eid:(art.meta&&art.meta.eid)||null,replyToEid:(art.meta&&art.meta.replyToEid)||null,legacyReplyTo:null,order:tsToOrder(lv?lv.timestamp:0)});
   });
+  // top-100 visible window (cover / user-gossip only): filter the node graph down
+  // to the helper's selected DATA POSTS. selectedKeys is an ALLOW-LIST only — we
+  // do NOT render in selection order; the existing ordering/threading below is
+  // preserved over the survivors. Filtering BEFORE parent/root/thread build means
+  // thread grouping reflects only selected nodes. The helper includes ancestor
+  // chains atomically, so a selected reply keeps its parents (unless genuinely
+  // unresolved). Unfetched selected text envelopes simply aren't render nodes yet
+  // (no placeholder); they render normally once existing fetch paths resolve them.
+  if(isTopWindowNote(noteId)){
+    const top=computeVisibleTopPosts(noteId,100);
+    if(top.applies)nodes=nodes.filter(n=>top.selectedKeys.has(n.key));
+  }
   const byKey={};const byEidN={};
   nodes.forEach(n=>{byKey[n.key]=n;if(n.eid)byEidN[n.eid]=n});
   // parent resolution: prefer reply-to-eid (works across all node types);

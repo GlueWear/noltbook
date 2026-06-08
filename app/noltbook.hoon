@@ -1188,46 +1188,22 @@
   ==
 +$  card  card:agent:gall
 ::
+::  Gossip reservoir caps are now NO-OPS. "What you store/pass" (the gossip
+::  packet/message/envelope reservoir a ship carries) is intentionally separate
+::  from "what you can see" (the top-100 visible window, a frontend rule applied
+::  AFTER dial/pals visibility). The backend must not delete packets just because
+::  the UI will later show 100. Arms are kept (no-op) so every call site compiles
+::  unchanged; no state shape changes. gossip-cap retained for reference only.
 ++  gossip-cap  100
 ++  cap-envs
   |=  envs=(map @da envelope:noltbook)
   ^-  (map @da envelope:noltbook)
-  ?:  (lte ~(wyt by envs) gossip-cap)  envs
-  ::  group envelopes into threads by reply-to root
-  =/  threads=(map @da (list [@da envelope:noltbook]))
-    %-  ~(rep by envs)
-    |=  [[k=@da v=envelope:noltbook] acc=(map @da (list [@da envelope:noltbook]))]
-    =/  root=@da  (fall reply-to.v k)
-    (~(put by acc) root [[k v] (fall (~(get by acc) root) ~)])
-  ::  rank threads by most recent activity descending
-  =/  ranked=(list [latest=@da thread=(list [@da envelope:noltbook])])
-    %+  sort
-      %+  turn  ~(tap by threads)
-      |=  [root=@da msgs=(list [@da envelope:noltbook])]
-      :_  msgs
-      %+  roll  msgs
-      |=  [[* e=envelope:noltbook] best=@da]
-      ?:((gth timestamp.e best) timestamp.e best)
-    |=  [a=[@ *] b=[@ *]]
-    (gth -.a -.b)
-  ::  keep whole threads until we reach cap
-  =/  result=(map @da envelope:noltbook)  ~
-  =/  count=@ud  0
-  |-
-  ?~  ranked  result
-  ?:  (gte count gossip-cap)  result
-  %=  $
-    ranked  t.ranked
-    count   (add count (lent thread.i.ranked))
-    result  (~(uni by result) (malt thread.i.ranked))
-  ==
+  envs
 ::
 ++  cap-msgs
   |=  [msgs=(list message:noltbook) is-gossip=?]
   ^-  (list message:noltbook)
-  ?.  is-gossip  msgs
-  ?:  (lte (lent msgs) gossip-cap)  msgs
-  (slag (sub (lent msgs) gossip-cap) msgs)
+  msgs
 ::
 ++  upgrade-8-to-9
   |=  s=state-8
@@ -2525,17 +2501,13 @@
   :~  '{"storage":"clay","mime":"'  mime  '","kind":"'  kind  '","size":'
       (scot %ud size)  ',"version":'  (scot %ud version)  '}'
   ==
-::  art-env-cap: per-note artifact-envelope cap (drop oldest by timestamp)
+::  art-env-cap: NO-OP (see gossip-cap note). The artifact-envelope reservoir is
+::  no longer pruned; the top-100 visible window is enforced on the frontend.
 ++  art-env-cap  100
 ++  cap-art-envs
   |=  envs=(map @ta artifact-envelope:noltbook)
   ^-  (map @ta artifact-envelope:noltbook)
-  ?:  (lte ~(wyt by envs) art-env-cap)  envs
-  =/  sorted=(list [@ta artifact-envelope:noltbook])
-    %+  sort  ~(tap by envs)
-    |=  [a=[@ta v=artifact-envelope:noltbook] b=[@ta w=artifact-envelope:noltbook]]
-    (gth timestamp.v.a timestamp.w.b)
-  (~(gas by *(map @ta artifact-envelope:noltbook)) (scag art-env-cap sorted))
+  envs
 ::  json-str-field: tolerant scan for `"<key>":"<value>"` in a JSON-ish
 ::  tape. The metadata blob is produced by art-meta-json so the shape is
 ::  fixed; this is not a general-purpose parser. Returns ~ if absent.
@@ -8602,7 +8574,10 @@
                 ==
             ==
           `this
-        =.  messages  (~(put by messages) nid (cap-msgs (snoc cur msg) %.y))
+        ::  regular/shared/DM note: persist FULL history (%.n). This branch must
+        ::  never gossip-cap; the prior %.y silently truncated non-gossip notes.
+        ::  (cap-msgs is a no-op now, but keep the flag correct for clarity.)
+        =.  messages  (~(put by messages) nid (cap-msgs (snoc cur msg) %.n))
         =?  notes  ?=(^ note)
           (~(put by notes) nid u.note(last-author `author.msg, last-preview `text.msg))
         ::  recency: a genuinely-new subscribed message bumps this note.
