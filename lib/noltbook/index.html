@@ -1143,8 +1143,23 @@ function attnInTopWindow(top,t){
 }
 function getAttentionTargets(noteId){
   const out=[];
-  for(const m of(state.mentions[noteId]||[]))out.push({kind:'mention',targetKind:'message',eid:m.eid||null,msgId:m.id,aid:null,author:m.author,when:m.id});
-  for(const a of(state.attention[noteId]||[])){if(a.kind==='mention')continue;out.push({kind:a.kind,targetKind:a.targetKind,eid:a.eid||null,msgId:(a.msgId!=null?a.msgId:null),aid:a.aid||null,author:a.author,when:a.when})}
+  const seenEid=new Set();const seenMsg=new Set();
+  // state.mentions is the preferred source of truth for mentions.
+  for(const m of(state.mentions[noteId]||[])){const eid=m.eid||null;out.push({kind:'mention',targetKind:'message',eid:eid,msgId:m.id,aid:null,author:m.author,when:m.id});if(eid)seenEid.add(eid);if(m.id!=null)seenMsg.add(m.id)}
+  for(const a of(state.attention[noteId]||[])){
+    if(a.kind==='mention'){
+      // mirrored mention from an attention-update snapshot: include only when
+      // state.mentions did not already carry it (dedup eid first, then msgId),
+      // so a mention seen only in attention still drives preview/jump/clear.
+      const eid=a.eid||null;const mid=(a.msgId!=null?a.msgId:null);
+      if(eid&&seenEid.has(eid))continue;
+      if(mid!=null&&seenMsg.has(mid))continue;
+      out.push({kind:'mention',targetKind:a.targetKind||'message',eid:eid,msgId:mid,aid:a.aid||null,author:a.author,when:(a.when!=null?a.when:mid)});
+      if(eid)seenEid.add(eid);if(mid!=null)seenMsg.add(mid);
+      continue;
+    }
+    out.push({kind:a.kind,targetKind:a.targetKind,eid:a.eid||null,msgId:(a.msgId!=null?a.msgId:null),aid:a.aid||null,author:a.author,when:a.when});
+  }
   out.sort((x,y)=>(x.when||0)-(y.when||0));
   return out;
 }
@@ -1163,6 +1178,9 @@ function attentionTargetEl(t){
 function clearAttentionTarget(noteId,t){
   if(t.kind==='mention'){
     if(state.mentions[noteId]){state.mentions[noteId]=state.mentions[noteId].filter(m=>m.id!==t.msgId);if(!state.mentions[noteId].length)delete state.mentions[noteId]}
+    // also drop any mirrored kind=mention copy in attention so a cleared mention
+    // cannot re-surface as a target/dot via the attention fallback path.
+    if(state.attention[noteId]){state.attention[noteId]=state.attention[noteId].filter(a=>!(a.kind==='mention'&&((t.eid&&a.eid===t.eid)||(t.msgId!=null&&a.msgId===t.msgId))));if(!state.attention[noteId].length)delete state.attention[noteId]}
     const cd={noteId,msgId:t.msgId};if(t.eid)cd.eid=t.eid;
     api.poke('noltbook','noltbook-action',{action:'clear-mention',data:cd});
   }else{
@@ -1268,7 +1286,7 @@ function handleUpdate(upd){
   else if(upd['message-edited']){const{noteId,message}=upd['message-edited'];const msgs=state.messages[noteId]||[];const eid=message.meta&&message.meta.eid;const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===message.id);if(fi>=0){msgs[fi]=message}if(state.currentNoteId===noteId)scheduleRender(noteId)}
   else if(upd['message-deleted']){const{noteId,msgId,eid}=upd['message-deleted'];const msgs=state.messages[noteId]||[];const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===msgId);if(fi>=0)msgs.splice(fi,1);if(state.currentNoteId===noteId)scheduleRender(noteId)}
   else if(upd['search-result']){const{reqId,query,hits,capped}=upd['search-result'];if(reqId!==state.searchReqInFlight)return;if(String(query||'')!==state.searchQuery)return;state.searchMessageHits=Array.isArray(hits)?hits:[];state.searchMessageCapped=!!capped;if(state.searchQuery)renderSidebarSearchResults()}
-  else if(upd['profile-lookup-result']){const{reqId,ship,status}=upd['profile-lookup-result'];if(state.profileLookupInFlight[reqId]!==ship)return;delete state.profileLookupInFlight[reqId];if(state.profileLookupTimers[ship]){clearTimeout(state.profileLookupTimers[ship]);delete state.profileLookupTimers[ship]}if(status==='ok'){delete state.profileLookupStatus[ship];if(state.searchQuery)renderSidebarSearchResults();viewProfile(ship)}else{state.profileLookupStatus[ship]='unreachable';if(state.searchQuery)renderSidebarSearchResults()}}
+  else if(upd['profile-lookup-result']){const{reqId,ship,status}=upd['profile-lookup-result'];if(state.profileLookupInFlight[reqId]!==ship)return;delete state.profileLookupInFlight[reqId];if(state.profileLookupTimers[ship]){clearTimeout(state.profileLookupTimers[ship]);delete state.profileLookupTimers[ship]}if(status==='ok'){delete state.profileLookupStatus[ship];if(state._mentionLookups)state._mentionLookups.delete(ship);removeMentionLookupPopover(ship,0);if(state.searchQuery)renderSidebarSearchResults();viewProfile(ship)}else{state.profileLookupStatus[ship]='unreachable';if(state.searchQuery)renderSidebarSearchResults();if(state._mentionLookups&&state._mentionLookups.has(ship)){state._mentionLookups.delete(ship);if(_mentionLookupPopovers[ship]){showMentionLookupPopover(ship,"this user can't be reached",'#ff4444',null);removeMentionLookupPopover(ship,3000)}}}}
   else if(upd['profile-list']){for(const entry of upd['profile-list']){state.profiles[entry.ship]=entry.profile}const me=state.profiles['~'+api.ship];if(me){if(me.displayName)document.getElementById('shipDisplay').textContent=me.displayName;updateSidebarSigil()}if(state.palsView)renderPalsList();if(state.currentNoteId)scheduleRender()}
   else if(upd['profile-updated']){const{ship,profile}=upd['profile-updated'];state.profiles[ship]=profile;if(ship==='~'+api.ship){document.getElementById('shipDisplay').textContent=profile.displayName||'~'+api.ship;updateSidebarSigil()}if(state.palsView)renderPalsList();if(state.currentNoteId)scheduleRender()}
   else if(upd['remote-note-list']){const{ship,notes}=upd['remote-note-list'];Object.keys(state.discoveryNotes).forEach(k=>{if(state.discoveryNotes[k].creator===ship)delete state.discoveryNotes[k]});for(const n of notes)state.discoveryNotes[n.id]=n;const el=document.getElementById('viewProfileNotes');if(el&&state.viewingProfileShip===ship){el.innerHTML=renderProfileNotesHtml(ship,'none available')}if(state.pendingRefOpen&&state.pendingRefOpen.creator===ship){const _pnid=state.pendingRefOpen.noteId;clearTimeout(state.pendingRefOpen.timer);state.pendingRefOpen=null;if(state.discoveryNotes[_pnid]){openNoteDetailModal(_pnid)}else{showRefUnavailable(_pnid,'Note unavailable')}}}
@@ -1779,10 +1797,23 @@ const arsEntries=[
   {id:'cover',name:'%Grimoire',color:'#ffaa00',icon:null,bgColor:null},
   {id:'ars-rumors',name:'%Rumors',color:'#652287',icon:null,bgColor:null},
 ];
+// attention-aware sidebar preview: when a note has pending directed attention,
+// show "<kind>: <sender displayName>" using the OLDEST target (same ordering as
+// getAttentionTargets open/jump). Returns null when there is no attention.
+function attentionPreviewHtml(noteId){
+  const ts=getAttentionTargets(noteId);
+  if(!ts||!ts.length)return null;
+  const t=ts[0];
+  const who=escHtml(displayName(t.author));
+  const lbl=t.kind==='reply'?'reply:':t.kind==='send'?'send:':'@you:';
+  return '<span style="color:#ffaa00">'+lbl+'</span> '+who;
+}
 function makeArsItem(entry){
   const div=document.createElement('div');
   const hasNotif=state.notifications.has(entry.id);
-  const hasMention=!!((state.mentions[entry.id]&&state.mentions[entry.id].length>0)||(state.attention[entry.id]&&state.attention[entry.id].some(a=>a.kind!=='mention')));
+  // suppress orange sidebar dot/preview for the currently open note (cover/ars).
+  const hasAttentionData=getAttentionTargets(entry.id).length>0;
+  const hasMention=hasAttentionData&&entry.id!==state.currentNoteId;
   div.className='note-item'+(entry.id===state.currentNoteId?' active':'')+((hasNotif||hasMention)?' has-notif':'');
   div.setAttribute('data-note-id',entry.id);
   const last=getLastMessage(entry.id);
@@ -1791,8 +1822,12 @@ function makeArsItem(entry){
   const cp=entry.id==='cover'?state.coverPreview:null;
   const source=entry.id==='ars-rumors'?(last?'Anonymous':''):(cp?displayName(cp.author):(last?displayName(last.author):''));
   const rawPreview=cp?(''+cp.preview).replace(/\n/g,' '):(last?last.text.replace(/\n/g,' '):'');
+  const rawAuthor=entry.id==='ars-rumors'?'':(cp?cp.author:(last?last.author:''));
   let previewHtml;
-  if(hasMention){previewHtml='<span style="color:#ffaa00">@you:</span> '+escHtml(rawPreview)}else{previewHtml=escHtml(rawPreview)}
+  const apA=hasMention?attentionPreviewHtml(entry.id):null;
+  if(apA){previewHtml=apA}
+  else if(entry.id!==state.currentNoteId&&rawPreview&&rawAuthor&&rawAuthor!=='~'+api.ship&&rawPreview.indexOf('@~'+api.ship)>=0){previewHtml='<span style="color:#ffaa00">@you:</span> '+escHtml(displayName(rawAuthor))}
+  else{previewHtml=escHtml(rawPreview)}
   const bgStyle=entry.bgColor?`background:${entry.bgColor}`:entry.color?`background:${entry.color}`:'background:#000';
   const iconImg=entry.icon?`<img src="${entry.icon}" style="width:100%;height:100%;object-fit:contain">`:'';
   const arsSourceColor=entry.id==='ars-rumors'?(last?'#652287':''):(cp?shipColor(cp.author):(last?shipColor(last.author):''));
@@ -1960,7 +1995,10 @@ function makeNoteItem(n,depth){
   const hasChildren=n.children&&n.children.length>0;
   const isExpanded=state.expandedNotes.has(n.id);
   const hasNotif=state._trickleDotted?state._trickleDotted.has(n.id):state.notifications.has(n.id);
-  const hasMention=!!((state.mentions[n.id]&&state.mentions[n.id].length>0)||(state.attention[n.id]&&state.attention[n.id].some(a=>a.kind!=='mention')));
+  // suppress orange sidebar dot/preview for the note you're already viewing
+  // (mirrors green-notif behavior); in-chat targets stay available unchanged.
+  const hasAttentionData=getAttentionTargets(n.id).length>0;
+  const hasMention=hasAttentionData&&n.id!==state.currentNoteId;
   const hasCall=!!state.activeCalls[n.id];
   div.className='note-item'+(n.id===state.currentNoteId?' active':'')+((hasNotif||hasMention)?' has-notif':'')+(hasCall?' has-call':'')+(depth?` depth-${depth}`:'');
   div.setAttribute('data-note-id',n.id);
@@ -1971,7 +2009,10 @@ function makeNoteItem(n,depth){
   const source=rawSource?displayName(rawSource):'';
   const rawPreview=n.lastPreview?n.lastPreview.replace(/\n/g,' '):(last?last.text.replace(/\n/g,' '):'');
   let previewHtml;
-  if(hasMention){previewHtml='<span style="color:#ffaa00">@you:</span> '+escHtml(rawPreview)}else{previewHtml=escHtml(rawPreview)}
+  const apN=hasMention?attentionPreviewHtml(n.id):null;
+  if(apN){previewHtml=apN}
+  else if(n.id!==state.currentNoteId&&rawPreview&&rawSource&&rawSource!=='~'+api.ship&&rawPreview.indexOf('@~'+api.ship)>=0){previewHtml='<span style="color:#ffaa00">@you:</span> '+escHtml(displayName(rawSource))}
+  else{previewHtml=escHtml(rawPreview)}
   const chevron=hasChildren?`<span class="note-arrow ${isExpanded?'open':''}" onclick="event.stopPropagation();toggleNoteExpand('${n.id}')">&#9654;</span>`:`<span class="note-arrow" style="visibility:hidden">&#9654;</span>`;
   const hasCustomIcon=!!n.iconUrl||!!dmCounterparty(n);
   const sourceColor=rawSource?shipColor(rawSource):'';
@@ -2300,6 +2341,7 @@ function lookupUnknownShip(ship){
       delete state.profileLookupInFlight[reqId];
       state.profileLookupStatus[ship]='unreachable';
       if(state.searchQuery)renderSidebarSearchResults();
+      if(state._mentionLookups&&state._mentionLookups.has(ship)){state._mentionLookups.delete(ship);if(_mentionLookupPopovers[ship]){showMentionLookupPopover(ship,"this user can't be reached",'#ff4444',null);removeMentionLookupPopover(ship,3000)}}
     }
   },9000);
   api.poke('noltbook','noltbook-action',{action:'request-profile',data:{ship,reqId}});
@@ -2320,6 +2362,81 @@ function makeSearchUnknownPersonResult(ship){
   if(clickable)div.onclick=()=>lookupUnknownShip(ship);
   else div.style.cursor='default';
   return div;
+}
+// Phase: clickable rendered mentions. Known ship -> open profile directly.
+// Unknown valid patp -> reuse sidebar request-profile/profile-lookup-result
+// flow (LOOKING... / "this user can't be reached"). Never routes to a DM.
+function shipIsKnown(ship){
+  if(state.profiles[ship])return true;
+  if(state.contacts&&state.contacts.has(ship))return true;
+  if(state.palStatus[ship])return true;
+  const n=state.notes[state.currentNoteId];
+  if(n&&(n.users||[]).includes(ship))return true;
+  return false;
+}
+// One persistent, updatable popover per ship, anchored near the clicked mention.
+const _mentionLookupPopovers={};
+function positionMentionPopover(el,anchor){
+  let rect=null;
+  if(anchor){
+    if(anchor.getBoundingClientRect)rect=anchor.getBoundingClientRect();
+    else if(anchor.currentTarget&&anchor.currentTarget.getBoundingClientRect)rect=anchor.currentTarget.getBoundingClientRect();
+    else if(anchor.target&&anchor.target.getBoundingClientRect)rect=anchor.target.getBoundingClientRect();
+    else if(typeof anchor.clientX==='number')rect={left:anchor.clientX,right:anchor.clientX,top:anchor.clientY,bottom:anchor.clientY};
+  }
+  const pad=6;
+  const pw=el.offsetWidth||160;
+  const ph=el.offsetHeight||28;
+  let left,top;
+  if(rect){
+    left=rect.left;
+    top=rect.top-ph-pad;            // prefer above the mention
+    if(top<pad)top=rect.bottom+pad; // otherwise below
+  }else{
+    left=(window.innerWidth-pw)/2;  // fallback: top-center
+    top=80;
+  }
+  left=Math.max(pad,Math.min(left,window.innerWidth-pw-pad));
+  top=Math.max(pad,Math.min(top,window.innerHeight-ph-pad));
+  el.style.left=left+'px';
+  el.style.top=top+'px';
+}
+function showMentionLookupPopover(ship,msg,color,anchor){
+  let el=_mentionLookupPopovers[ship];
+  const isNew=!el;
+  if(isNew){
+    el=document.createElement('div');
+    el.className='mention-lookup-popover';
+    el.style.cssText='position:fixed;background:var(--bg2,#111);padding:.4rem .7rem;font-size:.78rem;font-family:var(--font);z-index:10000;white-space:nowrap;pointer-events:none';
+    document.body.appendChild(el);
+    _mentionLookupPopovers[ship]=el;
+  }
+  el.style.border='1px solid '+color;
+  el.style.color=color;
+  el.textContent=ship+' — '+msg;
+  // reposition only on create or when a fresh anchor is supplied; status updates
+  // (no anchor) keep the popover where it already sits.
+  if(isNew||anchor)positionMentionPopover(el,anchor);
+  return el;
+}
+function removeMentionLookupPopover(ship,delay){
+  const el=_mentionLookupPopovers[ship];
+  if(!el)return;
+  delete _mentionLookupPopovers[ship];
+  if(delay)setTimeout(function(){el.remove()},delay);
+  else el.remove();
+}
+function clickMention(ship,ev){
+  const canon=normalizeShipCandidate(ship)||(ship===('~'+api.ship)?ship:null);
+  if(!canon)return;
+  // known (incl. self / current-note member) -> open profile modal directly.
+  if(canon===('~'+api.ship)||shipIsKnown(canon)){viewProfile(canon);return}
+  // dedupe: an active popover for this ship means a lookup is already in flight.
+  if(_mentionLookupPopovers[canon])return;
+  state._mentionLookups=state._mentionLookups||new Set();
+  state._mentionLookups.add(canon);
+  showMentionLookupPopover(canon,'LOOKING...','#3b82f6',ev);
+  lookupUnknownShip(canon);
 }
 function makeSearchMessageResult(hit){
   const div=document.createElement('div');
@@ -3042,7 +3159,7 @@ function showUserDropdown(inputEl,containerEl,onSelect,opts){
   _activeDropdown={dd,update,inputEl};
   return{update,destroy:function(){dd.remove();inputEl.removeEventListener('input',update);inputEl.removeEventListener('keydown',handleKey)}};
 }
-function renderText(text){if(!text)return'';var out=escHtml(text);out=out.replace(/`([^`]+)`/g,'<code style="background:var(--bg3);padding:.1rem .3rem">$1</code>');out=out.replace(/(data:image\/[^\s"]+)/g,function(m){var raw=m.replace(/&amp;/g,'&').replace(/&quot;/g,'"');return '<div class="inline-img-box"><img src="'+raw+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'});out=out.replace(/(https?:\/\/[^\s]+)/g,function(url){var raw=url.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/[.,;:!?\)]+$/,'');if(/\.(png|jpe?g|gif|webp|svg|bmp|ico)(\?[^\s]*)?$/i.test(raw)){return '<div class="inline-img-box"><img src="'+escAttr(raw)+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'}var yt=raw.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/);if(yt){return '<div style="margin:.35rem 0;max-width:480px;aspect-ratio:16/9"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[1]+'" style="width:100%;height:100%;border:1px solid var(--border)" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe></div>'}var tw=raw.match(/(?:twitter\.com|x\.com)\/(\w+)\/status\/(\d+)/);if(tw){return '<div class="tweet-embed" style="margin:.35rem 0;max-width:480px"><blockquote class="twitter-tweet" data-theme="dark" data-conversation="none"><a href="https://twitter.com/'+tw[1]+'/status/'+tw[2]+'"></a></blockquote></div>'}return '<a href="'+escAttr(raw)+'" target="_blank" rel="noopener" style="color:#ffaa00">'+url+'</a>'});out=out.replace(/~ref\[([^\]|]+)\|([^\]]+)\]/g,function(m,nid,cr){var n=state.notes[nid]||state.discoveryNotes[nid];if(n){var iu=resolveNoteIconUrl(n);var ic=iu?'<img src="'+escAttr(iu)+'">':noteInitials(n.name);return '<span class="note-ref" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-icon">'+ic+'</span><span class="note-ref-name">'+escHtml(n.name)+'</span></span>'}return '<span class="note-ref" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-icon">?</span><span class="note-ref-name note-ref-unknown">Note Link</span></span>'});out=out.replace(/~gref\[([^\]|]+)\|([^\]|]+)\|([^\]|]*)\|([^\]]+)\]/g,function(m,nid,author,eid,mid){if(state.palStatus[author]==='blocked')return '<span style="color:#ff4444;font-size:.8rem">[blocked user ref]</span>';var n=state.notes[nid];var noteName=n?noteDisplayName(n):'gossip note';var authorName=displayName(author);var excerpt='';if(n){var msgs=state.messages[nid]||[];var found=msgs.find(function(msg){if(eid&&getMsgEid(msg)===eid)return true;return String(msg.id)===mid});if(found&&found.text)excerpt=found.text.slice(0,60)}var excerptHtml=excerpt?'<span class="gossip-ref-excerpt">\u2014 '+escHtml(excerpt)+'</span>':'<span class="gossip-ref-unavail">gossip post</span>';return '<span class="gossip-ref" onclick="clickGossipRef(\''+escAttr(nid)+'\',\''+escAttr(author)+'\',\''+escAttr(eid)+'\',\''+escAttr(mid)+'\')"><span class="gossip-ref-author">'+escHtml(authorName)+'</span><span class="gossip-ref-note">in '+escHtml(noteName)+'</span>'+excerptHtml+'</span>'});out=out.replace(/@(~[a-z][\w-]*)/g,function(m,ship){var dn=displayName(ship);var label=(dn&&dn!==ship)?dn:ship;return '<span class="msg-mention" style="color:'+shipColor(ship)+';font-weight:500" title="'+escAttr(ship)+'">@'+escHtml(label)+'</span>'});return out}
+function renderText(text){if(!text)return'';var out=escHtml(text);out=out.replace(/`([^`]+)`/g,'<code style="background:var(--bg3);padding:.1rem .3rem">$1</code>');out=out.replace(/(data:image\/[^\s"]+)/g,function(m){var raw=m.replace(/&amp;/g,'&').replace(/&quot;/g,'"');return '<div class="inline-img-box"><img src="'+raw+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'});out=out.replace(/(https?:\/\/[^\s]+)/g,function(url){var raw=url.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/[.,;:!?\)]+$/,'');if(/\.(png|jpe?g|gif|webp|svg|bmp|ico)(\?[^\s]*)?$/i.test(raw)){return '<div class="inline-img-box"><img src="'+escAttr(raw)+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'}var yt=raw.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/);if(yt){return '<div style="margin:.35rem 0;max-width:480px;aspect-ratio:16/9"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[1]+'" style="width:100%;height:100%;border:1px solid var(--border)" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe></div>'}var tw=raw.match(/(?:twitter\.com|x\.com)\/(\w+)\/status\/(\d+)/);if(tw){return '<div class="tweet-embed" style="margin:.35rem 0;max-width:480px"><blockquote class="twitter-tweet" data-theme="dark" data-conversation="none"><a href="https://twitter.com/'+tw[1]+'/status/'+tw[2]+'"></a></blockquote></div>'}return '<a href="'+escAttr(raw)+'" target="_blank" rel="noopener" style="color:#ffaa00">'+url+'</a>'});out=out.replace(/~ref\[([^\]|]+)\|([^\]]+)\]/g,function(m,nid,cr){var n=state.notes[nid]||state.discoveryNotes[nid];if(n){var iu=resolveNoteIconUrl(n);var ic=iu?'<img src="'+escAttr(iu)+'">':noteInitials(n.name);return '<span class="note-ref" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-icon">'+ic+'</span><span class="note-ref-name">'+escHtml(n.name)+'</span></span>'}return '<span class="note-ref" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-icon">?</span><span class="note-ref-name note-ref-unknown">Note Link</span></span>'});out=out.replace(/~gref\[([^\]|]+)\|([^\]|]+)\|([^\]|]*)\|([^\]]+)\]/g,function(m,nid,author,eid,mid){if(state.palStatus[author]==='blocked')return '<span style="color:#ff4444;font-size:.8rem">[blocked user ref]</span>';var n=state.notes[nid];var noteName=n?noteDisplayName(n):'gossip note';var authorName=displayName(author);var excerpt='';if(n){var msgs=state.messages[nid]||[];var found=msgs.find(function(msg){if(eid&&getMsgEid(msg)===eid)return true;return String(msg.id)===mid});if(found&&found.text)excerpt=found.text.slice(0,60)}var excerptHtml=excerpt?'<span class="gossip-ref-excerpt">\u2014 '+escHtml(excerpt)+'</span>':'<span class="gossip-ref-unavail">gossip post</span>';return '<span class="gossip-ref" onclick="clickGossipRef(\''+escAttr(nid)+'\',\''+escAttr(author)+'\',\''+escAttr(eid)+'\',\''+escAttr(mid)+'\')"><span class="gossip-ref-author">'+escHtml(authorName)+'</span><span class="gossip-ref-note">in '+escHtml(noteName)+'</span>'+excerptHtml+'</span>'});out=out.replace(/@(~[a-z][\w-]*)/g,function(m,ship){var canon=normalizeShipCandidate(ship)||(ship===('~'+api.ship)?ship:null);if(!canon){var dn0=displayName(ship);var lbl0=(dn0&&dn0!==ship)?dn0:ship.replace(/^~/,'');return '<span class="msg-mention" style="color:'+shipColor(ship)+';font-weight:500" title="'+escAttr(ship)+'">'+escHtml(lbl0)+'</span>'}var dn=displayName(canon);var label=(dn&&dn!==canon)?dn:canon.replace(/^~/,'');return '<span class="msg-mention" style="color:'+shipColor(canon)+';font-weight:500;cursor:pointer" title="'+escAttr(canon)+'" onclick="event.stopPropagation();clickMention(\''+escAttr(canon)+'\',event)">'+escHtml(label)+'</span>'});return out}
 function openImageFullscreen(url){var o=document.createElement('div');o.id='file-fullscreen';o.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.92);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer';o.innerHTML='<img src="'+url+'" style="max-width:95%;max-height:90vh">';o.onclick=function(){o.remove()};document.body.appendChild(o)}
 async function sendMessage(){
   const input=document.getElementById('chatInput');const text=input.value.trim();if(!text)return;
@@ -3097,13 +3214,21 @@ function updateMentionDropdown(){
   const results=userSearch(mq.query);
   dd.innerHTML='';
   mentionState.idx=-1;
-  // filter to note members (cover/grimoire = all profiles, regular notes = note.users)
+  // ranking: (1) current-note members, (2) other known profiles/contacts/pals,
+  // (3) a final raw-patp "reference this ship" row for a valid typed patp.
+  // All insertions store canonical @~ship text; ranking does NOT change backend
+  // notification eligibility (only members are notified server-side).
   const note=state.notes[state.currentNoteId];
   const noteMembers=note?(note.users||[]):[];
-  const isGoss=isGossipNote(state.currentNoteId);
-  const filtered=isGoss?results:results.filter(r=>noteMembers.includes(r.ship));
-  if(filtered.length===0){dd.classList.remove('open');return}
-  for(const r of filtered){
+  const seen=new Set();
+  const ordered=[];
+  function push(r){if(!r||!r.ship||seen.has(r.ship))return;seen.add(r.ship);ordered.push(r)}
+  for(const r of results)if(noteMembers.includes(r.ship))push(r);
+  for(const r of results)push(r);
+  const canon=normalizeShipCandidate(mq.query);
+  if(canon&&!seen.has(canon)){const pr=state.profiles[canon];push({ship:canon,displayName:(pr&&pr.displayName)||'',_ref:true})}
+  if(ordered.length===0){dd.classList.remove('open');return}
+  for(const r of ordered){
     const item=renderDropdownItem(r);
     item.addEventListener('mousedown',function(e){e.preventDefault();insertMention(r)});
     dd.appendChild(item);
