@@ -179,7 +179,7 @@
 ::  ship-to-ship remote pokes
 +$  remote
   $%  [%remote-invite note-id=@ta name=@t type=note-type creator=@p users=(set @p) visibility=note-visibility writable=?]
-      [%remote-message note-id=@ta msg=message]
+      [%remote-message note-id=@ta msg=message directed-kind=(unit attention-kind)]
       ::  atomic DM message: carries enough note metadata so the receiver
       ::  can recreate the DM locally if they previously left it. No
       ::  separate invite is sent; receiver does not subscribe.
@@ -263,6 +263,22 @@
       ::  cover/gossip artifact envelope mesh propagation; bytes never travel
       [%remote-artifact-envelope-ref note-id=@ta env=artifact-envelope hops=@ud]
   ==
+::  directed attention (Phase A scaffold). A single durable list per note that
+::  unifies @-mentions (today) with reply / note-SEND attention (future phases).
+::  kind = why attention exists; target-kind = what the frontend jumps to; eid is
+::  the durable cross-type identity; msg-id/aid are the text/artifact DOM targets;
+::  author caused it; when orders oldest->newest.
++$  attention-kind  ?(%mention %reply %send)
++$  attention-target-kind  ?(%message %artifact %artifact-envelope)
++$  attention-item
+  $:  kind=attention-kind
+      target-kind=attention-target-kind
+      eid=(unit @uv)
+      msg-id=(unit @da)
+      aid=(unit @ta)
+      author=@p
+      when=@da
+  ==
 ::  poke actions (client to agent)
 +$  action
   $%  [%create-note name=@t parent=(unit @ta)]
@@ -270,7 +286,10 @@
       [%rename-note id=@ta name=@t]
       [%delete-note id=@ta]
       [%switch-note id=@ta]
-      [%send-message note-id=@ta text=@t reply-to=(unit @da) reply-to-eid=(unit @uv)]
+      ::  directed-kind: explicit NOTE SEND marker (Phase C). %send => the
+      ::  resulting reply attention is classified kind=%send instead of %reply.
+      ::  Normal messages and wallet/DM SEND omit it (~).
+      [%send-message note-id=@ta text=@t reply-to=(unit @da) reply-to-eid=(unit @uv) directed-kind=(unit attention-kind)]
       [%edit-message note-id=@ta msg-id=@da eid=(unit @uv) text=@t]
       [%delete-message note-id=@ta msg-id=@da eid=(unit @uv)]
       [%set-note-meta id=@ta visibility=note-visibility icon-url=(unit @t) writable=?]
@@ -305,6 +324,8 @@
       [%remove-member id=@ta ship=@p]
       [%clear-mentions note-id=@ta]
       [%clear-mention note-id=@ta msg-id=@da eid=(unit @uv)]
+      ::  Phase A: clear a directed-attention item (eid > msg-id > aid)
+      [%clear-attention note-id=@ta eid=(unit @uv) msg-id=(unit @da) aid=(unit @ta)]
       ::  call actions
       [%start-call note-id=@ta]
       [%join-call note-id=@ta]
@@ -344,7 +365,10 @@
       [%fork-invite-cleared root-id=@ta]
       [%fork-invite-accepted root-id=@ta]
       [%message-list note-id=@ta messages=(list message) artifacts=(list artifact)]
-      [%new-message msg=message]
+      ::  directed-kind: carries the NOTE SEND marker through host broadcasts so
+      ::  non-host members classify reply attention as %send (Phase C). JSON shape
+      ::  is unchanged (enjs emits the message directly); ~ for normal/sys/DM.
+      [%new-message msg=message directed-kind=(unit attention-kind)]
       [%message-edited note-id=@ta msg=message]
       [%message-deleted note-id=@ta msg-id=@da eid=(unit @uv)]
       [%artifact-created artifact=artifact]
@@ -368,6 +392,9 @@
       [%note-redirect old-id=@ta new-id=@ta]
       [%note-users-updated id=@ta type=note-type users=(list @p) removed=(list @p) rev=@ud]
       [%mention-update note-id=@ta mentions=(list [id=@da eid=(unit @uv) author=@p])]
+      ::  Phase A: typed directed-attention stream. full=& is an authoritative
+      ::  per-note snapshot (replace that note's list); full=| is a delta (append).
+      [%attention-update note-id=@ta items=(list attention-item) full=?]
       ::  call updates
       [%call-started note-id=@ta call-id=@ta started-by=@p participants=(list @p)]
       [%call-joined note-id=@ta ship=@p]

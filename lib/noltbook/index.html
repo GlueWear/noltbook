@@ -683,7 +683,7 @@ const api = {
     this.reconnecting=false;
   }
 };
-const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteRead:{},coverPreview:null};
+const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteRead:{},coverPreview:null};
 // durable green sidebar unread: a non-pinned note is unread when its latest
 // activity time exceeds its last-read time. Both maps are replayed on boot.
 function isPinnedUnreadNote(id){return id==='cover'||(''+id).startsWith('ars-')}
@@ -896,12 +896,26 @@ function latestMsgOrder(noteId){
   for(const m of msgs){const o=msgOrder(m);if(typeof o==='number'&&o>max)max=o}
   return max;
 }
+// durable backend unread signal (independent of the local read cursor).
+function noteHasDurableUnread(noteId){return (state.noteActivity[noteId]||0)>(state.noteRead[noteId]||0)}
 function oldestUnreadMessage(noteId){
   const msgs=state.messages[noteId]||[];
+  if(!msgs.length)return null;
   const cur=state.noteReadCursors[noteId];
-  // first viewing in this browser/session: seed cursor to latest so we
-  // don't surface a noisy "New Messages" divider at the top of history.
   if(cur==null){
+    // No local cursor (fresh browser/session). Do NOT seed-to-latest and suppress
+    // the divider if the DURABLE backend says this note is unread — instead place
+    // the boundary at the oldest message newer than the durable read time.
+    if(noteHasDurableUnread(noteId)){
+      const readTs=state.noteRead[noteId]||0;
+      let best=null,bestTs=Infinity;
+      for(const m of msgs){const ts=(m.meta&&m.meta.created)?m.meta.created:m.id;if(ts<=readTs)continue;if(ts<bestTs){best=m;bestTs=ts}}
+      if(best)return best;
+      // durable unread but nothing resolves newer than read time: fall back to the
+      // newest loaded message (divider just above the latest) as a stable landmark.
+      return msgs.reduce((a,b)=>(msgOrder(b)>msgOrder(a)?b:a));
+    }
+    // no durable unread either: seed cursor to latest so no divider appears.
     markNoteReadTo(noteId,latestMsgOrder(noteId));
     return null;
   }
@@ -1036,9 +1050,9 @@ function centerUnreadDivider(el,divEl){
 // cursor handles continuity.
 function ensureUnreadDivider(noteId){
   if(!noteId)return null;
-  // cover is pinned/system: never center on a new-messages divider (ars-rumors
-  // unaffected — it has no unread divider semantics either).
-  if(noteId==='cover')return null;
+  // regular/shared/DM only. cover + user-gossip use the top-100 window (no normal
+  // divider); ars-rumors is newest-first with no unread-divider semantics.
+  if(isGossipNote(noteId)||noteId==='ars-rumors')return null;
   if(state.unreadDividers[noteId])return state.unreadDividers[noteId];
   const u=oldestUnreadMessage(noteId);
   if(!u)return null;
@@ -1069,6 +1083,9 @@ function clearUnreadDividerDom(noteId,opts){
 // and msgOrder() to pick the highest visible order. Cheap enough for
 // noltbook's note sizes; no IntersectionObserver needed.
 function markVisibleMessagesRead(){
+  // a programmatic attention/ref jump must never advance read state or clear the
+  // divider, even if a read-tracker timer was already scheduled before the jump.
+  if(_programmaticScroll)return;
   const el=document.getElementById('chatMessages');
   const noteId=state.currentNoteId;
   if(!el||!noteId)return;
@@ -1097,25 +1114,63 @@ function markVisibleMessagesRead(){
     }
   }
   if(best>0)markNoteReadTo(noteId,best);
-  // Clear the divider only when the user has visibly scrolled past it
-  // (its bottom edge is above the current viewport top). Cursor reaching
-  // divider.until alone does NOT clear — that was happening invisibly as
-  // unread messages flashed into view.
-  const divEl=document.getElementById('new-messages-divider');
-  if(divEl&&divEl.offsetTop+divEl.offsetHeight<el.scrollTop+8){
-    clearUnreadDivider(noteId);
-    // remove the DOM node now so it doesn't linger until the next render.
-    // The divider is above the viewport, so subtracting its rendered
-    // height from scrollTop keeps visible content perfectly still.
-    const h=divEl.offsetHeight;
-    divEl.remove();
-    el.scrollTop=Math.max(0,el.scrollTop-h);
-  }
+  // Per-visit landmark: the divider is NOT cleared on scroll-past. It advances
+  // the read cursor (so a future visit won't resurface it) but stays visible for
+  // this visit until the user leaves/switches notes.
 }
 let _readTrackTimer=null;
+// set true around a programmatic attention/ref jump so the resulting scroll does
+// not mark messages read or destroy the unread divider (issue: jump != user read).
+let _programmaticScroll=false;
 function scheduleMarkVisible(){
+  if(_programmaticScroll)return;
   if(_readTrackTimer)return;
   _readTrackTimer=setTimeout(function(){_readTrackTimer=null;markVisibleMessagesRead()},120);
+}
+// ===== directed attention (mentions + reply/send) — unified targets =====
+// Combined oldest->newest target list for a note: mentions (source of truth in
+// state.mentions) + non-mention attention items (reply/send) from state.attention.
+function attnKey(t){return t.eid?('e:'+t.eid):(t.targetKind==='message'?('m:'+t.msgId):('a:'+t.aid))}
+// is an attention target inside a cover/gossip top-100 window? `allowed` holds
+// each selected candidate's node key, eid and raw id/aid (incl. unfetched-but-
+// selected envelopes), so a selected target — even if not yet fetched — matches.
+function attnInTopWindow(top,t){
+  const a=top.allowed;
+  if(t.eid&&a.has(t.eid))return true;
+  if(t.msgId!=null&&(a.has(t.msgId)||a.has('m:'+t.msgId)))return true;
+  if(t.aid&&(a.has(t.aid)||a.has('a:'+t.aid)||a.has('e:'+t.aid)))return true;
+  return false;
+}
+function getAttentionTargets(noteId){
+  const out=[];
+  for(const m of(state.mentions[noteId]||[]))out.push({kind:'mention',targetKind:'message',eid:m.eid||null,msgId:m.id,aid:null,author:m.author,when:m.id});
+  for(const a of(state.attention[noteId]||[])){if(a.kind==='mention')continue;out.push({kind:a.kind,targetKind:a.targetKind,eid:a.eid||null,msgId:(a.msgId!=null?a.msgId:null),aid:a.aid||null,author:a.author,when:a.when})}
+  out.sort((x,y)=>(x.when||0)-(y.when||0));
+  return out;
+}
+// resolve a target to its rendered DOM element (canonical, non -ta copy).
+function attentionTargetEl(t){
+  if(t.targetKind==='message'&&t.msgId!=null){const e=document.getElementById('msg-'+t.msgId);if(e)return e}
+  if(t.targetKind==='artifact'&&t.aid){const art=state.artifacts[t.aid];const pre=(art&&art.type==='app')?'inline-app-':'inline-file-';const e=document.getElementById(pre+t.aid)||document.getElementById('inline-file-'+t.aid)||document.getElementById('inline-app-'+t.aid);if(e)return e}
+  if(t.targetKind==='artifact-envelope'&&t.aid){const e=document.getElementById('inline-art-env-'+t.aid);if(e)return e}
+  // fallback by any id form
+  if(t.aid){const e=document.getElementById('inline-file-'+t.aid)||document.getElementById('inline-app-'+t.aid)||document.getElementById('inline-art-env-'+t.aid);if(e)return e}
+  if(t.msgId!=null){const e=document.getElementById('msg-'+t.msgId);if(e)return e}
+  return null;
+}
+// clear one attention target: mentions via clear-mention (unchanged), reply/send
+// via clear-attention. Updates local state + sidebar.
+function clearAttentionTarget(noteId,t){
+  if(t.kind==='mention'){
+    if(state.mentions[noteId]){state.mentions[noteId]=state.mentions[noteId].filter(m=>m.id!==t.msgId);if(!state.mentions[noteId].length)delete state.mentions[noteId]}
+    const cd={noteId,msgId:t.msgId};if(t.eid)cd.eid=t.eid;
+    api.poke('noltbook','noltbook-action',{action:'clear-mention',data:cd});
+  }else{
+    if(state.attention[noteId]){state.attention[noteId]=state.attention[noteId].filter(a=>!((t.eid&&a.eid===t.eid)||(t.msgId!=null&&a.msgId===t.msgId)||(t.aid&&a.aid===t.aid)));if(!state.attention[noteId].length)delete state.attention[noteId]}
+    const cd={noteId};if(t.eid)cd.eid=t.eid;else if(t.msgId!=null)cd.msgId=t.msgId;else if(t.aid)cd.aid=t.aid;
+    api.poke('noltbook','noltbook-action',{action:'clear-attention',data:cd});
+  }
+  renderNoteList();
 }
 (function attachReadTracker(){
   const el=document.getElementById('chatMessages');
@@ -1155,9 +1210,9 @@ function handleUpdate(upd){
   if(upd['note-list']){console.log('[note-list]',JSON.stringify(upd['note-list']));for(const n of upd['note-list'])state.notes[n.id]=n;rebuildDurableNotifications();updateLogoBadge();renderNoteList()}
   else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));const wasPendingJoin=!!state.pendingJoins[n.id];const wasAcceptedFork=state.acceptingForkRoots.has(n.id);if(wasAcceptedFork)state.acceptingForkRoots.delete(n.id);delete state.pendingJoins[n.id];delete state.removedFromNotes[n.id];state.notes[n.id]=n;if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id)}if(state.pendingWalletMsg&&n.type==='dm'){const pw=state.pendingWalletMsg;if(n.users&&n.users.length===2&&n.users.includes(pw.ship)){api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:n.id,text:pw.text}});state.pendingWalletMsg=null}}if(n.creator==='~'+api.ship){if(n.parent)state.expandedNotes.add(n.parent);openNote(n.id)}else if(wasAcceptedFork){if(state.palsView)switchView('notes');openNote(n.id)}else if(wasPendingJoin){document.querySelectorAll('.profile-flow-modal').forEach(el=>el.remove());state.viewingProfileShip=null;if(state.palsView)switchView('notes');if(n.visibility==='public'){openNote(n.id)}else{state.notifications.add(n.id)}}else{if(state.palsView)switchView('notes');state.notifications.add(n.id)}renderNoteList()}
   else if(upd['note-renamed']){const{id,name}=upd['note-renamed'];if(state.notes[id]){state.notes[id].name=name;renderNoteList()}if(state.currentNoteId===id)document.getElementById('chatNoteName').textContent=name}
-  else if(upd['note-deleted']){const{id}=upd['note-deleted'];const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];delete state.noteAdmins[id];delete state.noteMuted[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];state.notifications.delete(id);state.notificationAcks.delete(notifAckKey('removed-status',id));state.notificationAcks.delete(notifAckKey('host-deleted-status',id));delete state.noteActivity[id];delete state.noteRead[id];if(state.currentNoteId===id)openNote('cover');renderNoteList()}
+  else if(upd['note-deleted']){const{id}=upd['note-deleted'];const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];delete state.noteAdmins[id];delete state.noteMuted[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];delete state.attention[id];state.notifications.delete(id);state.notificationAcks.delete(notifAckKey('removed-status',id));state.notificationAcks.delete(notifAckKey('host-deleted-status',id));delete state.noteActivity[id];delete state.noteRead[id];if(state.currentNoteId===id)openNote('cover');renderNoteList()}
   else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];let maxSeq=0,revSum=0;for(const m of messages){if(m.meta){if(m.meta.seq>maxSeq)maxSeq=m.meta.seq;revSum+=m.meta.rev}}const hash=noteId+':'+messages.length+':'+maxSeq+':'+revSum;if(_lastMsgHash[noteId]===hash)return;_lastMsgHash[noteId]=hash;state.messages[noteId]=messages;for(const a of artifacts)state.artifacts[a.id]=a;if(state.currentNoteId===noteId){if(!ScrollCo.consumeOpenIntent(noteId))scheduleRender(noteId)}updateCoverPreview();scheduleNoteList()}
-  else if(upd['new-message']){const msg=upd['new-message'];if(!state.messages[msg.noteId])state.messages[msg.noteId]=[];if(state.messages[msg.noteId].some(m=>(msg.meta&&msg.meta.eid&&m.meta&&m.meta.eid===msg.meta.eid)||m.id===msg.id))return;state.messages[msg.noteId].push(msg);if(state.notes[msg.noteId]){state.notes[msg.noteId].lastAuthor=msg.author;state.notes[msg.noteId].lastPreview=msg.text}if(state.currentNoteId===msg.noteId){const isOwn=msg.author===('~'+api.ship);if(isOwn){clearUnreadDividerDom(msg.noteId)}else{const _cmEl=document.getElementById('chatMessages');if(_cmEl&&!isNearBottom(_cmEl)&&!state.unreadDividers[msg.noteId]){const _ord=msgOrder(msg);if(typeof _ord==='number')state.unreadDividers[msg.noteId]={order:_ord,until:_ord}}}appendMessage(msg,isOwn)}else state.notifications.add(msg.noteId);updateCoverPreview();markOpenNoteReadSoon(msg.noteId);scheduleNoteList()}
+  else if(upd['new-message']){const msg=upd['new-message'];if(!state.messages[msg.noteId])state.messages[msg.noteId]=[];if(state.messages[msg.noteId].some(m=>(msg.meta&&msg.meta.eid&&m.meta&&m.meta.eid===msg.meta.eid)||m.id===msg.id))return;state.messages[msg.noteId].push(msg);if(state.notes[msg.noteId]){state.notes[msg.noteId].lastAuthor=msg.author;state.notes[msg.noteId].lastPreview=msg.text}if(state.currentNoteId===msg.noteId){const isOwn=msg.author===('~'+api.ship);if(!isOwn){const _cmEl=document.getElementById('chatMessages');if(_cmEl&&!isNearBottom(_cmEl)&&!state.unreadDividers[msg.noteId]){const _ord=msgOrder(msg);if(typeof _ord==='number')state.unreadDividers[msg.noteId]={order:_ord,until:_ord}}}appendMessage(msg,isOwn)}else state.notifications.add(msg.noteId);updateCoverPreview();markOpenNoteReadSoon(msg.noteId);scheduleNoteList()}
   else if(upd['artifact-created']){const a=upd['artifact-created'];state.artifacts[a.id]=a;if((a.type==='app'||a.type==='file')&&a.noteId===state.currentNoteId)scheduleRender(a.noteId)}
   else if(upd['artifact-updated']){const a=upd['artifact-updated'];state.artifacts[a.id]=a;if(state.activeAppBridge&&state.activeAppBridge.artifactId===a.id){const lastVer=a.versions[a.versions.length-1];if(lastVer){try{const meta=JSON.parse(lastVer.content);const iframe=document.getElementById(state.activeAppBridge.iframeId);if(iframe&&iframe.contentWindow){iframe.contentWindow.postMessage({source:'noltbook-host',type:'nb:state',payload:meta.state||{}},'*')}}catch(e){}}}else if(document.getElementById('artifactPanel').classList.contains('open')&&document.getElementById('artifactPanelTitle').textContent===a.name)openArtifactPanel(a.id)}
   else if(upd['artifact-deleted']){delete state.artifacts[upd['artifact-deleted'].id];closeArtifactPanel();scheduleRender()}
@@ -1223,14 +1278,15 @@ function handleUpdate(upd){
   else if(upd['pal-update']){const{ship,status}=upd['pal-update'];const wasBlocked=state.palStatus[ship]==='blocked';state.palStatus[ship]=status;if(wasBlocked&&status!=='blocked'){Object.keys(state.removedFromNotes).forEach(nid=>{if(state.removedFromNotes[nid]===ship)delete state.removedFromNotes[nid]});api.poke('noltbook','noltbook-action',{action:'request-remote-notes',data:{ship}})}if(status!=='blocked')delete state.blockedBy[ship];if(state.palsView)renderPalsList();renderNoteList();fetchVisibleEnvelopes();if(isGossipNote(state.currentNoteId))scheduleRender(state.currentNoteId);if(state.currentNoteId){const cn=state.notes[state.currentNoteId];if(cn&&cn.type==='dm'){const cp=dmCounterparty(cn);if(cp===ship)updateMuteUI()}}}
   else if(upd['dial-update']){state.dial=upd['dial-update'];updateDialUI();if(isGossipNote(state.currentNoteId))scheduleRender(state.currentNoteId);scheduleNoteList();fetchVisibleEnvelopes()}
   else if(upd['note-users-updated']){const d=upd['note-users-updated'];const{id,type,users,removed}=d;const rev=d.rev||0;const localRev=state.noteMemberRevs[id]||0;if(rev<localRev){console.log('[note-users-updated:stale]',id,'incoming',rev,'<','local',localRev);return}state.noteMemberRevs[id]=rev;console.log('[note-users-updated]',id,type,users,removed,'rev',rev);if(state.notes[id]){const me='~'+api.ship;const vis=state.notes[id].visibility;const notifyVis=vis==='public'||vis==='private';if(state.notes[id].creator===me&&notifyVis){const oldU=state.notes[id].users||[];const newJ=users.filter(u=>!oldU.includes(u)&&u!==me);for(const j of newJ)state.blockNotifications.push({noteId:id,noteName:state.notes[id].name,from:j,time:Date.now(),type:'joined'});if(newJ.length>0)updateLogoBadge()}state.notes[id].users=users;state.notes[id].removed=removed||[];if(type)state.notes[id].type=type;if(!(removed||[]).includes(me))state.notificationAcks.delete(notifAckKey('removed-status',id));rebuildDurableNotifications();updateLogoBadge();renderNoteList();if(state.currentNoteId===id){scheduleRender(id);updateMuteUI()}refreshNoteInfoMembers(id)}}
-  else if(upd['note-redirect']){const{oldId,newId}=upd['note-redirect'];console.log('[note-redirect]',oldId,'->',newId);if(state.noteActivity[oldId]!==undefined&&state.noteActivity[newId]===undefined)state.noteActivity[newId]=state.noteActivity[oldId];delete state.noteActivity[oldId];if(state.noteRead[oldId]!==undefined&&state.noteRead[newId]===undefined)state.noteRead[newId]=state.noteRead[oldId];delete state.noteRead[oldId];delete state.notes[oldId];delete state.messages[oldId];state.notifications.delete(oldId);if(state.currentNoteId===oldId){if(state.notes[newId])openNote(newId);else openNote('cover')}renderNoteList()}
+  else if(upd['note-redirect']){const{oldId,newId}=upd['note-redirect'];console.log('[note-redirect]',oldId,'->',newId);if(state.noteActivity[oldId]!==undefined&&state.noteActivity[newId]===undefined)state.noteActivity[newId]=state.noteActivity[oldId];delete state.noteActivity[oldId];if(state.noteRead[oldId]!==undefined&&state.noteRead[newId]===undefined)state.noteRead[newId]=state.noteRead[oldId];delete state.noteRead[oldId];if(state.attention[oldId]!==undefined&&state.attention[newId]===undefined)state.attention[newId]=state.attention[oldId];delete state.attention[oldId];delete state.notes[oldId];delete state.messages[oldId];state.notifications.delete(oldId);if(state.currentNoteId===oldId){if(state.notes[newId])openNote(newId);else openNote('cover')}renderNoteList()}
   else if(upd['wallet-update']){wallet.transactions=upd['wallet-update'].map(tx=>({type:tx.type,who:tx.counterparty,amount:tx.amount,time:new Date(tx.timestamp).toLocaleString(),txid:tx.txHash}));renderWalletNotes()}
   else if(upd['gossip-message']){const{message,hops}=upd['gossip-message'];const nid=message.noteId||'cover';const msgEid=message.meta&&message.meta.eid||null;state.gossipHops[message.id]=hops;if(!state.messages[nid])state.messages[nid]=[];const nenvs=state.gossipEnvelopes[nid]||{};delete nenvs[message.id];if(msgEid)delete nenvs[msgEid];state.gossipEnvelopes[nid]=nenvs;const nfetch=state.gossipFetching[nid];if(nfetch){nfetch.delete(message.id);if(msgEid)nfetch.delete(msgEid)}const isDup=state.messages[nid].some(m=>(msgEid&&m.meta&&m.meta.eid===msgEid)||m.id===message.id);if(!isDup){state.messages[nid].push(message);const visible=coverMsgVisible(message);if(state.currentNoteId===nid&&visible){const isOwn=message.author===('~'+api.ship);appendMessage(message,isOwn)}else if(state.currentNoteId!==nid&&visible&&!isPinnedUnreadNote(nid))state.notifications.add(nid)}const visible=coverMsgVisible(message);if(visible&&state.notes[nid]){state.notes[nid].lastAuthor=message.author;state.notes[nid].lastPreview=message.text}if(nid==='cover'&&visible)state.coverPreview={author:message.author,preview:message.text};markOpenNoteReadSoon(nid);scheduleNoteList()}
-  else if(upd['gossip-envelope']){const{noteId,envelope,hops}=upd['gossip-envelope'];const nid=noteId||'cover';const envEid=envelope.meta&&envelope.meta.eid||null;if((state.messages[nid]||[]).some(m=>(envEid&&m.meta&&m.meta.eid===envEid)||m.id===envelope.id))return;const nenvs=state.gossipEnvelopes[nid]||{};const envKey=envEid||envelope.id;if(nenvs[envKey])return;envelope._eid=envEid;nenvs[envKey]=envelope;state.gossipEnvelopes[nid]=nenvs;state.gossipHops[envelope.id]=hops;const shell={id:envelope.id,noteId:nid,author:envelope.author,text:null};fetchTopWindowEnvelopes(nid);if(state.currentNoteId!==nid&&coverMsgVisible(shell))state.notifications.add(nid);markOpenNoteReadSoon(nid);scheduleNoteList()}
+  else if(upd['gossip-envelope']){const{noteId,envelope,hops}=upd['gossip-envelope'];const nid=noteId||'cover';const envEid=envelope.meta&&envelope.meta.eid||null;if((state.messages[nid]||[]).some(m=>(envEid&&m.meta&&m.meta.eid===envEid)||m.id===envelope.id))return;const nenvs=state.gossipEnvelopes[nid]||{};const envKey=envEid||envelope.id;if(nenvs[envKey])return;envelope._eid=envEid;nenvs[envKey]=envelope;state.gossipEnvelopes[nid]=nenvs;state.gossipHops[envelope.id]=hops;const shell={id:envelope.id,noteId:nid,author:envelope.author,text:null};fetchTopWindowEnvelopes(nid);if(state.currentNoteId!==nid&&coverMsgVisible(shell)&&!isPinnedUnreadNote(nid))state.notifications.add(nid);markOpenNoteReadSoon(nid);scheduleNoteList()}
   else if(upd['envelope-list']){const{noteId,envelopes}=upd['envelope-list'];const existingMsgs=state.messages[noteId]||[];const existingIds=new Set(existingMsgs.map(m=>m.id));const existingEids=new Set(existingMsgs.filter(m=>m.meta&&m.meta.eid).map(m=>m.meta.eid));const nenvs=state.gossipEnvelopes[noteId]||{};for(const env of envelopes){const eeid=env.meta&&env.meta.eid||null;const envKey=eeid||env.id;if(existingIds.has(env.id)||(eeid&&existingEids.has(eeid))||nenvs[envKey])continue;env._eid=eeid;nenvs[envKey]=env}state.gossipEnvelopes[noteId]=nenvs;const fetched=fetchTopWindowEnvelopes(noteId);if(fetched>0)scheduleNoteList()}
-  else if(upd['cover-msg-content']){const{noteId,message:msg}=upd['cover-msg-content'];const nid=noteId||'cover';markOpenNoteReadSoon(nid);if(state.currentNoteId===nid)ScrollCo.bump();const msgEid=msg.meta&&msg.meta.eid||null;const nfetch=state.gossipFetching[nid];if(nfetch){nfetch.delete(msg.id);if(msgEid)nfetch.delete(msgEid)}const nenvs=state.gossipEnvelopes[nid]||{};delete nenvs[msg.id];if(msgEid)delete nenvs[msgEid];state.gossipEnvelopes[nid]=nenvs;if(!state.messages[nid])state.messages[nid]=[];const isDup=state.messages[nid].some(m=>(msgEid&&m.meta&&m.meta.eid===msgEid)||m.id===msg.id);let _appendedGossipText=false;if(!isDup){state.messages[nid].push(msg);const visible=coverMsgVisible(msg);const _isGossipy=nid==='cover'||(state.notes[nid]&&state.notes[nid].type==='gossip');if(_isGossipy&&state.currentNoteId===nid&&visible){const _isOwn=msg.author===('~'+api.ship);appendMessage(msg,_isOwn);_appendedGossipText=true}else if(state.currentNoteId!==nid&&visible&&!isPinnedUnreadNote(nid))state.notifications.add(nid);if(nid==='cover'){const _lc=getLastMessage('cover');if(_lc)state.coverPreview={author:_lc.author,preview:_lc.text}}}state.gossipPending[nid]=Math.max(0,(state.gossipPending[nid]||1)-1);if(state.gossipPending[nid]===0){hideGossipLoading();if(state.currentNoteId===nid&&!_appendedGossipText)scheduleRender(nid);if(state.notes[nid]){const msgs=state.messages[nid]||[];if(msgs.length){const newest=msgs.reduce((a,b)=>b.timestamp>a.timestamp?b:a);state.notes[nid].lastPreview=newest.text;state.notes[nid].lastAuthor=newest.author}}scheduleNoteList()}if(state.pendingGossipRef&&state.pendingGossipRef.noteId===nid){const pr=state.pendingGossipRef;const match=(msgEid&&pr.eid&&msgEid===pr.eid)||String(msg.id)===pr.msgId;if(match){clearTimeout(pr.timer);state.pendingGossipRef=null;setTimeout(function(){scrollToGossipMsg(pr.msgId,pr.eid)},400)}}}
+  else if(upd['cover-msg-content']){const{noteId,message:msg}=upd['cover-msg-content'];const nid=noteId||'cover';markOpenNoteReadSoon(nid);if(state.currentNoteId===nid)ScrollCo.bump();const msgEid=msg.meta&&msg.meta.eid||null;const nfetch=state.gossipFetching[nid];if(nfetch){nfetch.delete(msg.id);if(msgEid)nfetch.delete(msgEid)}const nenvs=state.gossipEnvelopes[nid]||{};delete nenvs[msg.id];if(msgEid)delete nenvs[msgEid];state.gossipEnvelopes[nid]=nenvs;if(!state.messages[nid])state.messages[nid]=[];const isDup=state.messages[nid].some(m=>(msgEid&&m.meta&&m.meta.eid===msgEid)||m.id===msg.id);let _appendedGossipText=false;if(!isDup){state.messages[nid].push(msg);const visible=coverMsgVisible(msg);const _isGossipy=nid==='cover'||(state.notes[nid]&&state.notes[nid].type==='gossip');if(_isGossipy&&state.currentNoteId===nid&&visible){const _isOwn=msg.author===('~'+api.ship);appendMessage(msg,_isOwn);_appendedGossipText=true}else if(state.currentNoteId!==nid&&visible&&!isPinnedUnreadNote(nid))state.notifications.add(nid);if(nid==='cover'){const _cm=(state.messages['cover']||[]).filter(coverMsgVisible);if(_cm.length){const _nw=_cm.reduce((a,b)=>b.id>a.id?b:a);state.coverPreview={author:_nw.author,preview:_nw.text}}}}state.gossipPending[nid]=Math.max(0,(state.gossipPending[nid]||1)-1);if(state.gossipPending[nid]===0){hideGossipLoading();if(state.currentNoteId===nid&&!_appendedGossipText)scheduleRender(nid);if(state.notes[nid]){const msgs=state.messages[nid]||[];if(msgs.length){const newest=msgs.reduce((a,b)=>b.timestamp>a.timestamp?b:a);state.notes[nid].lastPreview=newest.text;state.notes[nid].lastAuthor=newest.author}}scheduleNoteList()}if(state.pendingGossipRef&&state.pendingGossipRef.noteId===nid){const pr=state.pendingGossipRef;const match=(msgEid&&pr.eid&&msgEid===pr.eid)||String(msg.id)===pr.msgId;if(match){clearTimeout(pr.timer);state.pendingGossipRef=null;setTimeout(function(){scrollToGossipMsg(pr.msgId,pr.eid)},400)}}}
   else if(upd['rumor-message']){const msg=upd['rumor-message'].message;if(!state.messages['ars-rumors'])state.messages['ars-rumors']=[];const isDup=state.messages['ars-rumors'].some(m=>m.text===msg.text);if(!isDup){state.messages['ars-rumors'].unshift(msg);if(state.currentNoteId==='ars-rumors')renderMessages('ars-rumors');else state.notifications.add('ars-rumors');scheduleNoteList()}}
   else if(upd['mention-update']){const{noteId,mentions}=upd['mention-update'];if(!state.mentions[noteId])state.mentions[noteId]=[];for(const m of mentions){const mEid=m.eid||null;const dup=state.mentions[noteId].some(x=>(mEid&&x.eid&&x.eid===mEid)||x.id===m.id);if(!dup)state.mentions[noteId].push({id:m.id,eid:mEid,author:m.author})}scheduleNoteList()}
+  else if(upd['attention-update']){const{noteId,items,full}=upd['attention-update'];const mapped=(items||[]).map(it=>({kind:it.kind,targetKind:it.targetKind,eid:it.eid||null,msgId:(it.msgId!=null?it.msgId:null),aid:it.aid||null,author:it.author,when:it.when}));if(full){state.attention[noteId]=mapped}else{if(!state.attention[noteId])state.attention[noteId]=[];for(const it of mapped){const dup=state.attention[noteId].some(x=>(it.eid&&x.eid&&x.eid===it.eid)||(it.msgId!=null&&x.targetKind==='message'&&x.msgId===it.msgId)||(it.aid&&x.aid===it.aid)||(x.kind===it.kind&&x.author===it.author&&x.when===it.when));if(!dup)state.attention[noteId].push(it)}}scheduleNoteList()}
   else if(upd['call-state']){const{noteId,call}=upd['call-state'];console.log('[call-state]',noteId,call);if(call.status==='active'){state.activeCalls[noteId]=call}else{delete state.activeCalls[noteId]}updateCallUI()}
   else if(upd['call-started']){const d=upd['call-started'];console.log('[call-started]',d);state.activeCalls[d.noteId]={callId:d.callId,noteId:d.noteId,startedBy:d.startedBy,participants:d.participants,status:'active'};updateCallUI()}
   else if(upd['call-joined']){const{noteId,ship}=upd['call-joined'];console.log('[call-joined]',noteId,ship);const c=state.activeCalls[noteId];if(c){if(!c.participants.includes(ship))c.participants.push(ship);updateCallUI();if(state.inCall===noteId)rtcManager.onPeerJoined(ship)}}
@@ -1310,7 +1366,7 @@ async function openNote(id){
   // read cursor, decides unread-divider vs open-bottom. cover always opens bottom;
   // ars-rumors keeps its newest-first divider/scroll behavior.
   const _durableUnread=!isPinnedUnreadNote(id)&&((state.noteActivity[id]||0)>(state.noteRead[id]||0));
-  const _openTarget=(id==='cover'?'bottom':id==='ars-rumors'?'unread':(_durableUnread?'unread':'bottom'));
+  const _openTarget=(isGossipNote(id)?'bottom':id==='ars-rumors'?'unread':(_durableUnread?'unread':'bottom'));
   // record + pre-pin (bottom intent) so cold-cache backfill stays put before the snapshot
   ScrollCo.beginOpen(id,_openTarget);
   await api.poke('noltbook','noltbook-action',{action:'switch-note',data:{id}});
@@ -1323,7 +1379,7 @@ async function openNote(id){
   renderNoteList();
   updateCallUI();
   updateMuteUI();
-  if(!(state.mentions[id]&&state.mentions[id].length>0)){
+  if(getAttentionTargets(id).length===0){
     requestAnimationFrame(()=>{
       const el=document.querySelector(`[data-note-id="${id}"]`);
       if(el&&el.scrollIntoView)el.scrollIntoView({block:'nearest',behavior:'smooth'});
@@ -1726,7 +1782,7 @@ const arsEntries=[
 function makeArsItem(entry){
   const div=document.createElement('div');
   const hasNotif=state.notifications.has(entry.id);
-  const hasMention=state.mentions[entry.id]&&state.mentions[entry.id].length>0;
+  const hasMention=!!((state.mentions[entry.id]&&state.mentions[entry.id].length>0)||(state.attention[entry.id]&&state.attention[entry.id].some(a=>a.kind!=='mention')));
   div.className='note-item'+(entry.id===state.currentNoteId?' active':'')+((hasNotif||hasMention)?' has-notif':'');
   div.setAttribute('data-note-id',entry.id);
   const last=getLastMessage(entry.id);
@@ -1904,7 +1960,7 @@ function makeNoteItem(n,depth){
   const hasChildren=n.children&&n.children.length>0;
   const isExpanded=state.expandedNotes.has(n.id);
   const hasNotif=state._trickleDotted?state._trickleDotted.has(n.id):state.notifications.has(n.id);
-  const hasMention=state.mentions[n.id]&&state.mentions[n.id].length>0;
+  const hasMention=!!((state.mentions[n.id]&&state.mentions[n.id].length>0)||(state.attention[n.id]&&state.attention[n.id].some(a=>a.kind!=='mention')));
   const hasCall=!!state.activeCalls[n.id];
   div.className='note-item'+(n.id===state.currentNoteId?' active':'')+((hasNotif||hasMention)?' has-notif':'')+(hasCall?' has-call':'')+(depth?` depth-${depth}`:'');
   div.setAttribute('data-note-id',n.id);
@@ -2456,19 +2512,12 @@ function renderMessages(noteId,target){
   }
   if(scrollTarget==='unread')ensureUnreadDivider(noteId);
   const anchor=(scrollTarget==='preserve')?captureScrollAnchor(el):null;
-  // Persistent unread divider — placed before the first item whose order
-  // is >= dividerInfo.order. Independent of target; renders on every pass.
+  // Per-visit unread divider — placed before the first rendered ITEM that
+  // contains an unread MESSAGE node (works for root messages, text-thread
+  // replies, and replies nested under an artifact root). itemContainsUnread is
+  // defined later (after the node graph is built) and used in the item loop.
   const dividerInfo=state.unreadDividers[noteId]||null;
   let dividerInserted=false;
-  function maybeInsertDivider(itemOrd){
-    if(dividerInserted||!dividerInfo)return;
-    if(typeof itemOrd!=='number')return;
-    if(itemOrd<dividerInfo.order)return;
-    el.appendChild(makeNewMessagesDivider());
-    dividerInserted=true;
-    // break grouping across the divider
-    state.lastMsgAuthor=null;state.lastMsgDepth=-1;
-  }
   el.innerHTML='';state.lastMsgAuthor=null;state.lastMsgDepth=-1;
   if(noteId==='ars-rumors'){
     const saying=RUMOR_SAYINGS[Math.floor(Math.random()*RUMOR_SAYINGS.length)];
@@ -2553,11 +2602,38 @@ function renderMessages(noteId,target){
     if(t.replies>0)items.push({type:'thread',rootKey:rk,order:t.lastOrder,newestKey:t.newestKey});
   }
   items.sort((a,b)=>noteId==='ars-rumors'?b.order-a.order:a.order-b.order);
+  // resolve directed-attention targets to rendered node keys so collapsed threads
+  // can force them (and their ancestor chains) visible — otherwise an oldest
+  // attention target hidden behind "show more replies" can't be jumped/cleared.
+  const attnForceKeys=new Set();
+  for(const t of getAttentionTargets(noteId)){
+    let nk=null;
+    if(t.eid&&byEidN[t.eid])nk=byEidN[t.eid].key;
+    else if(t.msgId!=null&&byKey['m:'+t.msgId])nk='m:'+t.msgId;
+    else if(t.aid){if(byKey['a:'+t.aid])nk='a:'+t.aid;else if(byKey['e:'+t.aid])nk='e:'+t.aid}
+    if(nk)attnForceKeys.add(nk);
+  }
+  // does an item render an unread message? root item => its root message;
+  // thread item => the root OR any descendant message (so a reply under an
+  // artifact root, or a reply under a read text root, still triggers it).
+  function itemContainsUnread(item){
+    if(!dividerInfo)return false;
+    const rn=byKey[item.rootKey];
+    if(!rn)return false;
+    if(rn.kind==='msg'&&typeof rn.order==='number'&&rn.order>=dividerInfo.order)return true;
+    if(item.type==='root')return false;
+    const flat=flattenThread(item.rootKey,1);
+    for(const f of flat){if(f.node.kind==='msg'&&typeof f.node.order==='number'&&f.node.order>=dividerInfo.order)return true}
+    return false;
+  }
   for(const item of items){
     const rootNode=byKey[item.rootKey];
     if(!rootNode)continue;
-    // dividers anchor only on message roots; artifacts never clear unread
-    if(rootNode.kind==='msg')maybeInsertDivider(rootNode.order);
+    // insert the per-visit divider before the first item that holds unread content
+    if(!dividerInserted&&dividerInfo&&itemContainsUnread(item)){
+      el.appendChild(makeNewMessagesDivider());dividerInserted=true;
+      state.lastMsgAuthor=null;state.lastMsgDepth=-1;
+    }
     if(item.type==='root'){
       renderNode(el,rootNode,0);
     }else{
@@ -2579,6 +2655,16 @@ function renderMessages(noteId,target){
         if(parentOfNewest&&parentOfNewest.key!==anchorKey)visible.add(parentOfNewest.key);
         visible.add(newest.key);
         if(parentOfNewest){nodeAncestorChain(parentOfNewest.key).forEach(k=>{if(k!==anchorKey)visible.add(k)})}
+        // force any directed-attention targets in THIS thread (and their ancestor
+        // chains) visible, so a hidden oldest target is still jumpable/clearable.
+        if(attnForceKeys.size){
+          for(const f of flat){
+            if(attnForceKeys.has(f.node.key)){
+              visible.add(f.node.key);
+              nodeAncestorChain(f.node.key).forEach(k=>{if(k!==anchorKey)visible.add(k)});
+            }
+          }
+        }
         const hiddenCount=flat.filter(f=>!visible.has(f.node.key)).length;
         let shownMore=false;
         for(const f of flat){
@@ -2606,41 +2692,52 @@ function renderMessages(noteId,target){
     }
   }
   // set up mention observer on every render for current note
-  const curMentions=state.mentions[noteId]||[];
-  if(curMentions.length>0){
+  // unified directed-attention observer (mentions + reply/send). Each target is
+  // outlined orange; scrolling it into view clears it (mention→clear-mention,
+  // reply→clear-attention). Opening jumps to the OLDEST target once per open and
+  // cycles oldest→newest across opens — exactly the legacy mention flow.
+  let attnTargets=getAttentionTargets(noteId);
+  // cover/user-gossip: top-100 defines "what you can see". An attention target
+  // outside that window is no longer actionable (can't be jumped/cleared in
+  // place), so clear it (backend + local) rather than keep a dead orange dot.
+  // Selected-but-unfetched envelopes ARE in-window (in `allowed`) and are kept.
+  // Regular/shared/DM (and ars-rumors) never enter this branch.
+  if(attnTargets.length&&isTopWindowNote(noteId)){
+    const top=computeVisibleTopPosts(noteId,100);
+    // total>0 guard: don't wipe attention when the candidate pool is momentarily
+    // empty (cold boot before content loads). Backend sends envelopes before the
+    // attention snapshot, so a steady-state target's envelope is already stored.
+    if(top.applies&&top.total>0){
+      const keep=[];
+      for(const t of attnTargets){
+        if(attnInTopWindow(top,t))keep.push(t);else clearAttentionTarget(noteId,t);
+      }
+      attnTargets=keep;
+    }
+  }
+  if(attnTargets.length>0){
     if(mentionObserver){mentionObserver.disconnect();mentionObserver=null}
     mentionObserver=new IntersectionObserver((entries)=>{
       for(const ent of entries){
         if(!ent.isIntersecting)continue;
-        const mel=ent.target;
-        const mid=Number(mel.dataset.mentionId);
-        if(!mid)continue;
-        mentionObserver.unobserve(mel);
-        mel.style.outline='';
-        const mentionEntry=state.mentions[noteId]&&state.mentions[noteId].find(m=>m.id===mid);
-        const mentionEid=mentionEntry&&mentionEntry.eid?mentionEntry.eid:null;
-        if(state.mentions[noteId]){
-          state.mentions[noteId]=state.mentions[noteId].filter(m=>m.id!==mid);
-          if(state.mentions[noteId].length===0)delete state.mentions[noteId];
-        }
-        const clearData={noteId,msgId:mid};
-        if(mentionEid)clearData.eid=mentionEid;
-        api.poke('noltbook','noltbook-action',{action:'clear-mention',data:clearData});
-        renderNoteList();
+        const tel=ent.target;
+        const key=tel.dataset.attnKey;
+        const t=attnTargets.find(x=>attnKey(x)===key);
+        mentionObserver.unobserve(tel);
+        tel.style.outline='';
+        if(t)clearAttentionTarget(noteId,t);
       }
     },{root:el,threshold:0.5});
-    for(const m of curMentions){
-      const msgEl=document.getElementById('msg-'+m.id);
-      if(msgEl){msgEl.style.outline='2px solid #ffaa00';msgEl.dataset.mentionId=m.id;mentionObserver.observe(msgEl)}
+    for(const t of attnTargets){
+      const tel=attentionTargetEl(t);
+      if(tel){tel.style.outline='2px solid #ffaa00';tel.dataset.attnKey=attnKey(t);mentionObserver.observe(tel)}
     }
-    // jump to oldest mention only once per openNote
+    // jump to the oldest target once per open. Programmatic — guarded so it does
+    // not mark messages read or destroy the unread divider.
     if(!state._mentionJumpDone){
       state._mentionJumpDone=true;
-      const oldest=curMentions.slice().sort((a,b)=>a.id-b.id)[0];
-      if(oldest){
-        const jumpEl=document.getElementById('msg-'+oldest.id);
-        if(jumpEl){jumpEl.scrollIntoView({block:'center'});return}
-      }
+      const jumpEl=attentionTargetEl(attnTargets[0]);
+      if(jumpEl){_programmaticScroll=true;jumpEl.scrollIntoView({block:'center'});setTimeout(function(){_programmaticScroll=false},300);return}
     }
     return;
   }
@@ -2649,8 +2746,9 @@ function renderMessages(noteId,target){
     // newest-first, no bottom lock: land at top unless preserving position
     if(scrollTarget==='preserve')restoreScrollAnchor(el,anchor);else el.scrollTop=0;
   }else if(scrollTarget==='bottom'){
+    // advance the read cursor but DO NOT clear the divider (per-visit landmark;
+    // it survives reaching bottom / own send and only clears on note switch).
     markNoteReadTo(noteId,latestMsgOrder(noteId));
-    clearUnreadDividerDom(noteId);
     ScrollCo.pin(noteId,'bottom',null);
   }else if(scrollTarget==='unread'){
     if(dividerInserted){
@@ -2661,7 +2759,6 @@ function renderMessages(noteId,target){
     }else{
       // no actual unread → behave like bottom open
       markNoteReadTo(noteId,latestMsgOrder(noteId));
-      clearUnreadDividerDom(noteId);
       ScrollCo.pin(noteId,'bottom',null);
     }
   }else{
@@ -2777,7 +2874,7 @@ function canAppendMessageFast(msg){
   if(msg.replyTo)return false;
   if(msg.meta&&msg.meta.replyToEid)return false;
   // pending mention jump or visible mentions for this note: full render
-  if(state.mentions[noteId]&&state.mentions[noteId].length)return false;
+  if(getAttentionTargets(noteId).length)return false;
   // any expanded threads: full render (collapse housekeeping rerenders)
   if(state.expandedThreads&&state.expandedThreads.size)return false;
   // must be the new latest among existing messages (gossip: by id; else seq)
@@ -2809,8 +2906,8 @@ function appendMessageFast(msg,isOwn){
   // append the single message; renderMsg maintains grouping state
   renderMsg(el,msg,0);
   if(isOwn||wasNearBottom){
+    // advance read cursor + scroll to bottom, but keep the per-visit divider.
     markNoteReadTo(noteId,latestMsgOrder(noteId));
-    clearUnreadDividerDom(noteId);
     el.scrollTop=el.scrollHeight;
   }
   // else: preserve current scroll position; do not mark read
@@ -2945,7 +3042,7 @@ function showUserDropdown(inputEl,containerEl,onSelect,opts){
   _activeDropdown={dd,update,inputEl};
   return{update,destroy:function(){dd.remove();inputEl.removeEventListener('input',update);inputEl.removeEventListener('keydown',handleKey)}};
 }
-function renderText(text){if(!text)return'';var out=escHtml(text);out=out.replace(/`([^`]+)`/g,'<code style="background:var(--bg3);padding:.1rem .3rem">$1</code>');out=out.replace(/(data:image\/[^\s"]+)/g,function(m){var raw=m.replace(/&amp;/g,'&').replace(/&quot;/g,'"');return '<div class="inline-img-box"><img src="'+raw+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'});out=out.replace(/(https?:\/\/[^\s]+)/g,function(url){var raw=url.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/[.,;:!?\)]+$/,'');if(/\.(png|jpe?g|gif|webp|svg|bmp|ico)(\?[^\s]*)?$/i.test(raw)){return '<div class="inline-img-box"><img src="'+escAttr(raw)+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'}var yt=raw.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/);if(yt){return '<div style="margin:.35rem 0;max-width:480px;aspect-ratio:16/9"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[1]+'" style="width:100%;height:100%;border:1px solid var(--border)" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe></div>'}var tw=raw.match(/(?:twitter\.com|x\.com)\/(\w+)\/status\/(\d+)/);if(tw){return '<div class="tweet-embed" style="margin:.35rem 0;max-width:480px"><blockquote class="twitter-tweet" data-theme="dark" data-conversation="none"><a href="https://twitter.com/'+tw[1]+'/status/'+tw[2]+'"></a></blockquote></div>'}return '<a href="'+escAttr(raw)+'" target="_blank" rel="noopener" style="color:#ffaa00">'+url+'</a>'});out=out.replace(/~ref\[([^\]|]+)\|([^\]]+)\]/g,function(m,nid,cr){var n=state.notes[nid]||state.discoveryNotes[nid];if(n){var iu=resolveNoteIconUrl(n);var ic=iu?'<img src="'+escAttr(iu)+'">':noteInitials(n.name);return '<span class="note-ref" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-icon">'+ic+'</span><span class="note-ref-name">'+escHtml(n.name)+'</span></span>'}return '<span class="note-ref" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-icon">?</span><span class="note-ref-name note-ref-unknown">Note Link</span></span>'});out=out.replace(/~gref\[([^\]|]+)\|([^\]|]+)\|([^\]|]*)\|([^\]]+)\]/g,function(m,nid,author,eid,mid){if(state.palStatus[author]==='blocked')return '<span style="color:#ff4444;font-size:.8rem">[blocked user ref]</span>';var n=state.notes[nid];var noteName=n?noteDisplayName(n):'gossip note';var authorName=displayName(author);var excerpt='';if(n){var msgs=state.messages[nid]||[];var found=msgs.find(function(msg){if(eid&&getMsgEid(msg)===eid)return true;return String(msg.id)===mid});if(found&&found.text)excerpt=found.text.slice(0,60)}var excerptHtml=excerpt?'<span class="gossip-ref-excerpt">\u2014 '+escHtml(excerpt)+'</span>':'<span class="gossip-ref-unavail">gossip post</span>';return '<span class="gossip-ref" onclick="clickGossipRef(\''+escAttr(nid)+'\',\''+escAttr(author)+'\',\''+escAttr(eid)+'\',\''+escAttr(mid)+'\')"><span class="gossip-ref-author">'+escHtml(authorName)+'</span><span class="gossip-ref-note">in '+escHtml(noteName)+'</span>'+excerptHtml+'</span>'});out=out.replace(/@(~[a-z][\w-]*)/g,function(m,ship){return '<span style="color:#ffaa00;font-weight:500">@'+ship+'</span>'});return out}
+function renderText(text){if(!text)return'';var out=escHtml(text);out=out.replace(/`([^`]+)`/g,'<code style="background:var(--bg3);padding:.1rem .3rem">$1</code>');out=out.replace(/(data:image\/[^\s"]+)/g,function(m){var raw=m.replace(/&amp;/g,'&').replace(/&quot;/g,'"');return '<div class="inline-img-box"><img src="'+raw+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'});out=out.replace(/(https?:\/\/[^\s]+)/g,function(url){var raw=url.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/[.,;:!?\)]+$/,'');if(/\.(png|jpe?g|gif|webp|svg|bmp|ico)(\?[^\s]*)?$/i.test(raw)){return '<div class="inline-img-box"><img src="'+escAttr(raw)+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'}var yt=raw.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/);if(yt){return '<div style="margin:.35rem 0;max-width:480px;aspect-ratio:16/9"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[1]+'" style="width:100%;height:100%;border:1px solid var(--border)" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe></div>'}var tw=raw.match(/(?:twitter\.com|x\.com)\/(\w+)\/status\/(\d+)/);if(tw){return '<div class="tweet-embed" style="margin:.35rem 0;max-width:480px"><blockquote class="twitter-tweet" data-theme="dark" data-conversation="none"><a href="https://twitter.com/'+tw[1]+'/status/'+tw[2]+'"></a></blockquote></div>'}return '<a href="'+escAttr(raw)+'" target="_blank" rel="noopener" style="color:#ffaa00">'+url+'</a>'});out=out.replace(/~ref\[([^\]|]+)\|([^\]]+)\]/g,function(m,nid,cr){var n=state.notes[nid]||state.discoveryNotes[nid];if(n){var iu=resolveNoteIconUrl(n);var ic=iu?'<img src="'+escAttr(iu)+'">':noteInitials(n.name);return '<span class="note-ref" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-icon">'+ic+'</span><span class="note-ref-name">'+escHtml(n.name)+'</span></span>'}return '<span class="note-ref" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-icon">?</span><span class="note-ref-name note-ref-unknown">Note Link</span></span>'});out=out.replace(/~gref\[([^\]|]+)\|([^\]|]+)\|([^\]|]*)\|([^\]]+)\]/g,function(m,nid,author,eid,mid){if(state.palStatus[author]==='blocked')return '<span style="color:#ff4444;font-size:.8rem">[blocked user ref]</span>';var n=state.notes[nid];var noteName=n?noteDisplayName(n):'gossip note';var authorName=displayName(author);var excerpt='';if(n){var msgs=state.messages[nid]||[];var found=msgs.find(function(msg){if(eid&&getMsgEid(msg)===eid)return true;return String(msg.id)===mid});if(found&&found.text)excerpt=found.text.slice(0,60)}var excerptHtml=excerpt?'<span class="gossip-ref-excerpt">\u2014 '+escHtml(excerpt)+'</span>':'<span class="gossip-ref-unavail">gossip post</span>';return '<span class="gossip-ref" onclick="clickGossipRef(\''+escAttr(nid)+'\',\''+escAttr(author)+'\',\''+escAttr(eid)+'\',\''+escAttr(mid)+'\')"><span class="gossip-ref-author">'+escHtml(authorName)+'</span><span class="gossip-ref-note">in '+escHtml(noteName)+'</span>'+excerptHtml+'</span>'});out=out.replace(/@(~[a-z][\w-]*)/g,function(m,ship){var dn=displayName(ship);var label=(dn&&dn!==ship)?dn:ship;return '<span class="msg-mention" style="color:'+shipColor(ship)+';font-weight:500" title="'+escAttr(ship)+'">@'+escHtml(label)+'</span>'});return out}
 function openImageFullscreen(url){var o=document.createElement('div');o.id='file-fullscreen';o.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.92);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer';o.innerHTML='<img src="'+url+'" style="max-width:95%;max-height:90vh">';o.onclick=function(){o.remove()};document.body.appendChild(o)}
 async function sendMessage(){
   const input=document.getElementById('chatInput');const text=input.value.trim();if(!text)return;
@@ -3048,7 +3145,7 @@ function updateInputMirror(){
   if(!inp||!mirror)return;
   if(!inp.value){mirror.innerHTML='<span style="color:var(--text-muted)">'+escHtml(inp.placeholder)+'</span>';return}
   let text=escHtml(inp.value);
-  text=text.replace(/@(~[a-z][\w-]*)/g,'<span style="color:#ffaa00;font-weight:500">@$1</span>');
+  text=text.replace(/@(~[a-z][\w-]*)/g,function(m,ship){return '<span style="color:'+shipColor(ship)+';font-weight:500" title="'+escAttr(ship)+'">@'+ship+'</span>'});
   mirror.innerHTML=text+'\n';
   mirror.scrollTop=inp.scrollTop;
 }
@@ -3169,8 +3266,25 @@ async function deleteArtifact(artId){
   if(!confirm('Delete this app?'))return;
   await api.poke('noltbook','noltbook-action',{action:'delete-artifact',data:{id:artId}});
 }
+// NOTE SEND source context (note/target/eid) captured when SEND is clicked from a
+// message/artifact action menu. null => wallet/DM SEND. Drives walletSend's branch.
+let _noteSendSource=null;
+function resolveNoteSendSource(nid,msgId,author){
+  if(!nid||!msgId)return null;
+  const numId=Number(msgId);
+  const msgs=state.messages[nid]||[];
+  const rm=(!isNaN(numId)&&(''+numId)===(''+msgId))?msgs.find(m=>m.id===numId):null;
+  if(rm)return{noteId:nid,targetKind:'message',legacyReplyTo:rm.id,eid:(rm.meta&&rm.meta.eid)||null,recipient:author};
+  const env=(state.artifactEnvelopes[nid]||{})[msgId];
+  if(env&&env.meta&&env.meta.eid)return{noteId:nid,targetKind:'artifact-envelope',legacyReplyTo:null,eid:env.meta.eid,recipient:author};
+  const art=state.artifacts[msgId];
+  if(art&&art.meta&&art.meta.eid)return{noteId:nid,targetKind:'artifact',legacyReplyTo:null,eid:art.meta.eid,recipient:author};
+  return null;
+}
 function sendToUser(author,msgId){
   if(!wallet.connected){toggleWallet();return}
+  // capture NOTE SEND source (message or artifact target) for the payment reply
+  _noteSendSource=resolveNoteSendSource(state.currentNoteId,msgId,author);
   document.getElementById('sendTo').value=author;
   document.getElementById('sendAmount').value='';
   document.getElementById('sendModal').setAttribute('data-source-message',msgId||'');
@@ -4704,6 +4818,7 @@ function copyWalletAddress(){
 // --- Send modal ---
 let _sendDd=null;
 function openSendModal(){
+  _noteSendSource=null;
   document.getElementById('sendTo').value='';
   document.getElementById('sendAmount').value='';
   document.getElementById('sendModal').setAttribute('data-source-message','');
@@ -4713,7 +4828,7 @@ function openSendModal(){
   _sendDd=showUserDropdown(inp,document.getElementById('sendToField'),function(r){inp.value=r.ship});
   inp.focus();
 }
-function closeSendModal(){document.getElementById('sendModal').classList.remove('open');if(_sendDd){_sendDd.destroy();_sendDd=null}}
+function closeSendModal(){_noteSendSource=null;document.getElementById('sendModal').classList.remove('open');if(_sendDd){_sendDd.destroy();_sendDd=null}}
 
 // Register wallet address with backend for @p→PKH resolution
 function walletRegister(pkh){
@@ -4838,22 +4953,35 @@ async function walletSend(){
       to:recipientName,amount:amount,txHash:txHash
     }});
 
-    // Send payment message to canonical DM root
+    // Post the payment message (tx already succeeded).
     if(recipientName.startsWith('~')){
       const paymentText=NOCK_SEND_PREFIX+' sent '+amount.toFixed(4)+' $NOCK to '+recipientName+(txHash?' (tx:'+txHash.slice(0,12)+'...)':'');
-      const dm=findDmRoot(recipientName);
-      if(dm){
-        // own payment message: pin bottom only if we're actually viewing this
-        // DM, so we don't leave a stale flag that hijacks a later note open.
-        if(state.currentNoteId===dm.id)ScrollCo.beginOwnAction(dm.id);
-        api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:dm.id,text:paymentText}});
+      const src=_noteSendSource;
+      if(src&&src.noteId){
+        // NOTE SEND: a visible payment reply in the SOURCE note/thread, threaded
+        // under the source target. No DM receipt, no pendingWalletMsg, no DM open.
+        const data={noteId:src.noteId,text:paymentText,directedKind:'send'};
+        if(src.legacyReplyTo!=null)data.replyTo=src.legacyReplyTo;
+        if(src.eid)data.replyToEid=src.eid;
+        if(state.currentNoteId===src.noteId)ScrollCo.beginOwnAction(src.noteId);
+        api.poke('noltbook','noltbook-action',{action:'send-message',data});
       }else{
-        // create-dm creates the DM root; pendingWalletMsg fires when note-created arrives
-        state.pendingWalletMsg={ship:recipientName,text:paymentText};
-        await api.poke('noltbook','noltbook-action',{action:'create-dm',data:{ship:recipientName}});
+        // WALLET/DM SEND (unchanged): payment message to the canonical DM root.
+        const dm=findDmRoot(recipientName);
+        if(dm){
+          // own payment message: pin bottom only if we're actually viewing this
+          // DM, so we don't leave a stale flag that hijacks a later note open.
+          if(state.currentNoteId===dm.id)ScrollCo.beginOwnAction(dm.id);
+          api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:dm.id,text:paymentText}});
+        }else{
+          // create-dm creates the DM root; pendingWalletMsg fires when note-created arrives
+          state.pendingWalletMsg={ship:recipientName,text:paymentText};
+          await api.poke('noltbook','noltbook-action',{action:'create-dm',data:{ship:recipientName}});
+        }
       }
     }
 
+    _noteSendSource=null;
     closeSendModal();
     walletRefreshBalance();
   }catch(e){

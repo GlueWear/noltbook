@@ -43,6 +43,7 @@
       state-39
       state-40
       state-41
+      state-42
   ==
 ::  pre-entry-meta message shape — used by state-18 for on-load typing
 +$  message-18
@@ -1135,6 +1136,53 @@
       note-activity=(map @ta @da)
       note-read=(map @ta @da)
   ==
+::  state-42: directed-attention system (Phase A). Adds `attention`, a typed
+::  durable per-note attention list reserved for reply/send (Phase B). `mentions`
+::  is kept and remains the SOLE source of truth for mention-attention. On
+::  migration `attention` starts EMPTY; mention-attention is derived from the
+::  `mentions` map at emit/boot time (not duplicated into state). Only the field
+::  is added.
++$  state-42
+  $:  %42
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+  ==
 ::  state-26: add durable blocked-by set (ships that have blocked us)
 +$  state-26
   $:  %26
@@ -1360,7 +1408,7 @@
 ::  chains through upgrade-20-to-21 → ... → upgrade-25-to-26
 ++  upgrade-19-to-20
   |=  s=state-19
-  ^-  state-41
+  ^-  state-42
   =/  new-seq=(map @ta @ud)
     %-  ~(rep by seq-counters.s)
     |=  [[[a=@p n=@ta] v=@ud] acc=(map @ta @ud)]
@@ -1380,7 +1428,7 @@
 ::  chains through upgrade-21-to-22 → upgrade-22-to-23
 ++  upgrade-20-to-21
   |=  s=state-20
-  ^-  state-41
+  ^-  state-42
   =/  new-msgs=(map @ta (list message:noltbook))
     %-  ~(run by messages.s)
     |=  msgs=(list message-20)
@@ -1422,7 +1470,7 @@
 ::  upgrade-21-to-22: add meta=(unit entry-meta) to envelopes
 ++  upgrade-21-to-22
   |=  s=state-21
-  ^-  state-41
+  ^-  state-42
   =/  new-envs=(map @ta (map @da envelope:noltbook))
     %-  ~(run by gossip-envelopes.s)
     |=  envs=(map @da envelope-21)
@@ -1444,7 +1492,7 @@
 ::  upgrade-22-to-23: enrich mention storage with stable eid
 ++  upgrade-22-to-23
   |=  s=state-22
-  ^-  state-41
+  ^-  state-42
   =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
     %-  ~(urn by mentions.s)
     |=  [nid=@ta mns=(list [id=@da author=@p])]
@@ -1473,7 +1521,7 @@
 ::  in-flight forks to become fetchable.
 ++  upgrade-30-to-31
   |=  s=state-30
-  ^-  state-41
+  ^-  state-42
   =?  s  (gth ~(wyt by pending-fork-invites.s) 0)
     ~&  [%dropping-legacy-pending-fork-invites count=~(wyt by pending-fork-invites.s)]
     s(pending-fork-invites *(map @ta state-30-pending-fork-invite))
@@ -1496,7 +1544,7 @@
 ::  upgrade-31-to-32: add empty contacts set
 ++  upgrade-31-to-32
   |=  s=state-31
-  ^-  state-41
+  ^-  state-42
   %-  upgrade-32-to-33
   :*  %32
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1517,7 +1565,7 @@
 ::  upgrade-32-to-33: add empty dm-prefs map
 ++  upgrade-32-to-33
   |=  s=state-32
-  ^-  state-41
+  ^-  state-42
   %-  upgrade-33-to-34
   :*  %33
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1541,7 +1589,7 @@
 ::  pre-migration value.
 ++  upgrade-33-to-34
   |=  s=state-33
-  ^-  state-41
+  ^-  state-42
   =/  seeded-revs=(map @ta @ud)
     %-  ~(rep by notes.s)
     |=  [[k=@ta v=note:noltbook] acc=(map @ta @ud)]
@@ -1570,7 +1618,7 @@
 ::  encoder default.
 ++  upgrade-34-to-35
   |=  s=state-34
-  ^-  state-41
+  ^-  state-42
   %-  upgrade-35-to-36
   :*  %35
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1594,7 +1642,7 @@
 ::  upgrade-35-to-36: add empty host-checks map.
 ++  upgrade-35-to-36
   |=  s=state-35
-  ^-  state-41
+  ^-  state-42
   %-  upgrade-36-to-37
   :*  %36
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1619,7 +1667,7 @@
 ::  upgrade-36-to-37: add empty notification-acks set.
 ++  upgrade-36-to-37
   |=  s=state-36
-  ^-  state-41
+  ^-  state-42
   %-  upgrade-37-to-38
   :*  %37
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1648,7 +1696,7 @@
 ::  (cover, ars-rumors) are excluded from seeding.
 ++  upgrade-37-to-38
   |=  s=state-37
-  ^-  state-41
+  ^-  state-42
   =/  seeded=(map @ta @da)
     =/  pairs=(list [nid=@ta msgs=(list message:noltbook)])  ~(tap by messages.s)
     =/  acc=(map @ta @da)  *(map @ta @da)
@@ -1694,7 +1742,7 @@
 ::  upgrade (unread is strict activity > read; equal seeds = read).
 ++  upgrade-38-to-39
   |=  s=state-38
-  ^-  state-41
+  ^-  state-42
   %-  upgrade-39-to-40
   :*  %39
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1723,7 +1771,7 @@
 ::  stamped going forward; existing artifacts have no meta).
 ++  upgrade-39-to-40
   |=  s=state-39
-  ^-  state-41
+  ^-  state-42
   =/  new-arts=(map @ta artifact:noltbook)
     %-  ~(run by artifacts.s)
     |=  a=artifact-pre40:noltbook
@@ -1763,7 +1811,7 @@
 ::  Byte hosting unchanged (only the meta field is populated).
 ++  upgrade-40-to-41
   |=  s=state-40
-  ^-  state-41
+  ^-  state-42
   =/  new-arts=(map @ta artifact:noltbook)
     %-  ~(run by artifacts.s)
     |=  a=artifact:noltbook
@@ -1773,6 +1821,8 @@
       ?~  versions.a  *@da
       timestamp.i.versions.a
     a(meta `(artifact-meta creator.a id.a when ~))
+  ::  pipe through upgrade-41-to-42 so the chain terminates at state-42.
+  %-  upgrade-41-to-42
   :*  %41
       notes.s  messages.s  new-arts  profiles.s
       transactions.s  current-note.s  peers.s  has-avatar.s
@@ -1796,10 +1846,44 @@
       note-activity.s
       note-read.s
   ==
+::  upgrade-41-to-42: add directed-attention (Phase A). `attention` starts empty
+::  and is reserved for Phase B reply/send. Existing mentions are NOT duplicated
+::  into it; mention-attention is DERIVED from the `mentions` map at emit/boot time
+::  (see all-attention / attn-mention-cards), so there is one source of truth and
+::  no divergence. The frontend result is identical (state.attention contains the
+::  mentions via %attention-update). Existing mention UX is unchanged.
+++  upgrade-41-to-42
+  |=  s=state-41
+  ^-  state-42
+  =/  att=(map @ta (list attention-item:noltbook))  ~
+  :*  %42
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      fork-parent-version.s
+      host-checks.s
+      notification-acks.s
+      note-activity.s
+      note-read.s
+      att
+  ==
 ::  upgrade-29-to-30: add pending-fork-invites map (empty).
 ++  upgrade-29-to-30
   |=  s=state-29
-  ^-  state-41
+  ^-  state-42
   %-  upgrade-30-to-31
   :*  %30
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1819,7 +1903,7 @@
 ::  note is treated as v1 (origin computed lazily by note-lineage-of helper).
 ++  upgrade-28-to-29
   |=  s=state-28
-  ^-  state-41
+  ^-  state-42
   %-  upgrade-29-to-30
   :*  %29
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1841,7 +1925,7 @@
 ::  remote host issues %remote-note-deleted post-upgrade.
 ++  upgrade-27-to-28
   |=  s=state-27
-  ^-  state-41
+  ^-  state-42
   %-  upgrade-28-to-29
   :*  %28
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1858,7 +1942,7 @@
 ::  upgrade-25-to-26: add blocked-by set
 ++  upgrade-26-to-27
   |=  s=state-26
-  ^-  state-41
+  ^-  state-42
   %-  upgrade-27-to-28
   :*  %27
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1873,7 +1957,7 @@
   ==
 ++  upgrade-25-to-26
   |=  s=state-25
-  ^-  state-41
+  ^-  state-42
   %-  upgrade-26-to-27
   :*  %26
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1888,7 +1972,7 @@
 ::  upgrade-24-to-25: add note-admins and note-muted maps
 ++  upgrade-24-to-25
   |=  s=state-24
-  ^-  state-41
+  ^-  state-42
   %-  upgrade-25-to-26
   :*  %25
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2357,7 +2441,7 @@
 ::  upgrade-23-to-24: add join-requests map
 ++  upgrade-23-to-24
   |=  s=state-23
-  ^-  state-41
+  ^-  state-42
   %-  upgrade-24-to-25
   :*  %24
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2570,6 +2654,94 @@
       ::  (was dropped to ~ before Phase A). Reply linkage stays eid-based.
       meta.art
   ==
+::  ===== directed attention (Phase A) =====
+::  attn-mention-cards: for a detected @-mention, emit BOTH the legacy
+::  %mention-update (drives existing mention UX, unchanged) and the new
+::  %attention-update (typed directed-attention stream) on global /notes.
+++  attn-mention-cards
+  |=  [nid=@ta id=@da eid=(unit @uv) author=@p]
+  ^-  (list card:agent:gall)
+  =/  it=attention-item:noltbook  [%mention %message eid `id ~ author id]
+  :~  [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%mention-update nid ~[[id eid author]]])]
+      ::  full=| : live delta (append one item)
+      [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%attention-update nid ~[it] %.n])]
+  ==
+::  all-attention: the full per-note attention view = stored `attention` map
+::  (Phase B reply/send) UNIONED with `mentions` mirrored as kind=%mention items.
+::  Single source of truth: mentions live in the mentions map; attention is derived.
+++  all-attention
+  |=  $:  mnt=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+          att=(map @ta (list attention-item:noltbook))
+      ==
+  ^-  (map @ta (list attention-item:noltbook))
+  =/  mirrored=(map @ta (list attention-item:noltbook))
+    %-  ~(run by mnt)
+    |=  ms=(list [id=@da eid=(unit @uv) author=@p])
+    ^-  (list attention-item:noltbook)
+    %+  turn  ms
+    |=  [id=@da eid=(unit @uv) author=@p]
+    ^-  attention-item:noltbook
+    [%mention %message eid `id ~ author id]
+  =/  keys=(set @ta)  (~(uni in ~(key by mirrored)) ~(key by att))
+  %-  ~(gas by *(map @ta (list attention-item:noltbook)))
+  %+  turn  ~(tap in keys)
+  |=  k=@ta
+  ^-  [@ta (list attention-item:noltbook)]
+  [k (weld (fall (~(get by mirrored) k) ~) (fall (~(get by att) k) ~))]
+::  ===== reply attention (Phase B) =====
+::  attn-parent-owner: the IMMEDIATE parent's author/creator for a reply, resolved
+::  by reply-to-eid across all post types (message / artifact / artifact-envelope),
+::  then legacy reply-to (@da, message-only) as a text-to-text fallback. ~ if not
+::  found. Only the immediate parent is consulted (no ancestor/root walk).
+++  attn-parent-owner
+  |=  $:  reply-eid=(unit @uv)
+          legacy-reply=(unit @da)
+          msgs=(list message:noltbook)
+          arts=(list artifact:noltbook)
+          aenvs=(list artifact-envelope:noltbook)
+      ==
+  ^-  (unit @p)
+  ?^  reply-eid
+    =/  mhit=(list message:noltbook)
+      (skim msgs |=(m=message:noltbook ?&(?=(^ meta.m) =(eid.u.meta.m u.reply-eid))))
+    ?^  mhit  `author.i.mhit
+    =/  ahit=(list artifact:noltbook)
+      (skim arts |=(a=artifact:noltbook ?&(?=(^ meta.a) =(eid.u.meta.a u.reply-eid))))
+    ?^  ahit  `creator.i.ahit
+    =/  ehit=(list artifact-envelope:noltbook)
+      (skim aenvs |=(e=artifact-envelope:noltbook ?&(?=(^ meta.e) =(eid.u.meta.e u.reply-eid))))
+    ?^  ehit  `author.i.ehit
+    ~
+  ?^  legacy-reply
+    =/  mhit=(list message:noltbook)  (skim msgs |=(m=message:noltbook =(id.m u.legacy-reply)))
+    ?^  mhit  `author.i.mhit
+    ~
+  ~
+::  add-reply-attn: if the immediate parent owner is our ship and the reply author
+::  is someone else, append a %reply attention item (the NEW reply is the target)
+::  and return [updated-attention live-delta-cards]. Dedups by eid > msg-id > aid.
+++  add-reply-attn
+  |=  $:  att=(map @ta (list attention-item:noltbook))
+          nid=@ta
+          our=@p
+          reply-author=@p
+          parent-owner=(unit @p)
+          target=attention-item:noltbook
+      ==
+  ^-  [(map @ta (list attention-item:noltbook)) (list card:agent:gall)]
+  ?:  =(reply-author our)  [att ~]
+  ?.  ?=(^ parent-owner)  [att ~]
+  ?.  =(u.parent-owner our)  [att ~]
+  =/  cur=(list attention-item:noltbook)  (fall (~(get by att) nid) ~)
+  ?:  %+  lien  cur
+      |=  it=attention-item:noltbook
+      ?|  &(?=(^ eid.target) ?=(^ eid.it) =(u.eid.it u.eid.target))
+          &(?=(^ msg-id.target) ?=(^ msg-id.it) =(u.msg-id.it u.msg-id.target))
+          &(?=(^ aid.target) ?=(^ aid.it) =(u.aid.it u.aid.target))
+      ==
+    [att ~]
+  :-  (~(put by att) nid (snoc cur target))
+  ~[[%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%attention-update nid ~[target] %.n])]]
 ::  artifact-meta: stable timeline identity for a new artifact. eid is
 ::  deterministic (sham [creator id]) so it matches across ships/forks.
 ::  seq is non-authoritative (0) in Phase A; created/updated = creation time.
@@ -2609,7 +2781,7 @@
   [(crip path-tape) args]
 --
 %-  agent:dbug
-=|  state-41
+=|  state-42
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -2627,8 +2799,8 @@
 ++  on-load
   |=  old=vase
   ^-  (quip card _this)
-  ?:  ?=([%41 *] q.old)
-    =/  loaded  !<(state-41 old)
+  ?:  ?=([%42 *] q.old)
+    =/  loaded  !<(state-42 old)
     ::  fix: ensure cover note exists and is keyed as %cover
     ::  (same normalizations carried forward from state-24 load)
     =/  loaded
@@ -2750,6 +2922,9 @@
       ^-  card
       [%pass /prof-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-profile our.bowl prof])]
     [prof-cards this(state loaded(active-calls *(map @ta call-info:noltbook)))]
+  ?:  ?=([%41 *] q.old)
+    =/  s41  !<(state-41 old)
+    $(old !>((upgrade-41-to-42 s41)))
   ?:  ?=([%40 *] q.old)
     =/  s40  !<(state-40 old)
     $(old !>((upgrade-40-to-41 s40)))
@@ -3127,6 +3302,13 @@
       %+  turn  ~(tap by mentions)
       |=  [nid=@ta mns=(list [id=@da eid=(unit @uv) author=@p])]
       [%give %fact ~ %noltbook-update !>(`update:noltbook`[%mention-update nid mns])]
+    ::  Phase A: also send the typed directed-attention state (mentions mirrored
+    ::  + stored reply/send attention) so the frontend's state.attention is current.
+    ::  full=& : authoritative per-note snapshot (frontend replaces that note's list)
+    =/  attention-cards=(list card)
+      %+  turn  ~(tap by (all-attention mentions attention))
+      |=  [nid=@ta its=(list attention-item:noltbook)]
+      [%give %fact ~ %noltbook-update !>(`update:noltbook`[%attention-update nid its %.y])]
     ::  send active call states
     =/  call-cards=(list card)
       %+  turn  ~(tap by active-calls)
@@ -3248,7 +3430,7 @@
           [%give %fact ~ %noltbook-update !>(dialupd)]
       ==
     :_  this(notes notes-now, messages messages-now, notification-acks pruned-acks, note-activity pruned-activity, note-read pruned-read)
-    :(weld init-cards mention-cards call-cards jr-cards role-cards bb-cards hs-cards lineage-cards pfi-cards ack-cards activity-cards read-cards)
+    :(weld init-cards mention-cards attention-cards call-cards jr-cards role-cards bb-cards hs-cards lineage-cards pfi-cards ack-cards activity-cards read-cards)
   ::
       [%notes @ ~]
     =/  nid=@ta  i.t.path
@@ -4235,7 +4417,8 @@
         ::  block guard: cannot send in a DM with a blocked counterparty
         ?:  (~(has in pal-blocked) other)  `this
         =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
-        =/  upd=update:noltbook  [%new-message msg]
+        ::  DMs never carry the directed marker (no orange attention in DMs)
+        =/  upd=update:noltbook  [%new-message msg ~]
         =/  pax=path  ~[%notes note-id.act]
         =/  upd-note=note:noltbook  u.exists(last-author `our.bowl, last-preview `text.act)
         ::  atomic DM delivery: ONE poke carrying both note metadata and
@@ -4252,7 +4435,8 @@
       ::  remote note: forward to creator
       ?.  =(our.bowl creator.u.exists)
         =/  fwd-card=card
-          [%pass /msg-fwd/[note-id.act] %agent [creator.u.exists %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-message note-id.act msg])]
+          ::  carry the explicit NOTE SEND marker to the host (regular/group)
+          [%pass /msg-fwd/[note-id.act] %agent [creator.u.exists %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-message note-id.act msg directed-kind.act])]
         ::  for remote %group sends, arm the 8s host reachability timer so
         ::  we surface %host-unreachable even when Ames swallows the ack.
         =/  arm-timer=?
@@ -4268,9 +4452,10 @@
           [%pass /host-check/[note-id.act]/[deadline-cord] %arvo %b %wait deadline]
         :_  this(host-checks (~(put by host-checks) note-id.act deadline))
         ~[fwd-card wait-card]
-      ::  local note: store and fan out
+      ::  local note: store and fan out (host posts own message). Carry the NOTE
+      ::  SEND marker so member-recipients classify attention as %send.
       =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
-      =/  upd=update:noltbook  [%new-message msg]
+      =/  upd=update:noltbook  [%new-message msg directed-kind.act]
       =/  pax=path  ~[%notes note-id.act]
       =/  upd-note=note:noltbook  u.exists(last-author `our.bowl, last-preview `text.act)
       =/  new-seq-counters=(map @ta @ud)
@@ -4430,8 +4615,8 @@
           ==
         :~  [%give %fact ~[pax] %noltbook-update !>(del-upd)]
             [%give %fact ~[/notes] %noltbook-update !>(del-upd)]
-            [%give %fact ~[pax] %noltbook-update !>(`update:noltbook`[%new-message u.sys-msg])]
-            [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%new-message u.sys-msg])]
+            [%give %fact ~[pax] %noltbook-update !>(`update:noltbook`[%new-message u.sys-msg ~])]
+            [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%new-message u.sys-msg ~])]
         ==
       :_  this(messages (~(put by messages) note-id.act new-msgs))
       facts
@@ -5166,6 +5351,45 @@
         (~(put by mentions) note-id.act new)
       `this
     ::
+        %clear-attention
+      ::  clear a directed-attention item: eid > msg-id > aid. Clears the stored
+      ::  `attention` map (Phase B reply/send) AND, since mention-attention is
+      ::  derived from `mentions`, a matching mention there too — so future unified
+      ::  clearing works. Phase A frontend still clears mentions via %clear-mention.
+      =/  nid=@ta  note-id.act
+      =/  cur-a=(list attention-item:noltbook)  (fall (~(get by attention) nid) ~)
+      =/  new-a=(list attention-item:noltbook)
+        %+  skip  cur-a
+        |=  it=attention-item:noltbook
+        ?^  eid.act
+          &(?=(^ eid.it) =(u.eid.it u.eid.act))
+        ?^  msg-id.act
+          &(?=(^ msg-id.it) =(u.msg-id.it u.msg-id.act))
+        ?^  aid.act
+          &(?=(^ aid.it) =(u.aid.it u.aid.act))
+        %.n
+      =.  attention
+        ?~  new-a  (~(del by attention) nid)
+        (~(put by attention) nid new-a)
+      =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) nid) ~)
+      =/  new-m=(list [id=@da eid=(unit @uv) author=@p])
+        %+  skip  cur-m
+        |=  [id=@da eid=(unit @uv) author=@p]
+        ?^  eid.act
+          &(?=(^ eid) =(u.eid u.eid.act))
+        ?^  msg-id.act
+          =(id u.msg-id.act)
+        %.n
+      =.  mentions
+        ?~  new-m  (~(del by mentions) nid)
+        (~(put by mentions) nid new-m)
+      ::  emit an authoritative full snapshot so the frontend replaces this note's
+      ::  attention list (no stale orange dots), even when it is now empty.
+      =/  snap=(list attention-item:noltbook)
+        (fall (~(get by (all-attention mentions attention)) nid) ~)
+      :_  this
+      ~[[%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%attention-update nid snap %.y])]]
+    ::
         %set-dial
       ::  clamp dial to 0-3
       =/  new-dial=@ud  (min dial.act 3)
@@ -5275,7 +5499,7 @@
       =/  new-revs=(map @ta @ud)
         (bump-member-revs [id.act group-descs] member-revs)
       =/  users-upd=update:noltbook  [%note-users-updated id.act type.u.old ~(tap in new-users) ~(tap in new-removed) (member-rev-of id.act new-revs)]
-      =/  msg-upd=update:noltbook  [%new-message sys-msg]
+      =/  msg-upd=update:noltbook  [%new-message sys-msg ~]
       =/  desc-users-cards=(list card)
         ?:  =(~ group-descs)  ~
         (build-users-updated-cards group-descs notes-after new-revs)
@@ -5718,7 +5942,7 @@
         `[(sham [our.bowl new-id nxt-seq]) nxt-seq 0 new-id new-id ~]
       =/  new-msg=message:noltbook
         [new-id dm-id author.m text.m new-id ~ %.n em]
-      =/  msg-upd=update:noltbook  [%new-message new-msg]
+      =/  msg-upd=update:noltbook  [%new-message new-msg ~]
       =/  pax=path  ~[%notes dm-id]
       %=  $
         src-msgs   t.src-msgs
@@ -5729,7 +5953,7 @@
                    ^-  (list card)
                    :~  [%give %fact ~[pax] %noltbook-update !>(msg-upd)]
                        [%give %fact ~[/notes] %noltbook-update !>(msg-upd)]
-                       [%pass /dm-msg/[dm-id] %agent [ship.act %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-message dm-id new-msg])]
+                       [%pass /dm-msg/[dm-id] %agent [ship.act %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-message dm-id new-msg ~])]
                    ==
       ==
     ::
@@ -5759,7 +5983,7 @@
         [now.bowl note-id.act our.bowl (crip (weld "\01SYS:call-started:" (trip (scot %p our.bowl)))) now.bowl ~ %.n ~]
       =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
       =/  upd=update:noltbook  [%call-started note-id.act cid our.bowl ~[our.bowl]]
-      =/  msg-upd=update:noltbook  [%new-message sys-msg]
+      =/  msg-upd=update:noltbook  [%new-message sys-msg ~]
       =/  pax=path  ~[%notes note-id.act]
       ::  notify all other note members
       =/  broadcast=(list card)
@@ -5782,7 +6006,7 @@
         [now.bowl note-id.act our.bowl (crip (weld "\01SYS:call-joined:" (trip (scot %p our.bowl)))) now.bowl ~ %.n ~]
       =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
       =/  upd=update:noltbook  [%call-joined note-id.act our.bowl]
-      =/  msg-upd=update:noltbook  [%new-message sys-msg]
+      =/  msg-upd=update:noltbook  [%new-message sys-msg ~]
       =/  pax=path  ~[%notes note-id.act]
       ::  notify: if creator, tell existing participants directly;
       ::  if non-creator, tell the host who relays
@@ -5832,7 +6056,7 @@
           ?:  =(p our.bowl)  ~
           `[%pass /call-leave-relay/(scot %p p)/[note-id.act] %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-call-leave note-id.act our.bowl])]
         ~[[%pass /call-leave/(scot %p creator.u.exists)/[note-id.act] %agent [creator.u.exists %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-call-leave note-id.act our.bowl])]]
-      =/  msg-upd=update:noltbook  [%new-message sys-msg]
+      =/  msg-upd=update:noltbook  [%new-message sys-msg ~]
       :_  this(active-calls (~(put by active-calls) note-id.act new-ci), messages (~(put by messages) note-id.act (snoc cur sys-msg)))
       :(weld ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] ~[[%give %fact ~[pax] %noltbook-update !>(msg-upd)]] broadcast)
     ::
@@ -6282,7 +6506,7 @@
       =/  target-note=note:noltbook  (~(got by staged-notes) target-nid)
       =/  upd-note=note:noltbook
         target-note(last-author `src.bowl, last-preview `text.local-msg)
-      =/  new-msg-upd=update:noltbook  [%new-message local-msg]
+      =/  new-msg-upd=update:noltbook  [%new-message local-msg ~]
       =/  msg-cards=(list card)
         :~  [%give %fact ~[/notes/[target-nid]] %noltbook-update !>(new-msg-upd)]
             [%give %fact ~[/notes] %noltbook-update !>(new-msg-upd)]
@@ -6330,12 +6554,14 @@
         `this
       =/  reply-eid=(unit @uv)
         ?.  is-regular  ~
-        ?~  reply-to.msg.rem  ~
-        ::  prefer sender-supplied reply-to-eid when present
+        ::  sender-supplied reply-to-eid wins first — this is the ONLY signal for
+        ::  replies to artifacts (which have no legacy @da reply-to). Must be
+        ::  checked before the legacy reply-to short-circuit.
         =/  sender-eid=(unit @uv)
           ?~(meta.msg.rem ~ reply-to-eid.u.meta.msg.rem)
         ?^  sender-eid  sender-eid
-        ::  fallback: look up parent by timestamp
+        ::  legacy text-to-text fallback: resolve parent message by @da id
+        ?~  reply-to.msg.rem  ~
         =/  parent=(list message:noltbook)  (skim cur |=(m=message:noltbook =(id.m u.reply-to.msg.rem)))
         ?~  parent  ~
         ?~  meta.i.parent  ~
@@ -6347,7 +6573,9 @@
       =/  stamped=message:noltbook
         ?:  =(%dm type.u.old)  msg.rem
         msg.rem(meta host-meta)
-      =/  upd=update:noltbook  [%new-message stamped]
+      ::  host rebroadcast of a member's message: carry the member's NOTE SEND
+      ::  marker (directed-kind.rem) so a member-recipient classifies as %send.
+      =/  upd=update:noltbook  [%new-message stamped directed-kind.rem]
       =/  pax=path  ~[%notes note-id.rem]
       =/  upd-note=note:noltbook  u.old(last-author `author.msg.rem, last-preview `text.msg.rem)
       ::  mention detection: check if @~our appears in message text
@@ -6357,8 +6585,7 @@
         `eid.u.meta.stamped
       =/  mention-cards=(list card)
         ?.  mentioned  ~
-        =/  mupd=update:noltbook  [%mention-update note-id.rem ~[[id.stamped stamped-eid author.msg.rem]]]
-        ~[[%give %fact ~[/notes] %noltbook-update !>(mupd)]]
+        (attn-mention-cards note-id.rem id.stamped stamped-eid author.msg.rem)
       =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
         ?.  mentioned  mentions
         =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) note-id.rem) ~)
@@ -6366,12 +6593,26 @@
       =/  new-seq=(map @ta @ud)
         ?:  =(%dm type.u.old)  seq-counters
         ?:(is-regular (~(put by seq-counters) note-id.rem nxt-seq) seq-counters)
-      :_  this(notes (~(put by notes) note-id.rem upd-note), messages (~(put by messages) note-id.rem (snoc cur stamped)), mentions new-mentions, seq-counters new-seq, note-activity (put-activity note-activity note-id.rem now.bowl))
+      ::  reply attention: notify the immediate parent owner if it is us. Target
+      ::  is the NEW reply (a message). Uses sender reply-to-eid then legacy @da.
+      =/  note-arts=(list artifact:noltbook)
+        (skim ~(val by artifacts) |=(a=artifact:noltbook =(note-id.a note-id.rem)))
+      =/  note-aenvs=(list artifact-envelope:noltbook)
+        ~(val by (fall (~(get by artifact-envelopes) note-id.rem) *(map @ta artifact-envelope:noltbook)))
+      =/  rte=(unit @uv)  ?~(meta.msg.rem ~ reply-to-eid.u.meta.msg.rem)
+      =/  par-owner=(unit @p)  (attn-parent-owner rte reply-to.msg.rem cur note-arts note-aenvs)
+      ::  NOTE SEND payment posts get kind=%send via the explicit marker carried
+      ::  on the %remote-message poke (no longer text-prefix based).
+      =/  rkind=attention-kind:noltbook  ?:(=(`%send directed-kind.rem) %send %reply)
+      =/  rtarget=attention-item:noltbook  [rkind %message stamped-eid `id.stamped ~ author.msg.rem id.stamped]
+      =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
+        (add-reply-attn attention note-id.rem our.bowl author.msg.rem par-owner rtarget)
+      :_  this(notes (~(put by notes) note-id.rem upd-note), messages (~(put by messages) note-id.rem (snoc cur stamped)), mentions new-mentions, attention na.ar, seq-counters new-seq, note-activity (put-activity note-activity note-id.rem now.bowl))
       ^-  (list card:agent:gall)
       :*  [%give %fact ~[pax] %noltbook-update !>(upd)]
           [%give %fact ~[/notes] %noltbook-update !>(upd)]
           (activity-fact note-id.rem now.bowl)
-          mention-cards
+          (weld mention-cards ac.ar)
       ==
     ::
         %remote-ars
@@ -6397,8 +6638,7 @@
       =/  mentioned=?  &(!=(author.msg.rem our.bowl) (has-our-mention text.msg.rem our.bowl))
       =/  mention-cards=(list card)
         ?.  mentioned  ~
-        =/  mupd=update:noltbook  [%mention-update %cover ~[[id.msg.rem meid author.msg.rem]]]
-        ~[[%give %fact ~[/notes] %noltbook-update !>(mupd)]]
+        (attn-mention-cards %cover id.msg.rem meid author.msg.rem)
       =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
         ?.  mentioned  mentions
         =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) %cover) ~)
@@ -6448,8 +6688,25 @@
         ?:  =(p src.bowl)  ~
         ?:  =(p author.env)  ~
         `[%pass /ars-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-ars-ref env my-hops])]
-      :_  this(gossip-envelopes (~(put by gossip-envelopes) %cover (cap-envs (~(put by cenv) msg-id.env env))), gossip-hops (~(put by gossip-hops) msg-id.env my-hops))
-      [[%give %fact ~[/notes/cover] %noltbook-update !>(upd)] relay]
+      ::  reply attention: cover text reply → notify the immediate parent owner if us
+      =/  note-arts=(list artifact:noltbook)
+        (skim ~(val by artifacts) |=(a=artifact:noltbook =(note-id.a %cover)))
+      =/  note-aenvs=(list artifact-envelope:noltbook)
+        ~(val by (fall (~(get by artifact-envelopes) %cover) *(map @ta artifact-envelope:noltbook)))
+      =/  env-rte=(unit @uv)  ?~(meta.env ~ reply-to-eid.u.meta.env)
+      =/  par-owner=(unit @p)  (attn-parent-owner env-rte reply-to.env cur note-arts note-aenvs)
+      =/  rtarget=attention-item:noltbook  [%reply %message env-eid `msg-id.env ~ author.env timestamp.env]
+      =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
+        (add-reply-attn attention %cover our.bowl author.env par-owner rtarget)
+      :_  this(gossip-envelopes (~(put by gossip-envelopes) %cover (cap-envs (~(put by cenv) msg-id.env env))), gossip-hops (~(put by gossip-hops) msg-id.env my-hops), attention na.ar)
+      ::  emit the envelope on global /notes too (like user-gossip) so a CLOSED
+      ::  cover still triggers fetchGossipContent → %cover-msg-content → preview.
+      ::  No activity-fact / sidebar-signal: cover must not get a green/red dot;
+      ::  the preview is set frontend-side from the fetched message.
+      :*  [%give %fact ~[/notes/cover] %noltbook-update !>(upd)]
+          [%give %fact ~[/notes] %noltbook-update !>(upd)]
+          (weld relay ac.ar)
+      ==
     ::
         %remote-fetch-cover-msg
       ::  someone is requesting a cover message we authored
@@ -6502,8 +6759,7 @@
       =/  mentioned=?  &(!=(author.msg our.bowl) (has-our-mention text.msg our.bowl))
       =/  mention-cards=(list card)
         ?.  mentioned  ~
-        =/  mupd=update:noltbook  [%mention-update %cover ~[[id.msg meid author.msg]]]
-        ~[[%give %fact ~[/notes] %noltbook-update !>(mupd)]]
+        (attn-mention-cards %cover id.msg meid author.msg)
       =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
         ?.  mentioned  mentions
         =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) %cover) ~)
@@ -6555,8 +6811,18 @@
             (activity-fact nid now.bowl)
             (sidebar-signal nid author.env ~ %gossip now.bowl)
         ==
-      :_  this(gossip-envelopes (~(put by gossip-envelopes) nid (cap-envs (~(put by nenv) msg-id.env env))), gossip-hops (~(put by gossip-hops) msg-id.env my-hops), note-activity (put-activity note-activity nid now.bowl))
-      (weld head-cards relay)
+      ::  reply attention: user-gossip text reply → notify the parent owner if us
+      =/  note-arts=(list artifact:noltbook)
+        (skim ~(val by artifacts) |=(a=artifact:noltbook =(note-id.a nid)))
+      =/  note-aenvs=(list artifact-envelope:noltbook)
+        ~(val by (fall (~(get by artifact-envelopes) nid) *(map @ta artifact-envelope:noltbook)))
+      =/  env-rte=(unit @uv)  ?~(meta.env ~ reply-to-eid.u.meta.env)
+      =/  par-owner=(unit @p)  (attn-parent-owner env-rte reply-to.env cur note-arts note-aenvs)
+      =/  rtarget=attention-item:noltbook  [%reply %message env-eid `msg-id.env ~ author.env timestamp.env]
+      =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
+        (add-reply-attn attention nid our.bowl author.env par-owner rtarget)
+      :_  this(gossip-envelopes (~(put by gossip-envelopes) nid (cap-envs (~(put by nenv) msg-id.env env))), gossip-hops (~(put by gossip-hops) msg-id.env my-hops), attention na.ar, note-activity (put-activity note-activity nid now.bowl))
+      (weld (weld head-cards relay) ac.ar)
     ::
         %remote-fetch-gossip-msg
       ::  someone requests a gossip message we authored
@@ -6611,8 +6877,7 @@
       =/  mentioned=?  &(!=(author.msg our.bowl) (has-our-mention text.msg our.bowl))
       =/  mention-cards=(list card)
         ?.  mentioned  ~
-        =/  mupd=update:noltbook  [%mention-update nid ~[[id.msg meid author.msg]]]
-        ~[[%give %fact ~[/notes] %noltbook-update !>(mupd)]]
+        (attn-mention-cards nid id.msg meid author.msg)
       =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
         ?.  mentioned  mentions
         =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) nid) ~)
@@ -7522,7 +7787,7 @@
           [now.bowl note-id.rem src.bowl (crip (weld "\01SYS:call-started:" (trip (scot %p src.bowl)))) now.bowl ~ %.n ~]
         =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
         =/  upd=update:noltbook  [%call-started note-id.rem cid src.bowl ~[src.bowl]]
-        =/  msg-upd=update:noltbook  [%new-message sys-msg]
+        =/  msg-upd=update:noltbook  [%new-message sys-msg ~]
         =/  pax=path  ~[%notes note-id.rem]
         ::  broadcast to all members including the requester
         =/  broadcast=(list card)
@@ -7540,7 +7805,7 @@
         [now.bowl note-id.rem started-by.rem (crip (weld "\01SYS:call-started:" (trip (scot %p started-by.rem)))) now.bowl ~ %.n ~]
       =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
       =/  upd=update:noltbook  [%call-started note-id.rem call-id.rem started-by.rem ~[started-by.rem]]
-      =/  msg-upd=update:noltbook  [%new-message sys-msg]
+      =/  msg-upd=update:noltbook  [%new-message sys-msg ~]
       =/  pax=path  ~[%notes note-id.rem]
       :_  this(active-calls (~(put by active-calls) note-id.rem ci), messages (~(put by messages) note-id.rem (snoc cur sys-msg)))
       :(weld ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]] ~[[%give %fact ~[pax] %noltbook-update !>(msg-upd)]])
@@ -7557,7 +7822,7 @@
         [now.bowl note-id.rem ship.rem (crip (weld "\01SYS:call-joined:" (trip (scot %p ship.rem)))) now.bowl ~ %.n ~]
       =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
       =/  upd=update:noltbook  [%call-joined note-id.rem ship.rem]
-      =/  msg-upd=update:noltbook  [%new-message sys-msg]
+      =/  msg-upd=update:noltbook  [%new-message sys-msg ~]
       =/  pax=path  ~[%notes note-id.rem]
       ::  case 1: we are creator — process + relay to other participants
       ::  case 2: we are NOT creator — just process locally (notification from creator)
@@ -7757,7 +8022,7 @@
         =/  sys-msg=message:noltbook  [now.bowl note-id.rem our.bowl sys-text now.bowl ~ %.n ~]
         =/  old-msgs=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
         =/  new-msgs=(list message:noltbook)  (snoc old-msgs sys-msg)
-        =/  msg-upd=update:noltbook  [%new-message sys-msg]
+        =/  msg-upd=update:noltbook  [%new-message sys-msg ~]
         =/  clean-admins=(map @ta (set @p))
           =/  cur=(set @p)  (fall (~(get by note-admins) note-id.rem) ~)
           ?:  (~(has in cur) target.rem)
@@ -8114,11 +8379,25 @@
       =/  pax=path  ~[%notes nid]
       =/  prev=@t  (artifact-preview art)
       =/  upd-note=note:noltbook  u.nt(last-author `creator.art, last-preview `prev)
-      :_  this(notes (~(put by notes) nid upd-note), artifacts (~(put by artifacts) id.art art), note-activity (put-activity note-activity nid now.bowl))
+      ::  reply attention: artifact reply → notify the immediate parent owner if us
+      =/  art-eid=(unit @uv)  ?~(meta.art ~ `eid.u.meta.art)
+      =/  art-rte=(unit @uv)  ?~(meta.art ~ reply-to-eid.u.meta.art)
+      =/  art-when=@da  timestamp.i.versions.art
+      =/  cur-msgs=(list message:noltbook)  (fall (~(get by messages) nid) ~)
+      =/  note-arts=(list artifact:noltbook)
+        (skim ~(val by artifacts) |=(a=artifact:noltbook =(note-id.a nid)))
+      =/  note-aenvs=(list artifact-envelope:noltbook)
+        ~(val by (fall (~(get by artifact-envelopes) nid) *(map @ta artifact-envelope:noltbook)))
+      =/  par-owner=(unit @p)  (attn-parent-owner art-rte ~ cur-msgs note-arts note-aenvs)
+      =/  rtarget=attention-item:noltbook  [%reply %artifact art-eid ~ `id.art creator.art art-when]
+      =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
+        (add-reply-attn attention nid our.bowl creator.art par-owner rtarget)
+      :_  this(notes (~(put by notes) nid upd-note), artifacts (~(put by artifacts) id.art art), attention na.ar, note-activity (put-activity note-activity nid now.bowl))
       ^-  (list card:agent:gall)
-      :~  [%give %fact ~[pax] %noltbook-update !>(upd)]
+      :*  [%give %fact ~[pax] %noltbook-update !>(upd)]
           (activity-fact nid now.bowl)
           (sidebar-signal nid creator.art `prev %artifact now.bowl)
+          ac.ar
       ==
     ::
         %remote-dm-artifact
@@ -8154,12 +8433,26 @@
       =/  pax=path  ~[%notes nid]
       =/  prev=@t  (artifact-preview art)
       =/  upd-note=note:noltbook  u.nt(last-author `creator.art, last-preview `prev)
-      :_  this(notes (~(put by notes) nid upd-note), artifacts (~(put by artifacts) id.art art), note-activity (put-activity note-activity nid now.bowl))
-      :~  clay-card
+      ::  reply attention: DM artifact reply → notify the immediate parent owner if us
+      =/  art-eid=(unit @uv)  ?~(meta.art ~ `eid.u.meta.art)
+      =/  art-rte=(unit @uv)  ?~(meta.art ~ reply-to-eid.u.meta.art)
+      =/  art-when=@da  timestamp.i.versions.art
+      =/  cur-msgs=(list message:noltbook)  (fall (~(get by messages) nid) ~)
+      =/  note-arts=(list artifact:noltbook)
+        (skim ~(val by artifacts) |=(a=artifact:noltbook =(note-id.a nid)))
+      =/  note-aenvs=(list artifact-envelope:noltbook)
+        ~(val by (fall (~(get by artifact-envelopes) nid) *(map @ta artifact-envelope:noltbook)))
+      =/  par-owner=(unit @p)  (attn-parent-owner art-rte ~ cur-msgs note-arts note-aenvs)
+      =/  rtarget=attention-item:noltbook  [%reply %artifact art-eid ~ `id.art creator.art art-when]
+      =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
+        (add-reply-attn attention nid our.bowl creator.art par-owner rtarget)
+      :_  this(notes (~(put by notes) nid upd-note), artifacts (~(put by artifacts) id.art art), attention na.ar, note-activity (put-activity note-activity nid now.bowl))
+      :*  clay-card
           [%give %fact ~[pax] %noltbook-update !>(upd)]
           [%give %fact ~[/notes] %noltbook-update !>(upd)]
           (activity-fact nid now.bowl)
           (sidebar-signal nid creator.art `prev %artifact now.bowl)
+          ac.ar
       ==
     ::
         %remote-artifact-envelope-ref
@@ -8213,8 +8506,18 @@
       =/  new-notes=(map @ta note:noltbook)
         ?.  is-user-gossip  notes
         (~(put by notes) nid u.nt(last-author `author.env.rem, last-preview `prev))
-      :_  this(notes new-notes, artifact-envelopes (~(put by artifact-envelopes) nid (cap-art-envs (~(put by envs) aid.env.rem env.rem))), note-activity (put-activity note-activity nid now.bowl))
-      :(weld ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] relay act-cards sig-cards)
+      ::  reply attention: cover/gossip artifact-envelope reply → parent owner if us
+      =/  env-eid=(unit @uv)  ?~(meta.env.rem ~ `eid.u.meta.env.rem)
+      =/  env-rte=(unit @uv)  ?~(meta.env.rem ~ reply-to-eid.u.meta.env.rem)
+      =/  cur-msgs=(list message:noltbook)  (fall (~(get by messages) nid) ~)
+      =/  note-arts=(list artifact:noltbook)
+        (skim ~(val by artifacts) |=(a=artifact:noltbook =(note-id.a nid)))
+      =/  par-owner=(unit @p)  (attn-parent-owner env-rte ~ cur-msgs note-arts ~(val by envs))
+      =/  rtarget=attention-item:noltbook  [%reply %artifact-envelope env-eid ~ `aid.env.rem author.env.rem timestamp.env.rem]
+      =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
+        (add-reply-attn attention nid our.bowl author.env.rem par-owner rtarget)
+      :_  this(notes new-notes, artifact-envelopes (~(put by artifact-envelopes) nid (cap-art-envs (~(put by envs) aid.env.rem env.rem))), attention na.ar, note-activity (put-activity note-activity nid now.bowl))
+      :(weld ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] relay act-cards sig-cards ac.ar)
     ==
   ==
 ::
@@ -8592,15 +8895,29 @@
           (~(put by mentions) nid (snoc cur-m [id.msg msg-eid author.msg]))
         =/  mention-cards=(list card)
           ?.  mentioned  ~
-          =/  mupd=update:noltbook  [%mention-update nid ~[[id.msg msg-eid author.msg]]]
-          ~[[%give %fact ~[/notes] %noltbook-update !>(mupd)]]
+          (attn-mention-cards nid id.msg msg-eid author.msg)
+        ::  reply attention (member receives the host's broadcast). Target = reply.
+        =/  note-arts=(list artifact:noltbook)
+          (skim ~(val by artifacts) |=(a=artifact:noltbook =(note-id.a nid)))
+        =/  note-aenvs=(list artifact-envelope:noltbook)
+          ~(val by (fall (~(get by artifact-envelopes) nid) *(map @ta artifact-envelope:noltbook)))
+        =/  rte=(unit @uv)  ?~(meta.msg ~ reply-to-eid.u.meta.msg)
+        =/  par-owner=(unit @p)  (attn-parent-owner rte reply-to.msg cur note-arts note-aenvs)
+        ::  classify %send via the marker the host preserved on the broadcast;
+        ::  otherwise %reply. (Member-origin NOTE SEND: member→host %remote-message
+        ::  carried directed-kind, host rebroadcast it on %new-message.)
+        =/  rkind=attention-kind:noltbook  ?:(=(`%send directed-kind.upd) %send %reply)
+        =/  rtarget=attention-item:noltbook  [rkind %message msg-eid `id.msg ~ author.msg id.msg]
+        =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
+          (add-reply-attn attention nid our.bowl author.msg par-owner rtarget)
+        =.  attention  na.ar
         =/  base-cards=(list card)
           :~  [%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]
               [%give %fact ~[/notes] %noltbook-update !>(upd)]
               (activity-fact nid now.bowl)
           ==
         :_  this
-        (weld base-cards mention-cards)
+        :(weld base-cards mention-cards ac.ar)
       ::
           %message-edited
         =/  msgs=(list message:noltbook)  (fall (~(get by messages) note-id.upd) ~)
@@ -8724,11 +9041,27 @@
         =/  prev=@t  (artifact-preview artifact.upd)
         =?  notes  ?=(^ note)
           (~(put by notes) nid u.note(last-author `creator.artifact.upd, last-preview `prev))
+        ::  reply attention (member receives host's broadcast artifact). Target = reply.
+        =/  art2=artifact:noltbook  artifact.upd
+        =/  art-eid=(unit @uv)  ?~(meta.art2 ~ `eid.u.meta.art2)
+        =/  art-rte=(unit @uv)  ?~(meta.art2 ~ reply-to-eid.u.meta.art2)
+        =/  art-when=@da  ?~(versions.art2 now.bowl timestamp.i.versions.art2)
+        =/  cur-msgs=(list message:noltbook)  (fall (~(get by messages) nid) ~)
+        =/  note-arts=(list artifact:noltbook)
+          (skim ~(val by artifacts) |=(a=artifact:noltbook =(note-id.a nid)))
+        =/  note-aenvs=(list artifact-envelope:noltbook)
+          ~(val by (fall (~(get by artifact-envelopes) nid) *(map @ta artifact-envelope:noltbook)))
+        =/  par-owner=(unit @p)  (attn-parent-owner art-rte ~ cur-msgs note-arts note-aenvs)
+        =/  rtarget=attention-item:noltbook  [%reply %artifact art-eid ~ `id.art2 creator.art2 art-when]
+        =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
+          (add-reply-attn attention nid our.bowl creator.art2 par-owner rtarget)
+        =.  attention  na.ar
         :_  this
         ^-  (list card:agent:gall)
-        :~  [%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]
+        :*  [%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]
             (activity-fact nid now.bowl)
             (sidebar-signal nid creator.artifact.upd `prev %artifact now.bowl)
+            ac.ar
         ==
       ::
           %artifact-updated
@@ -8818,7 +9151,7 @@
           (~(put by mentions) %cover (snoc cur-m [id.msg msg-eid author.msg]))
         =/  mention-cards=(list card)
           ?.  mentioned  ~
-          ~[[%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%mention-update %cover ~[[id.msg msg-eid author.msg]]])]]
+          (attn-mention-cards %cover id.msg msg-eid author.msg)
         ::  author persists full message; non-author stores envelope only
         ?:  =(author.msg our.bowl)
           =.  messages  (~(put by messages) %cover (cap-msgs (snoc cur msg) %.y))
@@ -8863,7 +9196,7 @@
           (~(put by mentions) %cover (snoc cur-m [id.msg msg-eid author.msg]))
         =/  mention-cards=(list card)
           ?.  mentioned  ~
-          ~[[%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%mention-update %cover ~[[id.msg msg-eid author.msg]]])]]
+          (attn-mention-cards %cover id.msg msg-eid author.msg)
         ::  author persists; non-author stores envelope only
         ?:  =(author.msg our.bowl)
           =.  messages  (~(put by messages) %cover (cap-msgs (snoc cur msg) %.y))
@@ -8940,7 +9273,13 @@
         =.  gossip-envelopes  (~(put by gossip-envelopes) %cover (cap-envs (~(put by cover-envs) msg-id.env env)))
         =.  gossip-hops  (~(put by gossip-hops) msg-id.env my-hops)
         :_  this
-        ~[[%give %fact ~[/notes/cover] %noltbook-update !>(gupd)]]
+        ::  also emit on global /notes so a CLOSED cover updates its preview via
+        ::  fetchGossipContent → %cover-msg-content. No activity-fact / sidebar-
+        ::  signal (cover must not get a green/red dot); the frontend
+        ::  !isPinnedUnreadNote guard suppresses any cover notification.
+        :~  [%give %fact ~[/notes/cover] %noltbook-update !>(gupd)]
+            [%give %fact ~[/notes] %noltbook-update !>(gupd)]
+        ==
       ::
           %envelope-list
         ::  initial sync of envelopes from peer

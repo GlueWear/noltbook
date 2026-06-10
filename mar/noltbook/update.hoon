@@ -236,6 +236,26 @@
           ['mentions' a+(turn mentions.upd |=([id=@da eid=(unit @uv) author=@p] (pairs ~[['id' (numb (da-to-ms id))] ['eid' ?~(eid ~ s+(scot %uv u.eid))] ['author' s+(scot %p author)]])))]
       ==
     ::
+        %attention-update
+      %+  frond  'attention-update'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['full' b+full.upd]
+          :-  'items'
+          :-  %a
+          %+  turn  items.upd
+          |=  it=attention-item:noltbook
+          %-  pairs
+          :~  ['kind' s+(scot %tas kind.it)]
+              ['targetKind' s+(scot %tas target-kind.it)]
+              ['eid' ?~(eid.it ~ s+(scot %uv u.eid.it))]
+              ['msgId' ?~(msg-id.it ~ (numb (da-to-ms u.msg-id.it)))]
+              ['aid' ?~(aid.it ~ s+(crip (trip u.aid.it)))]
+              ['author' s+(scot %p author.it)]
+              ['when' (numb (da-to-ms when.it))]
+          ==
+      ==
+    ::
         %call-started
       %+  frond  'call-started'
       %-  pairs

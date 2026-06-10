@@ -87,7 +87,14 @@
         ?~  rte-raw  ~
         ?.  ?=([%s *] u.rte-raw)  ~
         `(slav %uv p.u.rte-raw)
-      [%send-message `@ta`p.nid-nd p.txt-nd rt rte]
+      ::  directed-kind: explicit NOTE SEND marker (only 'send' is honored)
+      =/  dk-raw  (~(get by d) 'directedKind')
+      =/  dk=(unit attention-kind:noltbook)
+        ?~  dk-raw  ~
+        ?.  ?=([%s *] u.dk-raw)  ~
+        ?:  =('send' p.u.dk-raw)  `%send
+        ~
+      [%send-message `@ta`p.nid-nd p.txt-nd rt rte dk]
     ::  edit-message
     ?:  =('edit-message' tag)
       =/  nid-nd  (need (~(get by d) 'noteId'))
@@ -363,6 +370,26 @@
         ?.  ?=([%s *] u.eid-raw)  ~
         `(slav %uv p.u.eid-raw)
       [%clear-mention `@ta`p.nid-nd mid eid]
+    ::  clear-attention (Phase A: eid > msgId > aid; all optional)
+    ?:  =('clear-attention' tag)
+      =/  nid-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] nid-nd)
+      =/  eid-raw  (~(get by d) 'eid')
+      =/  eid=(unit @uv)
+        ?~  eid-raw  ~
+        ?.  ?=([%s *] u.eid-raw)  ~
+        `(slav %uv p.u.eid-raw)
+      =/  mid-raw  (~(get by d) 'msgId')
+      =/  mid=(unit @da)
+        ?~  mid-raw  ~
+        ?.  ?=([%n *] u.mid-raw)  ~
+        `(add ~1970.1.1 (mul (rash p.u.mid-raw dem) (div ~s1 1.000)))
+      =/  aid-raw  (~(get by d) 'aid')
+      =/  aid=(unit @ta)
+        ?~  aid-raw  ~
+        ?.  ?=([%s *] u.aid-raw)  ~
+        ``@ta`p.u.aid-raw
+      [%clear-attention `@ta`p.nid-nd eid mid aid]
     ::  start-call
     ?:  =('start-call' tag)
       =/  nid-nd  (need (~(get by d) 'noteId'))
