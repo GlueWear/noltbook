@@ -4570,14 +4570,21 @@ function openNoteInfoModal(note){
   }
 }
 /* ========== WALLET ========== */
-// Iris provider: window.nockchain.request({method, params, timeout})
-// Methods: nock_connect, nock_getWalletInfo, nock_signMessage, nock_sendTransaction, nock_signRawTx
-// Params format: array (params[0], params[1], ...)
-// Units: 65536 nock = 1 nick | RPC: rpc.nockbox.org | Chain: nockchain-1
+// Iris provider: window.nockchain.request({method, api, params, timeout})
+// Methods: nock_connect, nock_getWalletInfo, nock_signMessage, nock_sendTransaction, nock_signTx
+// Modern (iris-sdk 0.2.0) request: api:'1.0.0', params is an OBJECT (legacy used [obj]).
+// Units: 1 NOCK = 65536 nicks | RPC: rpc.nockbox.org | Chain: nockchain-1
 // Chain reads: @nockbox/iris-wasm loaded from CDN, provides GrpcClient for real balance queries
-const NOCK_PER_NICK=65536;
-const FEE_PER_WORD=BigInt(32768); // 0.5 NOCK per word — protocol standard
-const FEE_PER_WORD_NUM=32768;
+const NICKS_PER_NOCK=65536;          // 1 NOCK = 65,536 nicks (2^16)
+const IRIS_API_VERSION='1.0.0';      // modern Iris RPC api version (iris-sdk 0.2.0)
+const DEFAULT_SEND_FEE_NICKS=32768;  // total tx fee in nicks (0.5 NOCK) = iris-sdk DEFAULT_FEE
+const WALLET_DRYRUN=false;           // live: real nock_sendTransaction enabled (omit-fee test)
+const WALLET_ALLOW_REAL_SEND=true;   // extra guard: real send needs DRYRUN=false AND this=true
+const WALLET_SEND_FEE_MODE='omit';   // 'omit' (let Iris calculate fee) | 'default' (fee:DEFAULT_SEND_FEE_NICKS)
+// Balance/chain-reads pinned to 0.1.1: it exposes the Pkh/SpendCondition classes
+// the proven getBalanceByFirstName path needs. 0.2.0 dropped those classes and its
+// getBalanceByAddress server-rejects our address shape ("improperly formatted").
+// Send/api modernization above is provider-level and independent of this pin.
 const IRIS_WASM_VERSION='0.1.1';
 const IRIS_WASM_CDN='https://unpkg.com/@nockbox/iris-wasm@'+IRIS_WASM_VERSION;
 const wallet={
@@ -4593,7 +4600,48 @@ const wallet={
 const WALLET_STORAGE_KEY='noltbook_wallet';
 function irisReady(){return window.nockchain&&typeof window.nockchain.request==='function'}
 function truncatePkh(p){return p?p.slice(0,8)+'...'+p.slice(-6):'—'}
-function formatNock(nicks){return(Number(nicks)/NOCK_PER_NICK).toFixed(4)}
+function formatNock(nicks){return(Number(nicks)/NICKS_PER_NOCK).toFixed(4)}
+
+// Log whatever the injected provider advertises (name/version/api) for inspection.
+function logIrisProvider(){
+  const p=window.nockchain||{};
+  try{console.log('[wallet] provider:',{keys:Object.keys(p),name:p.name,version:p.version,isIris:p.isIris,clientApi:IRIS_API_VERSION})}catch(e){}
+}
+// Accept both legacy {pkh, grpcEndpoint} and modern api-1.0.0
+// {account:{type:'v1', address}, rpcConfig:{rpcUrl}} and return {pkh, grpc} or null.
+function normalizeWalletInfo(r){
+  if(!r||typeof r!=='object')return null;
+  let pkh=r.pkh||null;
+  let grpc=r.grpcEndpoint||null;
+  if(!pkh&&r.account&&typeof r.account==='object')pkh=r.account.address||r.account.pkh||null;
+  if(!grpc&&r.rpcConfig&&typeof r.rpcConfig==='object')grpc=r.rpcConfig.rpcUrl||r.rpcConfig.grpcEndpoint||r.rpcConfig.endpoint||null;
+  if(!pkh)return null;
+  return{pkh:pkh,grpc:grpc||null};
+}
+// Self-contained base58 (Bitcoin alphabet) decode -> byte array, or null on bad char.
+const B58_ALPHABET='123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+function base58Decode(s){
+  if(typeof s!=='string'||!s.length)return null;
+  const map={};for(let i=0;i<B58_ALPHABET.length;i++)map[B58_ALPHABET[i]]=i;
+  // d: little-endian base-256 digits, built empty (no seed zero to avoid overcount)
+  const d=[];
+  for(let i=0;i<s.length;i++){
+    let c=map[s[i]];if(c===undefined)return null;
+    for(let j=0;j<d.length;j++){c+=d[j]*58;d[j]=c&0xff;c>>=8}
+    while(c>0){d.push(c&0xff);c>>=8}
+  }
+  // exactly one leading zero byte per leading '1' char
+  let nz=0;for(let i=0;i<s.length&&s[i]===B58_ALPHABET[0];i++)nz++;
+  const out=[];for(let i=0;i<nz;i++)out.push(0);
+  for(let j=d.length-1;j>=0;j--)out.push(d[j]);
+  return out;
+}
+// Nockchain v1 PKH address: base58 that decodes to exactly 40 bytes (TIP5 hash).
+function isValidNockAddress(addr){
+  if(!addr||typeof addr!=='string')return false;
+  const d=base58Decode(addr.trim());
+  return !!d&&d.length===40;
+}
 
 function walletSaveState(){
   try{localStorage.setItem(WALLET_STORAGE_KEY,JSON.stringify({pkh:wallet.pkh,grpc:wallet.grpc}))}
@@ -4611,13 +4659,21 @@ async function walletTryRestore(){
   const saved=walletLoadState();
   if(!saved||!saved.pkh)return;
   if(!irisReady()){console.log('[wallet] Iris not available, skipping restore');return}
+  logIrisProvider();
   console.log('[wallet] Restoring connection for',truncatePkh(saved.pkh));
-  // Set state optimistically so UI shows connecting
-  wallet.pkh=saved.pkh;
+  // Do NOT let a stale/invalid saved pkh drive balance. Only seed optimistically
+  // if it passes v1 validation; otherwise drop it and rely on the fresh connect.
+  const savedValid=isValidNockAddress(saved.pkh);
+  if(savedValid){wallet.pkh=saved.pkh}
+  else{console.warn('[wallet] saved pkh fails v1 validation — clearing, forcing fresh connect');wallet.pkh=null;walletClearState()}
   wallet.grpc=saved.grpc||'rpc.nockbox.org';
   try{
-    const r=await window.nockchain.request({method:'nock_connect',timeout:10000});
-    if(r&&r.pkh){wallet.pkh=r.pkh;wallet.grpc=r.grpcEndpoint||wallet.grpc}
+    const r=await window.nockchain.request({method:'nock_connect',api:IRIS_API_VERSION,timeout:10000});
+    console.log('[wallet] raw nock_connect response (restore):',r);
+    const ni=normalizeWalletInfo(r);
+    if(ni){wallet.pkh=ni.pkh;wallet.grpc=ni.grpc||wallet.grpc}
+    console.log('[wallet] normalized (restore) pkh='+truncatePkh(wallet.pkh)+' grpc='+wallet.grpc+' v1ok='+isValidNockAddress(wallet.pkh));
+    if(wallet.pkh&&!isValidNockAddress(wallet.pkh))console.warn('[wallet] connected address is not v1 getBalanceByAddress-compatible');
     wallet.connected=true;
     if(wallet.pkh){walletRegister(wallet.pkh)}
     walletSaveState();
@@ -4676,76 +4732,88 @@ function walletInitGrpc(){
 }
 
 // --- Real chain balance query ---
-// Uses the same pattern as tx-builder:
-// 1. Create PKH lock from wallet address
-// 2. Create SpendCondition from PKH lock
-// 3. Get firstName (Digest) from SpendCondition
-// 4. Query gRPC getBalanceByFirstName(firstName)
-// 5. Also queries coinbase lock (PKH + timelock) for mined coins
-// Returns {total, notes[]} where total is sum of all note assets
+// iris-wasm 0.2.0 path: GrpcClient.getBalanceByAddress(pkh) — address-based,
+// needs no wasm lock classes (0.2.0 dropped Pkh/SpendCondition/Note classes).
+// Pin is 0.1.1, so the class-based firstName/coinbase path is primary; the
+// 0.2.0 getBalanceByAddress path is kept (gated on a valid v1 PKH) for when the
+// classes are absent. Returns {total, notes[], path}.
 async function walletQueryBalance(){
-  if(!wallet.grpcClient||!wallet.pkh||!wallet.irisWasm)return null;
+  if(!wallet.grpcClient||!wallet.pkh)return null;
   const W=wallet.irisWasm;
   let totalNicks=BigInt(0);
   const allNotes=[];
 
-  // Query PKH lock balance
-  try{
-    const pkhLock=W.Pkh.single(wallet.pkh);
-    const pkhSc=W.SpendCondition.newPkh(pkhLock);
-    const firstName=pkhSc.firstName();
-    console.log('[wallet] Querying PKH balance, firstName:',firstName.value.substring(0,20)+'...');
-    const result=await wallet.grpcClient.getBalanceByFirstName(firstName.value);
-    pkhSc.free();
-    if(result&&result.notes&&result.notes.length>0){
-      for(const n of result.notes){
-        const note=W.Note.fromProtobuf(n.note);
-        const assets=note.assets;
-        let fn=n.firstName||'';
-        let ln=n.lastName||'';
-        if(!fn&&n.note&&n.note.note_version&&n.note.note_version.V1&&n.note.note_version.V1.name){
-          fn=n.note.note_version.V1.name.first||'';
-          ln=n.note.note_version.V1.name.last||'';
-        }
-        totalNicks+=assets;
-        allNotes.push({assets:Number(assets),firstName:fn,lastName:ln,lock:'pkh'});
-        note.free();
-      }
-    }
-    console.log('[wallet] PKH balance:',formatNock(totalNicks),'NOCK from',allNotes.length,'notes');
-  }catch(e){console.error('[wallet] PKH balance query failed:',e)}
+  // helper: pull assets (nicks, as BigInt) + name labels from a 0.2.x balance entry
+  const readEntry=(e,lock)=>{
+    const nv=e&&e.note&&e.note.note_version;
+    const v1=nv&&nv.V1;const lg=nv&&nv.Legacy;
+    let assetsStr='0';
+    if(v1&&v1.assets&&v1.assets.value!=null)assetsStr=String(v1.assets.value);
+    else if(lg&&lg.assets&&lg.assets.value!=null)assetsStr=String(lg.assets.value);
+    let a;try{a=BigInt(assetsStr)}catch(_){a=BigInt(0)}
+    const fn=(e&&e.name&&e.name.first)||(v1&&v1.name&&v1.name.first)||'';
+    const ln=(e&&e.name&&e.name.last)||(v1&&v1.name&&v1.name.last)||'';
+    totalNicks+=a;
+    allNotes.push({assets:Number(a),firstName:fn,lastName:ln,lock:lock});
+  };
 
-  // Query coinbase lock balance (PKH + coinbase timelock)
-  try{
-    const cbPkh=W.Pkh.single(wallet.pkh);
-    const cbTim=W.LockTim.coinbase();
-    const cbSc=new W.SpendCondition([
-      W.LockPrimitive.newPkh(cbPkh),
-      W.LockPrimitive.newTim(cbTim)
-    ]);
-    const cbFirst=cbSc.firstName();
-    console.log('[wallet] Querying coinbase balance...');
-    const cbResult=await wallet.grpcClient.getBalanceByFirstName(cbFirst.value);
-    cbSc.free();
-    if(cbResult&&cbResult.notes&&cbResult.notes.length>0){
-      for(const n of cbResult.notes){
-        const note=W.Note.fromProtobuf(n.note);
-        const assets=note.assets;
-        let fn=n.firstName||'';
-        let ln=n.lastName||'';
-        if(!fn&&n.note&&n.note.note_version&&n.note.note_version.V1&&n.note.note_version.V1.name){
-          fn=n.note.note_version.V1.name.first||'';
-          ln=n.note.note_version.V1.name.last||'';
+  // --- Primary on iris-wasm 0.1.x: proven firstName/coinbase path (uses classes) ---
+  if(W&&W.Pkh&&W.SpendCondition){
+    let path=null;
+    try{
+      const pkhLock=W.Pkh.single(wallet.pkh);
+      const pkhSc=W.SpendCondition.newPkh(pkhLock);
+      const firstName=pkhSc.firstName();
+      const result=await wallet.grpcClient.getBalanceByFirstName(firstName.value);
+      pkhSc.free();
+      if(result&&result.notes){
+        for(const n of result.notes){
+          const note=W.Note.fromProtobuf(n.note);
+          totalNicks+=note.assets;
+          allNotes.push({assets:Number(note.assets),firstName:n.firstName||'',lastName:n.lastName||'',lock:'pkh'});
+          note.free();
         }
-        totalNicks+=assets;
-        allNotes.push({assets:Number(assets),firstName:fn,lastName:ln,lock:'coinbase'});
-        note.free();
       }
-    }
-    console.log('[wallet] Coinbase notes:',allNotes.filter(n=>n.lock==='coinbase').length);
-  }catch(e){console.log('[wallet] Coinbase query failed (may not have mined):',e)}
+      path='legacy-0.1.1-firstName';
+    }catch(e){console.error('[wallet] legacy firstName balance failed:',e)}
+    try{
+      const cbPkh=W.Pkh.single(wallet.pkh);
+      const cbTim=W.LockTim.coinbase();
+      const cbSc=new W.SpendCondition([W.LockPrimitive.newPkh(cbPkh),W.LockPrimitive.newTim(cbTim)]);
+      const cbFirst=cbSc.firstName();
+      const cbResult=await wallet.grpcClient.getBalanceByFirstName(cbFirst.value);
+      cbSc.free();
+      if(cbResult&&cbResult.notes){
+        for(const n of cbResult.notes){
+          const note=W.Note.fromProtobuf(n.note);
+          totalNicks+=note.assets;
+          allNotes.push({assets:Number(note.assets),firstName:n.firstName||'',lastName:n.lastName||'',lock:'coinbase'});
+          note.free();
+        }
+      }
+      path=path?path+'+coinbase':'legacy-0.1.1-coinbase';
+    }catch(e){console.log('[wallet] legacy coinbase query failed (ignored):',e)}
+    console.log('[wallet] balance path='+(path||'none')+' notes='+allNotes.length+' total='+formatNock(totalNicks)+' NOCK');
+    return{total:Number(totalNicks),notes:allNotes,path:path||'none'};
+  }
 
-  return{total:Number(totalNicks),notes:allNotes};
+  // --- 0.2.0 (no classes): address-based balance, only for a valid v1 PKH ---
+  if(typeof wallet.grpcClient.getBalanceByAddress==='function'){
+    if(!isValidNockAddress(wallet.pkh)){
+      console.warn('[wallet] skipping getBalanceByAddress: invalid v1 address');
+      return{total:0,notes:[],path:'skipped-invalid-address'};
+    }
+    try{
+      const result=await wallet.grpcClient.getBalanceByAddress(wallet.pkh);
+      const entries=(result&&result.notes)?result.notes:[];
+      for(const e of entries)readEntry(e,'pkh');
+      console.log('[wallet] balance path=getBalanceByAddress notes='+allNotes.length+' total='+formatNock(totalNicks)+' NOCK');
+      return{total:Number(totalNicks),notes:allNotes,path:'getBalanceByAddress'};
+    }catch(e){console.warn('[wallet] getBalanceByAddress failed:',e)}
+  }
+
+  console.warn('[wallet] no usable balance path');
+  return{total:Number(totalNicks),notes:allNotes,path:'none'};
 }
 
 // --- UI ---
@@ -4842,21 +4910,21 @@ async function walletConnect(){
   status.textContent='Connecting...';
   status.classList.remove('error');
   try{
-    // 1. Connect via Iris provider
-    const r=await window.nockchain.request({method:'nock_connect',timeout:30000});
+    // 1. Connect via Iris provider (prefer modern api 1.0.0; normalize both shapes)
+    logIrisProvider();
+    const r=await window.nockchain.request({method:'nock_connect',api:IRIS_API_VERSION,timeout:30000});
+    console.log('[wallet] raw nock_connect response:',r);
     wallet.connected=true;
-    if(r){
-      wallet.pkh=r.pkh||null;
-      wallet.grpc=r.grpcEndpoint||'rpc.nockbox.org';
-    }
+    let ni=normalizeWalletInfo(r);
     // Also fetch identity for full info
     try{
-      const info=await window.nockchain.request({method:'nock_getWalletInfo',timeout:10000});
-      if(info){
-        if(info.pkh)wallet.pkh=info.pkh;
-        if(info.grpcEndpoint)wallet.grpc=info.grpcEndpoint;
-      }
+      const info=await window.nockchain.request({method:'nock_getWalletInfo',api:IRIS_API_VERSION,timeout:10000});
+      const ni2=normalizeWalletInfo(info);
+      if(ni2)ni=ni2;
     }catch(e){console.log('[wallet] getWalletInfo:',e)}
+    if(ni){wallet.pkh=ni.pkh;wallet.grpc=ni.grpc||'rpc.nockbox.org'}
+    else{wallet.grpc=wallet.grpc||'rpc.nockbox.org'}
+    console.log('[wallet] normalized pkh='+truncatePkh(wallet.pkh)+' grpc='+wallet.grpc);
     // Register wallet address with backend for @p→PKH resolution
     if(wallet.pkh){walletRegister(wallet.pkh)}
     walletSaveState();
@@ -4878,13 +4946,14 @@ async function walletConnect(){
     console.warn('[wallet] First connect attempt failed:',e);
     try{
       await new Promise(r=>setTimeout(r,500));
-      const r2=await window.nockchain.request({method:'nock_connect',timeout:30000});
+      const r2=await window.nockchain.request({method:'nock_connect',api:IRIS_API_VERSION,timeout:30000});
       wallet.connected=true;
-      if(r2){wallet.pkh=r2.pkh||null;wallet.grpc=r2.grpcEndpoint||'rpc.nockbox.org'}
+      let ni=normalizeWalletInfo(r2);
       try{
-        const info=await window.nockchain.request({method:'nock_getWalletInfo',timeout:10000});
-        if(info){if(info.pkh)wallet.pkh=info.pkh;if(info.grpcEndpoint)wallet.grpc=info.grpcEndpoint}
+        const info=await window.nockchain.request({method:'nock_getWalletInfo',api:IRIS_API_VERSION,timeout:10000});
+        const ni2=normalizeWalletInfo(info);if(ni2)ni=ni2;
       }catch(e2){console.log('[wallet] getWalletInfo retry:',e2)}
+      if(ni){wallet.pkh=ni.pkh;wallet.grpc=ni.grpc||'rpc.nockbox.org'}
       if(wallet.pkh){walletRegister(wallet.pkh)}
       walletSaveState();
       status.textContent='Loading chain data...';
@@ -4911,19 +4980,22 @@ async function walletRefreshBalance(){
   if(wallet.grpcClient){
     try{
       const result=await walletQueryBalance();
-      if(result){
+      if(result&&result.path&&result.path!=='none'){
         wallet.balance=result.total;
         wallet.notes=result.notes;
+        console.log('[wallet] balance refreshed via path='+result.path+' total='+formatNock(result.total)+' NOCK');
         walletUpdateUI();
         return;
       }
     }catch(e){console.error('[wallet] Chain balance failed:',e)}
   }
-  // Fallback: try provider API (may not have balance)
+  // Fallback: try provider API (may not expose balance)
   if(irisReady()){
     try{
-      const r=await window.nockchain.request({method:'nock_getWalletInfo',timeout:10000});
-      if(r&&r.balance!==undefined){wallet.balance=r.balance}
+      const r=await window.nockchain.request({method:'nock_getWalletInfo',api:IRIS_API_VERSION,timeout:10000});
+      const ni=normalizeWalletInfo(r);
+      if(ni&&ni.grpc&&!wallet.grpc)wallet.grpc=ni.grpc;
+      if(r&&r.balance!==undefined){wallet.balance=r.balance;console.log('[wallet] balance path=fallback-provider')}
       walletUpdateUI();
     }catch(e){console.log('[wallet] Provider balance fallback:',e)}
   }
@@ -5004,6 +5076,27 @@ function parseNockSend(text){
   }catch(e){return text}
 }
 
+// Single source of truth for the send request. Modern Iris API 1.0.0: object
+// params (NOT array), explicit fee in nicks (NEVER 0). Used by dry-run + real send.
+function buildWalletSendEnvelope(recipientPkh,nicks){
+  const params={to:recipientPkh,amount:nicks};
+  // 'omit' => no fee property at all (let Iris calculate). 'default' => explicit fee.
+  // Never fee:0.
+  if(WALLET_SEND_FEE_MODE==='default')params.fee=DEFAULT_SEND_FEE_NICKS;
+  return{method:'nock_sendTransaction',api:IRIS_API_VERSION,params:params,timeout:120000};
+}
+// Pull a tx hash from the various shapes Iris may return; log anything unexpected.
+function extractTxHash(r){
+  if(typeof r==='string')return r;
+  if(r&&typeof r==='object'){
+    if(r.txId)return r.txId;
+    if(r.txHash)return r.txHash;
+    if(r.id)return r.id;
+    if(r.hash)return r.hash;
+  }
+  console.log('[wallet] sendTransaction result has no recognized tx-hash field:',r);
+  return '';
+}
 async function walletSend(){
   const to=document.getElementById('sendTo').value.trim();
   const amountStr=document.getElementById('sendAmount').value;
@@ -5031,16 +5124,51 @@ async function walletSend(){
     }
   }
 
-  const nicks=Math.floor(amount*NOCK_PER_NICK);
+  const nicks=Math.floor(amount*NICKS_PER_NOCK);
   const btn=document.getElementById('sendConfirmBtn');
   btn.disabled=true;
   btn.textContent='SENDING...';
 
+  // Validate recipient PKH (v1 PKH = base58 decoding to 40 bytes) before anything.
+  if(!isValidNockAddress(recipientPkh)){
+    alert('Recipient wallet address is invalid\n(expected base58 v1 PKH that decodes to 40 bytes):\n'+truncatePkh(recipientPkh));
+    btn.disabled=false;btn.textContent='SEND';
+    return;
+  }
+
+  // Single modern envelope for BOTH dry-run and real send.
+  const envelope=buildWalletSendEnvelope(recipientPkh,nicks);
+
+  // DRY RUN: show the exact real envelope; never send, poke, post, or refresh.
+  if(WALLET_DRYRUN){
+    console.log('[wallet][DRYRUN] modern send envelope (NOT sent):',JSON.parse(JSON.stringify(envelope)));
+    const feeLine=(WALLET_SEND_FEE_MODE==='omit')
+      ?'Fee mode: OMITTED — Iris should calculate/populate fee\nFee: omitted from request; inspect Iris popup for calculated fee.\n'
+      :'Fee mode: DEFAULT '+formatNock(DEFAULT_SEND_FEE_NICKS)+' NOCK / '+DEFAULT_SEND_FEE_NICKS+' nicks\n';
+    alert('DRY RUN ONLY — no transaction was sent.\n\n'
+      +'Amount: '+amount.toFixed(4)+' NOCK ('+nicks+' nicks)\n'
+      +feeLine
+      +'Recipient: '+truncatePkh(recipientPkh)+'\n'
+      +'api: '+IRIS_API_VERSION+'\n\n'
+      +'Envelope logged to console. No nock_sendTransaction call, no payment message, no balance change.');
+    btn.disabled=false;btn.textContent='SEND';
+    _noteSendSource=null;
+    closeSendModal();
+    return;
+  }
+
+  // Second guard: real sends require BOTH dry-run off AND explicit allow flag.
+  if(!WALLET_ALLOW_REAL_SEND){
+    alert('Real sends are disabled (WALLET_ALLOW_REAL_SEND=false).\nNo transaction was sent.');
+    btn.disabled=false;btn.textContent='SEND';
+    return;
+  }
+
+  // ===== Modern real send (Iris API 1.0.0). Object params, fee in nicks (never 0). =====
   try{
-    const txParams={to:recipientPkh,amount:nicks,fee:0};
-    console.log('[wallet] sendTransaction:',JSON.parse(JSON.stringify(txParams)));
+    console.log('[wallet] REAL SEND envelope:',JSON.parse(JSON.stringify(envelope)));
     // Extension bug: it does new Error(errorObj) which gives "[object Object]"
-    // Listen for the raw postMessage reply to capture the real error
+    // Listen for the raw postMessage reply to capture the real error.
     let rawReplyError=null;
     const errSpy=(ev)=>{
       const d=ev.data;
@@ -5052,11 +5180,7 @@ async function walletSend(){
     window.addEventListener('message',errSpy);
     let r;
     try{
-      r=await window.nockchain.request({
-        method:'nock_sendTransaction',
-        params:[txParams],
-        timeout:120000
-      });
+      r=await window.nockchain.request(envelope);
     }catch(reqErr){
       window.removeEventListener('message',errSpy);
       // Re-throw with real error info if we captured it
@@ -5070,8 +5194,8 @@ async function walletSend(){
       throw reqErr;
     }
     window.removeEventListener('message',errSpy);
-    const txHash=(r&&r.txId)?r.txId:(r&&r.txHash)?r.txHash:'';
     console.log('[wallet] sendTransaction result:',r);
+    const txHash=extractTxHash(r);
 
     // Notify backend
     api.poke('noltbook','noltbook-action',{action:'nock-send-confirmed',data:{
