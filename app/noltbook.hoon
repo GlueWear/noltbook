@@ -44,6 +44,7 @@
       state-40
       state-41
       state-42
+      state-43
   ==
 ::  pre-entry-meta message shape — used by state-18 for on-load typing
 +$  message-18
@@ -1183,6 +1184,52 @@
       note-read=(map @ta @da)
       attention=(map @ta (list attention-item:noltbook))
   ==
+::  state-43: durable cleared-mentions tombstones. Once a mention is cleared it is
+::  recorded here so refetching the same message (esp. cover/gossip content fetch)
+::  cannot recreate it. Keyed by note id; per entry [msg-id eid] with eid-first
+::  matching and msg-id fallback. Only the field is added vs state-42.
++$  state-43
+  $:  %43
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+  ==
 ::  state-26: add durable blocked-by set (ships that have blocked us)
 +$  state-26
   $:  %26
@@ -1408,7 +1455,7 @@
 ::  chains through upgrade-20-to-21 → ... → upgrade-25-to-26
 ++  upgrade-19-to-20
   |=  s=state-19
-  ^-  state-42
+  ^-  state-43
   =/  new-seq=(map @ta @ud)
     %-  ~(rep by seq-counters.s)
     |=  [[[a=@p n=@ta] v=@ud] acc=(map @ta @ud)]
@@ -1428,7 +1475,7 @@
 ::  chains through upgrade-21-to-22 → upgrade-22-to-23
 ++  upgrade-20-to-21
   |=  s=state-20
-  ^-  state-42
+  ^-  state-43
   =/  new-msgs=(map @ta (list message:noltbook))
     %-  ~(run by messages.s)
     |=  msgs=(list message-20)
@@ -1470,7 +1517,7 @@
 ::  upgrade-21-to-22: add meta=(unit entry-meta) to envelopes
 ++  upgrade-21-to-22
   |=  s=state-21
-  ^-  state-42
+  ^-  state-43
   =/  new-envs=(map @ta (map @da envelope:noltbook))
     %-  ~(run by gossip-envelopes.s)
     |=  envs=(map @da envelope-21)
@@ -1492,7 +1539,7 @@
 ::  upgrade-22-to-23: enrich mention storage with stable eid
 ++  upgrade-22-to-23
   |=  s=state-22
-  ^-  state-42
+  ^-  state-43
   =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
     %-  ~(urn by mentions.s)
     |=  [nid=@ta mns=(list [id=@da author=@p])]
@@ -1521,7 +1568,7 @@
 ::  in-flight forks to become fetchable.
 ++  upgrade-30-to-31
   |=  s=state-30
-  ^-  state-42
+  ^-  state-43
   =?  s  (gth ~(wyt by pending-fork-invites.s) 0)
     ~&  [%dropping-legacy-pending-fork-invites count=~(wyt by pending-fork-invites.s)]
     s(pending-fork-invites *(map @ta state-30-pending-fork-invite))
@@ -1544,7 +1591,7 @@
 ::  upgrade-31-to-32: add empty contacts set
 ++  upgrade-31-to-32
   |=  s=state-31
-  ^-  state-42
+  ^-  state-43
   %-  upgrade-32-to-33
   :*  %32
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1565,7 +1612,7 @@
 ::  upgrade-32-to-33: add empty dm-prefs map
 ++  upgrade-32-to-33
   |=  s=state-32
-  ^-  state-42
+  ^-  state-43
   %-  upgrade-33-to-34
   :*  %33
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1589,7 +1636,7 @@
 ::  pre-migration value.
 ++  upgrade-33-to-34
   |=  s=state-33
-  ^-  state-42
+  ^-  state-43
   =/  seeded-revs=(map @ta @ud)
     %-  ~(rep by notes.s)
     |=  [[k=@ta v=note:noltbook] acc=(map @ta @ud)]
@@ -1618,7 +1665,7 @@
 ::  encoder default.
 ++  upgrade-34-to-35
   |=  s=state-34
-  ^-  state-42
+  ^-  state-43
   %-  upgrade-35-to-36
   :*  %35
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1642,7 +1689,7 @@
 ::  upgrade-35-to-36: add empty host-checks map.
 ++  upgrade-35-to-36
   |=  s=state-35
-  ^-  state-42
+  ^-  state-43
   %-  upgrade-36-to-37
   :*  %36
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1667,7 +1714,7 @@
 ::  upgrade-36-to-37: add empty notification-acks set.
 ++  upgrade-36-to-37
   |=  s=state-36
-  ^-  state-42
+  ^-  state-43
   %-  upgrade-37-to-38
   :*  %37
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1696,7 +1743,7 @@
 ::  (cover, ars-rumors) are excluded from seeding.
 ++  upgrade-37-to-38
   |=  s=state-37
-  ^-  state-42
+  ^-  state-43
   =/  seeded=(map @ta @da)
     =/  pairs=(list [nid=@ta msgs=(list message:noltbook)])  ~(tap by messages.s)
     =/  acc=(map @ta @da)  *(map @ta @da)
@@ -1742,7 +1789,7 @@
 ::  upgrade (unread is strict activity > read; equal seeds = read).
 ++  upgrade-38-to-39
   |=  s=state-38
-  ^-  state-42
+  ^-  state-43
   %-  upgrade-39-to-40
   :*  %39
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1771,7 +1818,7 @@
 ::  stamped going forward; existing artifacts have no meta).
 ++  upgrade-39-to-40
   |=  s=state-39
-  ^-  state-42
+  ^-  state-43
   =/  new-arts=(map @ta artifact:noltbook)
     %-  ~(run by artifacts.s)
     |=  a=artifact-pre40:noltbook
@@ -1811,7 +1858,7 @@
 ::  Byte hosting unchanged (only the meta field is populated).
 ++  upgrade-40-to-41
   |=  s=state-40
-  ^-  state-42
+  ^-  state-43
   =/  new-arts=(map @ta artifact:noltbook)
     %-  ~(run by artifacts.s)
     |=  a=artifact:noltbook
@@ -1854,8 +1901,10 @@
 ::  mentions via %attention-update). Existing mention UX is unchanged.
 ++  upgrade-41-to-42
   |=  s=state-41
-  ^-  state-42
+  ^-  state-43
   =/  att=(map @ta (list attention-item:noltbook))  ~
+  ::  pipe through upgrade-42-to-43 so the chain terminates at state-43.
+  %-  upgrade-42-to-43
   :*  %42
       notes.s  messages.s  artifacts.s  profiles.s
       transactions.s  current-note.s  peers.s  has-avatar.s
@@ -1880,10 +1929,40 @@
       note-read.s
       att
   ==
+::  upgrade-42-to-43: add durable cleared-mentions tombstones (empty on migration).
+++  upgrade-42-to-43
+  |=  s=state-42
+  ^-  state-43
+  =/  cm=(map @ta (list [id=@da eid=(unit @uv)]))  ~
+  :*  %43
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      fork-parent-version.s
+      host-checks.s
+      notification-acks.s
+      note-activity.s
+      note-read.s
+      attention.s
+      cm
+  ==
 ::  upgrade-29-to-30: add pending-fork-invites map (empty).
 ++  upgrade-29-to-30
   |=  s=state-29
-  ^-  state-42
+  ^-  state-43
   %-  upgrade-30-to-31
   :*  %30
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1903,7 +1982,7 @@
 ::  note is treated as v1 (origin computed lazily by note-lineage-of helper).
 ++  upgrade-28-to-29
   |=  s=state-28
-  ^-  state-42
+  ^-  state-43
   %-  upgrade-29-to-30
   :*  %29
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1925,7 +2004,7 @@
 ::  remote host issues %remote-note-deleted post-upgrade.
 ++  upgrade-27-to-28
   |=  s=state-27
-  ^-  state-42
+  ^-  state-43
   %-  upgrade-28-to-29
   :*  %28
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1942,7 +2021,7 @@
 ::  upgrade-25-to-26: add blocked-by set
 ++  upgrade-26-to-27
   |=  s=state-26
-  ^-  state-42
+  ^-  state-43
   %-  upgrade-27-to-28
   :*  %27
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1957,7 +2036,7 @@
   ==
 ++  upgrade-25-to-26
   |=  s=state-25
-  ^-  state-42
+  ^-  state-43
   %-  upgrade-26-to-27
   :*  %26
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1972,7 +2051,7 @@
 ::  upgrade-24-to-25: add note-admins and note-muted maps
 ++  upgrade-24-to-25
   |=  s=state-24
-  ^-  state-42
+  ^-  state-43
   %-  upgrade-25-to-26
   :*  %25
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2441,7 +2520,7 @@
 ::  upgrade-23-to-24: add join-requests map
 ++  upgrade-23-to-24
   |=  s=state-23
-  ^-  state-42
+  ^-  state-43
   %-  upgrade-24-to-25
   :*  %24
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2459,6 +2538,26 @@
   =/  needle=tape  (weld "@" (trip (scot %p us)))
   =/  hay=tape  (trip txt)
   !=(~ (find needle hay))
+::  mention-cleared: has this (msg-id,eid) mention already been cleared for a note?
+::  `cur` is cleared-mentions[nid]. eid-first match (also matches id-only tombstones);
+::  msg-id fallback when no eid. Durable so refetched gossip text can't recreate it.
+++  mention-cleared
+  |=  [cur=(list [id=@da eid=(unit @uv)]) id=@da eid=(unit @uv)]
+  ^-  ?
+  ?:  ?=(^ eid)
+    %+  lien  cur
+    |=  [cid=@da ceid=(unit @uv)]
+    |(&(?=(^ ceid) =(u.ceid u.eid)) =(cid id))
+  %+  lien  cur
+  |=  [cid=@da ceid=(unit @uv)]
+  =(cid id)
+::  put-cleared-mention: record a cleared key, deduped by eid (or msg-id).
+++  put-cleared-mention
+  |=  [cm=(map @ta (list [id=@da eid=(unit @uv)])) nid=@ta id=@da eid=(unit @uv)]
+  ^-  (map @ta (list [id=@da eid=(unit @uv)]))
+  =/  cur=(list [id=@da eid=(unit @uv)])  (fall (~(get by cm) nid) ~)
+  ?:  (mention-cleared cur id eid)  cm
+  (~(put by cm) nid (snoc cur [id eid]))
 ::
 ::  dm-counterparty: return the other ship in a 2-user DM, or ~ if not a
 ::  well-formed DM users set including our.bowl.
@@ -2781,7 +2880,7 @@
   [(crip path-tape) args]
 --
 %-  agent:dbug
-=|  state-42
+=|  state-43
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -2799,8 +2898,8 @@
 ++  on-load
   |=  old=vase
   ^-  (quip card _this)
-  ?:  ?=([%42 *] q.old)
-    =/  loaded  !<(state-42 old)
+  ?:  ?=([%43 *] q.old)
+    =/  loaded  !<(state-43 old)
     ::  fix: ensure cover note exists and is keyed as %cover
     ::  (same normalizations carried forward from state-24 load)
     =/  loaded
@@ -2922,6 +3021,9 @@
       ^-  card
       [%pass /prof-out/(scot %p p) %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-profile our.bowl prof])]
     [prof-cards this(state loaded(active-calls *(map @ta call-info:noltbook)))]
+  ?:  ?=([%42 *] q.old)
+    =/  s42  !<(state-42 old)
+    $(old !>((upgrade-42-to-43 s42)))
   ?:  ?=([%41 *] q.old)
     =/  s41  !<(state-41 old)
     $(old !>((upgrade-41-to-42 s41)))
@@ -5327,12 +5429,21 @@
       (weld base-cards bye-cards)
     ::
         %clear-mentions
-      ::  clear all unread mentions for a note
+      ::  tombstone every currently-active mention for the note, then clear them,
+      ::  so refetched gossip text can't recreate them.
+      =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) note-id.act) ~)
+      =.  cleared-mentions
+        =/  acc  cleared-mentions
+        |-  ^+  acc
+        ?~  cur-m  acc
+        $(acc (put-cleared-mention acc note-id.act id.i.cur-m eid.i.cur-m), cur-m t.cur-m)
       =.  mentions  (~(del by mentions) note-id.act)
       `this
     ::
         %clear-mention
-      ::  clear a single mention by eid (preferred) or msg-id (fallback)
+      ::  clear a single mention by eid (preferred) or msg-id (fallback), and
+      ::  tombstone it so a refetch of the same message can't re-add it.
+      =.  cleared-mentions  (put-cleared-mention cleared-mentions note-id.act msg-id.act eid.act)
       =/  cur=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) note-id.act) ~)
       =/  new=(list [id=@da eid=(unit @uv) author=@p])
         ?^  eid.act
@@ -5380,6 +5491,21 @@
         ?^  msg-id.act
           =(id u.msg-id.act)
         %.n
+      ::  tombstone the mentions this clear removed (cur-m minus new-m) so a
+      ::  refetch can't recreate them.
+      =/  removed-m=(list [id=@da eid=(unit @uv) author=@p])
+        %+  skim  cur-m
+        |=  [id=@da eid=(unit @uv) author=@p]
+        ?^  eid.act
+          &(?=(^ eid) =(u.eid u.eid.act))
+        ?^  msg-id.act
+          =(id u.msg-id.act)
+        %.n
+      =.  cleared-mentions
+        =/  acc  cleared-mentions
+        |-  ^+  acc
+        ?~  removed-m  acc
+        $(acc (put-cleared-mention acc nid id.i.removed-m eid.i.removed-m), removed-m t.removed-m)
       =.  mentions
         ?~  new-m  (~(del by mentions) nid)
         (~(put by mentions) nid new-m)
@@ -5529,7 +5655,7 @@
       ::  dm leave: local-only cleanup, counterparty keeps their copy intact
       ?:  =(%dm type.u.old)
         =/  upd=update:noltbook  [%note-deleted id.act]
-        :_  this(notes (~(del by notes) id.act), messages (~(del by messages) id.act), artifacts cleaned-arts)
+        :_  this(notes (~(del by notes) id.act), messages (~(del by messages) id.act), artifacts cleaned-arts, cleared-mentions (~(del by cleared-mentions) id.act))
         ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
       ::  sole user: act like delete
       ?:  (lte user-count 1)
@@ -5539,7 +5665,7 @@
           ?~  par  notes
           (~(put by notes) u.parent.u.old u.par(children (skim children.u.par |=(c=@ta !=(c id.act)))))
         =/  upd=update:noltbook  [%note-deleted id.act]
-        :_  this(notes (~(del by trimmed) id.act), messages (~(del by messages) id.act), artifacts cleaned-arts)
+        :_  this(notes (~(del by trimmed) id.act), messages (~(del by messages) id.act), artifacts cleaned-arts, cleared-mentions (~(del by cleared-mentions) id.act))
         ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
       ::  Phase 3: collect %group descendants once for both host and non-host
       ::  branches (computed against pre-deletion notes map).
@@ -6583,11 +6709,13 @@
       =/  stamped-eid=(unit @uv)
         ?~  meta.stamped  ~
         `eid.u.meta.stamped
+      =/  active-mentioned=?
+        ?&(mentioned !(mention-cleared (fall (~(get by cleared-mentions) note-id.rem) ~) id.stamped stamped-eid))
       =/  mention-cards=(list card)
-        ?.  mentioned  ~
+        ?.  active-mentioned  ~
         (attn-mention-cards note-id.rem id.stamped stamped-eid author.msg.rem)
       =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
-        ?.  mentioned  mentions
+        ?.  active-mentioned  mentions
         =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) note-id.rem) ~)
         (~(put by mentions) note-id.rem (snoc cur-m [id.stamped stamped-eid author.msg.rem]))
       =/  new-seq=(map @ta @ud)
@@ -6636,11 +6764,13 @@
         `this
       =/  my-hops=@ud  (add hops.rem 1)
       =/  mentioned=?  &(!=(author.msg.rem our.bowl) (has-our-mention text.msg.rem our.bowl))
+      =/  active-mentioned=?
+        ?&(mentioned !(mention-cleared (fall (~(get by cleared-mentions) %cover) ~) id.msg.rem meid))
       =/  mention-cards=(list card)
-        ?.  mentioned  ~
+        ?.  active-mentioned  ~
         (attn-mention-cards %cover id.msg.rem meid author.msg.rem)
       =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
-        ?.  mentioned  mentions
+        ?.  active-mentioned  mentions
         =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) %cover) ~)
         (~(put by mentions) %cover (snoc cur-m [id.msg.rem meid author.msg.rem]))
       =/  env=envelope:noltbook  [author.msg.rem id.msg.rem timestamp.msg.rem reply-to.msg.rem (sham text.msg.rem) meta.msg.rem]
@@ -6757,11 +6887,13 @@
         gossip-envelopes
       =/  meid=(unit @uv)  ?~(meta.msg ~ `eid.u.meta.msg)
       =/  mentioned=?  &(!=(author.msg our.bowl) (has-our-mention text.msg our.bowl))
+      =/  active-mentioned=?
+        ?&(mentioned !(mention-cleared (fall (~(get by cleared-mentions) %cover) ~) id.msg meid))
       =/  mention-cards=(list card)
-        ?.  mentioned  ~
+        ?.  active-mentioned  ~
         (attn-mention-cards %cover id.msg meid author.msg)
       =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
-        ?.  mentioned  mentions
+        ?.  active-mentioned  mentions
         =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) %cover) ~)
         (~(put by mentions) %cover (snoc cur-m [id.msg meid author.msg]))
       =/  upd=update:noltbook  [%cover-msg-content %cover msg]
@@ -6875,11 +7007,13 @@
         gossip-envelopes
       =/  meid=(unit @uv)  ?~(meta.msg ~ `eid.u.meta.msg)
       =/  mentioned=?  &(!=(author.msg our.bowl) (has-our-mention text.msg our.bowl))
+      =/  active-mentioned=?
+        ?&(mentioned !(mention-cleared (fall (~(get by cleared-mentions) nid) ~) id.msg meid))
       =/  mention-cards=(list card)
-        ?.  mentioned  ~
+        ?.  active-mentioned  ~
         (attn-mention-cards nid id.msg meid author.msg)
       =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
-        ?.  mentioned  mentions
+        ?.  active-mentioned  mentions
         =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) nid) ~)
         (~(put by mentions) nid (snoc cur-m [id.msg meid author.msg]))
       ::  do NOT persist full message — ephemeral forward only
@@ -8890,11 +9024,13 @@
           ?~  meta.msg  ~
           `eid.u.meta.msg
         =/  mentioned=?  &(!=(author.msg our.bowl) (has-our-mention text.msg our.bowl))
-        =?  mentions  mentioned
+        =/  active-mentioned=?
+          ?&(mentioned !(mention-cleared (fall (~(get by cleared-mentions) nid) ~) id.msg msg-eid))
+        =?  mentions  active-mentioned
           =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) nid) ~)
           (~(put by mentions) nid (snoc cur-m [id.msg msg-eid author.msg]))
         =/  mention-cards=(list card)
-          ?.  mentioned  ~
+          ?.  active-mentioned  ~
           (attn-mention-cards nid id.msg msg-eid author.msg)
         ::  reply attention (member receives the host's broadcast). Target = reply.
         =/  note-arts=(list artifact:noltbook)
@@ -9146,11 +9282,13 @@
         =/  eupd=update:noltbook  [%gossip-envelope %cover env 1]
         =/  msg-eid=(unit @uv)  ?~(meta.msg ~ `eid.u.meta.msg)
         =/  mentioned=?  &(!=(author.msg our.bowl) (has-our-mention text.msg our.bowl))
-        =?  mentions  mentioned
+        =/  active-mentioned=?
+          ?&(mentioned !(mention-cleared (fall (~(get by cleared-mentions) %cover) ~) id.msg msg-eid))
+        =?  mentions  active-mentioned
           =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) %cover) ~)
           (~(put by mentions) %cover (snoc cur-m [id.msg msg-eid author.msg]))
         =/  mention-cards=(list card)
-          ?.  mentioned  ~
+          ?.  active-mentioned  ~
           (attn-mention-cards %cover id.msg msg-eid author.msg)
         ::  author persists full message; non-author stores envelope only
         ?:  =(author.msg our.bowl)
@@ -9191,11 +9329,13 @@
         =/  eupd=update:noltbook  [%gossip-envelope %cover env my-hops]
         =/  msg-eid=(unit @uv)  ?~(meta.msg ~ `eid.u.meta.msg)
         =/  mentioned=?  &(!=(author.msg our.bowl) (has-our-mention text.msg our.bowl))
-        =?  mentions  mentioned
+        =/  active-mentioned=?
+          ?&(mentioned !(mention-cleared (fall (~(get by cleared-mentions) %cover) ~) id.msg msg-eid))
+        =?  mentions  active-mentioned
           =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) %cover) ~)
           (~(put by mentions) %cover (snoc cur-m [id.msg msg-eid author.msg]))
         =/  mention-cards=(list card)
-          ?.  mentioned  ~
+          ?.  active-mentioned  ~
           (attn-mention-cards %cover id.msg msg-eid author.msg)
         ::  author persists; non-author stores envelope only
         ?:  =(author.msg our.bowl)

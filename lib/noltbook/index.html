@@ -253,12 +253,8 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .note-detail-btn.joined{border-color:#555;color:#555;cursor:default}
 .note-detail-btn.pending{border-color:#ffee55;color:#ffee55;cursor:default}
 .note-detail-btn.removed{border-color:#ff4444;color:#ff4444;cursor:default}
-.note-ref{display:inline-flex;align-items:center;gap:.3rem;padding:.15rem .5rem;border:1px solid var(--border);background:var(--bg3);cursor:pointer;vertical-align:middle;max-width:220px}
-.note-ref:hover{border-color:#ffaa00}
-.note-ref-icon{width:1.1rem;height:1.1rem;display:flex;align-items:center;justify-content:center;font-size:.55rem;overflow:hidden;flex-shrink:0}
-.note-ref-icon img{width:100%;height:100%;object-fit:cover}
-.note-ref-name{font-size:.75rem;color:#ffaa00;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.note-ref-unknown{color:var(--text-dim);font-style:italic}
+.note-ref{cursor:pointer;color:#ffaa00}
+.note-ref-name{color:#ffaa00}
 .gossip-ref{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .5rem;border:1px solid var(--border);background:var(--bg3);cursor:pointer;vertical-align:middle;max-width:280px}
 .gossip-ref:hover{border-color:#aa88ff}
 .gossip-ref-author{font-size:.7rem;color:#aa88ff;font-weight:500;flex-shrink:0}
@@ -271,6 +267,35 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .context-menu-item{padding:.5rem .75rem;color:#ccc;cursor:pointer;display:flex;align-items:center;gap:.5rem;font-size:.9rem}
 .context-menu-item:hover{background:#1a1a1a;color:#ffaa00}
 .context-menu-item.danger:hover{color:#ff4444}
+/* Grimoire inbox modal */
+.grimoire-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:flex-start;justify-content:flex-start}
+.grimoire-panel{margin:3.1rem 0 0 .75rem;width:384px;max-width:calc(100vw - 1.5rem);max-height:80vh;background:#111;border:1px solid var(--border,#333);display:flex;flex-direction:column;box-shadow:0 8px 28px rgba(0,0,0,.55)}
+.grimoire-chip{display:inline-block;flex-shrink:0;font-size:.54rem;letter-spacing:.06em;padding:.1rem .35rem;border:1px solid currentColor;border-radius:2px;text-transform:uppercase;line-height:1.3;opacity:.95}
+.grimoire-row-text{min-width:0;flex:1;overflow-wrap:anywhere}
+.grimoire-head{display:flex;align-items:center;justify-content:space-between;padding:.5rem .7rem;border-bottom:1px solid var(--border,#333)}
+.grimoire-title{color:#ffaa00;font-size:.72rem;letter-spacing:.14em}
+.grimoire-close{cursor:pointer;color:var(--text-dim,#888);font-size:.8rem;line-height:1}
+.grimoire-close:hover{color:#ffaa00}
+.grimoire-tabs{display:flex;gap:.3rem;padding:.4rem .55rem;border-bottom:1px solid var(--border,#333)}
+.grimoire-tab{font-family:var(--font);font-size:.68rem;letter-spacing:.06em;padding:.25rem .7rem;background:transparent;border:1px solid var(--border,#333);color:var(--text-dim,#888);cursor:pointer}
+.grimoire-tab.active{color:#000;background:#ffaa00;border-color:#ffaa00}
+.grimoire-tab.disabled{opacity:.4;cursor:default}
+.grimoire-body{overflow-y:auto;padding:.2rem 0}
+.grimoire-section-label{padding:.45rem .7rem .2rem;font-size:.58rem;letter-spacing:.1em;color:var(--text-dim,#888)}
+.grimoire-row{padding:.5rem .75rem;font-size:.74rem;border-bottom:1px solid rgba(255,255,255,.05);display:flex;gap:.5rem;align-items:flex-start;line-height:1.35}
+.grimoire-row.grimoire-notif{gap:.45rem}
+.grimoire-notif-body{display:flex;flex-direction:column;gap:.35rem;min-width:0;flex:1}
+.grimoire-attn{cursor:pointer}
+.grimoire-attn:hover{background:rgba(255,170,0,.06)}
+.grimoire-row-kind{color:#ffaa00;font-size:.6rem;flex-shrink:0;min-width:2.6rem;padding-top:.15rem;letter-spacing:.04em}
+.grimoire-row-main{display:flex;flex-direction:column;min-width:0;flex:1}
+.grimoire-row-note{color:var(--text,#ddd);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.grimoire-row-sub{color:var(--text-dim,#888);font-size:.66rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gn-actions{display:flex;gap:.45rem;flex-wrap:wrap}
+.grimoire-btn{font-family:var(--font);font-size:.64rem;padding:.2rem .5rem;border:none;cursor:pointer}
+.grimoire-clear{padding:.4rem .7rem;font-size:.66rem;color:var(--text-dim,#888);cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04)}
+.grimoire-clear:hover{color:#ffaa00}
+.grimoire-empty{padding:1.1rem .7rem;color:var(--text-dim,#888);font-size:.74rem;text-align:center}
 .context-menu-item.disabled{color:#555;cursor:not-allowed;opacity:.6}
 .context-menu-item.disabled:hover{background:transparent;color:#555}
 .context-menu-divider{height:1px;background:#333;margin:.25rem 0}
@@ -644,6 +669,18 @@ const api = {
         }
       }
       if(d.response==='diff'&&this.subs[d.id])this.subs[d.id](d.json);
+      // TEMP Phase-0b diagnostics: surface watch-acks/errors/quits the dispatcher
+      // would otherwise drop (esp. non-noltbook subs like %docket). Remove later.
+      else{
+        const meta=this.subMeta[d.id];const tag=meta?(meta.app+meta.path):'(no-meta)';
+        if(d.response==='subscribe'){
+          if(d.err)console.warn('[watch-ack ERR] id='+d.id+' '+tag+':',d.err);
+          else console.log('[watch-ack OK] id='+d.id+' '+tag);
+        }else if(d.response==='quit'){console.warn('[SSE quit] id='+d.id+' '+tag);}
+        else if(d.response==='poke'&&d.err){console.warn('[poke ERR] id='+d.id+':',d.err);}
+        else if(d.response==='diff'){console.log('[SSE diff no-sub] id='+d.id+' '+tag);}
+        else console.log('[SSE non-diff] id='+d.id+' response='+d.response+' '+tag,d);
+      }
     };
     this.es.onerror=(e)=>{
       console.warn('[SSE error]');
@@ -858,6 +895,27 @@ async function getShip(){
   for(const c of document.cookie.split(';')){const m=c.trim().match(/^urbauth-(~[\w-]+)=/);if(m)return m[1].slice(1)}
   return location.hostname==='localhost'?'zod':location.hostname.split('.')[0];
 }
+// TEMP Phase-0 spike: confirm %docket /charges delivers JSON charge-update facts
+// over the existing Eyre channel. Frontend-only, no UI. Safe to remove later.
+function handleDocketCharges(d){
+  try{
+    console.log('[docket/charges] raw payload:',d);
+    if(!state.docketCharges)state.docketCharges={};
+    if(d&&d.initial&&typeof d.initial==='object'){
+      state.docketCharges=Object.assign({},d.initial);
+    }else if(d&&d['add-charge']&&d['add-charge'].desk){
+      state.docketCharges[d['add-charge'].desk]=d['add-charge'].charge;
+    }else if(d&&typeof d['del-charge']==='string'){
+      delete state.docketCharges[d['del-charge']];
+    }else{
+      console.log('[docket/charges] UNRECOGNIZED shape — inspect above');
+    }
+    const desks=Object.keys(state.docketCharges);
+    console.log('[docket/charges] stored '+desks.length+' charges:',desks.join(', '));
+    const sample=desks[0]?state.docketCharges[desks[0]]:null;
+    if(sample)console.log('[docket/charges] sample charge ['+desks[0]+']:',sample);
+  }catch(e){console.error('[docket/charges] handler error:',e);}
+}
 async function boot(){
   const ship=await getShip();
   api.init(ship);
@@ -865,6 +923,26 @@ async function boot(){
   document.getElementById('shipDisplay').style.color=shipColor('~'+ship);
   loadReadCursors();
   await api.subscribe('noltbook','/notes',handleUpdate);
+  // TEMP Phase-0 spike subscription (guarded so a failure can't break boot).
+  try{
+    const dsub=await api.subscribe('docket','/charges',handleDocketCharges);
+    console.log('[docket/charges] subscribe requested, subId=',dsub,'subMeta stored=',!!api.subMeta[dsub]);
+  }catch(e){console.error('[docket/charges] subscribe failed:',e);}
+  // TEMP Phase-0c: inspect treaty /treaties (docket has watch-ack OK but no JSON
+  // facts over our channel; /all nacked). See if treaty carries usable app
+  // metadata + publisher keyed by ship/desk. One-shot summary. Remove later.
+  try{
+    let treatyLogged=false;
+    const p2=await api.subscribe('treaty','/treaties',function(d){
+      if(treatyLogged)return;treatyLogged=true;
+      console.log('[diag treaty/treaties] raw:',d);
+      var body=(d&&(d.ini||d.initial))||d;
+      var keys=(body&&typeof body==='object')?Object.keys(body):[];
+      console.log('[diag treaty/treaties] entries='+keys.length+' keys:',keys.slice(0,20).join(', '));
+      if(keys.length)console.log('[diag treaty/treaties] sample ['+keys[0]+']:',body[keys[0]]);
+    });
+    console.log('[diag] treaty/treaties subId=',p2,'stored=',!!api.subMeta[p2]);
+  }catch(e){console.error('[diag] treaty probe failed:',e);}
   api.open();
   openNote('cover');
   resetChatInputHeight();
@@ -1279,7 +1357,7 @@ function handleUpdate(upd){
   else if(upd['note-lineage-set']){const d=upd['note-lineage-set'];state.noteLineage[d.id]={forkOrigin:d.forkOrigin,forkVersion:d.forkVersion,forkOf:d.forkOf||null,parentVersion:(d.parentVersion==null?null:d.parentVersion)};if(d.id===state.currentNoteId)scheduleRender(d.id);renderNoteList()}
   else if(upd['fork-invite-received']){const d=upd['fork-invite-received'];console.log('[fork-invite-received v6.2 metadata-only]',d.rootId,'from',d.forker);const wasPending=!!state.pendingForkInvites[d.rootId];state.pendingForkInvites[d.rootId]={rootId:d.rootId,sourceName:d.sourceName,sourceVersion:d.sourceVersion,forker:d.forker,time:Date.now()};if(!wasPending){state.blockNotifications.push({noteId:d.rootId,noteName:d.sourceName,from:d.forker,time:Date.now(),type:'fork-invite',sourceVersion:d.sourceVersion})}updateLogoBadge()}
   else if(upd['fork-invite-cleared']){const d=upd['fork-invite-cleared'];delete state.pendingForkInvites[d.rootId];state.acceptingForkRoots.delete(d.rootId);for(const bn of state.blockNotifications){if(bn.type==='fork-invite'&&bn.noteId===d.rootId){bn.resolved=true;delete bn.fetching}}updateLogoBadge()}
-  else if(upd['fork-invite-accepted']){const d=upd['fork-invite-accepted'];state.acceptingForkRoots.delete(d.rootId);state.notifications.delete(d.rootId);for(const bn of state.blockNotifications){if(bn.type==='fork-invite'&&bn.noteId===d.rootId){bn.resolved=true;delete bn.fetching}}const gm=document.getElementById('grimoireMenu');if(gm)gm.remove();if(state.palsView)switchView('notes');if(state.notes[d.rootId])openNote(d.rootId);renderNoteList()}
+  else if(upd['fork-invite-accepted']){const d=upd['fork-invite-accepted'];state.acceptingForkRoots.delete(d.rootId);state.notifications.delete(d.rootId);for(const bn of state.blockNotifications){if(bn.type==='fork-invite'&&bn.noteId===d.rootId){bn.resolved=true;delete bn.fetching}}closeGrimoire();if(state.palsView)switchView('notes');if(state.notes[d.rootId])openNote(d.rootId);renderNoteList()}
   else if(upd['headline-updated']){const d=upd['headline-updated'];const n=state.notes[d.id];if(n){n.headline=d.headline||null;renderNoteList()}}
   else if(upd['artifact-envelope']){const d=upd['artifact-envelope'];const nid=d.noteId;const env=d.envelope;if(!state.artifactEnvelopes[nid])state.artifactEnvelopes[nid]={};if(state.artifactEnvelopes[nid][env.aid])return;state.artifactEnvelopes[nid][env.aid]=env;state.artifactEnvHops[env.aid]=(typeof d.hops==='number')?d.hops:1;fetchTopWindowEnvelopes(nid);if(state.currentNoteId===nid)scheduleRender(nid);else if(artEnvVisible(env))state.notifications.add(nid);markOpenNoteReadSoon(nid);scheduleNoteList()}
   else if(upd['artifact-envelope-list']){const d=upd['artifact-envelope-list'];const nid=d.noteId;if(!state.artifactEnvelopes[nid])state.artifactEnvelopes[nid]={};let added=0;for(const e of d.envelopes||[]){if(state.artifactEnvelopes[nid][e.aid])continue;state.artifactEnvelopes[nid][e.aid]=e;if(state.artifactEnvHops[e.aid]===undefined)state.artifactEnvHops[e.aid]=1;added++}if(added)fetchTopWindowEnvelopes(nid);if(added&&state.currentNoteId===nid)scheduleRender(nid)}
@@ -1319,7 +1397,7 @@ function handleUpdate(upd){
   else if(upd['join-denied']){const{noteId,host}=upd['join-denied'];delete state.pendingJoins[noteId];const _pne=document.querySelector('#viewProfileNotes .profile-note-entry[data-note-id="'+noteId+'"]');if(_pne){const _b=_pne.querySelector('[data-badge]');if(_b)_b.remove()}const ndBtn=document.getElementById('ndJoinBtn');if(ndBtn&&ndBtn.dataset.noteId===noteId){const dn=state.discoveryNotes[noteId];const pub=dn&&dn.visibility==='public';ndBtn.textContent=pub?'JOIN':'REQUEST JOIN';ndBtn.disabled=false;ndBtn.className='note-detail-btn '+(pub?'join':'request')}console.log('[join-denied]',noteId,host)}
   else if(upd['join-removed']){const{noteId,host}=upd['join-removed'];delete state.pendingJoins[noteId];state.removedFromNotes[noteId]=host;const _pne=document.querySelector('#viewProfileNotes .profile-note-entry[data-note-id="'+noteId+'"]');if(_pne){let _b=_pne.querySelector('[data-badge]');if(!_b){_b=document.createElement('div');_b.dataset.badge='1';_b.style.marginLeft='auto';_pne.appendChild(_b)}_b.innerHTML='<span style="color:#ff4444;font-size:.65rem">REMOVED</span>'}const ndBtn=document.getElementById('ndJoinBtn');if(ndBtn){ndBtn.textContent='REMOVED';ndBtn.disabled=true;ndBtn.className='note-detail-btn removed'}console.log('[join-removed]',noteId,host)}
   else if(upd['join-request-received']){const{noteId,ship,noteName}=upd['join-request-received'];if(!state.joinRequests.some(r=>r.noteId===noteId&&r.ship===ship)){state.joinRequests.push({noteId,ship,noteName,time:Date.now()})}updateLogoBadge();console.log('[join-request-received]',noteId,ship,noteName)}
-  else if(upd['join-request-list']){const list=upd['join-request-list'];state.joinRequests=list.map(r=>({noteId:r.noteId,ship:r.ship,noteName:r.noteName,time:Date.now()}));updateLogoBadge();const gm=document.getElementById('grimoireMenu');if(gm){gm.remove();openGrimoireMenu()}console.log('[join-request-list]',list.length,'requests')}
+  else if(upd['join-request-list']){const list=upd['join-request-list'];state.joinRequests=list.map(r=>({noteId:r.noteId,ship:r.ship,noteName:r.noteName,time:Date.now()}));updateLogoBadge();refreshGrimoireIfOpen();console.log('[join-request-list]',list.length,'requests')}
   else if(upd['note-deleted-notification']){const{noteId,noteName}=upd['note-deleted-notification'];state.blockNotifications.push({noteId,noteName,from:null,time:Date.now(),type:'deleted'});updateLogoBadge()}
   else if(upd['notification-acks']){const acks=upd['notification-acks']||[];state.notificationAcks=new Set(acks.map(a=>notifAckKey(a.kind,a.noteId)));console.log('[notification-acks]',state.notificationAcks.size,'acked');rebuildDurableNotifications();updateLogoBadge()}
   else if(upd['admins-updated']){const{id,admins}=upd['admins-updated'];state.noteAdmins[id]=admins;console.log('[admins-updated]',id,admins);refreshNoteInfoMembers(id)}
@@ -1480,6 +1558,7 @@ function acceptForkInvite(rootId){
   api.poke('noltbook','noltbook-action',{action:'accept-fork-invite',data:{rootId}});
   closeContextMenu();
   updateLogoBadge();
+  refreshGrimoireIfOpen();
 }
 function declineForkInvite(rootId){
   delete state.pendingForkInvites[rootId];
@@ -1489,7 +1568,7 @@ function declineForkInvite(rootId){
   }
   updateLogoBadge();
   api.poke('noltbook','noltbook-action',{action:'decline-fork-invite',data:{rootId}});
-  const gm=document.getElementById('grimoireMenu');if(gm){gm.remove();openGrimoireMenu()}
+  refreshGrimoireIfOpen();
 }
 function lineageMoniker(note){
   if(!note||note.type!=='group')return'';
@@ -1813,7 +1892,10 @@ function makeArsItem(entry){
   const hasNotif=state.notifications.has(entry.id);
   // suppress orange sidebar dot/preview for the currently open note (cover/ars).
   const hasAttentionData=getAttentionTargets(entry.id).length>0;
-  const hasMention=hasAttentionData&&entry.id!==state.currentNoteId;
+  // orange directed-attention persists per-target — show even for the open note
+  // until all targets are individually cleared by viewport observation. (Green
+  // unread, below, stays suppressed for the open note via state.notifications.)
+  const hasMention=hasAttentionData;
   div.className='note-item'+(entry.id===state.currentNoteId?' active':'')+((hasNotif||hasMention)?' has-notif':'');
   div.setAttribute('data-note-id',entry.id);
   const last=getLastMessage(entry.id);
@@ -1998,7 +2080,10 @@ function makeNoteItem(n,depth){
   // suppress orange sidebar dot/preview for the note you're already viewing
   // (mirrors green-notif behavior); in-chat targets stay available unchanged.
   const hasAttentionData=getAttentionTargets(n.id).length>0;
-  const hasMention=hasAttentionData&&n.id!==state.currentNoteId;
+  // orange directed-attention persists per-target — show even for the open note
+  // until all targets are individually cleared by viewport observation. (Green
+  // unread, below, stays suppressed for the open note via state.notifications.)
+  const hasMention=hasAttentionData;
   const hasCall=!!state.activeCalls[n.id];
   div.className='note-item'+(n.id===state.currentNoteId?' active':'')+((hasNotif||hasMention)?' has-notif':'')+(hasCall?' has-call':'')+(depth?` depth-${depth}`:'');
   div.setAttribute('data-note-id',n.id);
@@ -3159,7 +3244,7 @@ function showUserDropdown(inputEl,containerEl,onSelect,opts){
   _activeDropdown={dd,update,inputEl};
   return{update,destroy:function(){dd.remove();inputEl.removeEventListener('input',update);inputEl.removeEventListener('keydown',handleKey)}};
 }
-function renderText(text){if(!text)return'';var out=escHtml(text);out=out.replace(/`([^`]+)`/g,'<code style="background:var(--bg3);padding:.1rem .3rem">$1</code>');out=out.replace(/(data:image\/[^\s"]+)/g,function(m){var raw=m.replace(/&amp;/g,'&').replace(/&quot;/g,'"');return '<div class="inline-img-box"><img src="'+raw+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'});out=out.replace(/(https?:\/\/[^\s]+)/g,function(url){var raw=url.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/[.,;:!?\)]+$/,'');if(/\.(png|jpe?g|gif|webp|svg|bmp|ico)(\?[^\s]*)?$/i.test(raw)){return '<div class="inline-img-box"><img src="'+escAttr(raw)+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'}var yt=raw.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/);if(yt){return '<div style="margin:.35rem 0;max-width:480px;aspect-ratio:16/9"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[1]+'" style="width:100%;height:100%;border:1px solid var(--border)" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe></div>'}var tw=raw.match(/(?:twitter\.com|x\.com)\/(\w+)\/status\/(\d+)/);if(tw){return '<div class="tweet-embed" style="margin:.35rem 0;max-width:480px"><blockquote class="twitter-tweet" data-theme="dark" data-conversation="none"><a href="https://twitter.com/'+tw[1]+'/status/'+tw[2]+'"></a></blockquote></div>'}return '<a href="'+escAttr(raw)+'" target="_blank" rel="noopener" style="color:#ffaa00">'+url+'</a>'});out=out.replace(/~ref\[([^\]|]+)\|([^\]]+)\]/g,function(m,nid,cr){var n=state.notes[nid]||state.discoveryNotes[nid];if(n){var iu=resolveNoteIconUrl(n);var ic=iu?'<img src="'+escAttr(iu)+'">':noteInitials(n.name);return '<span class="note-ref" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-icon">'+ic+'</span><span class="note-ref-name">'+escHtml(n.name)+'</span></span>'}return '<span class="note-ref" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-icon">?</span><span class="note-ref-name note-ref-unknown">Note Link</span></span>'});out=out.replace(/~gref\[([^\]|]+)\|([^\]|]+)\|([^\]|]*)\|([^\]]+)\]/g,function(m,nid,author,eid,mid){if(state.palStatus[author]==='blocked')return '<span style="color:#ff4444;font-size:.8rem">[blocked user ref]</span>';var n=state.notes[nid];var noteName=n?noteDisplayName(n):'gossip note';var authorName=displayName(author);var excerpt='';if(n){var msgs=state.messages[nid]||[];var found=msgs.find(function(msg){if(eid&&getMsgEid(msg)===eid)return true;return String(msg.id)===mid});if(found&&found.text)excerpt=found.text.slice(0,60)}var excerptHtml=excerpt?'<span class="gossip-ref-excerpt">\u2014 '+escHtml(excerpt)+'</span>':'<span class="gossip-ref-unavail">gossip post</span>';return '<span class="gossip-ref" onclick="clickGossipRef(\''+escAttr(nid)+'\',\''+escAttr(author)+'\',\''+escAttr(eid)+'\',\''+escAttr(mid)+'\')"><span class="gossip-ref-author">'+escHtml(authorName)+'</span><span class="gossip-ref-note">in '+escHtml(noteName)+'</span>'+excerptHtml+'</span>'});out=out.replace(/@(~[a-z][\w-]*)/g,function(m,ship){var canon=normalizeShipCandidate(ship)||(ship===('~'+api.ship)?ship:null);if(!canon){var dn0=displayName(ship);var lbl0=(dn0&&dn0!==ship)?dn0:ship.replace(/^~/,'');return '<span class="msg-mention" style="color:'+shipColor(ship)+';font-weight:500" title="'+escAttr(ship)+'">'+escHtml(lbl0)+'</span>'}var dn=displayName(canon);var label=(dn&&dn!==canon)?dn:canon.replace(/^~/,'');return '<span class="msg-mention" style="color:'+shipColor(canon)+';font-weight:500;cursor:pointer" title="'+escAttr(canon)+'" onclick="event.stopPropagation();clickMention(\''+escAttr(canon)+'\',event)">'+escHtml(label)+'</span>'});return out}
+function renderText(text){if(!text)return'';var out=escHtml(text);out=out.replace(/`([^`]+)`/g,'<code style="background:var(--bg3);padding:.1rem .3rem">$1</code>');out=out.replace(/(data:image\/[^\s"]+)/g,function(m){var raw=m.replace(/&amp;/g,'&').replace(/&quot;/g,'"');return '<div class="inline-img-box"><img src="'+raw+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'});out=out.replace(/(https?:\/\/[^\s]+)/g,function(url){var raw=url.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/[.,;:!?\)]+$/,'');if(/\.(png|jpe?g|gif|webp|svg|bmp|ico)(\?[^\s]*)?$/i.test(raw)){return '<div class="inline-img-box"><img src="'+escAttr(raw)+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'}var yt=raw.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/);if(yt){return '<div style="margin:.35rem 0;max-width:480px;aspect-ratio:16/9"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[1]+'" style="width:100%;height:100%;border:1px solid var(--border)" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe></div>'}var tw=raw.match(/(?:twitter\.com|x\.com)\/(\w+)\/status\/(\d+)/);if(tw){return '<div class="tweet-embed" style="margin:.35rem 0;max-width:480px"><blockquote class="twitter-tweet" data-theme="dark" data-conversation="none"><a href="https://twitter.com/'+tw[1]+'/status/'+tw[2]+'"></a></blockquote></div>'}return '<a href="'+escAttr(raw)+'" target="_blank" rel="noopener" style="color:#ffaa00">'+url+'</a>'});out=out.replace(/~ref\[([^\]|]+)\|([^\]|]+)(?:\|([^\]]*))?\]/g,function(m,nid,cr,enc){var name='';if(enc!=null&&enc!==''){try{name=decodeURIComponent(enc)}catch(e){name=enc}}if(!name){var n=state.notes[nid]||state.discoveryNotes[nid];if(n)name=noteDisplayName(n)||n.name||''}if(!name)name='Note Link';return '<span class="note-ref" title="'+escAttr(nid+' · '+cr)+'" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-name">'+escHtml(name)+'</span></span>'});out=out.replace(/~gref\[([^\]|]+)\|([^\]|]+)\|([^\]|]*)\|([^\]]+)\]/g,function(m,nid,author,eid,mid){if(state.palStatus[author]==='blocked')return '<span style="color:#ff4444;font-size:.8rem">[blocked user ref]</span>';var n=state.notes[nid];var noteName=n?noteDisplayName(n):'gossip note';var authorName=displayName(author);var excerpt='';if(n){var msgs=state.messages[nid]||[];var found=msgs.find(function(msg){if(eid&&getMsgEid(msg)===eid)return true;return String(msg.id)===mid});if(found&&found.text)excerpt=found.text.slice(0,60)}var excerptHtml=excerpt?'<span class="gossip-ref-excerpt">\u2014 '+escHtml(excerpt)+'</span>':'<span class="gossip-ref-unavail">gossip post</span>';return '<span class="gossip-ref" onclick="clickGossipRef(\''+escAttr(nid)+'\',\''+escAttr(author)+'\',\''+escAttr(eid)+'\',\''+escAttr(mid)+'\')"><span class="gossip-ref-author">'+escHtml(authorName)+'</span><span class="gossip-ref-note">in '+escHtml(noteName)+'</span>'+excerptHtml+'</span>'});out=out.replace(/@(~[a-z][\w-]*)/g,function(m,ship){var canon=normalizeShipCandidate(ship)||(ship===('~'+api.ship)?ship:null);if(!canon){var dn0=displayName(ship);var lbl0=(dn0&&dn0!==ship)?dn0:ship.replace(/^~/,'');return '<span class="msg-mention" style="color:'+shipColor(ship)+';font-weight:500" title="'+escAttr(ship)+'">'+escHtml(lbl0)+'</span>'}var dn=displayName(canon);var label=(dn&&dn!==canon)?dn:canon.replace(/^~/,'');return '<span class="msg-mention" style="color:'+shipColor(canon)+';font-weight:500;cursor:pointer" title="'+escAttr(canon)+'" onclick="event.stopPropagation();clickMention(\''+escAttr(canon)+'\',event)">'+escHtml(label)+'</span>'});return out}
 function openImageFullscreen(url){var o=document.createElement('div');o.id='file-fullscreen';o.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.92);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer';o.innerHTML='<img src="'+url+'" style="max-width:95%;max-height:90vh">';o.onclick=function(){o.remove()};document.body.appendChild(o)}
 async function sendMessage(){
   const input=document.getElementById('chatInput');const text=input.value.trim();if(!text)return;
@@ -4121,7 +4206,12 @@ function showRefUnavailable(noteId,msg){
   setTimeout(()=>t.remove(),3000);
 }
 function copyNoteRef(noteId,creator){
-  const token='~ref['+noteId+'|'+creator+']';
+  // snapshot the note name so the recipient sees the same label without local
+  // metadata. encodeURIComponent keeps | and ] from breaking the token.
+  const note=state.notes[noteId]||state.discoveryNotes[noteId];
+  const name=note?(noteDisplayName(note)||note.name||''):'';
+  const token=name?('~ref['+noteId+'|'+creator+'|'+encodeURIComponent(name)+']')
+                   :('~ref['+noteId+'|'+creator+']');
   navigator.clipboard.writeText(token).then(()=>console.log('[ref] copied',token));
 }
 function copyGossipRef(noteId,author,eid,msgId){
@@ -4356,54 +4446,86 @@ function handleJoinAction(noteId,ship,action){
   else if(action==='deny'){api.poke('noltbook','noltbook-action',{action:'deny-join',data:{noteId,ship}})}
   else if(action==='deny-block'){api.poke('noltbook','noltbook-action',{action:'deny-block-join',data:{noteId,ship}})}
 }
+// Grimoire = compact system modal with tabs. openGrimoireMenu name preserved as
+// the logo onclick + refresh entrypoint; element id stays #grimoireMenu so existing
+// callers (gm.remove(); ...) keep working. Apps tab is a disabled placeholder.
+let _grimoireTab='inbox';
+function _grimoireEsc(e){if(e.key==='Escape')closeGrimoire()}
+function closeGrimoire(){const m=document.getElementById('grimoireMenu');if(m)m.remove();document.removeEventListener('keydown',_grimoireEsc)}
+function refreshGrimoireIfOpen(){const m=document.getElementById('grimoireMenu');if(!m)return;const p=m.querySelector('.grimoire-panel');if(p)p.innerHTML=grimoirePanelHtml()}
+function setGrimoireTab(t){_grimoireTab=t;refreshGrimoireIfOpen()}
+function grimoirePanelHtml(){
+  let body=(_grimoireTab==='inbox')?renderGrimoireInbox():'';
+  return ''
+    +'<div class="grimoire-head"><span class="grimoire-title">GRIMOIRE</span><span class="grimoire-close" onclick="closeGrimoire()">&#10005;</span></div>'
+    +'<div class="grimoire-tabs">'
+      +'<button class="grimoire-tab'+(_grimoireTab==='inbox'?' active':'')+'" onclick="setGrimoireTab(\'inbox\')">Inbox</button>'
+      +'<button class="grimoire-tab disabled" disabled title="coming soon">Apps</button>'
+    +'</div>'
+    +'<div class="grimoire-body">'+body+'</div>';
+}
 function openGrimoireMenu(){
   const existing=document.getElementById('grimoireMenu');if(existing){existing.remove();return}
+  // unchanged ack semantics: mark passive rows seen + durably ack on open
   for(const bn of state.blockNotifications)bn.seen=true;
   ackDurableNotifications(state.blockNotifications);
   updateLogoBadge();
-  const menu=document.createElement('div');menu.id='grimoireMenu';menu.className='context-menu';
+  _grimoireTab='inbox';
+  const overlay=document.createElement('div');overlay.id='grimoireMenu';overlay.className='grimoire-overlay';
+  const panel=document.createElement('div');panel.className='grimoire-panel';
+  panel.innerHTML=grimoirePanelHtml();
+  overlay.appendChild(panel);
+  overlay.addEventListener('click',function(e){if(e.target===overlay)closeGrimoire()});
+  document.body.appendChild(overlay);
+  document.addEventListener('keydown',_grimoireEsc);
+}
+function grimoireClear(){ackDurableNotifications(state.blockNotifications);state.blockNotifications=[];updateLogoBadge();refreshGrimoireIfOpen()}
+function renderGrimoireInbox(){
+  // mentions/replies/sends are intentionally NOT shown here — the sidebar orange
+  // directed-attention dots/previews own that affordance. Grimoire = high-level
+  // notifications + join requests only.
+  const notif=renderGrimoireNotificationRows();
+  const jr=renderGrimoireJoinRows();
   let html='';
-  const hasNotifs=state.blockNotifications.length>0||state.joinRequests.length>0;
-  if(hasNotifs){
-    html+='<div style="padding:.4rem .6rem;font-size:.65rem;color:var(--text-dim);letter-spacing:.05em;border-bottom:1px solid var(--border)">NOTIFICATIONS</div>';
-    for(const bn of state.blockNotifications){
-      if(bn.type==='joined')html+=`<div class="context-menu-item" style="font-size:.75rem;color:#00ff88">${escHtml(bn.from)} joined ${escHtml(bn.noteName)}</div>`;
-      else if(bn.type==='deleted'||bn.type==='host-deleted-status')html+=`<div class="context-menu-item" style="font-size:.75rem;color:#ff4444">Host deleted ${escHtml(bn.noteName)}</div>`;
-      else if(bn.type==='removed-status')html+=`<div class="context-menu-item" style="font-size:.75rem;color:#ff4444">Removed from ${escHtml(bn.noteName)}</div>`;
-      else if(bn.type==='blocked')html+=`<div class="context-menu-item" style="font-size:.75rem;color:#ff4444">${escHtml(bn.from)} blocked you</div>`;
-      else if(bn.type==='fork-invite'){
-        const fetching=!!bn.fetching;
-        const buttons=bn.resolved
-          ?''
-          :fetching
-          ?`<span style="font-size:.7rem;color:var(--text-dim)">Joining...</span>`
-          :`<span style="display:flex;gap:.3rem"><button onclick="event.stopPropagation();acceptForkInvite('${escAttr(bn.noteId)}')" style="flex:1;background:#ffaa00;color:#000;border:none;padding:.2rem .4rem;cursor:pointer;font-family:var(--font);font-size:.7rem;font-weight:bold">JOIN</button><button onclick="event.stopPropagation();declineForkInvite('${escAttr(bn.noteId)}')" style="flex:1;background:var(--bg3);color:var(--text);border:none;padding:.2rem .4rem;cursor:pointer;font-family:var(--font);font-size:.7rem">DECLINE</button></span>`;
-        const msg=escHtml(bn.from)+' forked '+escHtml(bn.noteName)+(bn.resolved?'.':'. Join fork?');
-        html+=`<div class="context-menu-item" style="font-size:.75rem;color:#ffaa00;flex-direction:column;align-items:stretch;gap:.3rem"><span>${msg}</span>${buttons}</div>`;
-      }
-      else html+=`<div class="context-menu-item" style="font-size:.75rem;color:#ff4444">Removed from ${escHtml(bn.noteName)}</div>`;
-    }
-    for(const jr of state.joinRequests){
-      html+=`<div class="context-menu-item" style="font-size:.75rem;display:flex;flex-direction:column;gap:.3rem">
-        <span style="color:var(--text)"><span style="color:#ffaa00">${escHtml(jr.ship)}</span> wants to join <b>${escHtml(jr.noteName)}</b></span>
-        <div style="display:flex;gap:.4rem">
-          <span style="color:#00ff88;cursor:pointer;font-size:.65rem" onclick="handleJoinAction('${escAttr(jr.noteId)}','${escAttr(jr.ship)}','approve')">APPROVE</span>
-          <span style="color:#ff4444;cursor:pointer;font-size:.65rem" onclick="handleJoinAction('${escAttr(jr.noteId)}','${escAttr(jr.ship)}','deny')">DENY</span>
-          <span style="color:#ff4444;cursor:pointer;font-size:.65rem" onclick="handleJoinAction('${escAttr(jr.noteId)}','${escAttr(jr.ship)}','deny-block')">DENY+BLOCK</span>
-        </div>
-      </div>`;
-    }
-    if(state.blockNotifications.length>0){
-      html+=`<div class="context-menu-item" style="font-size:.7rem;color:var(--text-dim);cursor:pointer" onclick="ackDurableNotifications(state.blockNotifications);state.blockNotifications=[];updateLogoBadge();openGrimoireMenu();openGrimoireMenu()">CLEAR</div>`;
-    }
-  }else{
-    html='<div class="context-menu-item" style="color:var(--text-dim)">No notifications</div>';
+  if(notif||jr){
+    html+='<div class="grimoire-section-label">NOTIFICATIONS</div>'+notif+jr;
+    if(state.blockNotifications.length>0)html+='<div class="grimoire-clear" onclick="grimoireClear()">CLEAR</div>';
   }
-  menu.innerHTML=html;
-  const logo=document.querySelector('.logo');const r=logo.getBoundingClientRect();
-  menu.style.left=r.left+'px';menu.style.top=(r.bottom+4)+'px';
-  document.body.appendChild(menu);
-  setTimeout(()=>document.addEventListener('click',function close(e){if(!e.target.closest('#grimoireMenu')){menu.remove();document.removeEventListener('click',close)}}),0);
+  if(!html)html='<div class="grimoire-empty">Nothing in your inbox</div>';
+  return html;
+}
+function gchip(label,color){return '<span class="grimoire-chip" style="color:'+color+'">'+label+'</span>'}
+function renderGrimoireNotificationRows(){
+  let html='';
+  const simple=(chipL,chipC,color,inner)=>'<div class="grimoire-row">'+gchip(chipL,chipC)+'<span class="grimoire-row-text" style="color:'+color+'">'+inner+'</span></div>';
+  for(const bn of state.blockNotifications){
+    if(bn.type==='joined')html+=simple('JOINED','#00ff88','#00ff88',escHtml(bn.from)+' joined '+escHtml(bn.noteName));
+    else if(bn.type==='deleted'||bn.type==='host-deleted-status')html+=simple('DELETED','#ff5555','#ff7777','Host deleted '+escHtml(bn.noteName));
+    else if(bn.type==='removed-status')html+=simple('REMOVED','#ff5555','#ff7777','Removed from '+escHtml(bn.noteName));
+    else if(bn.type==='blocked')html+=simple('BLOCKED','#ff5555','#ff7777',escHtml(bn.from)+' blocked you');
+    else if(bn.type==='fork-invite'){
+      const buttons=bn.resolved?'':bn.fetching
+        ?'<span style="font-size:.66rem;color:var(--text-dim)">Joining...</span>'
+        :'<div class="gn-actions"><button class="grimoire-btn" style="background:#ffaa00;color:#000;font-weight:bold" onclick="event.stopPropagation();acceptForkInvite(\''+escAttr(bn.noteId)+'\')">JOIN</button><button class="grimoire-btn" style="background:var(--bg3,#222);color:var(--text,#ddd)" onclick="event.stopPropagation();declineForkInvite(\''+escAttr(bn.noteId)+'\')">DECLINE</button></div>';
+      const msg=escHtml(bn.from)+' forked '+escHtml(bn.noteName)+'.';
+      html+='<div class="grimoire-row grimoire-notif">'+gchip('FORK','#ffaa00')+'<div class="grimoire-notif-body"><span style="color:#ffaa00">'+msg+'</span>'+buttons+'</div></div>';
+    }
+    else html+=simple('REMOVED','#ff5555','#ff7777','Removed from '+escHtml(bn.noteName));
+  }
+  return html;
+}
+function renderGrimoireJoinRows(){
+  let html='';
+  for(const jr of state.joinRequests){
+    html+='<div class="grimoire-row grimoire-notif">'+gchip('JOIN','#ffaa00')+'<div class="grimoire-notif-body">'
+      +'<span style="color:var(--text,#ddd)"><span style="color:#ffaa00">'+escHtml(jr.ship)+'</span> wants to join <b>'+escHtml(jr.noteName)+'</b></span>'
+      +'<div class="gn-actions">'
+        +'<span style="color:#00ff88;cursor:pointer;font-size:.66rem" onclick="handleJoinAction(\''+escAttr(jr.noteId)+'\',\''+escAttr(jr.ship)+'\',\'approve\')">APPROVE</span>'
+        +'<span style="color:#ff5555;cursor:pointer;font-size:.66rem" onclick="handleJoinAction(\''+escAttr(jr.noteId)+'\',\''+escAttr(jr.ship)+'\',\'deny\')">DENY</span>'
+        +'<span style="color:#ff5555;cursor:pointer;font-size:.66rem" onclick="handleJoinAction(\''+escAttr(jr.noteId)+'\',\''+escAttr(jr.ship)+'\',\'deny-block\')">DENY+BLOCK</span>'
+      +'</div></div></div>';
+  }
+  return html;
 }
 function openCurrentNoteMenu(event){
   event.stopPropagation();
@@ -4578,9 +4700,13 @@ function openNoteInfoModal(note){
 const NICKS_PER_NOCK=65536;          // 1 NOCK = 65,536 nicks (2^16)
 const IRIS_API_VERSION='1.0.0';      // modern Iris RPC api version (iris-sdk 0.2.0)
 const DEFAULT_SEND_FEE_NICKS=32768;  // total tx fee in nicks (0.5 NOCK) = iris-sdk DEFAULT_FEE
-const WALLET_DRYRUN=false;           // live: real nock_sendTransaction enabled (omit-fee test)
-const WALLET_ALLOW_REAL_SEND=true;   // extra guard: real send needs DRYRUN=false AND this=true
-const WALLET_SEND_FEE_MODE='omit';   // 'omit' (let Iris calculate fee) | 'default' (fee:DEFAULT_SEND_FEE_NICKS)
+const WALLET_DRYRUN=false;           // TEMP TEST MODE: real nock_sendTransaction enabled
+const WALLET_ALLOW_REAL_SEND=true;   // TEMP TEST MODE: real sends allowed (DRYRUN=false AND this=true)
+const WALLET_SEND_FEE_MODE='default';// builder overrides with TEMP fixed fee below (no omit)
+// TEMPORARY: pass a fixed 5 NOCK fee until Iris fee estimation is available.
+// 1 NOCK = 65,536 nicks -> 5 NOCK = 327,680 nicks. Test plumbing only.
+const TEMP_FIXED_SEND_FEE_NOCK=5;
+const TEMP_FIXED_SEND_FEE_NICKS=TEMP_FIXED_SEND_FEE_NOCK*NICKS_PER_NOCK;
 // Balance/chain-reads pinned to 0.1.1: it exposes the Pkh/SpendCondition classes
 // the proven getBalanceByFirstName path needs. 0.2.0 dropped those classes and its
 // getBalanceByAddress server-rejects our address shape ("improperly formatted").
@@ -5079,11 +5205,14 @@ function parseNockSend(text){
 // Single source of truth for the send request. Modern Iris API 1.0.0: object
 // params (NOT array), explicit fee in nicks (NEVER 0). Used by dry-run + real send.
 function buildWalletSendEnvelope(recipientPkh,nicks){
-  const params={to:recipientPkh,amount:nicks};
-  // 'omit' => no fee property at all (let Iris calculate). 'default' => explicit fee.
-  // Never fee:0.
-  if(WALLET_SEND_FEE_MODE==='default')params.fee=DEFAULT_SEND_FEE_NICKS;
-  return{method:'nock_sendTransaction',api:IRIS_API_VERSION,params:params,timeout:120000};
+  // TEMPORARY TEST MODE: always pass a fixed 5 NOCK fee (327680 nicks). No omitted-fee
+  // mode, never fee:0, object params (never array). Replace with Iris fee estimation later.
+  return{
+    method:'nock_sendTransaction',
+    api:IRIS_API_VERSION,
+    params:{to:recipientPkh,amount:nicks,fee:TEMP_FIXED_SEND_FEE_NICKS},
+    timeout:120000
+  };
 }
 // Pull a tx hash from the various shapes Iris may return; log anything unexpected.
 function extractTxHash(r){
@@ -5167,6 +5296,7 @@ async function walletSend(){
   // ===== Modern real send (Iris API 1.0.0). Object params, fee in nicks (never 0). =====
   try{
     console.log('[wallet] REAL SEND envelope:',JSON.parse(JSON.stringify(envelope)));
+    console.log('[wallet] TEMPORARY FIXED TEST FEE = '+TEMP_FIXED_SEND_FEE_NOCK+' NOCK / '+TEMP_FIXED_SEND_FEE_NICKS+' nicks');
     // Extension bug: it does new Error(errorObj) which gives "[object Object]"
     // Listen for the raw postMessage reply to capture the real error.
     let rawReplyError=null;
