@@ -254,6 +254,11 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .note-detail-btn.pending{border-color:#ffee55;color:#ffee55;cursor:default}
 .note-detail-btn.removed{border-color:#ff4444;color:#ff4444;cursor:default}
 .note-ref{cursor:pointer;color:#ffaa00}
+.app-ref{cursor:pointer;color:#ffaa00}
+.app-ref-modal{width:340px;max-width:calc(100vw - 1.5rem);background:#111;border:1px solid var(--border,#333);box-shadow:0 8px 28px rgba(0,0,0,.6)}
+.app-ref-head{display:flex;gap:.6rem;align-items:center;padding:.75rem .8rem;border-bottom:1px solid var(--border,#333)}
+.app-ref-head .grimoire-close{margin-left:auto}
+.app-ref-err{padding:0 .8rem .7rem;color:#ff7777;font-size:.76rem}
 .note-ref-name{color:#ffaa00}
 .gossip-ref{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .5rem;border:1px solid var(--border);background:var(--bg3);cursor:pointer;vertical-align:middle;max-width:280px}
 .gossip-ref:hover{border-color:#aa88ff}
@@ -269,33 +274,49 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .context-menu-item.danger:hover{color:#ff4444}
 /* Grimoire inbox modal */
 .grimoire-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:flex-start;justify-content:flex-start}
-.grimoire-panel{margin:3.1rem 0 0 .75rem;width:384px;max-width:calc(100vw - 1.5rem);max-height:80vh;background:#111;border:1px solid var(--border,#333);display:flex;flex-direction:column;box-shadow:0 8px 28px rgba(0,0,0,.55)}
-.grimoire-chip{display:inline-block;flex-shrink:0;font-size:.54rem;letter-spacing:.06em;padding:.1rem .35rem;border:1px solid currentColor;border-radius:2px;text-transform:uppercase;line-height:1.3;opacity:.95}
+.grimoire-panel{margin:3.1rem 0 0 .75rem;width:420px;max-width:calc(100vw - 1.5rem);max-height:82vh;background:#111;border:1px solid var(--border,#333);display:flex;flex-direction:column;box-shadow:0 8px 28px rgba(0,0,0,.55)}
+.grimoire-chip{display:inline-block;flex-shrink:0;font-size:.64rem;letter-spacing:.06em;padding:.12rem .4rem;border:1px solid currentColor;border-radius:2px;text-transform:uppercase;line-height:1.3;opacity:.95}
 .grimoire-row-text{min-width:0;flex:1;overflow-wrap:anywhere}
-.grimoire-head{display:flex;align-items:center;justify-content:space-between;padding:.5rem .7rem;border-bottom:1px solid var(--border,#333)}
-.grimoire-title{color:#ffaa00;font-size:.72rem;letter-spacing:.14em}
-.grimoire-close{cursor:pointer;color:var(--text-dim,#888);font-size:.8rem;line-height:1}
+.grimoire-head{display:flex;align-items:center;justify-content:space-between;padding:.6rem .8rem;border-bottom:1px solid var(--border,#333)}
+.grimoire-brand{display:flex;align-items:baseline;gap:.5rem}
+.grimoire-sigil{width:1.4rem;height:1.4rem;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden;align-self:center}
+.grimoire-sigil svg{width:100%;height:100%;display:block}
+.grimoire-sigil-fb{background:#ffaa00;border-radius:3px}
+.grimoire-title{color:#ffaa00;font-size:.95rem;letter-spacing:.14em}
+.grimoire-ver{color:#ffaa00;opacity:.55;font-size:.66rem;letter-spacing:.06em}
+.grimoire-close{cursor:pointer;color:var(--text-dim,#888);font-size:.95rem;line-height:1}
 .grimoire-close:hover{color:#ffaa00}
-.grimoire-tabs{display:flex;gap:.3rem;padding:.4rem .55rem;border-bottom:1px solid var(--border,#333)}
-.grimoire-tab{font-family:var(--font);font-size:.68rem;letter-spacing:.06em;padding:.25rem .7rem;background:transparent;border:1px solid var(--border,#333);color:var(--text-dim,#888);cursor:pointer}
-.grimoire-tab.active{color:#000;background:#ffaa00;border-color:#ffaa00}
+.grimoire-tabs{display:flex;gap:.35rem;padding:.5rem .6rem;border-bottom:1px solid var(--border,#333)}
+.grimoire-tab{font-family:var(--font);font-size:.82rem;letter-spacing:.05em;padding:.35rem .85rem;background:transparent;border:1px solid var(--border,#333);color:var(--text-dim,#888);cursor:pointer}
+.grimoire-tab.active{color:#ffaa00;background:transparent;border-color:#ffaa00}
 .grimoire-tab.disabled{opacity:.4;cursor:default}
-.grimoire-body{overflow-y:auto;padding:.2rem 0}
-.grimoire-section-label{padding:.45rem .7rem .2rem;font-size:.58rem;letter-spacing:.1em;color:var(--text-dim,#888)}
-.grimoire-row{padding:.5rem .75rem;font-size:.74rem;border-bottom:1px solid rgba(255,255,255,.05);display:flex;gap:.5rem;align-items:flex-start;line-height:1.35}
-.grimoire-row.grimoire-notif{gap:.45rem}
-.grimoire-notif-body{display:flex;flex-direction:column;gap:.35rem;min-width:0;flex:1}
+.grimoire-body{overflow-y:auto;padding:.25rem 0}
+.grimoire-section-label{padding:.55rem .85rem .25rem;font-size:.7rem;letter-spacing:.1em;color:var(--text-dim,#888)}
+.grimoire-row{padding:.6rem .85rem;font-size:.9rem;border-bottom:1px solid rgba(255,255,255,.05);display:flex;gap:.6rem;align-items:flex-start;line-height:1.35}
+.grimoire-row.grimoire-notif{gap:.55rem}
+.grimoire-notif-body{display:flex;flex-direction:column;gap:.4rem;min-width:0;flex:1}
 .grimoire-attn{cursor:pointer}
 .grimoire-attn:hover{background:rgba(255,170,0,.06)}
-.grimoire-row-kind{color:#ffaa00;font-size:.6rem;flex-shrink:0;min-width:2.6rem;padding-top:.15rem;letter-spacing:.04em}
+.grimoire-row-kind{color:#ffaa00;font-size:.7rem;flex-shrink:0;min-width:3rem;padding-top:.15rem;letter-spacing:.04em}
 .grimoire-row-main{display:flex;flex-direction:column;min-width:0;flex:1}
-.grimoire-row-note{color:var(--text,#ddd);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.grimoire-row-sub{color:var(--text-dim,#888);font-size:.66rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.gn-actions{display:flex;gap:.45rem;flex-wrap:wrap}
-.grimoire-btn{font-family:var(--font);font-size:.64rem;padding:.2rem .5rem;border:none;cursor:pointer}
-.grimoire-clear{padding:.4rem .7rem;font-size:.66rem;color:var(--text-dim,#888);cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04)}
+.grimoire-row-note{color:var(--text,#ddd);font-size:1rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.grimoire-row-sub{color:var(--text-dim,#888);font-size:.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gn-actions{display:flex;gap:.55rem;flex-wrap:wrap;align-items:center}
+.grimoire-btn{font-family:var(--font);font-size:.78rem;padding:.3rem .7rem;border:none;cursor:pointer}
+.grimoire-clear{padding:.5rem .85rem;font-size:.78rem;color:var(--text-dim,#888);cursor:pointer;border-bottom:1px solid rgba(255,255,255,.04)}
 .grimoire-clear:hover{color:#ffaa00}
-.grimoire-empty{padding:1.1rem .7rem;color:var(--text-dim,#888);font-size:.74rem;text-align:center}
+.grimoire-empty{padding:1.3rem .85rem;color:var(--text-dim,#888);font-size:.9rem;text-align:center;line-height:1.5}
+.grimoire-app-icon{width:2.6rem;height:2.6rem;flex-shrink:0;border-radius:5px;overflow:hidden}
+.grimoire-app-icon img{width:100%;height:100%;object-fit:cover}
+.grimoire-app-back{padding:.55rem .85rem;font-size:.78rem;color:var(--text-dim,#888);cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05)}
+.grimoire-app-back:hover{color:#ffaa00}
+.grimoire-app-dhead{display:flex;gap:.6rem;align-items:center;padding:.8rem .85rem}
+.grimoire-app-dtitle{color:var(--text,#ddd);font-size:1.05rem}
+.grimoire-app-info{padding:0 .85rem .7rem;font-size:.85rem;color:var(--text,#ddd);line-height:1.45;overflow-wrap:anywhere}
+.grimoire-app-meta{padding:0 .85rem .7rem;display:flex;flex-direction:column;gap:.35rem;font-size:.82rem;color:var(--text,#ccc)}
+.grimoire-app-meta .gam-k{color:var(--text-dim,#888);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;margin-right:.4rem}
+.grimoire-app-actions{display:flex;gap:.5rem;padding:.2rem .75rem .8rem}
+.grimoire-app-actions .grimoire-btn{padding:.35rem .8rem;font-size:.7rem}
 .context-menu-item.disabled{color:#555;cursor:not-allowed;opacity:.6}
 .context-menu-item.disabled:hover{background:transparent;color:#555}
 .context-menu-divider{height:1px;background:#333;margin:.25rem 0}
@@ -669,18 +690,6 @@ const api = {
         }
       }
       if(d.response==='diff'&&this.subs[d.id])this.subs[d.id](d.json);
-      // TEMP Phase-0b diagnostics: surface watch-acks/errors/quits the dispatcher
-      // would otherwise drop (esp. non-noltbook subs like %docket). Remove later.
-      else{
-        const meta=this.subMeta[d.id];const tag=meta?(meta.app+meta.path):'(no-meta)';
-        if(d.response==='subscribe'){
-          if(d.err)console.warn('[watch-ack ERR] id='+d.id+' '+tag+':',d.err);
-          else console.log('[watch-ack OK] id='+d.id+' '+tag);
-        }else if(d.response==='quit'){console.warn('[SSE quit] id='+d.id+' '+tag);}
-        else if(d.response==='poke'&&d.err){console.warn('[poke ERR] id='+d.id+':',d.err);}
-        else if(d.response==='diff'){console.log('[SSE diff no-sub] id='+d.id+' '+tag);}
-        else console.log('[SSE non-diff] id='+d.id+' response='+d.response+' '+tag,d);
-      }
     };
     this.es.onerror=(e)=>{
       console.warn('[SSE error]');
@@ -895,27 +904,6 @@ async function getShip(){
   for(const c of document.cookie.split(';')){const m=c.trim().match(/^urbauth-(~[\w-]+)=/);if(m)return m[1].slice(1)}
   return location.hostname==='localhost'?'zod':location.hostname.split('.')[0];
 }
-// TEMP Phase-0 spike: confirm %docket /charges delivers JSON charge-update facts
-// over the existing Eyre channel. Frontend-only, no UI. Safe to remove later.
-function handleDocketCharges(d){
-  try{
-    console.log('[docket/charges] raw payload:',d);
-    if(!state.docketCharges)state.docketCharges={};
-    if(d&&d.initial&&typeof d.initial==='object'){
-      state.docketCharges=Object.assign({},d.initial);
-    }else if(d&&d['add-charge']&&d['add-charge'].desk){
-      state.docketCharges[d['add-charge'].desk]=d['add-charge'].charge;
-    }else if(d&&typeof d['del-charge']==='string'){
-      delete state.docketCharges[d['del-charge']];
-    }else{
-      console.log('[docket/charges] UNRECOGNIZED shape — inspect above');
-    }
-    const desks=Object.keys(state.docketCharges);
-    console.log('[docket/charges] stored '+desks.length+' charges:',desks.join(', '));
-    const sample=desks[0]?state.docketCharges[desks[0]]:null;
-    if(sample)console.log('[docket/charges] sample charge ['+desks[0]+']:',sample);
-  }catch(e){console.error('[docket/charges] handler error:',e);}
-}
 async function boot(){
   const ship=await getShip();
   api.init(ship);
@@ -923,26 +911,6 @@ async function boot(){
   document.getElementById('shipDisplay').style.color=shipColor('~'+ship);
   loadReadCursors();
   await api.subscribe('noltbook','/notes',handleUpdate);
-  // TEMP Phase-0 spike subscription (guarded so a failure can't break boot).
-  try{
-    const dsub=await api.subscribe('docket','/charges',handleDocketCharges);
-    console.log('[docket/charges] subscribe requested, subId=',dsub,'subMeta stored=',!!api.subMeta[dsub]);
-  }catch(e){console.error('[docket/charges] subscribe failed:',e);}
-  // TEMP Phase-0c: inspect treaty /treaties (docket has watch-ack OK but no JSON
-  // facts over our channel; /all nacked). See if treaty carries usable app
-  // metadata + publisher keyed by ship/desk. One-shot summary. Remove later.
-  try{
-    let treatyLogged=false;
-    const p2=await api.subscribe('treaty','/treaties',function(d){
-      if(treatyLogged)return;treatyLogged=true;
-      console.log('[diag treaty/treaties] raw:',d);
-      var body=(d&&(d.ini||d.initial))||d;
-      var keys=(body&&typeof body==='object')?Object.keys(body):[];
-      console.log('[diag treaty/treaties] entries='+keys.length+' keys:',keys.slice(0,20).join(', '));
-      if(keys.length)console.log('[diag treaty/treaties] sample ['+keys[0]+']:',body[keys[0]]);
-    });
-    console.log('[diag] treaty/treaties subId=',p2,'stored=',!!api.subMeta[p2]);
-  }catch(e){console.error('[diag] treaty probe failed:',e);}
   api.open();
   openNote('cover');
   resetChatInputHeight();
@@ -3244,7 +3212,7 @@ function showUserDropdown(inputEl,containerEl,onSelect,opts){
   _activeDropdown={dd,update,inputEl};
   return{update,destroy:function(){dd.remove();inputEl.removeEventListener('input',update);inputEl.removeEventListener('keydown',handleKey)}};
 }
-function renderText(text){if(!text)return'';var out=escHtml(text);out=out.replace(/`([^`]+)`/g,'<code style="background:var(--bg3);padding:.1rem .3rem">$1</code>');out=out.replace(/(data:image\/[^\s"]+)/g,function(m){var raw=m.replace(/&amp;/g,'&').replace(/&quot;/g,'"');return '<div class="inline-img-box"><img src="'+raw+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'});out=out.replace(/(https?:\/\/[^\s]+)/g,function(url){var raw=url.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/[.,;:!?\)]+$/,'');if(/\.(png|jpe?g|gif|webp|svg|bmp|ico)(\?[^\s]*)?$/i.test(raw)){return '<div class="inline-img-box"><img src="'+escAttr(raw)+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'}var yt=raw.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/);if(yt){return '<div style="margin:.35rem 0;max-width:480px;aspect-ratio:16/9"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[1]+'" style="width:100%;height:100%;border:1px solid var(--border)" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe></div>'}var tw=raw.match(/(?:twitter\.com|x\.com)\/(\w+)\/status\/(\d+)/);if(tw){return '<div class="tweet-embed" style="margin:.35rem 0;max-width:480px"><blockquote class="twitter-tweet" data-theme="dark" data-conversation="none"><a href="https://twitter.com/'+tw[1]+'/status/'+tw[2]+'"></a></blockquote></div>'}return '<a href="'+escAttr(raw)+'" target="_blank" rel="noopener" style="color:#ffaa00">'+url+'</a>'});out=out.replace(/~ref\[([^\]|]+)\|([^\]|]+)(?:\|([^\]]*))?\]/g,function(m,nid,cr,enc){var name='';if(enc!=null&&enc!==''){try{name=decodeURIComponent(enc)}catch(e){name=enc}}if(!name){var n=state.notes[nid]||state.discoveryNotes[nid];if(n)name=noteDisplayName(n)||n.name||''}if(!name)name='Note Link';return '<span class="note-ref" title="'+escAttr(nid+' · '+cr)+'" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-name">'+escHtml(name)+'</span></span>'});out=out.replace(/~gref\[([^\]|]+)\|([^\]|]+)\|([^\]|]*)\|([^\]]+)\]/g,function(m,nid,author,eid,mid){if(state.palStatus[author]==='blocked')return '<span style="color:#ff4444;font-size:.8rem">[blocked user ref]</span>';var n=state.notes[nid];var noteName=n?noteDisplayName(n):'gossip note';var authorName=displayName(author);var excerpt='';if(n){var msgs=state.messages[nid]||[];var found=msgs.find(function(msg){if(eid&&getMsgEid(msg)===eid)return true;return String(msg.id)===mid});if(found&&found.text)excerpt=found.text.slice(0,60)}var excerptHtml=excerpt?'<span class="gossip-ref-excerpt">\u2014 '+escHtml(excerpt)+'</span>':'<span class="gossip-ref-unavail">gossip post</span>';return '<span class="gossip-ref" onclick="clickGossipRef(\''+escAttr(nid)+'\',\''+escAttr(author)+'\',\''+escAttr(eid)+'\',\''+escAttr(mid)+'\')"><span class="gossip-ref-author">'+escHtml(authorName)+'</span><span class="gossip-ref-note">in '+escHtml(noteName)+'</span>'+excerptHtml+'</span>'});out=out.replace(/@(~[a-z][\w-]*)/g,function(m,ship){var canon=normalizeShipCandidate(ship)||(ship===('~'+api.ship)?ship:null);if(!canon){var dn0=displayName(ship);var lbl0=(dn0&&dn0!==ship)?dn0:ship.replace(/^~/,'');return '<span class="msg-mention" style="color:'+shipColor(ship)+';font-weight:500" title="'+escAttr(ship)+'">'+escHtml(lbl0)+'</span>'}var dn=displayName(canon);var label=(dn&&dn!==canon)?dn:canon.replace(/^~/,'');return '<span class="msg-mention" style="color:'+shipColor(canon)+';font-weight:500;cursor:pointer" title="'+escAttr(canon)+'" onclick="event.stopPropagation();clickMention(\''+escAttr(canon)+'\',event)">'+escHtml(label)+'</span>'});return out}
+function renderText(text){if(!text)return'';var out=escHtml(text);out=out.replace(/`([^`]+)`/g,'<code style="background:var(--bg3);padding:.1rem .3rem">$1</code>');out=out.replace(/(data:image\/[^\s"]+)/g,function(m){var raw=m.replace(/&amp;/g,'&').replace(/&quot;/g,'"');return '<div class="inline-img-box"><img src="'+raw+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'});out=out.replace(/(https?:\/\/[^\s]+)/g,function(url){var raw=url.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/[.,;:!?\)]+$/,'');if(/\.(png|jpe?g|gif|webp|svg|bmp|ico)(\?[^\s]*)?$/i.test(raw)){return '<div class="inline-img-box"><img src="'+escAttr(raw)+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'}var yt=raw.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/);if(yt){return '<div style="margin:.35rem 0;max-width:480px;aspect-ratio:16/9"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[1]+'" style="width:100%;height:100%;border:1px solid var(--border)" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe></div>'}var tw=raw.match(/(?:twitter\.com|x\.com)\/(\w+)\/status\/(\d+)/);if(tw){return '<div class="tweet-embed" style="margin:.35rem 0;max-width:480px"><blockquote class="twitter-tweet" data-theme="dark" data-conversation="none"><a href="https://twitter.com/'+tw[1]+'/status/'+tw[2]+'"></a></blockquote></div>'}return '<a href="'+escAttr(raw)+'" target="_blank" rel="noopener" style="color:#ffaa00">'+url+'</a>'});out=out.replace(/~ref\[([^\]|]+)\|([^\]|]+)(?:\|([^\]]*))?\]/g,function(m,nid,cr,enc){var name='';if(enc!=null&&enc!==''){try{name=decodeURIComponent(enc)}catch(e){name=enc}}if(!name){var n=state.notes[nid]||state.discoveryNotes[nid];if(n)name=noteDisplayName(n)||n.name||''}if(!name)name='Note Link';return '<span class="note-ref" title="'+escAttr(nid+' · '+cr)+'" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-name">'+escHtml(name)+'</span></span>'});out=out.replace(/~gref\[([^\]|]+)\|([^\]|]+)\|([^\]|]*)\|([^\]]+)\]/g,function(m,nid,author,eid,mid){if(state.palStatus[author]==='blocked')return '<span style="color:#ff4444;font-size:.8rem">[blocked user ref]</span>';var n=state.notes[nid];var noteName=n?noteDisplayName(n):'gossip note';var authorName=displayName(author);var excerpt='';if(n){var msgs=state.messages[nid]||[];var found=msgs.find(function(msg){if(eid&&getMsgEid(msg)===eid)return true;return String(msg.id)===mid});if(found&&found.text)excerpt=found.text.slice(0,60)}var excerptHtml=excerpt?'<span class="gossip-ref-excerpt">\u2014 '+escHtml(excerpt)+'</span>':'<span class="gossip-ref-unavail">gossip post</span>';return '<span class="gossip-ref" onclick="clickGossipRef(\''+escAttr(nid)+'\',\''+escAttr(author)+'\',\''+escAttr(eid)+'\',\''+escAttr(mid)+'\')"><span class="gossip-ref-author">'+escHtml(authorName)+'</span><span class="gossip-ref-note">in '+escHtml(noteName)+'</span>'+excerptHtml+'</span>'});out=out.replace(/~app\[(~[a-z][a-z0-9-]*)\|%?([a-z][a-z0-9-]*)\|([^\]]*)\]/g,function(m,pub,desk,enc){var nm='';if(enc){try{nm=decodeURIComponent(enc)}catch(e){nm=enc}}var label=nm||('%'+desk);return '<span class="app-ref" title="'+escAttr(pub+'/'+desk)+'" onclick="event.stopPropagation();clickAppRef(\''+escAttr(pub)+'\',\''+escAttr(desk)+'\',\''+escAttr(enc||'')+'\',event)">'+escHtml(label)+'</span>'});out=out.replace(/@(~[a-z][\w-]*)/g,function(m,ship){var canon=normalizeShipCandidate(ship)||(ship===('~'+api.ship)?ship:null);if(!canon){var dn0=displayName(ship);var lbl0=(dn0&&dn0!==ship)?dn0:ship.replace(/^~/,'');return '<span class="msg-mention" style="color:'+shipColor(ship)+';font-weight:500" title="'+escAttr(ship)+'">'+escHtml(lbl0)+'</span>'}var dn=displayName(canon);var label=(dn&&dn!==canon)?dn:canon.replace(/^~/,'');return '<span class="msg-mention" style="color:'+shipColor(canon)+';font-weight:500;cursor:pointer" title="'+escAttr(canon)+'" onclick="event.stopPropagation();clickMention(\''+escAttr(canon)+'\',event)">'+escHtml(label)+'</span>'});return out}
 function openImageFullscreen(url){var o=document.createElement('div');o.id='file-fullscreen';o.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.92);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer';o.innerHTML='<img src="'+url+'" style="max-width:95%;max-height:90vh">';o.onclick=function(){o.remove()};document.body.appendChild(o)}
 async function sendMessage(){
   const input=document.getElementById('chatInput');const text=input.value.trim();if(!text)return;
@@ -4446,23 +4414,285 @@ function handleJoinAction(noteId,ship,action){
   else if(action==='deny'){api.poke('noltbook','noltbook-action',{action:'deny-join',data:{noteId,ship}})}
   else if(action==='deny-block'){api.poke('noltbook','noltbook-action',{action:'deny-block-join',data:{noteId,ship}})}
 }
-// Grimoire = compact system modal with tabs. openGrimoireMenu name preserved as
-// the logo onclick + refresh entrypoint; element id stays #grimoireMenu so existing
-// callers (gm.remove(); ...) keep working. Apps tab is a disabled placeholder.
+// Grimoire = compact system modal with tabs (Inbox / Apps / System). openGrimoireMenu
+// name preserved as the logo onclick + refresh entrypoint; element id stays
+// #grimoireMenu so existing callers (gm.remove(); ...) keep working. Apps silently
+// re-scries docket/pikes on open; System is a placeholder.
 let _grimoireTab='inbox';
 function _grimoireEsc(e){if(e.key==='Escape')closeGrimoire()}
 function closeGrimoire(){const m=document.getElementById('grimoireMenu');if(m)m.remove();document.removeEventListener('keydown',_grimoireEsc)}
 function refreshGrimoireIfOpen(){const m=document.getElementById('grimoireMenu');if(!m)return;const p=m.querySelector('.grimoire-panel');if(p)p.innerHTML=grimoirePanelHtml()}
-function setGrimoireTab(t){_grimoireTab=t;refreshGrimoireIfOpen()}
+function setGrimoireTab(t){_grimoireTab=t;if(t==='apps')loadGrimoireApps({preserveView:true});refreshGrimoireIfOpen()}
+// current user's sigil rendered in amber for the Grimoire header (true sigil,
+// not a profile avatar). Falls back to a small amber tile for long/comet ids.
+function grimoireSigilHtml(){
+  const ship='~'+api.ship;
+  try{
+    if(sigilFn){
+      const phons=shipPhonemes(ship);
+      if(phons&&phons.length<=4){
+        const svg=sigilFn({point:ship,size:22,foreground:'#ffaa00',background:'#000000',space:'none',detail:'default'});
+        if(svg)return '<span class="grimoire-sigil">'+svg+'</span>';
+      }
+    }
+  }catch(e){}
+  return '<span class="grimoire-sigil grimoire-sigil-fb"></span>';
+}
+function renderGrimoireSystems(){
+  return '<div class="grimoire-empty">System<br><span style="font-size:.74rem;color:var(--text-dim,#888)">coming soon</span></div>';
+}
 function grimoirePanelHtml(){
-  let body=(_grimoireTab==='inbox')?renderGrimoireInbox():'';
+  let body=(_grimoireTab==='apps')?renderGrimoireApps():(_grimoireTab==='systems')?renderGrimoireSystems():renderGrimoireInbox();
   return ''
-    +'<div class="grimoire-head"><span class="grimoire-title">GRIMOIRE</span><span class="grimoire-close" onclick="closeGrimoire()">&#10005;</span></div>'
+    +'<div class="grimoire-head"><span class="grimoire-brand">'+grimoireSigilHtml()+'<span class="grimoire-title">NOLTBOOK</span><span class="grimoire-ver">&bull; v14.1.2</span></span><span class="grimoire-close" onclick="closeGrimoire()">&#10005;</span></div>'
     +'<div class="grimoire-tabs">'
       +'<button class="grimoire-tab'+(_grimoireTab==='inbox'?' active':'')+'" onclick="setGrimoireTab(\'inbox\')">Inbox</button>'
-      +'<button class="grimoire-tab disabled" disabled title="coming soon">Apps</button>'
+      +'<button class="grimoire-tab'+(_grimoireTab==='apps'?' active':'')+'" onclick="setGrimoireTab(\'apps\')">Apps</button>'
+      +'<button class="grimoire-tab'+(_grimoireTab==='systems'?' active':'')+'" onclick="setGrimoireTab(\'systems\')">System</button>'
     +'</div>'
     +'<div class="grimoire-body">'+body+'</div>';
+}
+// ===== Grimoire Apps tab (reads %docket /charges directly from the browser) =====
+let _grimoireApps={state:'idle',charges:{},pikes:{},selectedDesk:null,error:null};
+async function loadGrimoireApps(opts){
+  opts=opts||{};
+  // preserveView: silent in-place refresh — keep existing rows + selection while
+  // re-scrying (no "Loading apps…" flicker). Only when we already have data.
+  const preserve=!!opts.preserveView&&_grimoireApps.state==='loaded';
+  if(!preserve){_grimoireApps.state='loading';_grimoireApps.error=null;_grimoireApps.selectedDesk=null;refreshGrimoireIfOpen();}
+  // docket = app metadata; hood/kiln pikes = publisher/source. allSettled so the
+  // apps list still loads if pikes fails (publisher just stays unknown).
+  const [chargesR,pikesR]=await Promise.allSettled([api.scry('docket','/charges'),api.scry('hood','/kiln/pikes')]);
+  if(chargesR.status==='fulfilled'){
+    const res=chargesR.value;
+    _grimoireApps.charges=(res&&res.initial)?res.initial:{};
+    _grimoireApps.state='loaded';
+  }else if(preserve){
+    console.warn('[apps] refresh charges failed (keeping cache):',chargesR.reason);
+  }else{
+    console.error('[apps] docket /charges scry failed:',chargesR.reason);
+    _grimoireApps.state='error';
+    _grimoireApps.error=(chargesR.reason&&chargesR.reason.message)?chargesR.reason.message:String(chargesR.reason);
+  }
+  if(pikesR.status==='fulfilled'&&pikesR.value&&typeof pikesR.value==='object'){
+    _grimoireApps.pikes=pikesR.value;
+  }else if(!preserve){
+    _grimoireApps.pikes={};
+    if(pikesR.status==='rejected')console.warn('[apps] hood /kiln/pikes failed (publisher unknown):',pikesR.reason);
+  }
+  // drop a stale detail selection if the desk vanished after refresh.
+  if(_grimoireApps.selectedDesk&&!_grimoireApps.charges[_grimoireApps.selectedDesk])_grimoireApps.selectedDesk=null;
+  refreshGrimoireIfOpen();
+}
+// charge json may be flat (docket fields + chad) or nested under .docket — handle both.
+function appField(c,k){if(!c)return undefined;if(c[k]!==undefined)return c[k];if(c.docket&&c.docket[k]!==undefined)return c.docket[k];return undefined}
+function appTitle(c){return appField(c,'title')||''}
+function appInfo(c){return appField(c,'info')||''}
+function appImage(c){return appField(c,'image')||''}
+function appWebsite(c){return appField(c,'website')||''}
+function appLicense(c){return appField(c,'license')||''}
+function appVersion(c){const v=appField(c,'version');if(v==null)return '';if(typeof v==='string')return v;if(typeof v==='object'&&v.major!=null)return v.major+'.'+v.minor+'.'+v.patch;return ''+v}
+function appChad(c){const ch=appField(c,'chad');if(!ch)return '';if(typeof ch==='string')return ch;if(typeof ch==='object')return Object.keys(ch)[0]||'';return ''}
+function appHref(c,desk){const h=appField(c,'href');if(h&&typeof h==='object'){if(typeof h.site==='string')return h.site;if(h.glob)return '/apps/'+desk+'/'}return '/apps/'+desk+'/'}
+function appColorHex(c){let col=appField(c,'color');if(col==null)return '';col=(''+col).trim();if(col.startsWith('#'))return col;if(col.startsWith('0x'))col=col.slice(2);col=col.replace(/\./g,'');if(/^[0-9a-fA-F]{1,6}$/.test(col))return '#'+col.padStart(6,'0');return ''}
+// publisher/source from hood kiln pikes, joined by local desk key.
+function appPike(desk){const p=_grimoireApps.pikes;return (p&&p[desk])?p[desk]:null}
+function appPublisher(desk){const pk=appPike(desk);return (pk&&pk.sync&&pk.sync.ship)?pk.sync.ship:null}
+function appSourceDesk(desk){const pk=appPike(desk);return (pk&&pk.sync&&pk.sync.desk)?pk.sync.desk:null}
+function appZest(desk){const pk=appPike(desk);return (pk&&pk.zest)?pk.zest:''}
+// app reference string: ~app[~publisher|%desk|Encoded%20Title]. '' if no publisher.
+function appRefValue(desk,c){const pub=appPublisher(desk);if(!pub)return '';const title=appTitle(c)||desk;return '~app['+pub+'|%'+desk+'|'+encodeURIComponent(title)+']'}
+function appIconHtml(desk,c){
+  const img=appImage(c);const col=appColorHex(c);
+  // image if present; otherwise a plain colored tile (app color, else dark). No letters.
+  if(img)return '<div class="grimoire-app-icon"'+(col?' style="background:'+col+'"':'')+'><img src="'+escAttr(img)+'" onerror="this.style.display=\'none\'"></div>';
+  return '<div class="grimoire-app-icon" style="background:'+(col||'#2a2a2a')+'"></div>';
+}
+function renderGrimoireApps(){
+  const g=_grimoireApps;
+  if(g.state==='idle'||g.state==='loading')return '<div class="grimoire-empty">Loading apps&hellip;</div>';
+  if(g.state==='error')return '<div class="grimoire-empty" style="color:#ff5555">Couldn\'t load apps<br><span style="font-size:.62rem;color:var(--text-dim,#888)">'+escHtml(g.error||'')+'</span></div>';
+  const desks=Object.keys(g.charges||{});
+  if(!desks.length)return '<div class="grimoire-empty">No apps installed</div>';
+  if(g.selectedDesk&&g.charges[g.selectedDesk])return renderGrimoireAppDetail(g.selectedDesk,g.charges[g.selectedDesk]);
+  const rows=desks.map(d=>({desk:d,c:g.charges[d]}));
+  rows.sort((a,b)=>{
+    const ta=(appTitle(a.c)||a.desk).toLowerCase(),tb=(appTitle(b.c)||b.desk).toLowerCase();
+    if(ta!==tb)return ta<tb?-1:1;
+    return a.desk<b.desk?-1:a.desk>b.desk?1:0;
+  });
+  let html='<div class="grimoire-section-label">INSTALLED APPS</div>';
+  for(const r of rows){
+    const title=appTitle(r.c)||r.desk,ver=appVersion(r.c),pub=appPublisher(r.desk);
+    const sub='%'+escHtml(r.desk)+' &middot; '+(pub?escHtml(pub):'local')+(ver?' &middot; v'+escHtml(ver):'');
+    html+='<div class="grimoire-row grimoire-attn" onclick="grimoireSelectApp(\''+escAttr(r.desk)+'\')">'
+      +appIconHtml(r.desk,r.c)
+      +'<div class="grimoire-row-main"><span class="grimoire-row-note">'+escHtml(title)+'</span>'
+      +'<span class="grimoire-row-sub">'+sub+'</span></div></div>';
+  }
+  return html;
+}
+function renderGrimoireAppDetail(desk,c){
+  const title=appTitle(c)||desk,ver=appVersion(c),info=appInfo(c),site=appWebsite(c),lic=appLicense(c),status=appChad(c),href=appHref(c,desk);
+  const pub=appPublisher(desk),srcDesk=appSourceDesk(desk),zest=appZest(desk);
+  let h='<div class="grimoire-app-back" onclick="grimoireSelectApp(\'\')">&lsaquo; Apps</div>';
+  h+='<div class="grimoire-app-dhead">'+appIconHtml(desk,c)
+    +'<div class="grimoire-row-main"><span class="grimoire-app-dtitle">'+escHtml(title)+'</span>'
+    +'<span class="grimoire-row-sub">%'+escHtml(desk)+(ver?' &middot; v'+escHtml(ver):'')+'</span></div></div>';
+  if(info)h+='<div class="grimoire-app-info">'+escHtml(info)+'</div>';
+  h+='<div class="grimoire-app-meta">';
+  h+='<div><span class="gam-k">publisher</span> '+(pub?escHtml(pub):'local / unknown')+'</div>';
+  if(srcDesk&&srcDesk!==desk)h+='<div><span class="gam-k">source desk</span> %'+escHtml(srcDesk)+'</div>';
+  if(zest)h+='<div><span class="gam-k">sync</span> '+escHtml(zest)+'</div>';
+  if(status)h+='<div><span class="gam-k">status</span> '+escHtml(status)+'</div>';
+  if(site)h+='<div><span class="gam-k">website</span> <a href="'+escAttr(site)+'" target="_blank" rel="noopener" style="color:#ffaa00">'+escHtml(site)+'</a></div>';
+  if(lic)h+='<div><span class="gam-k">license</span> '+escHtml(lic)+'</div>';
+  h+='</div>';
+  const copyBtn=pub
+    ?'<button class="grimoire-btn" id="grimoireCopyRef" style="background:var(--bg3,#222);color:var(--text,#ddd)" onclick="grimoireCopyAppRef(\''+escAttr(desk)+'\')">COPY REF</button>'
+    :'<button class="grimoire-btn" style="background:var(--bg3,#222);color:var(--text-dim,#888)" disabled title="no publisher / local desk">LOCAL ONLY</button>';
+  h+='<div class="grimoire-app-actions">'
+    +'<button class="grimoire-btn" style="background:#ffaa00;color:#000;font-weight:bold" onclick="grimoireOpenApp(\''+escAttr(href)+'\')">OPEN</button>'
+    +copyBtn
+    +'</div>';
+  return h;
+}
+function grimoireSelectApp(desk){_grimoireApps.selectedDesk=desk||null;refreshGrimoireIfOpen()}
+function grimoireOpenApp(href){if(!href)return;window.open(href,'_blank','noopener');closeGrimoire()}
+function grimoireCopyAppRef(desk){
+  const c=_grimoireApps.charges[desk];if(!c)return;
+  const ref=appRefValue(desk,c);if(!ref)return;
+  const fin=function(){const b=document.getElementById('grimoireCopyRef');if(b){b.textContent='COPIED';setTimeout(function(){const b2=document.getElementById('grimoireCopyRef');if(b2)b2.textContent='COPY REF'},1200)}};
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(ref).then(fin).catch(function(){console.log('[apps] ref:',ref);fin()})}
+  else{console.log('[apps] ref:',ref);fin()}
+}
+// ===== inline ~app[...] reference cards + install flow =====
+let _appRefCard=null; // {publisher,desk,name,state:'idle'|'fetching'|'installing'|'failed',error}
+// is the currently-open card still the same publisher+desk an async flow started for?
+// (guards must compare BOTH — same desk from a different publisher is a different card.)
+function appRefSameCard(pub,desk){return !!_appRefCard&&_appRefCard.publisher===pub&&_appRefCard.desk===desk}
+function clickAppRef(publisher,desk,encName,event){
+  if(event){try{event.stopPropagation()}catch(e){}}
+  let name='';try{name=decodeURIComponent(encName||'')}catch(e){name=encName||''}
+  desk=(''+desk).replace(/^%/,'');
+  _appRefCard={publisher:publisher,desk:desk,name:name,state:'idle',error:null,dirLoading:false};
+  // warm the shared app directory cache (same source as the Apps tab), then refresh
+  // the card so an installed app shows OPEN (not a premature INSTALL).
+  if(_grimoireApps.state!=='loaded'){
+    _appRefCard.dirLoading=true;
+    loadGrimoireApps().then(function(){if(!appRefSameCard(publisher,desk))return;_appRefCard.dirLoading=false;refreshAppRefCard()});
+  }
+  openAppRefCard();
+}
+function openAppRefCard(){
+  closeAppRefCard();
+  const overlay=document.createElement('div');overlay.id='appRefCard';overlay.className='modal-overlay open';
+  overlay.style.cssText='position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);z-index:1100';
+  overlay.addEventListener('click',function(e){if(e.target===overlay)closeAppRefCard()});
+  const card=document.createElement('div');card.className='app-ref-modal';card.id='appRefCardBody';
+  card.innerHTML=appRefCardHtml();
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+}
+function closeAppRefCard(){const m=document.getElementById('appRefCard');if(m)m.remove()}
+function refreshAppRefCard(){const b=document.getElementById('appRefCardBody');if(b)b.innerHTML=appRefCardHtml()}
+function appRefValidPub(p){return /^~[a-z][a-z0-9-]*$/.test(p||'')}
+function appRefCardHtml(){
+  const r=_appRefCard;if(!r)return '';
+  const c=(_grimoireApps.charges&&_grimoireApps.charges[r.desk])||null;
+  const installed=!!c;const chad=c?appChad(c):'';
+  const localPub=installed?appPublisher(r.desk):null;
+  const mismatch=installed&&localPub&&localPub!==r.publisher;
+  const title=r.name||(c?appTitle(c):'')||('%'+r.desk);
+  const href=c?appHref(c,r.desk):('/apps/'+r.desk+'/');
+  const icon=c?appIconHtml(r.desk,c):'<div class="grimoire-app-icon" style="background:#2a2a2a"></div>';
+  let h='<div class="app-ref-head">'+icon
+    +'<div class="grimoire-row-main"><span class="grimoire-app-dtitle">'+escHtml(title)+'</span>'
+    +'<span class="grimoire-row-sub">%'+escHtml(r.desk)+' &middot; '+escHtml(r.publisher)+'</span></div>'
+    +'<span class="grimoire-close" onclick="closeAppRefCard()">&#10005;</span></div>';
+  if(c&&appInfo(c))h+='<div class="grimoire-app-info">'+escHtml(appInfo(c))+'</div>';
+  h+='<div class="grimoire-app-meta">';
+  h+='<div><span class="gam-k">publisher</span> '+escHtml(r.publisher)+'</div>';
+  h+='<div><span class="gam-k">desk</span> %'+escHtml(r.desk)+'</div>';
+  if(chad)h+='<div><span class="gam-k">status</span> '+escHtml(chad)+'</div>';
+  if(mismatch)h+='<div style="color:#e8a23a">installed from '+escHtml(localPub)+'</div>';
+  h+='</div>';
+  h+='<div class="grimoire-app-actions">';
+  if(!appRefValidPub(r.publisher)){
+    h+='<button class="grimoire-btn" style="background:var(--bg3,#222);color:var(--text-dim,#888)" disabled>UNAVAILABLE</button>';
+  }else if(installed&&(chad==='glob'||chad==='site')){
+    h+='<button class="grimoire-btn" style="background:#ffaa00;color:#000;font-weight:bold" onclick="grimoireOpenApp(\''+escAttr(href)+'\')">OPEN</button>';
+  }else if(installed&&chad==='install'){
+    h+='<button class="grimoire-btn" disabled style="background:var(--bg3,#222);color:var(--text,#ddd)">INSTALLING&hellip;</button>';
+  }else if(installed&&chad==='hung'){
+    h+='<button class="grimoire-btn" style="background:#4a1f1f;color:#ff7777" onclick="appRefInstall()">FAILED &mdash; RETRY</button>';
+  }else if(r.state==='fetching'){
+    h+='<button class="grimoire-btn" disabled style="background:var(--bg3,#222);color:var(--text,#ddd)">FETCHING SOURCE&hellip;</button>';
+  }else if(r.state==='installing'){
+    h+='<button class="grimoire-btn" disabled style="background:var(--bg3,#222);color:var(--text,#ddd)">INSTALLING&hellip;</button>';
+  }else if(r.state==='failed'){
+    h+='<button class="grimoire-btn" style="background:#4a1f1f;color:#ff7777" onclick="appRefInstall()">FAILED &mdash; RETRY</button>';
+  }else if(r.dirLoading){
+    h+='<button class="grimoire-btn" disabled style="background:var(--bg3,#222);color:var(--text-dim,#888)">CHECKING&hellip;</button>';
+  }else{
+    h+='<button class="grimoire-btn" style="background:#ffaa00;color:#000;font-weight:bold" onclick="appRefInstall()">INSTALL</button>';
+  }
+  h+='</div>';
+  if(r.state==='failed'&&r.error)h+='<div class="app-ref-err">'+escHtml(r.error)+'</div>';
+  return h;
+}
+async function appRefHasTreaty(pub,desk){
+  try{const t=await api.scry('treaty','/treaty/'+pub+'/'+desk);return !!t}catch(e){return false}
+}
+async function appRefRefreshDirectory(){
+  try{
+    const [cR,pR]=await Promise.allSettled([api.scry('docket','/charges'),api.scry('hood','/kiln/pikes')]);
+    if(cR.status==='fulfilled'&&cR.value&&cR.value.initial)_grimoireApps.charges=cR.value.initial;
+    if(pR.status==='fulfilled'&&pR.value&&typeof pR.value==='object')_grimoireApps.pikes=pR.value;
+  }catch(e){}
+}
+async function appRefInstall(){
+  const r=_appRefCard;if(!r)return;
+  const pub=r.publisher,desk=r.desk;
+  if(!appRefValidPub(pub)){r.state='failed';r.error='invalid publisher';refreshAppRefCard();return}
+  // A. Treaty preflight — ensure the source is known, else ally + poll up to ~10s.
+  r.state='fetching';r.error=null;refreshAppRefCard();
+  let ok=await appRefHasTreaty(pub,desk);
+  if(!ok){
+    // api.poke returns false on PUT failure (does not throw) — treat false as failure.
+    let allyOk;
+    try{allyOk=await api.poke('treaty','ally-update-0',{add:pub})}catch(e){allyOk=false}
+    if(allyOk===false){r.state='failed';r.error='could not request source';refreshAppRefCard();return}
+    const start=Date.now();
+    while(Date.now()-start<10000){
+      await new Promise(function(res){setTimeout(res,1200)});
+      if(!appRefSameCard(pub,desk)){return}
+      if(await appRefHasTreaty(pub,desk)){ok=true;break}
+    }
+  }
+  if(!ok){r.state='failed';r.error='could not fetch app source';refreshAppRefCard();return}
+  // B. Install — poke %docket with the "~publisher/desk" string. poke only confirms
+  // the channel PUT (false on PUT failure, no throw), so the card relies on refreshed
+  // docket charge state below for true success/failure.
+  r.state='installing';refreshAppRefCard();
+  let instOk;
+  try{instOk=await api.poke('docket','docket-install',pub+'/'+desk)}catch(e){instOk=false}
+  if(instOk===false){r.state='failed';r.error='install request failed';refreshAppRefCard();return}
+  // refresh windows; a final pass fails the card if no charge/progress appeared.
+  const tick=function(ms,final){setTimeout(async function(){
+    if(!appRefSameCard(pub,desk))return;
+    await appRefRefreshDirectory();
+    const c=_grimoireApps.charges[desk];const chad=c?appChad(c):'';
+    if(chad==='glob'||chad==='site'||chad==='hung'){_appRefCard.state='idle';}
+    else if(final&&_appRefCard.state==='installing'&&chad!=='install'){
+      // chad 'install' means Docket accepted (keep INSTALLING…); anything else (incl.
+      // no charge at all) after the final window = install never started.
+      _appRefCard.state='failed';_appRefCard.error='install did not start';
+    }
+    refreshAppRefCard();
+    if(_grimoireTab==='apps')refreshGrimoireIfOpen();
+  },ms)};
+  tick(1000,false);tick(3000,false);tick(8000,false);tick(12000,true);
 }
 function openGrimoireMenu(){
   const existing=document.getElementById('grimoireMenu');if(existing){existing.remove();return}
@@ -4471,6 +4701,7 @@ function openGrimoireMenu(){
   ackDurableNotifications(state.blockNotifications);
   updateLogoBadge();
   _grimoireTab='inbox';
+  _grimoireApps.selectedDesk=null;
   const overlay=document.createElement('div');overlay.id='grimoireMenu';overlay.className='grimoire-overlay';
   const panel=document.createElement('div');panel.className='grimoire-panel';
   panel.innerHTML=grimoirePanelHtml();
@@ -4505,7 +4736,7 @@ function renderGrimoireNotificationRows(){
     else if(bn.type==='blocked')html+=simple('BLOCKED','#ff5555','#ff7777',escHtml(bn.from)+' blocked you');
     else if(bn.type==='fork-invite'){
       const buttons=bn.resolved?'':bn.fetching
-        ?'<span style="font-size:.66rem;color:var(--text-dim)">Joining...</span>'
+        ?'<span style="font-size:.78rem;color:var(--text-dim)">Joining...</span>'
         :'<div class="gn-actions"><button class="grimoire-btn" style="background:#ffaa00;color:#000;font-weight:bold" onclick="event.stopPropagation();acceptForkInvite(\''+escAttr(bn.noteId)+'\')">JOIN</button><button class="grimoire-btn" style="background:var(--bg3,#222);color:var(--text,#ddd)" onclick="event.stopPropagation();declineForkInvite(\''+escAttr(bn.noteId)+'\')">DECLINE</button></div>';
       const msg=escHtml(bn.from)+' forked '+escHtml(bn.noteName)+'.';
       html+='<div class="grimoire-row grimoire-notif">'+gchip('FORK','#ffaa00')+'<div class="grimoire-notif-body"><span style="color:#ffaa00">'+msg+'</span>'+buttons+'</div></div>';
@@ -4520,9 +4751,9 @@ function renderGrimoireJoinRows(){
     html+='<div class="grimoire-row grimoire-notif">'+gchip('JOIN','#ffaa00')+'<div class="grimoire-notif-body">'
       +'<span style="color:var(--text,#ddd)"><span style="color:#ffaa00">'+escHtml(jr.ship)+'</span> wants to join <b>'+escHtml(jr.noteName)+'</b></span>'
       +'<div class="gn-actions">'
-        +'<span style="color:#00ff88;cursor:pointer;font-size:.66rem" onclick="handleJoinAction(\''+escAttr(jr.noteId)+'\',\''+escAttr(jr.ship)+'\',\'approve\')">APPROVE</span>'
-        +'<span style="color:#ff5555;cursor:pointer;font-size:.66rem" onclick="handleJoinAction(\''+escAttr(jr.noteId)+'\',\''+escAttr(jr.ship)+'\',\'deny\')">DENY</span>'
-        +'<span style="color:#ff5555;cursor:pointer;font-size:.66rem" onclick="handleJoinAction(\''+escAttr(jr.noteId)+'\',\''+escAttr(jr.ship)+'\',\'deny-block\')">DENY+BLOCK</span>'
+        +'<span style="color:#00ff88;cursor:pointer;font-size:.78rem" onclick="handleJoinAction(\''+escAttr(jr.noteId)+'\',\''+escAttr(jr.ship)+'\',\'approve\')">APPROVE</span>'
+        +'<span style="color:#ff5555;cursor:pointer;font-size:.78rem" onclick="handleJoinAction(\''+escAttr(jr.noteId)+'\',\''+escAttr(jr.ship)+'\',\'deny\')">DENY</span>'
+        +'<span style="color:#ff5555;cursor:pointer;font-size:.78rem" onclick="handleJoinAction(\''+escAttr(jr.noteId)+'\',\''+escAttr(jr.ship)+'\',\'deny-block\')">DENY+BLOCK</span>'
       +'</div></div></div>';
   }
   return html;
