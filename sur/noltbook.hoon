@@ -348,6 +348,17 @@
       ::  durable green sidebar unread: mark a note read (last-opened time)
       [%mark-note-read note-id=@ta]
   ==
+::  Developer API v1 (mark %noltbook-api). A small, STABLE surface for same-ship
+::  apps so they don't bind to the internal `action` grab-bag. Each carries an
+::  optional request-id (parsed, not yet echoed — request/response is deferred).
+::  Handlers translate these into the existing `action` code paths (no bypass of
+::  permission/membership checks).
++$  api-action
+  $%  [%create-note request-id=(unit @ud) name=@t parent=(unit @ta)]
+      [%find-or-create-note request-id=(unit @ud) name=@t parent=(unit @ta)]
+      [%post-message request-id=(unit @ud) note-id=@ta text=@t reply-to-eid=(unit @uv)]
+      [%post-app-ref request-id=(unit @ud) note-id=@ta publisher=@t desk=@t name=@t]
+  ==
 ::  subscription updates (agent to client)
 +$  update
   $%  [%note-list notes=(list note)]

@@ -2558,6 +2558,79 @@
   =/  cur=(list [id=@da eid=(unit @uv)])  (fall (~(get by cm) nid) ~)
   ?:  (mention-cleared cur id eid)  cm
   (~(put by cm) nid (snoc cur [id eid]))
+::  ===== Developer API v1 (%noltbook-api) helpers =====
+++  api-da-ms
+  |=  t=@da  ^-  @ud
+  (div (sub t ~1970.1.1) (div ~s1 1.000))
+::  percent-encode a name for the ~app[...] token (RFC3986 unreserved kept).
+++  api-pct-encode
+  |=  t=@t  ^-  @t
+  %-  crip  %-  zing
+  %+  turn  (trip t)
+  |=  c=@tD  ^-  tape
+  ?:  ?|  &((gte c 'a') (lte c 'z'))
+          &((gte c 'A') (lte c 'Z'))
+          &((gte c '0') (lte c '9'))
+          =(c '-')  =(c '_')  =(c '.')  =(c '~')
+      ==
+    ~[c]
+  =/  hex=@t  '0123456789ABCDEF'
+  :~  '%'
+      (cut 3 [(rsh 2 c) 1] hex)
+      (cut 3 [(dis c 0xf) 1] hex)
+  ==
+::  build ~app[~publisher|%desk|Encoded%20Name]; ensure ~ on publisher, strip % on desk.
+::  validate + build the ref. publisher must parse as @p (with or without ~);
+::  desk must be a bare term (accepts a leading %); name defaults to desk when
+::  empty and is percent-encoded. Returns ~ on invalid input (no ref built).
+++  api-app-ref
+  |=  [pub=@t dsk=@t nm=@t]  ^-  (unit @t)
+  =/  pl=tape  (trip pub)
+  =/  pbare=@t  ?:(?=([%'~' *] pl) (crip t.pl) pub)
+  =/  shp=(unit @p)  (rush pbare fed:ag)
+  ?~  shp  ~
+  =/  dl=tape  (trip dsk)
+  =/  dbare=@t  ?:(?=([%'%' *] dl) (crip t.dl) dsk)
+  =/  dsym=(unit term)  (rush dbare sym)
+  ?~  dsym  ~
+  =/  nm2=@t  ?:(=(0 (met 3 nm)) `@t`u.dsym nm)
+  `(crip "~app[{(scow %p u.shp)}|%{(trip u.dsym)}|{(trip (api-pct-encode nm2))}]")
+::  find an app-owned (creator=our) note by exact name.
+++  api-find-note-by-name
+  |=  [nm=@t nts=(map @ta note:noltbook) us=@p]  ^-  (unit @ta)
+  =/  hits=(list [@ta note:noltbook])
+    %+  skim  ~(tap by nts)
+    |=([k=@ta n=note:noltbook] &(=(name.n nm) =(creator.n us)))
+  ?~  hits  ~
+  `-.i.hits
+::  STABLE api read shapes (decoupled from the internal update enjs).
+++  api-note-json
+  |=  n=note:noltbook  ^-  json
+  %-  pairs:enjs:format
+  :~  ['id' s+(crip (trip id.n))]
+      ['name' s+name.n]
+      ['type' s+(crip (trip (scot %tas type.n)))]
+      ['creator' s+(scot %p creator.n)]
+      ['visibility' s+(crip (trip (scot %tas visibility.n)))]
+      ['userCount' (numb:enjs:format ~(wyt in users.n))]
+      ['lastPreview' ?~(last-preview.n ~ s+u.last-preview.n)]
+  ==
+++  api-msg-json
+  |=  m=message:noltbook  ^-  json
+  %-  pairs:enjs:format
+  :~  ['id' (numb:enjs:format (api-da-ms id.m))]
+      ['author' s+(scot %p author.m)]
+      ['text' s+text.m]
+      ['timestamp' (numb:enjs:format (api-da-ms timestamp.m))]
+      ['replyToEid' ?~(meta.m ~ ?~(reply-to-eid.u.meta.m ~ s+(scot %uv u.reply-to-eid.u.meta.m)))]
+  ==
+++  api-art-json
+  |=  a=artifact:noltbook  ^-  json
+  %-  pairs:enjs:format
+  :~  ['id' s+(crip (trip id.a))]
+      ['name' s+name.a]
+      ['type' s+(crip (trip (scot %tas type.a)))]
+  ==
 ::
 ::  dm-counterparty: return the other ship in a 2-user DM, or ~ if not a
 ::  well-formed DM users set including our.bowl.
@@ -3642,6 +3715,25 @@
   |=  =path
   ^-  (unit (unit cage))
   ?+  path  (on-peek:def path)
+  ::  Developer API v1 stable read shapes (returned as %json, owned by the API).
+      [%x %api %notes ~]
+    =/  jon=json  (frond:enjs:format 'notes' a+(turn ~(val by notes) api-note-json))
+    ``[%json !>(jon)]
+  ::
+      [%x %api %notes @ ~]
+    =/  nid=@ta  i.t.t.t.path
+    =/  msgs=(list message:noltbook)  (fall (~(get by messages) nid) ~)
+    =/  arts=(list artifact:noltbook)
+      %+  skim  ~(val by artifacts)
+      |=(a=artifact:noltbook =(note-id.a nid))
+    =/  jon=json
+      %-  pairs:enjs:format
+      :~  ['noteId' s+(crip (trip nid))]
+          ['messages' a+(turn msgs api-msg-json)]
+          ['artifacts' a+(turn arts api-art-json)]
+      ==
+    ``[%json !>(jon)]
+  ::
       [%x %notes ~]
     =/  note-list=(list note:noltbook)  ~(val by notes)
     =/  upd=update:noltbook  [%note-list note-list]
@@ -3696,6 +3788,35 @@
   |=  [=mark =vase]
   ^-  (quip card _this)
   ?+  mark  (on-poke:def mark vase)
+  ::
+  ::  Developer API v1: translate a curated api-action into the existing
+  ::  `action` code path by re-entering on-poke with mark %noltbook-action — so
+  ::  ALL permission/membership checks in those handlers still apply. request-id
+  ::  is parsed (in api-action) but not yet echoed (request/response deferred).
+      %noltbook-api
+    ::  v1 is SAME-SHIP ONLY: reject any non-local poke before we even parse it,
+    ::  since the translated actions author as our.bowl.
+    ?.  =(src.bowl our.bowl)
+      ~&  [%noltbook-api-reject-nonlocal src.bowl]
+      `this
+    =/  aa  !<(api-action:noltbook vase)
+    ?-  -.aa
+        %create-note
+      $(mark %noltbook-action, vase !>(`action:noltbook`[%create-note name.aa parent.aa]))
+        %find-or-create-note
+      ::  no-op if an app-owned note with this exact name already exists; the
+      ::  caller observes/uses it via /api/notes. Otherwise create it.
+      ?^  (api-find-note-by-name name.aa notes our.bowl)  `this
+      $(mark %noltbook-action, vase !>(`action:noltbook`[%create-note name.aa parent.aa]))
+        %post-message
+      $(mark %noltbook-action, vase !>(`action:noltbook`[%send-message note-id.aa text.aa ~ reply-to-eid.aa ~]))
+        %post-app-ref
+      ::  validate publisher (@p) + desk (term); drop the poke on bad input
+      ::  rather than constructing a malformed ~app[...] ref.
+      =/  ref=(unit @t)  (api-app-ref publisher.aa desk.aa name.aa)
+      ?~  ref  `this
+      $(mark %noltbook-action, vase !>(`action:noltbook`[%send-message note-id.aa u.ref ~ ~ ~]))
+    ==
   ::
       %handle-http-request
     =+  !<([eyre-id=@ta =inbound-request:eyre] vase)

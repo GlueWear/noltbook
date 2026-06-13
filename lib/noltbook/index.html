@@ -317,6 +317,10 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .grimoire-app-meta .gam-k{color:var(--text-dim,#888);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;margin-right:.4rem}
 .grimoire-app-actions{display:flex;gap:.5rem;padding:.2rem .75rem .8rem}
 .grimoire-app-actions .grimoire-btn{padding:.35rem .8rem;font-size:.7rem}
+.grimoire-system-row{display:flex;justify-content:space-between;gap:.8rem;padding:.55rem .85rem;border-bottom:1px solid rgba(255,255,255,.05);font-size:.9rem;line-height:1.35}
+.grimoire-system-label{color:var(--text-dim,#888);min-width:8.5rem}
+.grimoire-system-value{color:var(--text,#ddd);text-align:right;overflow-wrap:anywhere}
+.grimoire-system-note{padding:.55rem .85rem;color:var(--text-dim,#888);font-size:.82rem;line-height:1.45}
 .context-menu-item.disabled{color:#555;cursor:not-allowed;opacity:.6}
 .context-menu-item.disabled:hover{background:transparent;color:#555}
 .context-menu-divider{height:1px;background:#333;margin:.25rem 0}
@@ -4416,13 +4420,13 @@ function handleJoinAction(noteId,ship,action){
 }
 // Grimoire = compact system modal with tabs (Inbox / Apps / System). openGrimoireMenu
 // name preserved as the logo onclick + refresh entrypoint; element id stays
-// #grimoireMenu so existing callers (gm.remove(); ...) keep working. Apps silently
-// re-scries docket/pikes on open; System is a placeholder.
+// #grimoireMenu so existing callers (gm.remove(); ...) keep working. Apps/System
+// silently re-scry their read-only sources on open.
 let _grimoireTab='inbox';
 function _grimoireEsc(e){if(e.key==='Escape')closeGrimoire()}
 function closeGrimoire(){const m=document.getElementById('grimoireMenu');if(m)m.remove();document.removeEventListener('keydown',_grimoireEsc)}
 function refreshGrimoireIfOpen(){const m=document.getElementById('grimoireMenu');if(!m)return;const p=m.querySelector('.grimoire-panel');if(p)p.innerHTML=grimoirePanelHtml()}
-function setGrimoireTab(t){_grimoireTab=t;if(t==='apps')loadGrimoireApps({preserveView:true});refreshGrimoireIfOpen()}
+function setGrimoireTab(t){_grimoireTab=t;if(t==='apps')loadGrimoireApps({preserveView:true});if(t==='systems')loadGrimoireSystem();refreshGrimoireIfOpen()}
 // current user's sigil rendered in amber for the Grimoire header (true sigil,
 // not a profile avatar). Falls back to a small amber tile for long/comet ids.
 function grimoireSigilHtml(){
@@ -4438,8 +4442,72 @@ function grimoireSigilHtml(){
   }catch(e){}
   return '<span class="grimoire-sigil grimoire-sigil-fb"></span>';
 }
+let _grimoireSystem={state:'idle',pikes:{},charges:{},runtime:'',error:null};
+async function fetchRuntimeVersion(){
+  try{
+    const r=await fetch('/~/version',{credentials:'include'});
+    if(!r.ok)return '';
+    const txt=(await r.text()).trim();
+    if(!txt)return '';
+    try{
+      const j=JSON.parse(txt);
+      const s=JSON.stringify(j);
+      const m=s.match(/(\d+\.\d+(?:\.\d+)?)/);
+      return m?m[1]:s.slice(0,80);
+    }catch(e){}
+    const m=txt.match(/(\d+\.\d+(?:\.\d+)?)/);
+    return m?m[1]:txt.slice(0,80);
+  }catch(e){return ''}
+}
+async function loadGrimoireSystem(){
+  const first=_grimoireSystem.state==='idle'||_grimoireSystem.state==='error';
+  if(first){_grimoireSystem.state='loading';_grimoireSystem.error=null;refreshGrimoireIfOpen()}
+  const [pikesR,chargesR,runtimeR]=await Promise.allSettled([api.scry('hood','/kiln/pikes'),api.scry('docket','/charges'),fetchRuntimeVersion()]);
+  if(pikesR.status==='fulfilled'&&pikesR.value)_grimoireSystem.pikes=pikesR.value;
+  else console.warn('[system] hood /kiln/pikes failed:',pikesR.reason);
+  if(chargesR.status==='fulfilled'&&chargesR.value)_grimoireSystem.charges=chargesR.value.initial||{};
+  else console.warn('[system] docket /charges failed:',chargesR.reason);
+  if(runtimeR.status==='fulfilled')_grimoireSystem.runtime=runtimeR.value||'';
+  _grimoireSystem.state='loaded';
+  if(!Object.keys(_grimoireSystem.pikes||{}).length&&!Object.keys(_grimoireSystem.charges||{}).length){
+    _grimoireSystem.state='error';
+    _grimoireSystem.error='system scries unavailable';
+  }
+  refreshGrimoireIfOpen();
+}
+function systemPike(desk){const p=_grimoireSystem.pikes;return (p&&p[desk])?p[desk]:null}
+function systemKernelVersion(){
+  const base=systemPike('base');const h=base&&base.hash?(''+base.hash):'';
+  if(!h)return '';
+  const parts=h.split('.');
+  return parts[parts.length-1]||h;
+}
+function systemSource(desk){
+  const p=systemPike(desk);
+  if(!p||!p.sync)return 'local';
+  const ship=p.sync.ship||'';const src=p.sync.desk||desk;
+  return (ship?ship:'unknown')+' / %'+src;
+}
+function systemRow(label,value){
+  return '<div class="grimoire-system-row"><span class="grimoire-system-label">'+escHtml(label)+'</span><span class="grimoire-system-value">'+escHtml(value||'unknown')+'</span></div>';
+}
 function renderGrimoireSystems(){
-  return '<div class="grimoire-empty">System<br><span style="font-size:.74rem;color:var(--text-dim,#888)">coming soon</span></div>';
+  const s=_grimoireSystem;
+  if(s.state==='idle'||s.state==='loading')return '<div class="grimoire-empty">Loading system&hellip;</div>';
+  if(s.state==='error')return '<div class="grimoire-empty" style="color:#ff5555">Couldn\'t load system<br><span style="font-size:.62rem;color:var(--text-dim,#888)">'+escHtml(s.error||'')+'</span></div>';
+  const charges=s.charges||{};
+  const base=systemPike('base')||{};
+  const appCount=Object.keys(charges).length;
+  let html='<div class="grimoire-section-label">ABOUT SYSTEM</div>';
+  html+=systemRow('Ship','~'+api.ship);
+  html+=systemRow('Urbit Kernel',systemKernelVersion()||base.hash||'unknown');
+  html+=systemRow('Urbit Runtime',s.runtime||'unavailable');
+  html+=systemRow('Installed Apps',String(appCount));
+  html+='<div class="grimoire-section-label">SYSTEM UPDATES</div>';
+  html+=systemRow('Base Status',base.zest||'unknown');
+  html+=systemRow('Update Source',systemSource('base'));
+  html+='<div class="grimoire-system-note">'+(base.zest==='live'?'Your base desk is live.':'Update status is reported by %hood.')+'</div>';
+  return html;
 }
 function grimoirePanelHtml(){
   let body=(_grimoireTab==='apps')?renderGrimoireApps():(_grimoireTab==='systems')?renderGrimoireSystems():renderGrimoireInbox();
