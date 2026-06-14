@@ -12,6 +12,21 @@
     ^-  ^json
     |^
     ?-  -.upd
+        %api-result
+      =/  r  api-result.upd
+      %+  frond  'api-result'
+      %-  pairs
+      :~  ['requestId' (numb request-id.r)]
+          ['ok' b+ok.r]
+          ['code' s+(crip (trip (scot %tas code.r)))]
+          ['message' s+message.r]
+          ['noteId' ?~(note-id.r ~ s+(crip (trip u.note-id.r)))]
+          ['msgId' ?~(msg-id.r ~ s+(scot %da u.msg-id.r))]
+          ['eid' ?~(eid.r ~ s+(scot %uv u.eid.r))]
+          ['artifactId' ?~(artifact-id.r ~ s+(crip (trip u.artifact-id.r)))]
+          ['callId' ?~(call-id.r ~ s+(crip (trip u.call-id.r)))]
+      ==
+    ::
         %note-list
       (frond 'note-list' a+(turn notes.upd note-to-json))
     ::
@@ -403,6 +418,15 @@
           ['capped' b+capped.upd]
       ==
     ::
+        %api-search-result
+      %+  frond  'api-search-result'
+      %-  pairs
+      :~  ['requestId' (numb request-id.upd)]
+          ['query' s+query.upd]
+          ['capped' b+capped.upd]
+          ['hits' a+(turn hits.upd api-hit-to-json)]
+      ==
+    ::
         %profile-lookup-result
       %+  frond  'profile-lookup-result'
       %-  pairs
@@ -487,6 +511,18 @@
       %-  pairs
       :~  ['noteId' s+(crip (trip note-id.h))]
           ['msgId' (numb (da-to-ms msg-id.h))]
+          ['eid' ?~(eid.h ~ s+(scot %uv u.eid.h))]
+          ['author' s+(scot %p author.h)]
+          ['timestamp' (numb (da-to-ms timestamp.h))]
+          ['preview' s+preview.h]
+      ==
+    ::  API hit encoder: msgId as the @da STRING (matching /api/notes), unlike the
+    ::  sidebar encoder which emits a ms-number. timestamp stays a ms-number.
+    ++  api-hit-to-json
+      |=  h=search-msg-hit:noltbook
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.h))]
+          ['msgId' s+(scot %da msg-id.h)]
           ['eid' ?~(eid.h ~ s+(scot %uv u.eid.h))]
           ['author' s+(scot %p author.h)]
           ['timestamp' (numb (da-to-ms timestamp.h))]

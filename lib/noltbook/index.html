@@ -4783,48 +4783,48 @@ function renderGrimoireInbox(){
   // mentions/replies/sends are intentionally NOT shown here — the sidebar orange
   // directed-attention dots/previews own that affordance. Grimoire = high-level
   // notifications + join requests only.
-  const notif=renderGrimoireNotificationRows();
-  const jr=renderGrimoireJoinRows();
+  const rows=renderGrimoireInboxRows();
   let html='';
-  if(notif||jr){
-    html+='<div class="grimoire-section-label">NOTIFICATIONS</div>'+notif+jr;
+  if(rows){
+    html+='<div class="grimoire-section-label">NOTIFICATIONS</div>'+rows;
     if(state.blockNotifications.length>0)html+='<div class="grimoire-clear" onclick="grimoireClear()">CLEAR</div>';
   }
   if(!html)html='<div class="grimoire-empty">Nothing in your inbox</div>';
   return html;
 }
 function gchip(label,color){return '<span class="grimoire-chip" style="color:'+color+'">'+label+'</span>'}
-function renderGrimoireNotificationRows(){
-  let html='';
-  const simple=(chipL,chipC,color,inner)=>'<div class="grimoire-row">'+gchip(chipL,chipC)+'<span class="grimoire-row-text" style="color:'+color+'">'+inner+'</span></div>';
-  for(const bn of state.blockNotifications){
-    if(bn.type==='joined')html+=simple('JOINED','#00ff88','#00ff88',escHtml(bn.from)+' joined '+escHtml(bn.noteName));
-    else if(bn.type==='deleted'||bn.type==='host-deleted-status')html+=simple('DELETED','#ff5555','#ff7777','Host deleted '+escHtml(bn.noteName));
-    else if(bn.type==='removed-status')html+=simple('REMOVED','#ff5555','#ff7777','Removed from '+escHtml(bn.noteName));
-    else if(bn.type==='blocked')html+=simple('BLOCKED','#ff5555','#ff7777',escHtml(bn.from)+' blocked you');
-    else if(bn.type==='fork-invite'){
-      const buttons=bn.resolved?'':bn.fetching
-        ?'<span style="font-size:.78rem;color:var(--text-dim)">Joining...</span>'
-        :'<div class="gn-actions"><button class="grimoire-btn" style="background:#ffaa00;color:#000;font-weight:bold" onclick="event.stopPropagation();acceptForkInvite(\''+escAttr(bn.noteId)+'\')">JOIN</button><button class="grimoire-btn" style="background:var(--bg3,#222);color:var(--text,#ddd)" onclick="event.stopPropagation();declineForkInvite(\''+escAttr(bn.noteId)+'\')">DECLINE</button></div>';
-      const msg=escHtml(bn.from)+' forked '+escHtml(bn.noteName)+'.';
-      html+='<div class="grimoire-row grimoire-notif">'+gchip('FORK','#ffaa00')+'<div class="grimoire-notif-body"><span style="color:#ffaa00">'+msg+'</span>'+buttons+'</div></div>';
-    }
-    else html+=simple('REMOVED','#ff5555','#ff7777','Removed from '+escHtml(bn.noteName));
-  }
-  return html;
+// one combined, newest-first ordering for every inbox row (block notifications +
+// join requests), so a fresh fork/join item sorts above older rows.
+function renderGrimoireInboxRows(){
+  const rows=[];
+  for(const bn of state.blockNotifications)rows.push({time:bn.time||0,html:renderGrimoireBnRow(bn)});
+  for(const jr of state.joinRequests)rows.push({time:jr.time||0,html:renderGrimoireJrRow(jr)});
+  rows.sort((a,b)=>b.time-a.time);
+  return rows.map(r=>r.html).join('');
 }
-function renderGrimoireJoinRows(){
-  let html='';
-  for(const jr of state.joinRequests){
-    html+='<div class="grimoire-row grimoire-notif">'+gchip('JOIN','#ffaa00')+'<div class="grimoire-notif-body">'
-      +'<span style="color:var(--text,#ddd)"><span style="color:#ffaa00">'+escHtml(jr.ship)+'</span> wants to join <b>'+escHtml(jr.noteName)+'</b></span>'
-      +'<div class="gn-actions">'
-        +'<span style="color:#00ff88;cursor:pointer;font-size:.78rem" onclick="handleJoinAction(\''+escAttr(jr.noteId)+'\',\''+escAttr(jr.ship)+'\',\'approve\')">APPROVE</span>'
-        +'<span style="color:#ff5555;cursor:pointer;font-size:.78rem" onclick="handleJoinAction(\''+escAttr(jr.noteId)+'\',\''+escAttr(jr.ship)+'\',\'deny\')">DENY</span>'
-        +'<span style="color:#ff5555;cursor:pointer;font-size:.78rem" onclick="handleJoinAction(\''+escAttr(jr.noteId)+'\',\''+escAttr(jr.ship)+'\',\'deny-block\')">DENY+BLOCK</span>'
-      +'</div></div></div>';
+function renderGrimoireBnRow(bn){
+  const simple=(chipL,chipC,color,inner)=>'<div class="grimoire-row">'+gchip(chipL,chipC)+'<span class="grimoire-row-text" style="color:'+color+'">'+inner+'</span></div>';
+  if(bn.type==='joined')return simple('JOINED','#00ff88','#00ff88',escHtml(bn.from)+' joined '+escHtml(bn.noteName));
+  if(bn.type==='deleted'||bn.type==='host-deleted-status')return simple('DELETED','#ff5555','#ff7777','Host deleted '+escHtml(bn.noteName));
+  if(bn.type==='removed-status')return simple('REMOVED','#ff5555','#ff7777','Removed from '+escHtml(bn.noteName));
+  if(bn.type==='blocked')return simple('BLOCKED','#ff5555','#ff7777',escHtml(bn.from)+' blocked you');
+  if(bn.type==='fork-invite'){
+    const buttons=bn.resolved?'':bn.fetching
+      ?'<span style="font-size:.78rem;color:var(--text-dim)">Joining...</span>'
+      :'<div class="gn-actions"><button class="grimoire-btn" style="background:#ffaa00;color:#000;font-weight:bold" onclick="event.stopPropagation();acceptForkInvite(\''+escAttr(bn.noteId)+'\')">JOIN</button><button class="grimoire-btn" style="background:var(--bg3,#222);color:var(--text,#ddd)" onclick="event.stopPropagation();declineForkInvite(\''+escAttr(bn.noteId)+'\')">DECLINE</button></div>';
+    const msg=escHtml(bn.from)+' forked '+escHtml(bn.noteName)+'.';
+    return '<div class="grimoire-row grimoire-notif">'+gchip('FORK','#ffaa00')+'<div class="grimoire-notif-body"><span style="color:#ffaa00">'+msg+'</span>'+buttons+'</div></div>';
   }
-  return html;
+  return simple('REMOVED','#ff5555','#ff7777','Removed from '+escHtml(bn.noteName));
+}
+function renderGrimoireJrRow(jr){
+  return '<div class="grimoire-row grimoire-notif">'+gchip('JOIN','#ffaa00')+'<div class="grimoire-notif-body">'
+    +'<span style="color:var(--text,#ddd)"><span style="color:#ffaa00">'+escHtml(jr.ship)+'</span> wants to join <b>'+escHtml(jr.noteName)+'</b></span>'
+    +'<div class="gn-actions">'
+      +'<span style="color:#00ff88;cursor:pointer;font-size:.78rem" onclick="handleJoinAction(\''+escAttr(jr.noteId)+'\',\''+escAttr(jr.ship)+'\',\'approve\')">APPROVE</span>'
+      +'<span style="color:#ff5555;cursor:pointer;font-size:.78rem" onclick="handleJoinAction(\''+escAttr(jr.noteId)+'\',\''+escAttr(jr.ship)+'\',\'deny\')">DENY</span>'
+      +'<span style="color:#ff5555;cursor:pointer;font-size:.78rem" onclick="handleJoinAction(\''+escAttr(jr.noteId)+'\',\''+escAttr(jr.ship)+'\',\'deny-block\')">DENY+BLOCK</span>'
+    +'</div></div></div>';
 }
 function openCurrentNoteMenu(event){
   event.stopPropagation();

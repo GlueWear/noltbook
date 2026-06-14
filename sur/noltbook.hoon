@@ -69,6 +69,9 @@
       reply-to=(unit @da)
       content-hash=@uv
       meta=(unit entry-meta)
+      ::  Phase 11C: app attribution rides the envelope through gossip/cover
+      ::  delivery (ship stamped server-side). ~ for normal/UI/anonymous posts.
+      via=(unit via-app)
   ==
 ::
 +$  artifact-type  ?(%code %app %file)
@@ -179,11 +182,11 @@
 ::  ship-to-ship remote pokes
 +$  remote
   $%  [%remote-invite note-id=@ta name=@t type=note-type creator=@p users=(set @p) visibility=note-visibility writable=?]
-      [%remote-message note-id=@ta msg=message directed-kind=(unit attention-kind)]
+      [%remote-message note-id=@ta msg=message directed-kind=(unit attention-kind) via=(unit via-app)]
       ::  atomic DM message: carries enough note metadata so the receiver
       ::  can recreate the DM locally if they previously left it. No
       ::  separate invite is sent; receiver does not subscribe.
-      [%remote-dm-message note=note msg=message]
+      [%remote-dm-message note=note msg=message via=(unit via-app)]
       [%remote-ars msg=message hops=@ud]
       [%remote-ars-ref env=envelope hops=@ud]
       [%remote-fetch-cover-msg requester=@p msg-id=@da eid=(unit @uv)]
@@ -219,6 +222,8 @@
       [%remote-fork-payload root-id=@ta source-root-id=@ta root-note=note descendants=(list [n=note source-id=@ta]) fork-origin=@uv fork-version=@ud parent-version=@ud artifact-envs=(list [note-id=@ta envs=(list artifact-envelope)])]
       ::  fork denied: forker refuses an unauthorized %remote-fork-fetch.
       [%remote-fork-denied root-id=@ta]
+      ::  fork declined: invitee tells the forker to drop them from the invitee set.
+      [%remote-fork-decline root-id=@ta]
       [%remote-introduce ship=@p]
       ::  call signaling remotes
       [%remote-call-start note-id=@ta call-id=@ta started-by=@p]
@@ -289,7 +294,7 @@
       ::  directed-kind: explicit NOTE SEND marker (Phase C). %send => the
       ::  resulting reply attention is classified kind=%send instead of %reply.
       ::  Normal messages and wallet/DM SEND omit it (~).
-      [%send-message note-id=@ta text=@t reply-to=(unit @da) reply-to-eid=(unit @uv) directed-kind=(unit attention-kind)]
+      [%send-message note-id=@ta text=@t reply-to=(unit @da) reply-to-eid=(unit @uv) directed-kind=(unit attention-kind) via=(unit via-app)]
       [%edit-message note-id=@ta msg-id=@da eid=(unit @uv) text=@t]
       [%delete-message note-id=@ta msg-id=@da eid=(unit @uv)]
       [%set-note-meta id=@ta visibility=note-visibility icon-url=(unit @t) writable=?]
@@ -350,18 +355,95 @@
   ==
 ::  Developer API v1 (mark %noltbook-api). A small, STABLE surface for same-ship
 ::  apps so they don't bind to the internal `action` grab-bag. Each carries an
-::  optional request-id (parsed, not yet echoed — request/response is deferred).
+::  optional request-id (echoed on /api/results when supplied).
 ::  Handlers translate these into the existing `action` code paths (no bypass of
 ::  permission/membership checks).
+::  app attribution (Phase 11A). api-app is the optional caller-supplied identity
+::  on a poke ("posted via app X"); via-app is the durable record we store, with
+::  the authoring ship stamped server-side (never user-supplied). This is
+::  ATTRIBUTION, not authorship: the real author stays the user/ship.
++$  api-app  [desk=@tas title=(unit @t) publisher=(unit @p)]
+::  three-state profile-avatar arg (Phase 15): keep = field absent; clear = JSON
+::  null; set = a parsed avatar-ref; invalid = present but unparseable.
++$  api-prof-avatar
+  $%  [%keep ~]
+      [%clear ~]
+      [%set av=avatar-ref]
+      [%invalid ~]
+  ==
++$  via-app  [desk=@tas title=(unit @t) publisher=(unit @p) ship=@p]
+::  via-map: durable per-eid attribution rows, used by state-44 (defined in app).
++$  via-map  (map @uv via-app)
 +$  api-action
   $%  [%create-note request-id=(unit @ud) name=@t parent=(unit @ta)]
       [%find-or-create-note request-id=(unit @ud) name=@t parent=(unit @ta)]
-      [%post-message request-id=(unit @ud) note-id=@ta text=@t reply-to-eid=(unit @uv)]
-      [%post-app-ref request-id=(unit @ud) note-id=@ta publisher=@t desk=@t name=@t]
+      ::  create-artifact (Phase 12A): %code/%app only (no raw file upload). type is
+      ::  raw text, validated server-side. app = optional attribution.
+      [%create-artifact request-id=(unit @ud) app=(unit api-app) note-id=@ta name=@t type=@t content=@t reply-to-eid=(unit @uv)]
+      ::  edit/delete an artifact by id (Phase 12B). API requires creator==our.
+      [%edit-artifact request-id=(unit @ud) art-id=@ta content=@t]
+      [%delete-artifact request-id=(unit @ud) art-id=@ta]
+      ::  message-body search (Phase 13). request-id required for a result fact.
+      [%search-messages request-id=(unit @ud) query=@t limit=@ud note-id=(unit @ta)]
+      ::  find or create the canonical DM for {our, ship} (Phase 14). ship is raw
+      ::  text, parsed server-side. Reuses %create-dm (invite/pal side effects).
+      [%find-or-create-dm request-id=(unit @ud) ship=@t]
+      ::  find or create a user-gossip note by exact name (Phase 16). Reuses
+      ::  %create-gossip-note. headline defaults to '' when absent.
+      [%find-or-create-gossip-note request-id=(unit @ud) name=@t headline=@t]
+      ::  fork actions (Phase 17). rootId is carried in the result's note-id field.
+      [%fork-note request-id=(unit @ud) note-id=@ta name=(unit @t)]
+      [%accept-fork-invite request-id=(unit @ud) root-id=@ta]
+      [%decline-fork-invite request-id=(unit @ud) root-id=@ta]
+      ::  call controls (Phase 18) — Noltbook call STATE only, no media/WebRTC.
+      [%start-call request-id=(unit @ud) note-id=@ta]
+      [%join-call request-id=(unit @ud) note-id=@ta]
+      [%leave-call request-id=(unit @ud) note-id=@ta]
+      ::  profile/contact/pal mutations (Phase 15). string fields are three-state:
+      ::  ~ = keep (absent), [~ ~] = clear (null), [~ [~ x]] = set x. ship raw text.
+      [%update-profile request-id=(unit @ud) display-name=(unit (unit @t)) avatar=api-prof-avatar wallet-address=(unit (unit @t)) azimuth-address=(unit (unit @t))]
+      [%add-contact request-id=(unit @ud) ship=@t]
+      [%remove-contact request-id=(unit @ud) ship=@t]
+      [%add-pal request-id=(unit @ud) ship=@t]
+      [%remove-pal request-id=(unit @ud) ship=@t]
+      [%block-pal request-id=(unit @ud) ship=@t]
+      [%unblock-pal request-id=(unit @ud) ship=@t]
+      [%post-message request-id=(unit @ud) app=(unit api-app) note-id=@ta text=@t reply-to-eid=(unit @uv)]
+      [%post-app-ref request-id=(unit @ud) app=(unit api-app) note-id=@ta publisher=@t desk=@t name=@t]
+      [%edit-message request-id=(unit @ud) note-id=@ta eid=(unit @uv) msg-id=(unit @da) text=@t]
+      [%delete-message request-id=(unit @ud) note-id=@ta eid=(unit @uv) msg-id=(unit @da)]
+      ::  membership/admin mutations (Phase 9). ship/host are raw text, parsed in
+      ::  the on-poke arm so a malformed value reports invalid-ship via a result.
+      [%request-join request-id=(unit @ud) note-id=@ta host=@t]
+      [%approve-join request-id=(unit @ud) note-id=@ta ship=@t]
+      [%deny-join request-id=(unit @ud) note-id=@ta ship=@t]
+      [%deny-block-join request-id=(unit @ud) note-id=@ta ship=@t]
+      [%add-member request-id=(unit @ud) note-id=@ta ship=@t]
+      [%remove-member request-id=(unit @ud) note-id=@ta ship=@t]
+      [%mute-member request-id=(unit @ud) note-id=@ta ship=@t]
+      [%unmute-member request-id=(unit @ud) note-id=@ta ship=@t]
+      [%make-admin request-id=(unit @ud) note-id=@ta ship=@t]
+      [%remove-admin request-id=(unit @ud) note-id=@ta ship=@t]
+      ::  note configuration (Phase 10). Only the supplied fields change. name and
+      ::  visibility are raw text, validated in the on-poke arm. headline='' clears
+      ::  it; iconUrl='' clears the icon (URL only — no byte upload here).
+      [%set-note-config request-id=(unit @ud) note-id=@ta name=(unit @t) visibility=(unit @t) writable=(unit ?) headline=(unit @t) icon-url=(unit @t)]
   ==
 ::  subscription updates (agent to client)
+::  api-result: per-request outcome fact for %noltbook-api clients. Emitted on
+::  /api/results only when the originating poke carried a request-id. `ok` is the
+::  overall pass/fail; `code` is a stable @tas (see app/noltbook on-poke). Some
+::  success codes are "accepted" (validated + handed to the internal handler),
+::  not durably-confirmed — see code list.
++$  api-result
+  $:  request-id=@ud  ok=?  code=@tas  message=@t
+      note-id=(unit @ta)  msg-id=(unit @da)  eid=(unit @uv)
+      artifact-id=(unit @ta)
+      call-id=(unit @ta)
+  ==
 +$  update
-  $%  [%note-list notes=(list note)]
+  $%  [%api-result =api-result]
+      [%note-list notes=(list note)]
       [%note-created note=note]
       [%note-renamed id=@ta name=@t]
       [%note-deleted id=@ta]
@@ -375,11 +457,11 @@
       [%fork-invite-received root-id=@ta source-name=@t source-version=@ud forker=@p]
       [%fork-invite-cleared root-id=@ta]
       [%fork-invite-accepted root-id=@ta]
-      [%message-list note-id=@ta messages=(list message) artifacts=(list artifact)]
+      [%message-list note-id=@ta messages=(list message) artifacts=(list artifact) via=(map @uv via-app)]
       ::  directed-kind: carries the NOTE SEND marker through host broadcasts so
       ::  non-host members classify reply attention as %send (Phase C). JSON shape
       ::  is unchanged (enjs emits the message directly); ~ for normal/sys/DM.
-      [%new-message msg=message directed-kind=(unit attention-kind)]
+      [%new-message msg=message directed-kind=(unit attention-kind) via=(unit via-app)]
       [%message-edited note-id=@ta msg=message]
       [%message-deleted note-id=@ta msg-id=@da eid=(unit @uv)]
       [%artifact-created artifact=artifact]
@@ -433,6 +515,8 @@
       [%artifact-envelope-list note-id=@ta envs=(list artifact-envelope)]
       ::  Phase 2 message-body search result; req-id/query echoed for race-safety
       [%search-result req-id=@ud query=@t hits=(list search-msg-hit) capped=?]
+      ::  Phase 13: API-specific search result, emitted on /api/results.
+      [%api-search-result request-id=@ud query=@t hits=(list search-msg-hit) capped=?]
       ::  Phase 3 unknown-@p profile lookup outcome.
       [%profile-lookup-result req-id=@ud ship=@p status=?(%ok %unreachable)]
       ::  durable acks for passive high-level condition notifications
