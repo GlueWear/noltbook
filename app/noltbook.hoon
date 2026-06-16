@@ -1199,6 +1199,52 @@
 ::  state-44: durable per-eid app attribution ("posted via app X"). via-by-eid is
 ::  keyed by a message/artifact's meta.eid; only the field is added vs state-43.
 ::  state-45: gossip/cover envelopes carry app attribution (via on envelope).
+::  state-46: generic pinned entries. note-pins keys note id -> ordered pin list
+::  (oldest pinned first), capped at 5 in the handler. Only the field is added.
++$  state-46
+  $:  %46
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta (list pin:noltbook))
+  ==
 +$  state-45
   $:  %45
       notes=(map @ta note:noltbook)
@@ -1556,7 +1602,7 @@
 ::  chains through upgrade-20-to-21 → ... → upgrade-25-to-26
 ++  upgrade-19-to-20
   |=  s=state-19
-  ^-  state-45
+  ^-  state-46
   =/  new-seq=(map @ta @ud)
     %-  ~(rep by seq-counters.s)
     |=  [[[a=@p n=@ta] v=@ud] acc=(map @ta @ud)]
@@ -1576,7 +1622,7 @@
 ::  chains through upgrade-21-to-22 → upgrade-22-to-23
 ++  upgrade-20-to-21
   |=  s=state-20
-  ^-  state-45
+  ^-  state-46
   =/  new-msgs=(map @ta (list message:noltbook))
     %-  ~(run by messages.s)
     |=  msgs=(list message-20)
@@ -1618,7 +1664,7 @@
 ::  upgrade-21-to-22: add meta=(unit entry-meta) to envelopes
 ++  upgrade-21-to-22
   |=  s=state-21
-  ^-  state-45
+  ^-  state-46
   =/  new-envs=(map @ta (map @da envelope-44))
     %-  ~(run by gossip-envelopes.s)
     |=  envs=(map @da envelope-21)
@@ -1640,7 +1686,7 @@
 ::  upgrade-22-to-23: enrich mention storage with stable eid
 ++  upgrade-22-to-23
   |=  s=state-22
-  ^-  state-45
+  ^-  state-46
   =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
     %-  ~(urn by mentions.s)
     |=  [nid=@ta mns=(list [id=@da author=@p])]
@@ -1669,7 +1715,7 @@
 ::  in-flight forks to become fetchable.
 ++  upgrade-30-to-31
   |=  s=state-30
-  ^-  state-45
+  ^-  state-46
   =?  s  (gth ~(wyt by pending-fork-invites.s) 0)
     ~&  [%dropping-legacy-pending-fork-invites count=~(wyt by pending-fork-invites.s)]
     s(pending-fork-invites *(map @ta state-30-pending-fork-invite))
@@ -1692,7 +1738,7 @@
 ::  upgrade-31-to-32: add empty contacts set
 ++  upgrade-31-to-32
   |=  s=state-31
-  ^-  state-45
+  ^-  state-46
   %-  upgrade-32-to-33
   :*  %32
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1713,7 +1759,7 @@
 ::  upgrade-32-to-33: add empty dm-prefs map
 ++  upgrade-32-to-33
   |=  s=state-32
-  ^-  state-45
+  ^-  state-46
   %-  upgrade-33-to-34
   :*  %33
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1737,7 +1783,7 @@
 ::  pre-migration value.
 ++  upgrade-33-to-34
   |=  s=state-33
-  ^-  state-45
+  ^-  state-46
   =/  seeded-revs=(map @ta @ud)
     %-  ~(rep by notes.s)
     |=  [[k=@ta v=note:noltbook] acc=(map @ta @ud)]
@@ -1766,7 +1812,7 @@
 ::  encoder default.
 ++  upgrade-34-to-35
   |=  s=state-34
-  ^-  state-45
+  ^-  state-46
   %-  upgrade-35-to-36
   :*  %35
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1790,7 +1836,7 @@
 ::  upgrade-35-to-36: add empty host-checks map.
 ++  upgrade-35-to-36
   |=  s=state-35
-  ^-  state-45
+  ^-  state-46
   %-  upgrade-36-to-37
   :*  %36
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1815,7 +1861,7 @@
 ::  upgrade-36-to-37: add empty notification-acks set.
 ++  upgrade-36-to-37
   |=  s=state-36
-  ^-  state-45
+  ^-  state-46
   %-  upgrade-37-to-38
   :*  %37
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1844,7 +1890,7 @@
 ::  (cover, ars-rumors) are excluded from seeding.
 ++  upgrade-37-to-38
   |=  s=state-37
-  ^-  state-45
+  ^-  state-46
   =/  seeded=(map @ta @da)
     =/  pairs=(list [nid=@ta msgs=(list message:noltbook)])  ~(tap by messages.s)
     =/  acc=(map @ta @da)  *(map @ta @da)
@@ -1890,7 +1936,7 @@
 ::  upgrade (unread is strict activity > read; equal seeds = read).
 ++  upgrade-38-to-39
   |=  s=state-38
-  ^-  state-45
+  ^-  state-46
   %-  upgrade-39-to-40
   :*  %39
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1919,7 +1965,7 @@
 ::  stamped going forward; existing artifacts have no meta).
 ++  upgrade-39-to-40
   |=  s=state-39
-  ^-  state-45
+  ^-  state-46
   =/  new-arts=(map @ta artifact:noltbook)
     %-  ~(run by artifacts.s)
     |=  a=artifact-pre40:noltbook
@@ -1959,7 +2005,7 @@
 ::  Byte hosting unchanged (only the meta field is populated).
 ++  upgrade-40-to-41
   |=  s=state-40
-  ^-  state-45
+  ^-  state-46
   =/  new-arts=(map @ta artifact:noltbook)
     %-  ~(run by artifacts.s)
     |=  a=artifact:noltbook
@@ -2002,7 +2048,7 @@
 ::  mentions via %attention-update). Existing mention UX is unchanged.
 ++  upgrade-41-to-42
   |=  s=state-41
-  ^-  state-45
+  ^-  state-46
   =/  att=(map @ta (list attention-item:noltbook))  ~
   ::  pipe through upgrade-42-to-43 so the chain terminates at state-43.
   %-  upgrade-42-to-43
@@ -2033,7 +2079,7 @@
 ::  upgrade-42-to-43: add durable cleared-mentions tombstones (empty on migration).
 ++  upgrade-42-to-43
   |=  s=state-42
-  ^-  state-45
+  ^-  state-46
   =/  cm=(map @ta (list [id=@da eid=(unit @uv)]))  ~
   %-  upgrade-43-to-44
   :*  %43
@@ -2064,7 +2110,7 @@
 ::  upgrade-43-to-44: add via-by-eid (durable per-eid app attribution), empty.
 ++  upgrade-43-to-44
   |=  s=state-43
-  ^-  state-45
+  ^-  state-46
   %-  upgrade-44-to-45
   :*  %44
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2095,7 +2141,7 @@
 ::  upgrade-44-to-45: add via=~ to every stored gossip/cover envelope.
 ++  upgrade-44-to-45
   |=  s=state-44
-  ^-  state-45
+  ^-  state-46
   =/  new-envs=(map @ta (map @da envelope:noltbook))
     %-  ~(run by gossip-envelopes.s)
     |=  inner=(map @da envelope-44)
@@ -2104,6 +2150,7 @@
     |=  e=envelope-44
     ^-  envelope:noltbook
     [author.e msg-id.e timestamp.e reply-to.e content-hash.e meta.e ~]
+  %-  upgrade-45-to-46
   :*  %45
       notes.s  messages.s  artifacts.s  profiles.s
       transactions.s  current-note.s  peers.s  has-avatar.s
@@ -2130,10 +2177,42 @@
       cleared-mentions.s
       via-by-eid.s
   ==
+::  upgrade-45-to-46: add note-pins (empty). Generic pinned entries (Phase 1).
+::  Cap enforcement lives in the pin handler, never here.
+++  upgrade-45-to-46
+  |=  s=state-45
+  ^-  state-46
+  :*  %46
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      fork-parent-version.s
+      host-checks.s
+      notification-acks.s
+      note-activity.s
+      note-read.s
+      attention.s
+      cleared-mentions.s
+      via-by-eid.s
+      `(map @ta (list pin:noltbook))`~
+  ==
 ::  upgrade-29-to-30: add pending-fork-invites map (empty).
 ++  upgrade-29-to-30
   |=  s=state-29
-  ^-  state-45
+  ^-  state-46
   %-  upgrade-30-to-31
   :*  %30
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2153,7 +2232,7 @@
 ::  note is treated as v1 (origin computed lazily by note-lineage-of helper).
 ++  upgrade-28-to-29
   |=  s=state-28
-  ^-  state-45
+  ^-  state-46
   %-  upgrade-29-to-30
   :*  %29
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2175,7 +2254,7 @@
 ::  remote host issues %remote-note-deleted post-upgrade.
 ++  upgrade-27-to-28
   |=  s=state-27
-  ^-  state-45
+  ^-  state-46
   %-  upgrade-28-to-29
   :*  %28
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2192,7 +2271,7 @@
 ::  upgrade-25-to-26: add blocked-by set
 ++  upgrade-26-to-27
   |=  s=state-26
-  ^-  state-45
+  ^-  state-46
   %-  upgrade-27-to-28
   :*  %27
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2207,7 +2286,7 @@
   ==
 ++  upgrade-25-to-26
   |=  s=state-25
-  ^-  state-45
+  ^-  state-46
   %-  upgrade-26-to-27
   :*  %26
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2222,7 +2301,7 @@
 ::  upgrade-24-to-25: add note-admins and note-muted maps
 ++  upgrade-24-to-25
   |=  s=state-24
-  ^-  state-45
+  ^-  state-46
   %-  upgrade-25-to-26
   :*  %25
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2241,6 +2320,92 @@
   ?|  =(ship creator)
       (~(has in (fall (~(get by admins) nid) ~)) ship)
   ==
+::  pinnable-note: Phase 1 pins are notebook/group only (no DM/cover/gossip/rumors).
+++  pinnable-note
+  |=  n=note:noltbook
+  ^-  ?
+  ?|(=(%notebook type.n) =(%group type.n))
+::  pin-target-ok: does target eid resolve to a pinnable entry in this note?
+::  %message: a message in messages[nid] with matching meta.eid.
+::  %artifact: an artifact in this note, type %file|%app, with matching meta.eid.
+::  %code artifacts are intentionally excluded (hidden/dev-only, not timelined).
+++  pin-target-ok
+  |=  $:  nid=@ta  target=@uv  kind=?(%message %artifact)
+          msgs=(map @ta (list message:noltbook))
+          arts=(map @ta artifact:noltbook)
+      ==
+  ^-  ?
+  ?-  kind
+      %message
+    %+  lien  (fall (~(get by msgs) nid) ~)
+    |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m target)))
+  ::
+      %artifact
+    %+  lien  ~(val by arts)
+    |=  a=artifact:noltbook
+    ?&  =(note-id.a nid)
+        ?|(=(%file type.a) =(%app type.a))
+        ?~(meta.a %.n =(eid.u.meta.a target))
+    ==
+  ==
+::  pins-cards: broadcast the authoritative pin list on /notes + /notes/[nid].
+++  pins-cards
+  |=  [nid=@ta pins=(list pin:noltbook)]
+  ^-  (list card:agent:gall)
+  =/  upd=update:noltbook  [%pins-updated nid pins]
+  :~  [%give %fact ~[/notes] %noltbook-update !>(upd)]
+      [%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]
+  ==
+::  apply-pin: host-side pin. Validates note exists + pinnable type, that `who`
+::  has mod power, and that target resolves. Idempotent on an already-pinned
+::  target. Caps at 5 (the 6th returns %pin-limit, state unchanged). Returns
+::  the new list + whether it changed, or a failure code.
+++  apply-pin
+  |=  $:  who=@p  nid=@ta  target=@uv  kind=?(%message %artifact)
+          nmap=(map @ta note:noltbook)
+          admins=(map @ta (set @p))
+          msgs=(map @ta (list message:noltbook))
+          arts=(map @ta artifact:noltbook)
+          pins=(map @ta (list pin:noltbook))
+          now=@da
+      ==
+  ^-  (each [new=(list pin:noltbook) changed=?] @tas)
+  =/  nt-u  (~(get by nmap) nid)
+  ?~  nt-u  [%.n %missing-note]
+  ?.  (pinnable-note u.nt-u)  [%.n %unsupported]
+  ?.  (has-mod-power who nid creator.u.nt-u admins)  [%.n %rejected]
+  ?.  (pin-target-ok nid target kind msgs arts)  [%.n %missing-target]
+  =/  cur=(list pin:noltbook)  (fall (~(get by pins) nid) ~)
+  ?:  (lien cur |=(p=pin:noltbook =(target.p target)))
+    [%.y cur %.n]
+  ?:  (gte (lent cur) 5)  [%.n %pin-limit]
+  [%.y (snoc cur `pin:noltbook`[target kind who now]) %.y]
+::  apply-unpin: host-side unpin. Idempotent when the target is not pinned.
+++  apply-unpin
+  |=  $:  who=@p  nid=@ta  target=@uv
+          nmap=(map @ta note:noltbook)
+          admins=(map @ta (set @p))
+          pins=(map @ta (list pin:noltbook))
+      ==
+  ^-  (each [new=(list pin:noltbook) changed=?] @tas)
+  =/  nt-u  (~(get by nmap) nid)
+  ?~  nt-u  [%.n %missing-note]
+  ?.  (pinnable-note u.nt-u)  [%.n %unsupported]
+  ?.  (has-mod-power who nid creator.u.nt-u admins)  [%.n %rejected]
+  =/  cur=(list pin:noltbook)  (fall (~(get by pins) nid) ~)
+  ?.  (lien cur |=(p=pin:noltbook =(target.p target)))
+    [%.y cur %.n]
+  [%.y (skim cur |=(p=pin:noltbook !=(target.p target))) %.y]
+::  prune-pins-by-eid: drop any pin whose target eid is in `gone` from a note's
+::  list. Used when a pinned message/artifact is deleted. Returns the new list
+::  + whether it changed.
+++  prune-pins-by-eid
+  |=  [nid=@ta gone=(set @uv) pins=(map @ta (list pin:noltbook))]
+  ^-  [new=(list pin:noltbook) changed=?]
+  =/  cur=(list pin:noltbook)  (fall (~(get by pins) nid) ~)
+  =/  kept=(list pin:noltbook)
+    (skim cur |=(p=pin:noltbook !(~(has in gone) target.p)))
+  [kept !=((lent kept) (lent cur))]
 ::  collect-notebook-descendants: walk a note's children recursively; collect
 ::  the ids of descendants whose type is %notebook. Root itself excluded —
 ::  caller flips the root explicitly.
@@ -2692,7 +2857,7 @@
 ::  upgrade-23-to-24: add join-requests map
 ++  upgrade-23-to-24
   |=  s=state-23
-  ^-  state-45
+  ^-  state-46
   %-  upgrade-24-to-25
   :*  %24
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2777,6 +2942,18 @@
   ?~  rid  ~
   =/  upd=update:noltbook  [%api-result u.rid ok code message note-id msg-id eid ~ ~]
   ~[[%give %fact ~[/api/results] %noltbook-update !>(upd)]]
+::  api-pin-msg: human-readable message for a pin/unpin failure code.
+++  api-pin-msg
+  |=  code=@tas
+  ^-  @t
+  ?+  code            'pin error'
+    %missing-note     'no such note'
+    %unsupported      'note type does not support pins'
+    %rejected         'not host/admin'
+    %invalid-target   'target eid could not be parsed'
+    %missing-target   'target not found in note'
+    %pin-limit        'pin limit reached (max 5)'
+  ==
 ::  api-art-result-card: result fact for create-artifact, carrying artifact-id
 ::  (msg-id is always ~ for artifacts).
 ++  api-art-result-card
@@ -3083,6 +3260,36 @@
   |=  [a=artifact:noltbook vmap=via-map:noltbook]  ^-  json
   %-  pairs:enjs:format
   (snoc (api-art-pairs a vmap) ['versions' a+(turn versions.a api-art-version-json)])
+::  api-pin-json: stable read shape for a pin (Phase 1). Carries target/kind/
+::  pinnedBy/pinnedAt plus a resolved summary when the target still exists.
+++  api-pin-json
+  |=  $:  p=pin:noltbook
+          msgs=(list message:noltbook)
+          arts=(list artifact:noltbook)
+      ==
+  ^-  json
+  =/  msg-hit=(list message:noltbook)
+    ?.  =(%message kind.p)  ~
+    %+  skim  msgs
+    |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m target.p)))
+  =/  art-hit=(list artifact:noltbook)
+    ?.  =(%artifact kind.p)  ~
+    %+  skim  arts
+    |=(a=artifact:noltbook ?~(meta.a %.n =(eid.u.meta.a target.p)))
+  =/  summary=(unit @t)
+    ?:  ?=(^ msg-hit)   `(crip (scag 80 (trip text.i.msg-hit)))
+    ?:  ?=(^ art-hit)   `name.i.art-hit
+    ~
+  =/  author=(unit @p)  ?~(msg-hit ~ `author.i.msg-hit)
+  %-  pairs:enjs:format
+  :~  ['target' s+(scot %uv target.p)]
+      ['kind' s+(crip (trip (scot %tas kind.p)))]
+      ['pinnedBy' s+(scot %p pinned-by.p)]
+      ['pinnedAt' (numb:enjs:format (api-da-ms pinned-at.p))]
+      ['resolved' [%b ?~(summary %.n %.y)]]
+      ['summary' ?~(summary ~ s+u.summary)]
+      ['author' ?~(author ~ s+(scot %p u.author))]
+  ==
 ::  STABLE profile/contact read shapes (Phase 7, read-only). Pure helpers — all
 ::  state is passed in, since this lib core has no bowl.
 ++  api-avatar-json
@@ -3554,7 +3761,7 @@
   [(crip path-tape) args]
 --
 %-  agent:dbug
-=|  state-45
+=|  state-46
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -3579,7 +3786,10 @@
     =/  s44  !<(state-44 old)
     $(old !>((upgrade-44-to-45 s44)))
   ?:  ?=([%45 *] q.old)
-    =/  loaded  !<(state-45 old)
+    =/  s45  !<(state-45 old)
+    $(old !>((upgrade-45-to-46 s45)))
+  ?:  ?=([%46 *] q.old)
+    =/  loaded  !<(state-46 old)
     ::  fix: ensure cover note exists and is keyed as %cover
     ::  (same normalizations carried forward from state-24 load)
     =/  loaded
@@ -4299,6 +4509,12 @@
       =?  out  !=(~ mts)
         [[%give %fact ~ %noltbook-update !>(`update:noltbook`[%muted-updated nid ~(tap in mts)])] out]
       out
+    ::  send the current pin snapshot so a (re)subscribing member renders pins
+    ::  even if it missed the live %pins-updated fact (durable, like roles).
+    =/  pins-snapshot-cards=(list card)
+      =/  pins=(list pin:noltbook)  (fall (~(get by note-pins) nid) ~)
+      ?~  pins  ~
+      ~[[%give %fact ~ %noltbook-update !>(`update:noltbook`[%pins-updated nid pins])]]
     ::  send join-request data to admin subscribers
     =/  jr-admin-cards=(list card)
       =/  adms=(set @p)  (fall (~(get by note-admins) nid) ~)
@@ -4321,7 +4537,7 @@
       ?~  aenvs  ~
       ~[[%give %fact ~ %noltbook-update !>(`update:noltbook`[%artifact-envelope-list nid aenvs])]]
     :_  this(peers new-peers)
-    :(weld init-cards ~[[%give %fact ~ %noltbook-update !>(pupd)]] intro-cards call-cards note-role-cards jr-admin-cards art-env-cards)
+    :(weld init-cards ~[[%give %fact ~ %noltbook-update !>(pupd)]] intro-cards call-cards note-role-cards pins-snapshot-cards jr-admin-cards art-env-cards)
   ::
       [%http-response @ ~]
     `this
@@ -4343,10 +4559,12 @@
       %+  skim  ~(val by artifacts)
       |=(a=artifact:noltbook =(note-id.a nid))
     =/  jon=json
+      =/  pins=(list pin:noltbook)  (fall (~(get by note-pins) nid) ~)
       %-  pairs:enjs:format
       :~  ['noteId' s+(crip (trip nid))]
           ['messages' a+(turn msgs |=(m=message:noltbook (api-msg-json m via-by-eid)))]
           ['artifacts' a+(turn arts |=(a=artifact:noltbook (api-art-json a via-by-eid)))]
+          ['pins' a+(turn pins |=(p=pin:noltbook (api-pin-json p msgs arts)))]
       ==
     ``[%json !>(jon)]
   ::
@@ -5199,6 +5417,57 @@
       :_  this
       %+  weld  (weld c1 (weld c2 c3))
       (api-result-card request-id.aa %.y %configured 'note configured' `note-id.aa ~ ~)
+    ::
+        %pin-entry
+      ::  pin-specific precheck (NOT api-mod-pre — that expects a ship target).
+      ::  Reuse apply-pin against local state for an honest result code, then
+      ::  re-enter the internal action to do the real mutation/forward/broadcast.
+      =/  tgt=(unit @uv)  (slaw %uv target.aa)
+      ?~  tgt
+        :_  this
+        (api-result-card request-id.aa %.n %invalid-target 'target eid could not be parsed' `note-id.aa ~ ~)
+      =/  knd=(unit ?(%message %artifact))
+        ?:  =('message' kind.aa)   `%message
+        ?:  =('artifact' kind.aa)  `%artifact
+        ~
+      ?~  knd
+        :_  this
+        (api-result-card request-id.aa %.n %invalid-target 'kind must be message or artifact' `note-id.aa ~ `u.tgt)
+      =/  res  (apply-pin our.bowl note-id.aa u.tgt u.knd notes note-admins messages artifacts note-pins now.bowl)
+      ?:  ?=(%.n -.res)
+        :_  this
+        (api-result-card request-id.aa %.n p.res (api-pin-msg p.res) `note-id.aa ~ `u.tgt)
+      ::  honesty: only the host applies durably. On a member ship the internal
+      ::  handler forwards to the host, so report %accepted (not %pinned).
+      =/  nt-u  (~(get by notes) note-id.aa)
+      =/  is-host=?  ?~(nt-u %.n =(our.bowl creator.u.nt-u))
+      =^  cards  this
+        $(mark %noltbook-action, vase !>(`action:noltbook`[%pin-entry note-id.aa u.tgt u.knd]))
+      :_  this
+      %+  weld  cards
+      ?:  is-host
+        (api-result-card request-id.aa %.y %pinned 'pinned' `note-id.aa ~ `u.tgt)
+      (api-result-card request-id.aa %.y %accepted 'pin forwarded to host' `note-id.aa ~ `u.tgt)
+    ::
+        %unpin-entry
+      =/  tgt=(unit @uv)  (slaw %uv target.aa)
+      ?~  tgt
+        :_  this
+        (api-result-card request-id.aa %.n %invalid-target 'target eid could not be parsed' `note-id.aa ~ ~)
+      =/  res  (apply-unpin our.bowl note-id.aa u.tgt notes note-admins note-pins)
+      ?:  ?=(%.n -.res)
+        :_  this
+        (api-result-card request-id.aa %.n p.res (api-pin-msg p.res) `note-id.aa ~ `u.tgt)
+      ::  honesty: durable %unpinned only on the host; members forward (%accepted).
+      =/  nt-u  (~(get by notes) note-id.aa)
+      =/  is-host=?  ?~(nt-u %.n =(our.bowl creator.u.nt-u))
+      =^  cards  this
+        $(mark %noltbook-action, vase !>(`action:noltbook`[%unpin-entry note-id.aa u.tgt]))
+      :_  this
+      %+  weld  cards
+      ?:  is-host
+        (api-result-card request-id.aa %.y %unpinned 'unpinned' `note-id.aa ~ `u.tgt)
+      (api-result-card request-id.aa %.y %accepted 'unpin forwarded to host' `note-id.aa ~ `u.tgt)
     ==
   ::
       %handle-http-request
@@ -6233,8 +6502,17 @@
             [%give %fact ~[pax] %noltbook-update !>(`update:noltbook`[%new-message u.sys-msg ~ ~])]
             [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%new-message u.sys-msg ~ ~])]
         ==
-      :_  this(messages (~(put by messages) note-id.act new-msgs))
-      facts
+      ::  prune any pin that targeted this message (host-authoritative).
+      =/  pruned=[new=(list pin:noltbook) changed=?]
+        ?~  del-eid  [~ %.n]
+        (prune-pins-by-eid note-id.act (sy ~[u.del-eid]) note-pins)
+      =/  new-pins=(map @ta (list pin:noltbook))
+        ?.  changed.pruned  note-pins
+        ?~  new.pruned  (~(del by note-pins) note-id.act)
+        (~(put by note-pins) note-id.act new.pruned)
+      =/  pin-cards=(list card)  ?.(changed.pruned ~ (pins-cards note-id.act new.pruned))
+      :_  this(messages (~(put by messages) note-id.act new-msgs), note-pins new-pins)
+      (weld facts pin-cards)
     ::
         %set-note-meta
       ?:  (is-write-blocked id.act host-status notes our.bowl)  `this
@@ -6601,8 +6879,18 @@
       =/  nid=@ta  note-id.u.old
       =/  upd=update:noltbook  [%artifact-deleted id.act]
       =/  pax=path  ~[%notes nid]
-      :_  this(artifacts (~(del by artifacts) id.act))
-      ~[[%give %fact ~[pax] %noltbook-update !>(upd)]]
+      ::  prune any pin that targeted this artifact (host-authoritative).
+      =/  del-eid=(unit @uv)  ?~(meta.u.old ~ `eid.u.meta.u.old)
+      =/  pruned=[new=(list pin:noltbook) changed=?]
+        ?~  del-eid  [~ %.n]
+        (prune-pins-by-eid nid (sy ~[u.del-eid]) note-pins)
+      =/  new-pins=(map @ta (list pin:noltbook))
+        ?.  changed.pruned  note-pins
+        ?~  new.pruned  (~(del by note-pins) nid)
+        (~(put by note-pins) nid new.pruned)
+      =/  pin-cards=(list card)  ?.(changed.pruned ~ (pins-cards nid new.pruned))
+      :_  this(artifacts (~(del by artifacts) id.act), note-pins new-pins)
+      (weld ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] pin-cards)
     ::
         %file-save
       =/  old  (~(get by artifacts) id.act)
@@ -7018,6 +7306,34 @@
       =/  nr=(map @ta @da)  (put-read note-read note-id.act now.bowl)
       :_  this(note-read nr)
       ~[(note-read-fact note-id.act now.bowl)]
+    ::
+        %pin-entry
+      ::  generic pin. Host applies + broadcasts; a member/admin forwards to the
+      ::  host, which re-validates has-mod-power on the sender.
+      =/  nt-u  (~(get by notes) note-id.act)
+      ?~  nt-u  `this
+      ?.  (pinnable-note u.nt-u)  `this
+      ?.  =(our.bowl creator.u.nt-u)
+        :_  this
+        ~[[%pass /pin-out/[note-id.act] %agent [creator.u.nt-u %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-pin-entry note-id.act target.act kind.act])]]
+      =/  res  (apply-pin our.bowl note-id.act target.act kind.act notes note-admins messages artifacts note-pins now.bowl)
+      ?:  ?=(%.n -.res)  `this
+      ?.  changed.p.res  `this
+      :_  this(note-pins (~(put by note-pins) note-id.act new.p.res))
+      (pins-cards note-id.act new.p.res)
+    ::
+        %unpin-entry
+      =/  nt-u  (~(get by notes) note-id.act)
+      ?~  nt-u  `this
+      ?.  (pinnable-note u.nt-u)  `this
+      ?.  =(our.bowl creator.u.nt-u)
+        :_  this
+        ~[[%pass /pin-out/[note-id.act] %agent [creator.u.nt-u %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-unpin-entry note-id.act target.act])]]
+      =/  res  (apply-unpin our.bowl note-id.act target.act notes note-admins note-pins)
+      ?:  ?=(%.n -.res)  `this
+      ?.  changed.p.res  `this
+      :_  this(note-pins (~(put by note-pins) note-id.act new.p.res))
+      (pins-cards note-id.act new.p.res)
     ::
         %reparent-note
       =/  old  (~(get by notes) id.act)
@@ -8963,10 +9279,22 @@
         `eid.u.meta.i.found
       =/  upd=update:noltbook  [%message-deleted note-id.rem target-id del-eid]
       =/  pax=path  ~[%notes note-id.rem]
-      :_  this(messages (~(put by messages) note-id.rem new-msgs))
-      :~  [%give %fact ~[pax] %noltbook-update !>(upd)]
-          [%give %fact ~[/notes] %noltbook-update !>(upd)]
-      ==
+      ::  prune any pin that targeted this message (host-authoritative).
+      =/  pruned=[new=(list pin:noltbook) changed=?]
+        ?~  del-eid  [~ %.n]
+        (prune-pins-by-eid note-id.rem (sy ~[u.del-eid]) note-pins)
+      =/  new-pins=(map @ta (list pin:noltbook))
+        ?.  changed.pruned  note-pins
+        ?~  new.pruned  (~(del by note-pins) note-id.rem)
+        (~(put by note-pins) note-id.rem new.pruned)
+      =/  pin-cards=(list card)  ?.(changed.pruned ~ (pins-cards note-id.rem new.pruned))
+      :_  this(messages (~(put by messages) note-id.rem new-msgs), note-pins new-pins)
+      %+  weld
+        ^-  (list card)
+        :~  [%give %fact ~[pax] %noltbook-update !>(upd)]
+            [%give %fact ~[/notes] %noltbook-update !>(upd)]
+        ==
+      pin-cards
     ::
         %remote-leave
       ::  a user left a note we host
@@ -9673,6 +10001,28 @@
       =/  upd=update:noltbook  [%join-removed note-id.rem src.bowl]
       :_  this
       ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
+    ::
+        %remote-pin-entry
+      ::  admin on a member ship asked us (the host) to pin. apply-pin re-checks
+      ::  has-mod-power on src.bowl, the note type, and that target resolves.
+      =/  old  (~(get by notes) note-id.rem)
+      ?~  old  `this
+      ?.  =(our.bowl creator.u.old)  `this
+      =/  res  (apply-pin src.bowl note-id.rem target.rem kind.rem notes note-admins messages artifacts note-pins now.bowl)
+      ?:  ?=(%.n -.res)  `this
+      ?.  changed.p.res  `this
+      :_  this(note-pins (~(put by note-pins) note-id.rem new.p.res))
+      (pins-cards note-id.rem new.p.res)
+    ::
+        %remote-unpin-entry
+      =/  old  (~(get by notes) note-id.rem)
+      ?~  old  `this
+      ?.  =(our.bowl creator.u.old)  `this
+      =/  res  (apply-unpin src.bowl note-id.rem target.rem notes note-admins note-pins)
+      ?:  ?=(%.n -.res)  `this
+      ?.  changed.p.res  `this
+      :_  this(note-pins (~(put by note-pins) note-id.rem new.p.res))
+      (pins-cards note-id.rem new.p.res)
     ::
         %remote-mod
       ::  remote admin forwarding moderation action to host
@@ -10718,6 +11068,14 @@
           =/  as=(set @p)  (sy admins.upd)
           ?:  =(~ as)  (~(del by note-admins) id.upd)
           (~(put by note-admins) id.upd as)
+        :_  this
+        ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
+      ::
+          %pins-updated
+        ::  host updated the pin list; store locally and relay to frontend.
+        =.  note-pins
+          ?~  pins.upd  (~(del by note-pins) note-id.upd)
+          (~(put by note-pins) note-id.upd pins.upd)
         :_  this
         ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
       ::

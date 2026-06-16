@@ -125,6 +125,20 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .msg.selected{background:rgba(255,255,255,.06)}
 .msg-actions{display:none;flex-direction:column;gap:.25rem;position:absolute;right:1rem;top:1.5rem;background:var(--bg2);padding:.25rem;border:1px solid var(--border);border-radius:3px;z-index:10;min-width:5rem}
 .msg.show-actions .msg-actions{display:flex}
+.pin-strip{margin:0 0 .6rem;border:1px solid var(--border);background:var(--bg);border-radius:3px;overflow:hidden}
+.pin-strip-head{font-size:.65rem;letter-spacing:.05em;color:var(--text-dim);padding:.3rem .9rem;border-bottom:1px solid var(--border);background:var(--bg2)}
+.pin-card{position:relative;padding:.65rem .9rem;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer}
+.pin-card:last-child{border-bottom:none}
+.pin-card:hover{background:rgba(255,255,255,.02)}
+.pin-card .msg-text{font-size:1rem;line-height:1.5;color:#ddd;white-space:pre-wrap;word-break:break-word}
+.pin-card-x{position:absolute;top:.5rem;right:.6rem;font-family:var(--font);font-size:.85rem;line-height:1;padding:.05rem .35rem;background:transparent;border:1px solid #333;color:#777;cursor:pointer;border-radius:2px;z-index:2}
+.pin-card-x:hover{color:#e66;border-color:#e66}
+.pin-app-shell{margin-top:.35rem;border:1px solid var(--border);background:var(--bg2)}
+.pin-app-shell-row{display:flex;align-items:center;gap:.5rem;padding:.45rem .6rem;border-bottom:1px solid var(--border)}
+.pin-app-name{font-size:1rem;color:var(--text)}
+.pin-app-hint{padding:.4rem .6rem;font-size:.8rem;color:var(--text-dim)}
+.pin-art-meta{font-size:.8rem;color:var(--text-dim);flex-shrink:0}
+.pin-art-app-badge{font-size:.65rem;letter-spacing:.05em;color:#ffaa00;border:1px solid rgba(255,170,0,.4);border-radius:2px;padding:0 .3rem;flex-shrink:0}
 .msg-action-btn{font-family:var(--font);font-size:.7rem;padding:.15rem .4rem;background:transparent;border:1px solid #333;color:#666;cursor:pointer;transition:all .15s}
 .msg-action-btn:hover{border-color:#ffaa00;color:#ffaa00}
 .msg-action-btn.send-msg:hover{border-color:#00ff88;color:#00ff88}
@@ -733,7 +747,7 @@ const api = {
     this.reconnecting=false;
   }
 };
-const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteRead:{},coverPreview:null};
+const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteRead:{},coverPreview:null,entryPins:{}};
 // durable green sidebar unread: a non-pinned note is unread when its latest
 // activity time exceeds its last-read time. Both maps are replayed on boot.
 function isPinnedUnreadNote(id){return id==='cover'||(''+id).startsWith('ars-')}
@@ -1278,7 +1292,7 @@ function handleUpdate(upd){
   if(upd['note-list']){console.log('[note-list]',JSON.stringify(upd['note-list']));for(const n of upd['note-list'])state.notes[n.id]=n;rebuildDurableNotifications();updateLogoBadge();renderNoteList()}
   else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));const wasPendingJoin=!!state.pendingJoins[n.id];const wasAcceptedFork=state.acceptingForkRoots.has(n.id);if(wasAcceptedFork)state.acceptingForkRoots.delete(n.id);delete state.pendingJoins[n.id];delete state.removedFromNotes[n.id];state.notes[n.id]=n;if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id)}if(state.pendingWalletMsg&&n.type==='dm'){const pw=state.pendingWalletMsg;if(n.users&&n.users.length===2&&n.users.includes(pw.ship)){api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:n.id,text:pw.text}});state.pendingWalletMsg=null}}if(n.creator==='~'+api.ship){if(n.parent)state.expandedNotes.add(n.parent);openNote(n.id)}else if(wasAcceptedFork){if(state.palsView)switchView('notes');openNote(n.id)}else if(wasPendingJoin){document.querySelectorAll('.profile-flow-modal').forEach(el=>el.remove());state.viewingProfileShip=null;if(state.palsView)switchView('notes');if(n.visibility==='public'){openNote(n.id)}else{state.notifications.add(n.id)}}else{if(state.palsView)switchView('notes');state.notifications.add(n.id)}renderNoteList()}
   else if(upd['note-renamed']){const{id,name}=upd['note-renamed'];if(state.notes[id]){state.notes[id].name=name;renderNoteList()}if(state.currentNoteId===id)document.getElementById('chatNoteName').textContent=name}
-  else if(upd['note-deleted']){const{id}=upd['note-deleted'];const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];delete state.noteAdmins[id];delete state.noteMuted[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];delete state.attention[id];state.notifications.delete(id);state.notificationAcks.delete(notifAckKey('removed-status',id));state.notificationAcks.delete(notifAckKey('host-deleted-status',id));delete state.noteActivity[id];delete state.noteRead[id];if(state.currentNoteId===id)openNote('cover');renderNoteList()}
+  else if(upd['note-deleted']){const{id}=upd['note-deleted'];const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];delete state.noteAdmins[id];delete state.noteMuted[id];delete state.entryPins[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];delete state.attention[id];state.notifications.delete(id);state.notificationAcks.delete(notifAckKey('removed-status',id));state.notificationAcks.delete(notifAckKey('host-deleted-status',id));delete state.noteActivity[id];delete state.noteRead[id];if(state.currentNoteId===id)openNote('cover');renderNoteList()}
   else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];let maxSeq=0,revSum=0;for(const m of messages){if(m.meta){if(m.meta.seq>maxSeq)maxSeq=m.meta.seq;revSum+=m.meta.rev}}const hash=noteId+':'+messages.length+':'+maxSeq+':'+revSum;if(_lastMsgHash[noteId]===hash)return;_lastMsgHash[noteId]=hash;state.messages[noteId]=messages;for(const a of artifacts)state.artifacts[a.id]=a;if(state.currentNoteId===noteId){if(!ScrollCo.consumeOpenIntent(noteId))scheduleRender(noteId)}updateCoverPreview();scheduleNoteList()}
   else if(upd['new-message']){const msg=upd['new-message'];if(!state.messages[msg.noteId])state.messages[msg.noteId]=[];if(state.messages[msg.noteId].some(m=>(msg.meta&&msg.meta.eid&&m.meta&&m.meta.eid===msg.meta.eid)||m.id===msg.id))return;state.messages[msg.noteId].push(msg);if(state.notes[msg.noteId]){state.notes[msg.noteId].lastAuthor=msg.author;state.notes[msg.noteId].lastPreview=msg.text}if(state.currentNoteId===msg.noteId){const isOwn=msg.author===('~'+api.ship);if(!isOwn){const _cmEl=document.getElementById('chatMessages');if(_cmEl&&!isNearBottom(_cmEl)&&!state.unreadDividers[msg.noteId]){const _ord=msgOrder(msg);if(typeof _ord==='number')state.unreadDividers[msg.noteId]={order:_ord,until:_ord}}}appendMessage(msg,isOwn)}else state.notifications.add(msg.noteId);updateCoverPreview();markOpenNoteReadSoon(msg.noteId);scheduleNoteList()}
   else if(upd['artifact-created']){const a=upd['artifact-created'];state.artifacts[a.id]=a;if((a.type==='app'||a.type==='file')&&a.noteId===state.currentNoteId)scheduleRender(a.noteId)}
@@ -1374,6 +1388,7 @@ function handleUpdate(upd){
   else if(upd['notification-acks']){const acks=upd['notification-acks']||[];state.notificationAcks=new Set(acks.map(a=>notifAckKey(a.kind,a.noteId)));console.log('[notification-acks]',state.notificationAcks.size,'acked');rebuildDurableNotifications();updateLogoBadge()}
   else if(upd['admins-updated']){const{id,admins}=upd['admins-updated'];state.noteAdmins[id]=admins;console.log('[admins-updated]',id,admins);refreshNoteInfoMembers(id)}
   else if(upd['muted-updated']){const{id,muted}=upd['muted-updated'];state.noteMuted[id]=muted;console.log('[muted-updated]',id,muted);if(state.currentNoteId===id)updateMuteUI();refreshNoteInfoMembers(id)}
+  else if(upd['pins-updated']){const{noteId,pins}=upd['pins-updated'];state.entryPins[noteId]=pins||[];if(state.currentNoteId===noteId)scheduleRender(noteId)}
   else if(upd['note-activity-list']){const list=upd['note-activity-list']||[];state.noteActivity={};for(const a of list)state.noteActivity[a.noteId]=a.activity;console.log('[note-activity-list]',list.length,'entries');rebuildSidebarUnread();scheduleNoteList()}
   else if(upd['note-activity']){const d=upd['note-activity'];const cur=state.noteActivity[d.noteId]||0;if(d.activity>cur)state.noteActivity[d.noteId]=d.activity;rederiveNoteUnread(d.noteId);scheduleNoteList()}
   else if(upd['note-read-list']){const list=upd['note-read-list']||[];state.noteRead={};for(const r of list)state.noteRead[r.noteId]=r.read;console.log('[note-read-list]',list.length,'entries');rebuildSidebarUnread();scheduleNoteList()}
@@ -1594,6 +1609,84 @@ function getMyRole(noteId){
   if(n.creator===me)return'host';
   if((state.noteAdmins[noteId]||[]).includes(me))return'admin';
   return'member';
+}
+// ===== generic pinned entries (Phase 1) =====
+// notebook/group only; host/admin manage; everyone who sees the note sees pins.
+function pinnableNote(noteId){const n=state.notes[noteId];return !!n&&(n.type==='notebook'||n.type==='group')}
+function canManagePins(noteId){const r=getMyRole(noteId);return r==='host'||r==='admin'}
+function notePinsFor(noteId){return state.entryPins[noteId]||[]}
+function isEntryPinned(noteId,eid){return !!eid&&notePinsFor(noteId).some(p=>p.target===eid)}
+// resolve a pin to its target's render data, or null when the target is gone
+function resolvePinTarget(noteId,p){
+  if(p.kind==='message'){
+    const m=(state.messages[noteId]||[]).find(x=>x.meta&&x.meta.eid===p.target);
+    if(!m)return null;
+    return{kind:'message',msg:m,domId:m.id};
+  }
+  const a=Object.values(state.artifacts).find(x=>x.noteId===noteId&&x.meta&&x.meta.eid===p.target);
+  if(!a)return null;
+  return{kind:'artifact',art:a,artType:a.type,domId:a.id};
+}
+function pinEntry(noteId,target,kind){api.poke('noltbook','noltbook-action',{action:'pin-entry',data:{noteId,target,kind}})}
+function unpinEntry(noteId,target){api.poke('noltbook','noltbook-action',{action:'unpin-entry',data:{noteId,target}})}
+// hover-menu PIN/UNPIN button for a message/artifact; '' when not manageable.
+// closeAfter appends toggleMsgActions(this,false) (messages use the toggle menu).
+function pinBtnHtml(noteId,eid,kind,closeAfter){
+  if(!eid||!pinnableNote(noteId)||!canManagePins(noteId))return'';
+  const tail=closeAfter?";toggleMsgActions(this,false)":"";
+  if(isEntryPinned(noteId,eid))
+    return`<button class="msg-action-btn" onclick="unpinEntry('${noteId}','${eid}')${tail}">UNPIN</button>`;
+  // cap reached + not pinned: calm disabled affordance, not a failing PIN
+  if(notePinsFor(noteId).length>=5)
+    return`<button class="msg-action-btn" disabled title="Pin limit (5 max) reached" style="opacity:.4;cursor:default">PIN FULL</button>`;
+  return`<button class="msg-action-btn" onclick="pinEntry('${noteId}','${eid}','${kind}')${tail}">PIN</button>`;
+}
+function jumpToPin(noteId,target){
+  const p=notePinsFor(noteId).find(x=>x.target===target);if(!p)return;
+  const r=resolvePinTarget(noteId,p);if(!r)return;
+  if(r.kind==='message'){jumpToOriginal(r.domId);return}
+  const pre=r.artType==='app'?'inline-app-':'inline-file-';
+  const e=document.getElementById(pre+r.domId)||document.getElementById('inline-file-'+r.domId)||document.getElementById('inline-app-'+r.domId);
+  if(e){e.scrollIntoView({behavior:'smooth'});const o=e.style.outline;e.style.outline='2px solid rgba(255,170,0,.55)';setTimeout(function(){e.style.outline=o},1500)}
+}
+// Pinned area above the timeline: full-width post cards, oldest pinned first.
+// Each card looks like the original message/artifact (minus hover actions) with a
+// calm X. Card click jumps to the original; clicks on links/media/the X do not.
+function renderPinnedStrip(noteId){
+  if(!pinnableNote(noteId))return null;
+  const pins=notePinsFor(noteId);if(!pins.length)return null;
+  const sorted=pins.slice().sort((a,b)=>(a.pinnedAt||0)-(b.pinnedAt||0));
+  const canManage=canManagePins(noteId);
+  const cards=[];
+  for(const p of sorted){
+    const r=resolvePinTarget(noteId,p);
+    if(!r)continue; // deleted/missing target: render nothing
+    let body;
+    if(r.kind==='message')body=renderPinnedMessageHtml(r.msg);
+    else if(r.artType==='app')body=renderPinnedAppArtifactHtml(r.art);
+    else body=renderPinnedFileArtifactHtml(r.art);
+    const card=document.createElement('div');
+    card.className='pin-card';
+    card.innerHTML=body+(canManage?`<button class="pin-card-x" title="Unpin">×</button>`:'');
+    const target=p.target;
+    // jump to the original, but let interactive children (links, media, X) act
+    card.addEventListener('click',function(e){
+      if(e.target.closest('a,button,audio,video,iframe,input'))return;
+      jumpToPin(noteId,target);
+    });
+    if(canManage){
+      const xb=card.querySelector('.pin-card-x');
+      if(xb)xb.addEventListener('click',function(e){e.stopPropagation();unpinEntry(noteId,target)});
+    }
+    cards.push(card);
+  }
+  if(!cards.length)return null;
+  const wrap=document.createElement('div');
+  wrap.className='pin-strip';
+  const head=document.createElement('div');head.className='pin-strip-head';head.textContent='PINNED';
+  wrap.appendChild(head);
+  for(const c of cards)wrap.appendChild(c);
+  return wrap;
 }
 function updateDialUI(){
   const boxes=document.querySelectorAll('.dial-box');
@@ -2572,6 +2665,99 @@ function msgDepth(msgId,byId,byEid){
   while(cur){const p=getParent(cur,byId,byEid||{});if(!p)break;cur=p;d++}
   return d;
 }
+// ===== shared artifact interpretation =====
+// Single source of truth for how a %file artifact's stored meta maps to a
+// renderable preview (storage / kind / mime / dataUrl / clay URL). The timeline
+// card AND the pinned preview both consume this so they cannot drift.
+function artifactFileDescriptor(art){
+  const lastVer=art.versions[art.versions.length-1];
+  let meta={};if(lastVer){try{meta=JSON.parse(lastVer.content)}catch(e){}}
+  const d={fname:(meta.fileName||art.name||'file'),size:meta.size,rawContent:lastVer?lastVer.content:'',storage:'none',cat:'raw',url:'',downloadUrl:'',mime:''};
+  if(meta.storage==='clay'){
+    const v=meta.version||1;
+    const url='/apps/noltbook/artifact/'+encodeURIComponent(art.id)+'?v='+v;
+    d.storage='clay';d.url=url;d.downloadUrl=url+'&download=1';d.mime=meta.mime||'';
+    if(meta.kind==='image'||d.mime.startsWith('image/'))d.cat='image';
+    else if(isDocMime(d.mime,d.fname))d.cat='doc';
+    else d.cat='file';
+  }else if(meta.dataUrl){
+    d.storage='data';d.url=meta.dataUrl;d.downloadUrl=meta.dataUrl;d.mime=meta.mimeType||'';
+    if(d.mime.startsWith('image/'))d.cat='image';
+    else if(d.mime==='application/pdf')d.cat='pdf';
+    else if(d.mime.startsWith('text/')||d.mime==='application/json'||d.mime==='application/xml'||d.mime==='application/javascript')d.cat='text';
+    else if(d.mime.startsWith('audio/'))d.cat='audio';
+    else if(d.mime.startsWith('video/'))d.cat='video';
+    else d.cat='file';
+  }
+  return d;
+}
+// Render a %file artifact's preview at full (timeline) size. idSuf keeps any
+// internal element ids (e.g. the live text <pre>) unique so a pinned copy and
+// the timeline copy never collide. Shared by the timeline card and pinned card.
+function artifactFilePreviewHtml(art,opts){
+  opts=opts||{};
+  const idSuf=opts.idSuf||'';
+  const d=artifactFileDescriptor(art);
+  const fname=escHtml(d.fname);
+  if(d.cat==='image'){
+    if(d.storage==='clay')
+      return `<div class="artifact-img-box" style="cursor:pointer" ondblclick="openFileFullscreen('${art.id}')"><img src="${d.url}" alt="${fname}" onerror="this.parentElement.outerHTML='<div style=&quot;margin-top:.35rem;font-size:.8rem;color:#ff4444&quot;>[content not yet available on this ship]</div>'"></div>`;
+    return `<div class="artifact-img-box" style="cursor:pointer" ondblclick="openFileFullscreen('${art.id}')"><img src="${escAttr(d.url)}" alt="${fname}"></div>`;
+  }
+  if(d.cat==='doc')
+    return renderDocCard(d.url,escHtml(d.fname),d.mime,d.size);
+  if(d.cat==='pdf')
+    return `<div style="margin-top:.35rem" ondblclick="openFileFullscreen('${art.id}')"><iframe src="${escAttr(d.url)}" style="width:100%;height:400px;border:1px solid var(--border);background:#fff;pointer-events:none"></iframe></div>`;
+  if(d.cat==='text'){
+    const textId='file-text-'+art.id+idSuf;
+    setTimeout(()=>{const el=document.getElementById(textId);if(el)fetch(d.url).then(r=>r.text()).then(t=>{el.textContent=t})},0);
+    return `<pre id="${textId}" style="height:300px;overflow:auto;border:1px solid var(--border);margin-top:.35rem;padding:.5rem;font-size:.8rem;color:var(--text);background:var(--bg2);white-space:pre-wrap;margin-bottom:0;cursor:pointer" ondblclick="openFileFullscreen('${art.id}')"></pre>`;
+  }
+  if(d.cat==='audio')
+    return `<div style="margin-top:.35rem" ondblclick="openFileFullscreen('${art.id}')"><div style="font-size:.85rem;color:var(--text-dim);margin-bottom:.25rem">${fname}</div><audio controls src="${escAttr(d.url)}" style="width:100%;max-width:400px"></audio></div>`;
+  if(d.cat==='video')
+    return `<video controls src="${escAttr(d.url)}" style="max-width:100%;max-height:400px;border:1px solid var(--border);margin-top:.35rem" ondblclick="openFileFullscreen('${art.id}')"></video>`;
+  if(d.cat==='file'){
+    if(d.storage==='clay')
+      return `<div style="display:flex;align-items:center;gap:.5rem;margin-top:.35rem;padding:.4rem .6rem;border:1px solid var(--border);background:var(--bg2)"><span style="font-size:.85rem;color:var(--text)">${fname}</span><a href="${d.url}&download=1" style="font-size:.7rem;color:#ffaa00;text-decoration:none;margin-left:auto" download="${fname}">DOWNLOAD</a></div>`;
+    return `<div style="display:flex;align-items:center;gap:.5rem;margin-top:.35rem;padding:.4rem .6rem;border:1px solid var(--border);background:var(--bg2);cursor:pointer" ondblclick="openFileFullscreen('${art.id}')"><span style="font-size:.85rem;color:var(--text)">${fname}</span></div>`;
+  }
+  return `<div style="margin-top:.35rem;font-size:.85rem;color:var(--text-dim)">${escHtml(d.rawContent).slice(0,200)}</div>`;
+}
+// ===== pinned post cards (look like the original post, minus hover actions) =====
+// post-like header: colored displayName + time (no actions menu)
+function pinCardHeaderHtml(author,timeStr){
+  const color=author.startsWith('~')?shipColor(author):'var(--visitor)';
+  return `<div class="msg-header"><span class="msg-author" style="color:${color}">${escHtml(displayName(author))}</span>`
+    +(timeStr?`<span class="msg-time">${timeStr}</span>`:'')+`</div>`;
+}
+// a pinned message rendered like a normal message body (avatar + author + text)
+function renderPinnedMessageHtml(msg){
+  const msgDisplay=isNockSend(msg.text)?parseNockSend(msg.text):renderText(msg.text);
+  const timeSource=msg.meta&&msg.meta.created?msg.meta.created:msg.id;
+  const timeStr=new Date(timeSource).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  return `<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar">${avatarHtml(msg.author)}</div><div class="msg-body">${pinCardHeaderHtml(msg.author,timeStr)}<div class="msg-text">${msgDisplay}</div></div></div>`;
+}
+// a pinned %file artifact: same header + the full (timeline) preview, -pin idSuf
+function renderPinnedFileArtifactHtml(art){
+  const lastVer=art.versions[art.versions.length-1];
+  const timeStr=lastVer?new Date(lastVer.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
+  const fileContent=artifactFilePreviewHtml(art,{idSuf:'-pin'});
+  return `<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar">${avatarHtml(art.creator)}</div><div class="msg-body">${pinCardHeaderHtml(art.creator,timeStr)}${fileContent}</div></div>`;
+}
+// a pinned %app artifact: post-sized identity shell. DECISION: no second iframe is
+// mounted — the host bridge tracks a single live app instance (state.activeAppBridge
+// in initHostBridge), so a duplicate runtime would be unsafe. Click jumps to the
+// real instance in the timeline. Future interactive artifacts get a first-class
+// pinned surface here.
+function renderPinnedAppArtifactHtml(art){
+  const lastVer=art.versions[art.versions.length-1];
+  let meta={};if(lastVer){try{meta=JSON.parse(lastVer.content)}catch(e){}}
+  const pkg=escHtml(meta.packageId||'canvas');
+  const timeStr=lastVer?new Date(lastVer.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
+  const body=`<div class="pin-app-shell"><div class="pin-app-shell-row"><span class="pin-art-app-badge">APP</span><span class="pin-app-name">${escHtml(art.name||meta.packageId||'app')}</span><span class="pin-art-meta">${pkg}</span></div><div class="pin-app-hint">Open in the timeline to interact</div></div>`;
+  return `<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar">${avatarHtml(art.creator)}</div><div class="msg-body">${pinCardHeaderHtml(art.creator,timeStr)}${body}</div></div>`;
+}
 // ===== unified timeline card renderers (root or nested-reply via depth) =====
 // Render a real artifact as a timeline card. Extracted so artifacts can appear
 // both as root items and as nested replies inside a thread container.
@@ -2586,7 +2772,8 @@ function renderArtifactCard(el,art,depth,isThreadAnchor){
   const authorColor=art.creator.startsWith('~')?shipColor(art.creator):'var(--visitor)';
   const lastVer=art.versions[art.versions.length-1];
   const timeStr=lastVer?new Date(lastVer.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
-  const actions=`<div class="msg-actions"><button class="msg-action-btn" onclick="startReply('${art.id}','${escAttr(art.creator)}')">REPLY</button><button class="msg-action-btn send-msg" onclick="sendToUser('${escAttr(art.creator)}','${art.id}')">SEND</button><button class="msg-action-btn delete-msg" onclick="deleteArtifact('${art.id}')">DELETE</button></div>`;
+  const artPinBtn=(art.type==='file'||art.type==='app')?pinBtnHtml(art.noteId,art.meta&&art.meta.eid,'artifact',false):'';
+  const actions=`<div class="msg-actions"><button class="msg-action-btn" onclick="startReply('${art.id}','${escAttr(art.creator)}')">REPLY</button><button class="msg-action-btn send-msg" onclick="sendToUser('${escAttr(art.creator)}','${art.id}')">SEND</button>${artPinBtn}<button class="msg-action-btn delete-msg" onclick="deleteArtifact('${art.id}')">DELETE</button></div>`;
   if(art.type==='app'){
     let meta={};if(lastVer){try{meta=JSON.parse(lastVer.content)}catch(e){}}
     const iframeId='app-iframe-'+art.id+idSuf;
@@ -2595,40 +2782,7 @@ function renderArtifactCard(el,art,depth,isThreadAnchor){
     el.appendChild(wrap);
     initHostBridge(iframeId,art.id,meta);
   }else{
-    let fileContent='';
-    let meta={};if(lastVer){try{meta=JSON.parse(lastVer.content)}catch(e){}}
-    const fname=escHtml(meta.fileName||art.name);
-    const dblExpand=`ondblclick="openFileFullscreen('${art.id}')"`;
-    if(meta.storage==='clay'){
-      const v=meta.version||1;
-      const artUrl='/apps/noltbook/artifact/'+encodeURIComponent(art.id)+'?v='+v;
-      const dlUrl=artUrl+'&download=1';
-      const m=meta.mime||'';
-      const isImg=meta.kind==='image'||m.startsWith('image/');
-      if(isImg){
-        fileContent=`<div class="artifact-img-box" style="cursor:pointer" ${dblExpand}><img src="${artUrl}" alt="${fname}" onerror="this.parentElement.outerHTML='<div style=&quot;margin-top:.35rem;font-size:.8rem;color:#ff4444&quot;>[content not yet available on this ship]</div>'"></div>`;
-      }else if(isDocMime(m,fname)){
-        fileContent=renderDocCard(artUrl,fname,m,meta.size);
-      }else{
-        fileContent=`<div style="display:flex;align-items:center;gap:.5rem;margin-top:.35rem;padding:.4rem .6rem;border:1px solid var(--border);background:var(--bg2)"><span style="font-size:.85rem;color:var(--text)">${fname}</span><a href="${artUrl}&download=1" style="font-size:.7rem;color:#ffaa00;text-decoration:none;margin-left:auto" download="${fname}">DOWNLOAD</a></div>`;
-      }
-    }else if(meta.dataUrl&&meta.mimeType&&meta.mimeType.startsWith('image/')){
-      fileContent=`<div class="artifact-img-box" style="cursor:pointer" ${dblExpand}><img src="${escAttr(meta.dataUrl)}" alt="${fname}"></div>`;
-    }else if(meta.dataUrl&&meta.mimeType==='application/pdf'){
-      fileContent=`<div style="margin-top:.35rem" ${dblExpand}><iframe src="${escAttr(meta.dataUrl)}" style="width:100%;height:400px;border:1px solid var(--border);background:#fff;pointer-events:none"></iframe></div>`;
-    }else if(meta.dataUrl&&meta.mimeType&&(meta.mimeType.startsWith('text/')||meta.mimeType==='application/json'||meta.mimeType==='application/xml'||meta.mimeType==='application/javascript')){
-      const textId='file-text-'+art.id+idSuf;
-      fileContent=`<pre id="${textId}" style="height:300px;overflow:auto;border:1px solid var(--border);margin-top:.35rem;padding:.5rem;font-size:.8rem;color:var(--text);background:var(--bg2);white-space:pre-wrap;margin-bottom:0;cursor:pointer" ${dblExpand}></pre>`;
-      setTimeout(()=>{const el=document.getElementById(textId);if(el)fetch(meta.dataUrl).then(r=>r.text()).then(t=>{el.textContent=t})},0);
-    }else if(meta.dataUrl&&meta.mimeType&&meta.mimeType.startsWith('audio/')){
-      fileContent=`<div style="margin-top:.35rem" ${dblExpand}><div style="font-size:.85rem;color:var(--text-dim);margin-bottom:.25rem">${fname}</div><audio controls src="${escAttr(meta.dataUrl)}" style="width:100%;max-width:400px"></audio></div>`;
-    }else if(meta.dataUrl&&meta.mimeType&&meta.mimeType.startsWith('video/')){
-      fileContent=`<video controls src="${escAttr(meta.dataUrl)}" style="max-width:100%;max-height:400px;border:1px solid var(--border);margin-top:.35rem" ${dblExpand}></video>`;
-    }else if(meta.dataUrl){
-      fileContent=`<div style="display:flex;align-items:center;gap:.5rem;margin-top:.35rem;padding:.4rem .6rem;border:1px solid var(--border);background:var(--bg2);cursor:pointer" ${dblExpand}><span style="font-size:.85rem;color:var(--text)">${fname}</span></div>`;
-    }else{
-      fileContent=`<div style="margin-top:.35rem;font-size:.85rem;color:var(--text-dim)">${escHtml(lastVer.content).slice(0,200)}</div>`;
-    }
+    const fileContent=artifactFilePreviewHtml(art,{idSuf});
     wrap.innerHTML=`<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar">${avatarHtml(art.creator)}</div><div class="msg-body"><div class="msg-header"><span class="msg-author" style="color:${authorColor}">${escHtml(displayName(art.creator))}</span><span class="msg-time">${timeStr}</span>${actions}</div>${fileContent}</div></div>`;
     el.appendChild(wrap);
   }
@@ -2693,6 +2847,7 @@ function renderMessages(noteId,target){
   const dividerInfo=state.unreadDividers[noteId]||null;
   let dividerInserted=false;
   el.innerHTML='';state.lastMsgAuthor=null;state.lastMsgDepth=-1;
+  const _pinStrip=renderPinnedStrip(noteId);if(_pinStrip)el.appendChild(_pinStrip);
   if(noteId==='ars-rumors'){
     const saying=RUMOR_SAYINGS[Math.floor(Math.random()*RUMOR_SAYINGS.length)];
     const hdr=document.createElement('div');
@@ -3011,7 +3166,8 @@ function renderMsg(el,msg,depth,isThreadAnchor){
   const origBtn=isThreadAnchor?`<button class="msg-action-btn" onclick="jumpToOriginal('${msg.id}');toggleMsgActions(this,false)">ORIGINAL</button>`:'';
   const isGossipRef=note.type==='gossip'&&msg.noteId!=='cover'&&msg.noteId!=='ars-rumors';
   const refBtn=isGossipRef?`<button class="msg-action-btn" onclick="copyGossipRef('${escAttr(msg.noteId)}','${escAttr(msg.author)}','${msg.meta&&msg.meta.eid?escAttr(msg.meta.eid):''}','${msg.id}');toggleMsgActions(this,false)">REF</button>`:'';
-  const actions=`<div class="msg-actions" onclick="event.stopPropagation()">${origBtn}<button class="msg-action-btn" onclick="startReply('${msg.id}','${escAttr(msg.author)}');toggleMsgActions(this,false)">REPLY</button>${editBtn}${refBtn}<button class="msg-action-btn send-msg" onclick="sendToUser('${escAttr(msg.author)}','${msg.id}');toggleMsgActions(this,false)">SEND</button>${delBtn}</div>`;
+  const pinBtn=pinBtnHtml(msg.noteId,msg.meta&&msg.meta.eid,'message',true);
+  const actions=`<div class="msg-actions" onclick="event.stopPropagation()">${origBtn}<button class="msg-action-btn" onclick="startReply('${msg.id}','${escAttr(msg.author)}');toggleMsgActions(this,false)">REPLY</button>${editBtn}${refBtn}${pinBtn}<button class="msg-action-btn send-msg" onclick="sendToUser('${escAttr(msg.author)}','${msg.id}');toggleMsgActions(this,false)">SEND</button>${delBtn}</div>`;
   const div=document.createElement('div');
   const depthClass=depth>0?' depth-'+Math.min(depth,5):'';
   const nockSendClass=isNockSend(msg.text)?' nock-send':'';

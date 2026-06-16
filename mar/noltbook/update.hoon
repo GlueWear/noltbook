@@ -394,6 +394,13 @@
           ['muted' a+(turn muted.upd |=(p=@p s+(scot %p p)))]
       ==
     ::
+        %pins-updated
+      %+  frond  'pins-updated'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['pins' a+(turn pins.upd pin-to-json)]
+      ==
+    ::
         %artifact-envelope
       %+  frond  'artifact-envelope'
       %-  pairs
@@ -527,6 +534,15 @@
           ['author' s+(scot %p author.h)]
           ['timestamp' (numb (da-to-ms timestamp.h))]
           ['preview' s+preview.h]
+      ==
+    ::
+    ++  pin-to-json
+      |=  p=pin:noltbook
+      %-  pairs
+      :~  ['target' s+(scot %uv target.p)]
+          ['kind' s+(crip (trip (scot %tas kind.p)))]
+          ['pinnedBy' s+(scot %p pinned-by.p)]
+          ['pinnedAt' (numb (da-to-ms pinned-at.p))]
       ==
     ::
     ++  note-to-json

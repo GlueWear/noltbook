@@ -121,6 +121,17 @@
       meta=(unit entry-meta)
   ==
 ::
+::  pin: a host/admin-pinned timeline entry. target = the message's or
+::  artifact's meta.eid (the durable cross-type identity). kind routes render.
+::  pinned-at orders the strip (oldest pinned first); capped at 5 per note in
+::  the action handler, never trimmed during migration.
++$  pin
+  $:  target=@uv
+      kind=?(%message %artifact)
+      pinned-by=@p
+      pinned-at=@da
+  ==
+::
 +$  avatar-type  ?(%urbit %s3 %ipfs %external)
 +$  avatar-ref  [type=avatar-type url=@t]
 +$  profile
@@ -267,6 +278,10 @@
       [%remote-dm-artifact =artifact mime=@t bytes=octs]
       ::  cover/gossip artifact envelope mesh propagation; bytes never travel
       [%remote-artifact-envelope-ref note-id=@ta env=artifact-envelope hops=@ud]
+      ::  pin forwarding: admin on a member ship asks the host to (un)pin.
+      ::  Host validates has-mod-power src.bowl before applying.
+      [%remote-pin-entry note-id=@ta target=@uv kind=?(%message %artifact)]
+      [%remote-unpin-entry note-id=@ta target=@uv]
   ==
 ::  directed attention (Phase A scaffold). A single durable list per note that
 ::  unifies @-mentions (today) with reply / note-SEND attention (future phases).
@@ -352,6 +367,10 @@
       [%ack-durable-notification kind=durable-notification-kind note-id=@ta]
       ::  durable green sidebar unread: mark a note read (last-opened time)
       [%mark-note-read note-id=@ta]
+      ::  generic pinned entries (Phase 1): host/admin pin/unpin a message or a
+      ::  real %file/%app artifact by its meta.eid. Notebook/group notes only.
+      [%pin-entry note-id=@ta target=@uv kind=?(%message %artifact)]
+      [%unpin-entry note-id=@ta target=@uv]
   ==
 ::  Developer API v1 (mark %noltbook-api). A small, STABLE surface for same-ship
 ::  apps so they don't bind to the internal `action` grab-bag. Each carries an
@@ -428,6 +447,10 @@
       ::  visibility are raw text, validated in the on-poke arm. headline='' clears
       ::  it; iconUrl='' clears the icon (URL only — no byte upload here).
       [%set-note-config request-id=(unit @ud) note-id=@ta name=(unit @t) visibility=(unit @t) writable=(unit ?) headline=(unit @t) icon-url=(unit @t)]
+      ::  generic pinned entries (Phase 1). target is a %uv eid string; kind is
+      ::  raw text ('message'|'artifact'), validated in the on-poke arm.
+      [%pin-entry request-id=(unit @ud) note-id=@ta target=@t kind=@t]
+      [%unpin-entry request-id=(unit @ud) note-id=@ta target=@t]
   ==
 ::  subscription updates (agent to client)
 ::  api-result: per-request outcome fact for %noltbook-api clients. Emitted on
@@ -510,6 +533,8 @@
       ::  role updates
       [%admins-updated id=@ta admins=(list @p)]
       [%muted-updated id=@ta muted=(list @p)]
+      ::  generic pinned entries (Phase 1): authoritative per-note pin list.
+      [%pins-updated note-id=@ta pins=(list pin)]
       ::  cover/gossip artifact envelope updates
       [%artifact-envelope note-id=@ta env=artifact-envelope hops=@ud]
       [%artifact-envelope-list note-id=@ta envs=(list artifact-envelope)]

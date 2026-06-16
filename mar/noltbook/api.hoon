@@ -179,6 +179,10 @@
     ?:  =('unmute-member' tag)       [%unmute-member rid nid shp]
     ?:  =('make-admin' tag)          [%make-admin rid nid shp]
     ?:  =('remove-admin' tag)        [%remove-admin rid nid shp]
+    ?:  =('pin-entry' tag)
+      [%pin-entry rid nid (fall (get-str 'target') '') (fall (get-str 'kind') '')]
+    ?:  =('unpin-entry' tag)
+      [%unpin-entry rid nid (fall (get-str 'target') '')]
     ~|([%noltbook-api-unknown-action tag] !!)
   --
 ++  grow

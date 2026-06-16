@@ -200,6 +200,26 @@
       =/  id-nd  (need (~(get by d) 'id'))
       ?>  ?=([%s *] id-nd)
       [%delete-artifact `@ta`p.id-nd]
+    ::  pin-entry
+    ?:  =('pin-entry' tag)
+      =/  nid-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] nid-nd)
+      =/  tgt-nd  (need (~(get by d) 'target'))
+      ?>  ?=([%s *] tgt-nd)
+      =/  knd-nd  (need (~(get by d) 'kind'))
+      ?>  ?=([%s *] knd-nd)
+      =/  knd=?(%message %artifact)
+        ?:  =('artifact' p.knd-nd)  %artifact
+        ?>  =('message' p.knd-nd)
+        %message
+      [%pin-entry `@ta`p.nid-nd (slav %uv p.tgt-nd) knd]
+    ::  unpin-entry
+    ?:  =('unpin-entry' tag)
+      =/  nid-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] nid-nd)
+      =/  tgt-nd  (need (~(get by d) 'target'))
+      ?>  ?=([%s *] tgt-nd)
+      [%unpin-entry `@ta`p.nid-nd (slav %uv p.tgt-nd)]
     ::  file-save
     ?:  =('file-save' tag)
       =/  id-nd  (need (~(get by d) 'id'))
