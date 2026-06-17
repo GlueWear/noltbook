@@ -179,10 +179,29 @@
     ?:  =('unmute-member' tag)       [%unmute-member rid nid shp]
     ?:  =('make-admin' tag)          [%make-admin rid nid shp]
     ?:  =('remove-admin' tag)        [%remove-admin rid nid shp]
-    ?:  =('pin-entry' tag)
-      [%pin-entry rid nid (fall (get-str 'target') '') (fall (get-str 'kind') '')]
-    ?:  =('unpin-entry' tag)
-      [%unpin-entry rid nid (fall (get-str 'target') '')]
+    ?:  =('set-note-pin' tag)
+      [%set-note-pin rid nid (fall (get-str 'target') '') (fall (get-str 'kind') '')]
+    ?:  =('clear-note-pin' tag)
+      [%clear-note-pin rid nid]
+    ?:  =('set-note-app' tag)
+      ::  app three-state: explicit JSON null => %clear; object => %set (raw strings,
+      ::  validated server-side); absent or non-null non-object => %invalid (the
+      ::  server rejects it; it never silently clears). createdBy/createdAt are NOT
+      ::  accepted from the client.
+      =/  av  (~(get by d) 'app')
+      =/  app=api-app-arg:noltbook
+        ?~  av  [%invalid ~]
+        ?@  u.av  [%clear ~]
+        ?.  ?=([%o *] u.av)  [%invalid ~]
+        =/  ad  p.u.av
+        =/  gv
+          |=  k=@t  ^-  (unit @t)
+          =/  x  (~(get by ad) k)
+          ?~  x  ~
+          ?.(?=([%s *] u.x) ~ `p.u.x)
+        :-  %set
+        ^-(api-app-meta:noltbook [(fall (gv 'desk') '') (gv 'title') (gv 'publisher') (gv 'tag') (gv 'template')])
+      [%set-note-app rid nid app]
     ~|([%noltbook-api-unknown-action tag] !!)
   --
 ++  grow

@@ -125,20 +125,19 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .msg.selected{background:rgba(255,255,255,.06)}
 .msg-actions{display:none;flex-direction:column;gap:.25rem;position:absolute;right:1rem;top:1.5rem;background:var(--bg2);padding:.25rem;border:1px solid var(--border);border-radius:3px;z-index:10;min-width:5rem}
 .msg.show-actions .msg-actions{display:flex}
-.pin-strip{margin:0 0 .6rem;border:1px solid var(--border);background:var(--bg);border-radius:3px;overflow:hidden}
-.pin-strip-head{font-size:.65rem;letter-spacing:.05em;color:var(--text-dim);padding:.3rem .9rem;border-bottom:1px solid var(--border);background:var(--bg2)}
-.pin-card{position:relative;padding:.65rem .9rem;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer}
-.pin-card:last-child{border-bottom:none}
-.pin-card:hover{background:rgba(255,255,255,.02)}
-.pin-card .msg-text{font-size:1rem;line-height:1.5;color:#ddd;white-space:pre-wrap;word-break:break-word}
-.pin-card-x{position:absolute;top:.5rem;right:.6rem;font-family:var(--font);font-size:.85rem;line-height:1;padding:.05rem .35rem;background:transparent;border:1px solid #333;color:#777;cursor:pointer;border-radius:2px;z-index:2}
-.pin-card-x:hover{color:#e66;border-color:#e66}
-.pin-app-shell{margin-top:.35rem;border:1px solid var(--border);background:var(--bg2)}
-.pin-app-shell-row{display:flex;align-items:center;gap:.5rem;padding:.45rem .6rem;border-bottom:1px solid var(--border)}
 .pin-app-name{font-size:1rem;color:var(--text)}
-.pin-app-hint{padding:.4rem .6rem;font-size:.8rem;color:var(--text-dim)}
 .pin-art-meta{font-size:.8rem;color:var(--text-dim);flex-shrink:0}
 .pin-art-app-badge{font-size:.65rem;letter-spacing:.05em;color:#ffaa00;border:1px solid rgba(255,170,0,.4);border-radius:2px;padding:0 .3rem;flex-shrink:0}
+.pin-placeholder{display:flex;align-items:center;gap:.5rem;margin-top:.35rem;padding:.5rem .6rem;border:1px solid var(--border);background:var(--bg2);cursor:pointer}
+/* anchored artifact surface: persistent sibling above the scrolling chat */
+.pin-surface{display:none;flex-shrink:0;max-height:45vh;overflow:auto;border-bottom:1px solid var(--border);background:var(--bg)}
+.pin-surface.has-pin{display:block}
+.pin-surface-head{display:flex;align-items:center;gap:.5rem;padding:.3rem .9rem;border-bottom:1px solid rgba(255,255,255,.06);font-size:.65rem;letter-spacing:.05em;color:var(--text-dim)}
+.pin-surface-x{margin-left:auto;font-family:var(--font);font-size:.85rem;line-height:1;padding:.05rem .35rem;background:transparent;border:1px solid #333;color:#777;cursor:pointer;border-radius:2px}
+.pin-surface-x:hover{color:#e66;border-color:#e66}
+.pin-surface-body{padding:.5rem .9rem}
+.pin-surface-body .artifact-img-box{max-width:100%}
+.pin-surface-app{padding:0}
 .msg-action-btn{font-family:var(--font);font-size:.7rem;padding:.15rem .4rem;background:transparent;border:1px solid #333;color:#666;cursor:pointer;transition:all .15s}
 .msg-action-btn:hover{border-color:#ffaa00;color:#ffaa00}
 .msg-action-btn.send-msg:hover{border-color:#00ff88;color:#00ff88}
@@ -331,6 +330,16 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .grimoire-app-meta .gam-k{color:var(--text-dim,#888);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;margin-right:.4rem}
 .grimoire-app-actions{display:flex;gap:.5rem;padding:.2rem .75rem .8rem}
 .grimoire-app-actions .grimoire-btn{padding:.35rem .8rem;font-size:.7rem}
+.grimoire-app-cap{margin:0 .85rem .5rem;padding:.55rem .65rem;border:1px solid rgba(255,170,0,.25);background:rgba(255,170,0,.035);font-size:.82rem;line-height:1.45;color:var(--text,#ddd)}
+.grimoire-app-cap-title{display:flex;align-items:center;gap:.4rem;color:#ffaa00;font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;margin-bottom:.35rem}
+.grimoire-app-cap-row{padding:.25rem 0;border-top:1px solid rgba(255,255,255,.05)}
+.grimoire-app-cap-row:first-of-type{border-top:none}
+.grimoire-app-cap-sub{display:block;color:var(--text-dim,#888);font-size:.76rem;margin-top:.1rem;overflow-wrap:anywhere}
+.grimoire-cap-act{display:flex;align-items:center;gap:.6rem}
+.grimoire-cap-act-main{flex:1;min-width:0}
+.grimoire-cap-btn{font-family:var(--font);font-size:.66rem;letter-spacing:.05em;padding:.28rem .6rem;border:1px solid rgba(255,170,0,.4);background:rgba(255,170,0,.12);color:#ffaa00;cursor:pointer;border-radius:2px;flex-shrink:0;white-space:nowrap}
+.grimoire-cap-btn:hover{background:rgba(255,170,0,.2)}
+.grimoire-cap-btn:disabled{border-color:#333;background:transparent;color:var(--text-dim,#777);cursor:default}
 .grimoire-system-row{display:flex;justify-content:space-between;gap:.8rem;padding:.55rem .85rem;border-bottom:1px solid rgba(255,255,255,.05);font-size:.9rem;line-height:1.35}
 .grimoire-system-label{color:var(--text-dim,#888);min-width:8.5rem}
 .grimoire-system-value{color:var(--text,#ddd);text-align:right;overflow-wrap:anywhere}
@@ -573,6 +582,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
         <button class="share-btn" id="shareBtn" onclick="openSharePrompt()">SHARE</button>
         <button class="call-btn" id="callBtn" onclick="toggleCall()">CALL</button>
       </div>
+      <div class="pin-surface" id="pinSurface"></div>
       <div class="chat-messages" id="chatMessages"></div>
       <div class="chat-input-area" style="position:relative">
         <div class="mention-dropdown" id="mentionDropdown"></div>
@@ -747,7 +757,7 @@ const api = {
     this.reconnecting=false;
   }
 };
-const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteRead:{},coverPreview:null,entryPins:{}};
+const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteRead:{},coverPreview:null,notePins:{},pinArtId:null};
 // durable green sidebar unread: a non-pinned note is unread when its latest
 // activity time exceeds its last-read time. Both maps are replayed on boot.
 function isPinnedUnreadNote(id){return id==='cover'||(''+id).startsWith('ars-')}
@@ -1292,12 +1302,12 @@ function handleUpdate(upd){
   if(upd['note-list']){console.log('[note-list]',JSON.stringify(upd['note-list']));for(const n of upd['note-list'])state.notes[n.id]=n;rebuildDurableNotifications();updateLogoBadge();renderNoteList()}
   else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));const wasPendingJoin=!!state.pendingJoins[n.id];const wasAcceptedFork=state.acceptingForkRoots.has(n.id);if(wasAcceptedFork)state.acceptingForkRoots.delete(n.id);delete state.pendingJoins[n.id];delete state.removedFromNotes[n.id];state.notes[n.id]=n;if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id)}if(state.pendingWalletMsg&&n.type==='dm'){const pw=state.pendingWalletMsg;if(n.users&&n.users.length===2&&n.users.includes(pw.ship)){api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:n.id,text:pw.text}});state.pendingWalletMsg=null}}if(n.creator==='~'+api.ship){if(n.parent)state.expandedNotes.add(n.parent);openNote(n.id)}else if(wasAcceptedFork){if(state.palsView)switchView('notes');openNote(n.id)}else if(wasPendingJoin){document.querySelectorAll('.profile-flow-modal').forEach(el=>el.remove());state.viewingProfileShip=null;if(state.palsView)switchView('notes');if(n.visibility==='public'){openNote(n.id)}else{state.notifications.add(n.id)}}else{if(state.palsView)switchView('notes');state.notifications.add(n.id)}renderNoteList()}
   else if(upd['note-renamed']){const{id,name}=upd['note-renamed'];if(state.notes[id]){state.notes[id].name=name;renderNoteList()}if(state.currentNoteId===id)document.getElementById('chatNoteName').textContent=name}
-  else if(upd['note-deleted']){const{id}=upd['note-deleted'];const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];delete state.noteAdmins[id];delete state.noteMuted[id];delete state.entryPins[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];delete state.attention[id];state.notifications.delete(id);state.notificationAcks.delete(notifAckKey('removed-status',id));state.notificationAcks.delete(notifAckKey('host-deleted-status',id));delete state.noteActivity[id];delete state.noteRead[id];if(state.currentNoteId===id)openNote('cover');renderNoteList()}
-  else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];let maxSeq=0,revSum=0;for(const m of messages){if(m.meta){if(m.meta.seq>maxSeq)maxSeq=m.meta.seq;revSum+=m.meta.rev}}const hash=noteId+':'+messages.length+':'+maxSeq+':'+revSum;if(_lastMsgHash[noteId]===hash)return;_lastMsgHash[noteId]=hash;state.messages[noteId]=messages;for(const a of artifacts)state.artifacts[a.id]=a;if(state.currentNoteId===noteId){if(!ScrollCo.consumeOpenIntent(noteId))scheduleRender(noteId)}updateCoverPreview();scheduleNoteList()}
+  else if(upd['note-deleted']){const{id}=upd['note-deleted'];const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];delete state.noteAdmins[id];delete state.noteMuted[id];delete state.notePins[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];delete state.attention[id];state.notifications.delete(id);state.notificationAcks.delete(notifAckKey('removed-status',id));state.notificationAcks.delete(notifAckKey('host-deleted-status',id));delete state.noteActivity[id];delete state.noteRead[id];if(state.currentNoteId===id)openNote('cover');renderNoteList()}
+  else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];let maxSeq=0,revSum=0;for(const m of messages){if(m.meta){if(m.meta.seq>maxSeq)maxSeq=m.meta.seq;revSum+=m.meta.rev}}const hash=noteId+':'+messages.length+':'+maxSeq+':'+revSum;if(_lastMsgHash[noteId]===hash)return;_lastMsgHash[noteId]=hash;state.messages[noteId]=messages;for(const a of artifacts)state.artifacts[a.id]=a;if(state.currentNoteId===noteId){if(!ScrollCo.consumeOpenIntent(noteId))scheduleRender(noteId);renderPinSurface(noteId)}updateCoverPreview();scheduleNoteList()}
   else if(upd['new-message']){const msg=upd['new-message'];if(!state.messages[msg.noteId])state.messages[msg.noteId]=[];if(state.messages[msg.noteId].some(m=>(msg.meta&&msg.meta.eid&&m.meta&&m.meta.eid===msg.meta.eid)||m.id===msg.id))return;state.messages[msg.noteId].push(msg);if(state.notes[msg.noteId]){state.notes[msg.noteId].lastAuthor=msg.author;state.notes[msg.noteId].lastPreview=msg.text}if(state.currentNoteId===msg.noteId){const isOwn=msg.author===('~'+api.ship);if(!isOwn){const _cmEl=document.getElementById('chatMessages');if(_cmEl&&!isNearBottom(_cmEl)&&!state.unreadDividers[msg.noteId]){const _ord=msgOrder(msg);if(typeof _ord==='number')state.unreadDividers[msg.noteId]={order:_ord,until:_ord}}}appendMessage(msg,isOwn)}else state.notifications.add(msg.noteId);updateCoverPreview();markOpenNoteReadSoon(msg.noteId);scheduleNoteList()}
-  else if(upd['artifact-created']){const a=upd['artifact-created'];state.artifacts[a.id]=a;if((a.type==='app'||a.type==='file')&&a.noteId===state.currentNoteId)scheduleRender(a.noteId)}
-  else if(upd['artifact-updated']){const a=upd['artifact-updated'];state.artifacts[a.id]=a;if(state.activeAppBridge&&state.activeAppBridge.artifactId===a.id){const lastVer=a.versions[a.versions.length-1];if(lastVer){try{const meta=JSON.parse(lastVer.content);const iframe=document.getElementById(state.activeAppBridge.iframeId);if(iframe&&iframe.contentWindow){iframe.contentWindow.postMessage({source:'noltbook-host',type:'nb:state',payload:meta.state||{}},'*')}}catch(e){}}}else if(document.getElementById('artifactPanel').classList.contains('open')&&document.getElementById('artifactPanelTitle').textContent===a.name)openArtifactPanel(a.id)}
-  else if(upd['artifact-deleted']){delete state.artifacts[upd['artifact-deleted'].id];closeArtifactPanel();scheduleRender()}
+  else if(upd['artifact-created']){const a=upd['artifact-created'];state.artifacts[a.id]=a;if((a.type==='app'||a.type==='file')&&a.noteId===state.currentNoteId){scheduleRender(a.noteId);renderPinSurface(a.noteId)}}
+  else if(upd['artifact-updated']){const a=upd['artifact-updated'];state.artifacts[a.id]=a;if(state.activeAppBridge&&state.activeAppBridge.artifactId===a.id){const lastVer=a.versions[a.versions.length-1];if(lastVer){try{const meta=JSON.parse(lastVer.content);const iframe=document.getElementById(state.activeAppBridge.iframeId);if(iframe&&iframe.contentWindow){iframe.contentWindow.postMessage({source:'noltbook-host',type:'nb:state',payload:meta.state||{}},'*')}}catch(e){}}}else if(document.getElementById('artifactPanel').classList.contains('open')&&document.getElementById('artifactPanelTitle').textContent===a.name)openArtifactPanel(a.id);if(a.noteId===state.currentNoteId)renderPinSurface(a.noteId)}
+  else if(upd['artifact-deleted']){delete state.artifacts[upd['artifact-deleted'].id];closeArtifactPanel();renderPinSurface(state.currentNoteId);scheduleRender()}
   else if(upd['note-meta-updated']){const d=upd['note-meta-updated'];const n=state.notes[d.id];if(n){n.visibility=d.visibility;n.iconUrl=d.iconUrl||null;n.writable=d.writable;renderNoteList();if(d.id===state.currentNoteId)updateMuteUI()}}
   else if(upd['note-type-updated']){const d=upd['note-type-updated'];const n=state.notes[d.id];if(n){n.type=d.type;renderNoteList();if(d.id===state.currentNoteId){scheduleRender(d.id);updateMuteUI()}}}
   else if(upd['note-host-status']){const d=upd['note-host-status'];if(d.status)state.noteHostStatus[d.id]=d.status;else delete state.noteHostStatus[d.id];if(d.status!=='host-deleted')state.notificationAcks.delete(notifAckKey('host-deleted-status',d.id));rebuildDurableNotifications();updateLogoBadge();if(d.id===state.currentNoteId)updateMuteUI();renderNoteList()}
@@ -1348,7 +1358,7 @@ function handleUpdate(upd){
   else if(upd['artifact-envelope']){const d=upd['artifact-envelope'];const nid=d.noteId;const env=d.envelope;if(!state.artifactEnvelopes[nid])state.artifactEnvelopes[nid]={};if(state.artifactEnvelopes[nid][env.aid])return;state.artifactEnvelopes[nid][env.aid]=env;state.artifactEnvHops[env.aid]=(typeof d.hops==='number')?d.hops:1;fetchTopWindowEnvelopes(nid);if(state.currentNoteId===nid)scheduleRender(nid);else if(artEnvVisible(env))state.notifications.add(nid);markOpenNoteReadSoon(nid);scheduleNoteList()}
   else if(upd['artifact-envelope-list']){const d=upd['artifact-envelope-list'];const nid=d.noteId;if(!state.artifactEnvelopes[nid])state.artifactEnvelopes[nid]={};let added=0;for(const e of d.envelopes||[]){if(state.artifactEnvelopes[nid][e.aid])continue;state.artifactEnvelopes[nid][e.aid]=e;if(state.artifactEnvHops[e.aid]===undefined)state.artifactEnvHops[e.aid]=1;added++}if(added)fetchTopWindowEnvelopes(nid);if(added&&state.currentNoteId===nid)scheduleRender(nid)}
   else if(upd['message-edited']){const{noteId,message}=upd['message-edited'];const msgs=state.messages[noteId]||[];const eid=message.meta&&message.meta.eid;const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===message.id);if(fi>=0){msgs[fi]=message}if(state.currentNoteId===noteId)scheduleRender(noteId)}
-  else if(upd['message-deleted']){const{noteId,msgId,eid}=upd['message-deleted'];const msgs=state.messages[noteId]||[];const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===msgId);if(fi>=0)msgs.splice(fi,1);if(state.currentNoteId===noteId)scheduleRender(noteId)}
+  else if(upd['message-deleted']){const{noteId,msgId,eid}=upd['message-deleted'];const msgs=state.messages[noteId]||[];const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===msgId);if(fi>=0)msgs.splice(fi,1);if(state.currentNoteId===noteId){renderPinSurface(noteId);scheduleRender(noteId)}}
   else if(upd['search-result']){const{reqId,query,hits,capped}=upd['search-result'];if(reqId!==state.searchReqInFlight)return;if(String(query||'')!==state.searchQuery)return;state.searchMessageHits=Array.isArray(hits)?hits:[];state.searchMessageCapped=!!capped;if(state.searchQuery)renderSidebarSearchResults()}
   else if(upd['profile-lookup-result']){const{reqId,ship,status}=upd['profile-lookup-result'];if(state.profileLookupInFlight[reqId]!==ship)return;delete state.profileLookupInFlight[reqId];if(state.profileLookupTimers[ship]){clearTimeout(state.profileLookupTimers[ship]);delete state.profileLookupTimers[ship]}if(status==='ok'){delete state.profileLookupStatus[ship];if(state._mentionLookups)state._mentionLookups.delete(ship);removeMentionLookupPopover(ship,0);if(state.searchQuery)renderSidebarSearchResults();viewProfile(ship)}else{state.profileLookupStatus[ship]='unreachable';if(state.searchQuery)renderSidebarSearchResults();if(state._mentionLookups&&state._mentionLookups.has(ship)){state._mentionLookups.delete(ship);if(_mentionLookupPopovers[ship]){showMentionLookupPopover(ship,"this user can't be reached",'#ff4444',null);removeMentionLookupPopover(ship,3000)}}}}
   else if(upd['profile-list']){for(const entry of upd['profile-list']){state.profiles[entry.ship]=entry.profile}const me=state.profiles['~'+api.ship];if(me){if(me.displayName)document.getElementById('shipDisplay').textContent=me.displayName;updateSidebarSigil()}if(state.palsView)renderPalsList();if(state.currentNoteId)scheduleRender()}
@@ -1388,7 +1398,7 @@ function handleUpdate(upd){
   else if(upd['notification-acks']){const acks=upd['notification-acks']||[];state.notificationAcks=new Set(acks.map(a=>notifAckKey(a.kind,a.noteId)));console.log('[notification-acks]',state.notificationAcks.size,'acked');rebuildDurableNotifications();updateLogoBadge()}
   else if(upd['admins-updated']){const{id,admins}=upd['admins-updated'];state.noteAdmins[id]=admins;console.log('[admins-updated]',id,admins);refreshNoteInfoMembers(id)}
   else if(upd['muted-updated']){const{id,muted}=upd['muted-updated'];state.noteMuted[id]=muted;console.log('[muted-updated]',id,muted);if(state.currentNoteId===id)updateMuteUI();refreshNoteInfoMembers(id)}
-  else if(upd['pins-updated']){const{noteId,pins}=upd['pins-updated'];state.entryPins[noteId]=pins||[];if(state.currentNoteId===noteId)scheduleRender(noteId)}
+  else if(upd['note-pin-updated']){const{noteId,pin}=upd['note-pin-updated'];if(pin)state.notePins[noteId]=pin;else delete state.notePins[noteId];if(noteId===state.currentNoteId){renderPinSurface(noteId);scheduleRender(noteId)}}
   else if(upd['note-activity-list']){const list=upd['note-activity-list']||[];state.noteActivity={};for(const a of list)state.noteActivity[a.noteId]=a.activity;console.log('[note-activity-list]',list.length,'entries');rebuildSidebarUnread();scheduleNoteList()}
   else if(upd['note-activity']){const d=upd['note-activity'];const cur=state.noteActivity[d.noteId]||0;if(d.activity>cur)state.noteActivity[d.noteId]=d.activity;rederiveNoteUnread(d.noteId);scheduleNoteList()}
   else if(upd['note-read-list']){const list=upd['note-read-list']||[];state.noteRead={};for(const r of list)state.noteRead[r.noteId]=r.read;console.log('[note-read-list]',list.length,'entries');rebuildSidebarUnread();scheduleNoteList()}
@@ -1443,6 +1453,9 @@ async function openNote(id){
   document.getElementById('shareBtn').style.display=(id==='cover'||id==='ars-rumors'||(state.notes[id]&&state.notes[id].type==='dm'))?'none':'block';
   const _dw=document.getElementById('dialWrap');if(_dw)_dw.style.display=isGossipNote(id)?'':'none';
   document.getElementById('chatMessages').innerHTML='';
+  // render the anchored surface for this note (hides if none / unresolved / unsupported).
+  // tears down any previous note's anchored app iframe + bridge.
+  renderPinSurface(id);
   // Record open-scroll intent BEFORE subscribe so the first message-list snapshot
   // scrolls correctly even on a cold cache where state.messages[id] doesn't exist
   // yet (hard refresh). Durable unread (server activity>read), NOT just the local
@@ -1609,84 +1622,6 @@ function getMyRole(noteId){
   if(n.creator===me)return'host';
   if((state.noteAdmins[noteId]||[]).includes(me))return'admin';
   return'member';
-}
-// ===== generic pinned entries (Phase 1) =====
-// notebook/group only; host/admin manage; everyone who sees the note sees pins.
-function pinnableNote(noteId){const n=state.notes[noteId];return !!n&&(n.type==='notebook'||n.type==='group')}
-function canManagePins(noteId){const r=getMyRole(noteId);return r==='host'||r==='admin'}
-function notePinsFor(noteId){return state.entryPins[noteId]||[]}
-function isEntryPinned(noteId,eid){return !!eid&&notePinsFor(noteId).some(p=>p.target===eid)}
-// resolve a pin to its target's render data, or null when the target is gone
-function resolvePinTarget(noteId,p){
-  if(p.kind==='message'){
-    const m=(state.messages[noteId]||[]).find(x=>x.meta&&x.meta.eid===p.target);
-    if(!m)return null;
-    return{kind:'message',msg:m,domId:m.id};
-  }
-  const a=Object.values(state.artifacts).find(x=>x.noteId===noteId&&x.meta&&x.meta.eid===p.target);
-  if(!a)return null;
-  return{kind:'artifact',art:a,artType:a.type,domId:a.id};
-}
-function pinEntry(noteId,target,kind){api.poke('noltbook','noltbook-action',{action:'pin-entry',data:{noteId,target,kind}})}
-function unpinEntry(noteId,target){api.poke('noltbook','noltbook-action',{action:'unpin-entry',data:{noteId,target}})}
-// hover-menu PIN/UNPIN button for a message/artifact; '' when not manageable.
-// closeAfter appends toggleMsgActions(this,false) (messages use the toggle menu).
-function pinBtnHtml(noteId,eid,kind,closeAfter){
-  if(!eid||!pinnableNote(noteId)||!canManagePins(noteId))return'';
-  const tail=closeAfter?";toggleMsgActions(this,false)":"";
-  if(isEntryPinned(noteId,eid))
-    return`<button class="msg-action-btn" onclick="unpinEntry('${noteId}','${eid}')${tail}">UNPIN</button>`;
-  // cap reached + not pinned: calm disabled affordance, not a failing PIN
-  if(notePinsFor(noteId).length>=5)
-    return`<button class="msg-action-btn" disabled title="Pin limit (5 max) reached" style="opacity:.4;cursor:default">PIN FULL</button>`;
-  return`<button class="msg-action-btn" onclick="pinEntry('${noteId}','${eid}','${kind}')${tail}">PIN</button>`;
-}
-function jumpToPin(noteId,target){
-  const p=notePinsFor(noteId).find(x=>x.target===target);if(!p)return;
-  const r=resolvePinTarget(noteId,p);if(!r)return;
-  if(r.kind==='message'){jumpToOriginal(r.domId);return}
-  const pre=r.artType==='app'?'inline-app-':'inline-file-';
-  const e=document.getElementById(pre+r.domId)||document.getElementById('inline-file-'+r.domId)||document.getElementById('inline-app-'+r.domId);
-  if(e){e.scrollIntoView({behavior:'smooth'});const o=e.style.outline;e.style.outline='2px solid rgba(255,170,0,.55)';setTimeout(function(){e.style.outline=o},1500)}
-}
-// Pinned area above the timeline: full-width post cards, oldest pinned first.
-// Each card looks like the original message/artifact (minus hover actions) with a
-// calm X. Card click jumps to the original; clicks on links/media/the X do not.
-function renderPinnedStrip(noteId){
-  if(!pinnableNote(noteId))return null;
-  const pins=notePinsFor(noteId);if(!pins.length)return null;
-  const sorted=pins.slice().sort((a,b)=>(a.pinnedAt||0)-(b.pinnedAt||0));
-  const canManage=canManagePins(noteId);
-  const cards=[];
-  for(const p of sorted){
-    const r=resolvePinTarget(noteId,p);
-    if(!r)continue; // deleted/missing target: render nothing
-    let body;
-    if(r.kind==='message')body=renderPinnedMessageHtml(r.msg);
-    else if(r.artType==='app')body=renderPinnedAppArtifactHtml(r.art);
-    else body=renderPinnedFileArtifactHtml(r.art);
-    const card=document.createElement('div');
-    card.className='pin-card';
-    card.innerHTML=body+(canManage?`<button class="pin-card-x" title="Unpin">×</button>`:'');
-    const target=p.target;
-    // jump to the original, but let interactive children (links, media, X) act
-    card.addEventListener('click',function(e){
-      if(e.target.closest('a,button,audio,video,iframe,input'))return;
-      jumpToPin(noteId,target);
-    });
-    if(canManage){
-      const xb=card.querySelector('.pin-card-x');
-      if(xb)xb.addEventListener('click',function(e){e.stopPropagation();unpinEntry(noteId,target)});
-    }
-    cards.push(card);
-  }
-  if(!cards.length)return null;
-  const wrap=document.createElement('div');
-  wrap.className='pin-strip';
-  const head=document.createElement('div');head.className='pin-strip-head';head.textContent='PINNED';
-  wrap.appendChild(head);
-  for(const c of cards)wrap.appendChild(c);
-  return wrap;
 }
 function updateDialUI(){
   const boxes=document.querySelectorAll('.dial-box');
@@ -2738,25 +2673,115 @@ function renderPinnedMessageHtml(msg){
   const timeStr=new Date(timeSource).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
   return `<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar">${avatarHtml(msg.author)}</div><div class="msg-body">${pinCardHeaderHtml(msg.author,timeStr)}<div class="msg-text">${msgDisplay}</div></div></div>`;
 }
-// a pinned %file artifact: same header + the full (timeline) preview, -pin idSuf
-function renderPinnedFileArtifactHtml(art){
+// ===== pinned surface (Phase 2): one active pin per note =====
+// notebook/group/gossip only (mirrors backend); creator/host manages; one pin.
+function pinNoteOk(noteId){const n=state.notes[noteId];return !!n&&(n.type==='notebook'||n.type==='group'||n.type==='gossip')}
+function isPinnedTarget(noteId,eid){const p=state.notePins[noteId];return !!eid&&!!p&&p.target===eid}
+// resolve a %artifact pin's target to a %file/%app artifact in this note, or null
+function resolvePinArtifact(noteId,pin){
+  if(!pin||pin.kind!=='artifact'||!pin.target)return null;
+  const a=Object.values(state.artifacts).find(x=>x.noteId===noteId&&x.meta&&x.meta.eid===pin.target&&(x.type==='file'||x.type==='app'));
+  return a||null;
+}
+// resolve a %message pin's target to a message in this note, or null
+function resolvePinMessage(noteId,pin){
+  if(!pin||pin.kind!=='message'||!pin.target)return null;
+  return (state.messages[noteId]||[]).find(m=>m.meta&&m.meta.eid===pin.target)||null;
+}
+// currentPinnedApp(noteId): the resolved pinned artifact when it's a %app, else null.
+// (A message or %file pin returns null here — only a pinned %app owns the bridge.)
+function currentPinnedApp(noteId){
+  const pin=state.notePins[noteId];
+  if(!pin||pin.kind!=='artifact')return null;
+  const art=resolvePinArtifact(noteId,pin);
+  return (art&&art.type==='app')?art:null;
+}
+// appRuntimeSuppressed(noteId,art): true when the note has a pinned %app and `art`
+// is a timeline %app in that note. The pinned app owns the single live bridge, so
+// every timeline %app card (the pinned one AND any other app) renders as a non-live
+// placeholder to prevent bridge stealing on chat re-renders. %file/message pins are
+// unaffected; a note with no pinned %app behaves exactly as before.
+function appRuntimeSuppressed(noteId,art){
+  if(!art||art.type!=='app')return false;
+  return !!currentPinnedApp(noteId);
+}
+function setNotePin(noteId,target,kind){api.poke('noltbook','noltbook-action',{action:'set-note-pin',data:{noteId,target,kind}})}
+function clearNotePin(noteId){api.poke('noltbook','noltbook-action',{action:'clear-note-pin',data:{noteId}})}
+// hover-menu PIN/UNPIN for a message or %file/%app artifact; '' unless creator/host
+// on a pinnable note. kind is 'message' or 'artifact'. %code excluded by the caller.
+// closeAfter appends toggleMsgActions(this,false) (messages use the toggle menu).
+function pinBtnHtml(noteId,eid,kind,closeAfter){
+  if(!eid||!pinNoteOk(noteId)||getMyRole(noteId)!=='host')return'';
+  const tail=closeAfter?";toggleMsgActions(this,false)":"";
+  if(isPinnedTarget(noteId,eid))
+    return`<button class="msg-action-btn" onclick="clearNotePin('${noteId}')${tail}">UNPIN</button>`;
+  return`<button class="msg-action-btn" onclick="setNotePin('${noteId}','${eid}','${kind}')${tail}">PIN</button>`;
+}
+function focusPinSurface(){
+  const el=document.getElementById('pinSurface');if(!el)return;
+  el.scrollIntoView({behavior:'smooth',block:'start'});
+  const o=el.style.outline;el.style.outline='2px solid rgba(255,170,0,.4)';
+  setTimeout(function(){el.style.outline=o},1200);
+}
+// if the single active app bridge points at an iframe inside the pin surface,
+// remove its listener and clear it (used before rebuild / on clear / on switch).
+function teardownPinBridgeIfInSurface(){
+  const b=state.activeAppBridge;
+  if(b&&typeof b.iframeId==='string'&&b.iframeId.endsWith('-pin')){
+    if(b.listener)window.removeEventListener('message',b.listener);
+    state.activeAppBridge=null;
+  }
+}
+// a pinned %file body: post-like (avatar + header) + full preview, -pin idSuf
+function renderPinFileHtml(art){
   const lastVer=art.versions[art.versions.length-1];
   const timeStr=lastVer?new Date(lastVer.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
   const fileContent=artifactFilePreviewHtml(art,{idSuf:'-pin'});
   return `<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar">${avatarHtml(art.creator)}</div><div class="msg-body">${pinCardHeaderHtml(art.creator,timeStr)}${fileContent}</div></div>`;
 }
-// a pinned %app artifact: post-sized identity shell. DECISION: no second iframe is
-// mounted — the host bridge tracks a single live app instance (state.activeAppBridge
-// in initHostBridge), so a duplicate runtime would be unsafe. Click jumps to the
-// real instance in the timeline. Future interactive artifacts get a first-class
-// pinned surface here.
-function renderPinnedAppArtifactHtml(art){
-  const lastVer=art.versions[art.versions.length-1];
-  let meta={};if(lastVer){try{meta=JSON.parse(lastVer.content)}catch(e){}}
-  const pkg=escHtml(meta.packageId||'canvas');
-  const timeStr=lastVer?new Date(lastVer.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
-  const body=`<div class="pin-app-shell"><div class="pin-app-shell-row"><span class="pin-art-app-badge">APP</span><span class="pin-app-name">${escHtml(art.name||meta.packageId||'app')}</span><span class="pin-art-meta">${pkg}</span></div><div class="pin-app-hint">Open in the timeline to interact</div></div>`;
-  return `<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar">${avatarHtml(art.creator)}</div><div class="msg-body">${pinCardHeaderHtml(art.creator,timeStr)}${body}</div></div>`;
+// Render (or hide) the pinned surface for a note. NOT called from renderMessages —
+// the surface is a persistent sibling, so chat renders never reload it. Resolves a
+// %message / %file / %app pin; an already-live pinned app returns early (no reload).
+function renderPinSurface(noteId){
+  const el=document.getElementById('pinSurface');
+  if(!el)return;
+  if(noteId!==state.currentNoteId)return;
+  const pin=state.notePins[noteId];
+  let msg=null,art=null;
+  if(pin&&pinNoteOk(noteId)){
+    if(pin.kind==='message')msg=resolvePinMessage(noteId,pin);
+    else if(pin.kind==='artifact')art=resolvePinArtifact(noteId,pin);
+  }
+  // nothing to show (no pin / unresolved target / unsupported note): tear down + hide
+  if(!pin||!(msg||art)||!pinNoteOk(noteId)){
+    teardownPinBridgeIfInSurface();
+    el.innerHTML='';el.classList.remove('has-pin');state.pinArtId=null;
+    return;
+  }
+  // same app already mounted + live: leave it (do not reload the iframe/bridge)
+  if(art&&art.type==='app'&&state.pinArtId===art.id&&document.getElementById('app-iframe-'+art.id+'-pin'))return;
+  // (re)build
+  teardownPinBridgeIfInSurface();
+  const canManage=getMyRole(noteId)==='host'; // creator-only, mirrors backend
+  const xBtn=canManage?`<button class="pin-surface-x" title="Unpin" onclick="clearNotePin('${noteId}')">&times;</button>`:'';
+  const head=`<div class="pin-surface-head"><span>PINNED</span>${xBtn}</div>`;
+  if(art&&art.type==='app'){
+    let meta={};const lv=art.versions[art.versions.length-1];if(lv){try{meta=JSON.parse(lv.content)}catch(e){}}
+    const iframeId='app-iframe-'+art.id+'-pin';
+    el.innerHTML=head+`<div class="pin-surface-body pin-surface-app"><iframe id="${iframeId}" src="/apps/noltbook/pkg/${meta.packageId||'canvas'}" sandbox="allow-scripts" scrolling="no" style="width:100%;height:40vh;border:none;background:#181818"></iframe></div>`;
+    el.classList.add('has-pin');
+    state.pinArtId=art.id;
+    initHostBridge(iframeId,art.id,meta);
+  }else if(art){
+    el.innerHTML=head+`<div class="pin-surface-body">${renderPinFileHtml(art)}</div>`;
+    el.classList.add('has-pin');
+    state.pinArtId=art.id;
+  }else{
+    // message pin: render like a normal message post
+    el.innerHTML=head+`<div class="pin-surface-body">${renderPinnedMessageHtml(msg)}</div>`;
+    el.classList.add('has-pin');
+    state.pinArtId=null;
+  }
 }
 // ===== unified timeline card renderers (root or nested-reply via depth) =====
 // Render a real artifact as a timeline card. Extracted so artifacts can appear
@@ -2776,11 +2801,23 @@ function renderArtifactCard(el,art,depth,isThreadAnchor){
   const actions=`<div class="msg-actions"><button class="msg-action-btn" onclick="startReply('${art.id}','${escAttr(art.creator)}')">REPLY</button><button class="msg-action-btn send-msg" onclick="sendToUser('${escAttr(art.creator)}','${art.id}')">SEND</button>${artPinBtn}<button class="msg-action-btn delete-msg" onclick="deleteArtifact('${art.id}')">DELETE</button></div>`;
   if(art.type==='app'){
     let meta={};if(lastVer){try{meta=JSON.parse(lastVer.content)}catch(e){}}
+    // While this note has a pinned %app, the pinned app owns the single live bridge.
+    // Every timeline %app card renders as a non-live placeholder (no initHostBridge)
+    // so chat re-renders can't steal the bridge from the pinned app.
+    if(appRuntimeSuppressed(art.noteId,art)){
+      const isSelf=isPinnedTarget(art.noteId,art.meta&&art.meta.eid);
+      const hint=isSelf?'Pinned above':'Paused while an app is pinned';
+      wrap.innerHTML=`<div class="msg-header" style="padding-left:0"><span class="msg-author" style="color:${authorColor}">${escHtml(displayName(art.creator))}</span><span class="msg-time">${timeStr}</span>${actions}</div>`
+        +`<div class="pin-placeholder" onclick="focusPinSurface()"><span class="pin-art-app-badge">APP</span><span class="pin-app-name">${escHtml(art.name||meta.packageId||'app')}</span><span class="pin-art-meta">${hint}</span></div>`;
+      wrap.style.cssText='display:block;padding:0 1rem;margin-top:.6rem';
+      el.appendChild(wrap);
+    }else{
     const iframeId='app-iframe-'+art.id+idSuf;
     wrap.innerHTML=`<div class="msg-header" style="padding-left:0"><span class="msg-author" style="color:${authorColor}">${escHtml(displayName(art.creator))}</span><span class="msg-time">${timeStr}</span>${actions}</div><iframe id="${iframeId}" src="/apps/noltbook/pkg/${meta.packageId||'canvas'}" sandbox="allow-scripts" scrolling="no" style="width:100%;height:760px;border:none;background:#181818;overflow:hidden"></iframe>`;
     wrap.style.cssText='display:block;padding:0 1rem;margin-top:.6rem';
     el.appendChild(wrap);
     initHostBridge(iframeId,art.id,meta);
+    }
   }else{
     const fileContent=artifactFilePreviewHtml(art,{idSuf});
     wrap.innerHTML=`<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar">${avatarHtml(art.creator)}</div><div class="msg-body"><div class="msg-header"><span class="msg-author" style="color:${authorColor}">${escHtml(displayName(art.creator))}</span><span class="msg-time">${timeStr}</span>${actions}</div>${fileContent}</div></div>`;
@@ -2847,7 +2884,6 @@ function renderMessages(noteId,target){
   const dividerInfo=state.unreadDividers[noteId]||null;
   let dividerInserted=false;
   el.innerHTML='';state.lastMsgAuthor=null;state.lastMsgDepth=-1;
-  const _pinStrip=renderPinnedStrip(noteId);if(_pinStrip)el.appendChild(_pinStrip);
   if(noteId==='ars-rumors'){
     const saying=RUMOR_SAYINGS[Math.floor(Math.random()*RUMOR_SAYINGS.length)];
     const hdr=document.createElement('div');
@@ -4677,7 +4713,11 @@ function grimoirePanelHtml(){
     +'<div class="grimoire-body">'+body+'</div>';
 }
 // ===== Grimoire Apps tab (reads %docket /charges directly from the browser) =====
-let _grimoireApps={state:'idle',charges:{},pikes:{},selectedDesk:null,error:null};
+// Noltbook-capable apps opt in by serving /apps/<desk>/noltbook.json. The
+// manifest is read-only in this pass; creation/templates come after the contract
+// feels right in the UI.
+const NOLTBOOK_MANIFEST_SEEDS=['noltbook-dev'];
+let _grimoireApps={state:'idle',charges:{},pikes:{},manifests:{},selectedDesk:null,error:null};
 async function loadGrimoireApps(opts){
   opts=opts||{};
   // preserveView: silent in-place refresh — keep existing rows + selection while
@@ -4704,9 +4744,65 @@ async function loadGrimoireApps(opts){
     _grimoireApps.pikes={};
     if(pikesR.status==='rejected')console.warn('[apps] hood /kiln/pikes failed (publisher unknown):',pikesR.reason);
   }
+  if(_grimoireApps.state==='loaded'){
+    await loadNoltbookAppManifests(appDiscoveryDesks(),preserve);
+  }
   // drop a stale detail selection if the desk vanished after refresh.
-  if(_grimoireApps.selectedDesk&&!_grimoireApps.charges[_grimoireApps.selectedDesk])_grimoireApps.selectedDesk=null;
+  if(_grimoireApps.selectedDesk&&!_grimoireApps.charges[_grimoireApps.selectedDesk]&&!_grimoireApps.manifests[_grimoireApps.selectedDesk])_grimoireApps.selectedDesk=null;
   refreshGrimoireIfOpen();
+}
+function appDiscoveryDesks(){
+  const s=new Set(Object.keys(_grimoireApps.charges||{}));
+  Object.keys(_grimoireApps.pikes||{}).forEach(function(d){s.add(d)});
+  NOLTBOOK_MANIFEST_SEEDS.forEach(function(d){s.add(d)});
+  return Array.from(s);
+}
+async function fetchNoltbookAppManifest(desk){
+  const ctrl=new AbortController();
+  const timer=setTimeout(function(){ctrl.abort()},1800);
+  try{
+    const r=await fetch('/apps/'+encodeURIComponent(desk)+'/noltbook.json',{credentials:'include',cache:'no-store',signal:ctrl.signal});
+    if(!r.ok)return null;
+    const json=await r.json();
+    return normalizeNoltbookAppManifest(desk,json);
+  }catch(e){
+    return null;
+  }finally{
+    clearTimeout(timer);
+  }
+}
+function normalizeNoltbookAppManifest(desk,m){
+  if(!m||typeof m!=='object')return null;
+  const version=m.noltbook||m.noltbookVersion||m.version||1;
+  const rawActions=Array.isArray(m.actions)?m.actions:(Array.isArray(m.templates)?m.templates:[]);
+  const actions=rawActions.map(function(a){
+    if(!a||typeof a!=='object')return null;
+    const id=(''+(a.id||a.key||a.type||'')).trim();
+    const label=(''+(a.label||a.title||a.name||id||'Action')).trim();
+    const desc=(''+(a.description||a.info||a.summary||'')).trim();
+    const kind=(''+(a.kind||a.type||'template')).trim();
+    // optional href: a plain string, or {site} / {glob} object (docket-style)
+    let href='';
+    if(typeof a.href==='string')href=a.href.trim();
+    else if(a.href&&typeof a.href==='object'&&typeof a.href.site==='string')href=a.href.site.trim();
+    return{id:id,label:label,description:desc,kind:kind,href:href};
+  }).filter(Boolean).slice(0,6);
+  return{
+    desk:desk,
+    version:version,
+    title:(''+(m.title||m.name||'')).trim(),
+    summary:(''+(m.summary||m.description||m.info||'')).trim(),
+    actions:actions
+  };
+}
+async function loadNoltbookAppManifests(desks,preserve){
+  if(!desks.length){_grimoireApps.manifests={};return}
+  const res=await Promise.allSettled(desks.map(function(d){return fetchNoltbookAppManifest(d).then(function(m){return[d,m]})}));
+  const next={};
+  for(const r of res){
+    if(r.status==='fulfilled'&&r.value&&r.value[1])next[r.value[0]]=r.value[1];
+  }
+  _grimoireApps.manifests=next;
 }
 // charge json may be flat (docket fields + chad) or nested under .docket — handle both.
 function appField(c,k){if(!c)return undefined;if(c[k]!==undefined)return c[k];if(c.docket&&c.docket[k]!==undefined)return c.docket[k];return undefined}
@@ -4726,6 +4822,9 @@ function appSourceDesk(desk){const pk=appPike(desk);return (pk&&pk.sync&&pk.sync
 function appZest(desk){const pk=appPike(desk);return (pk&&pk.zest)?pk.zest:''}
 // app reference string: ~app[~publisher|%desk|Encoded%20Title]. '' if no publisher.
 function appRefValue(desk,c){const pub=appPublisher(desk);if(!pub)return '';const title=appTitle(c)||desk;return '~app['+pub+'|%'+desk+'|'+encodeURIComponent(title)+']'}
+function noltbookAppManifest(desk){const m=_grimoireApps.manifests||{};return m[desk]||null}
+function appDisplayTitle(desk,c){const m=noltbookAppManifest(desk);return (m&&m.title)||appTitle(c)||desk}
+function appDisplayInfo(desk,c){const m=noltbookAppManifest(desk);return (m&&m.summary)||appInfo(c)||''}
 function appIconHtml(desk,c){
   const img=appImage(c);const col=appColorHex(c);
   // image if present; otherwise a plain colored tile (app color, else dark). No letters.
@@ -4736,29 +4835,40 @@ function renderGrimoireApps(){
   const g=_grimoireApps;
   if(g.state==='idle'||g.state==='loading')return '<div class="grimoire-empty">Loading apps&hellip;</div>';
   if(g.state==='error')return '<div class="grimoire-empty" style="color:#ff5555">Couldn\'t load apps<br><span style="font-size:.62rem;color:var(--text-dim,#888)">'+escHtml(g.error||'')+'</span></div>';
-  const desks=Object.keys(g.charges||{});
+  const desks=Array.from(new Set(Object.keys(g.charges||{}).concat(Object.keys(g.manifests||{}))));
   if(!desks.length)return '<div class="grimoire-empty">No apps installed</div>';
-  if(g.selectedDesk&&g.charges[g.selectedDesk])return renderGrimoireAppDetail(g.selectedDesk,g.charges[g.selectedDesk]);
-  const rows=desks.map(d=>({desk:d,c:g.charges[d]}));
+  if(g.selectedDesk&&(g.charges[g.selectedDesk]||g.manifests[g.selectedDesk]))return renderGrimoireAppDetail(g.selectedDesk,g.charges[g.selectedDesk]||{});
+  const rows=desks.map(d=>({desk:d,c:g.charges[d]||{},manifest:noltbookAppManifest(d)}));
   rows.sort((a,b)=>{
-    const ta=(appTitle(a.c)||a.desk).toLowerCase(),tb=(appTitle(b.c)||b.desk).toLowerCase();
+    const ta=appDisplayTitle(a.desk,a.c).toLowerCase(),tb=appDisplayTitle(b.desk,b.c).toLowerCase();
     if(ta!==tb)return ta<tb?-1:1;
     return a.desk<b.desk?-1:a.desk>b.desk?1:0;
   });
-  let html='<div class="grimoire-section-label">INSTALLED APPS</div>';
-  for(const r of rows){
-    const title=appTitle(r.c)||r.desk,ver=appVersion(r.c),pub=appPublisher(r.desk);
-    const sub='%'+escHtml(r.desk)+' &middot; '+(pub?escHtml(pub):'local')+(ver?' &middot; v'+escHtml(ver):'');
-    html+='<div class="grimoire-row grimoire-attn" onclick="grimoireSelectApp(\''+escAttr(r.desk)+'\')">'
+  const nbRows=rows.filter(r=>r.manifest),otherRows=rows.filter(r=>!r.manifest);
+  function renderAppRows(list,withCap){
+    let out='';
+    for(const r of list){
+      const title=appDisplayTitle(r.desk,r.c),ver=appVersion(r.c),pub=appPublisher(r.desk);
+      const cap=withCap&&r.manifest?' &middot; Noltbook':'';
+      const sub='%'+escHtml(r.desk)+' &middot; '+(pub?escHtml(pub):'local')+(ver?' &middot; v'+escHtml(ver):'')+cap;
+      out+='<div class="grimoire-row grimoire-attn" onclick="grimoireSelectApp(\''+escAttr(r.desk)+'\')">'
       +appIconHtml(r.desk,r.c)
       +'<div class="grimoire-row-main"><span class="grimoire-row-note">'+escHtml(title)+'</span>'
       +'<span class="grimoire-row-sub">'+sub+'</span></div></div>';
+    }
+    return out;
   }
+  let html='';
+  if(nbRows.length)html+='<div class="grimoire-section-label">NOLTBOOK APPS</div>'+renderAppRows(nbRows,true);
+  html+='<div class="grimoire-section-label">'+(nbRows.length?'OTHER APPS':'INSTALLED APPS')+'</div>'+renderAppRows(otherRows,false);
+  if(nbRows.length&&!otherRows.length)html+='<div class="grimoire-empty" style="padding:.65rem .85rem">No other apps installed</div>';
+  if(!nbRows.length&&!otherRows.length)html='<div class="grimoire-empty">No apps installed</div>';
   return html;
 }
 function renderGrimoireAppDetail(desk,c){
-  const title=appTitle(c)||desk,ver=appVersion(c),info=appInfo(c),site=appWebsite(c),lic=appLicense(c),status=appChad(c),href=appHref(c,desk);
+  const title=appDisplayTitle(desk,c),ver=appVersion(c),info=appDisplayInfo(desk,c),site=appWebsite(c),lic=appLicense(c),status=appChad(c),href=appHref(c,desk);
   const pub=appPublisher(desk),srcDesk=appSourceDesk(desk),zest=appZest(desk);
+  const manifest=noltbookAppManifest(desk);
   let h='<div class="grimoire-app-back" onclick="grimoireSelectApp(\'\')">&lsaquo; Apps</div>';
   h+='<div class="grimoire-app-dhead">'+appIconHtml(desk,c)
     +'<div class="grimoire-row-main"><span class="grimoire-app-dtitle">'+escHtml(title)+'</span>'
@@ -4772,6 +4882,29 @@ function renderGrimoireAppDetail(desk,c){
   if(site)h+='<div><span class="gam-k">website</span> <a href="'+escAttr(site)+'" target="_blank" rel="noopener" style="color:#ffaa00">'+escHtml(site)+'</a></div>';
   if(lic)h+='<div><span class="gam-k">license</span> '+escHtml(lic)+'</div>';
   h+='</div>';
+  if(manifest){
+    const mt=manifest.title||title,ms=manifest.summary;
+    h+='<div class="grimoire-app-cap"><div class="grimoire-app-cap-title">NOLTBOOK APP</div>';
+    h+='<div>'+escHtml(mt)+(manifest.version?' <span class="grimoire-app-cap-sub">manifest '+escHtml(''+manifest.version)+'</span>':'')+'</div>';
+    if(ms)h+='<span class="grimoire-app-cap-sub">'+escHtml(ms)+'</span>';
+    if(manifest.actions&&manifest.actions.length){
+      const fallbackHref=appHref(c,desk);
+      for(const a of manifest.actions){
+        const isOpen=a.kind==='open'||a.kind==='tool';
+        const actHref=a.href||fallbackHref;
+        const btn=isOpen
+          ?'<button class="grimoire-cap-btn" onclick="grimoireOpenApp(\''+escAttr(actHref)+'\')">OPEN</button>'
+          :'<button class="grimoire-cap-btn" disabled title="not available yet">COMING SOON</button>';
+        h+='<div class="grimoire-app-cap-row"><div class="grimoire-cap-act"><div class="grimoire-cap-act-main">'
+          +'<span>'+escHtml(a.label)+'</span>'
+          +'<span class="grimoire-app-cap-sub">'+escHtml(a.description||'available to Noltbook')+'</span>'
+          +'</div>'+btn+'</div></div>';
+      }
+    }else{
+      h+='<span class="grimoire-app-cap-sub">No Noltbook actions advertised yet.</span>';
+    }
+    h+='</div>';
+  }
   const copyBtn=pub
     ?'<button class="grimoire-btn" id="grimoireCopyRef" style="background:var(--bg3,#222);color:var(--text,#ddd)" onclick="grimoireCopyAppRef(\''+escAttr(desk)+'\')">COPY REF</button>'
     :'<button class="grimoire-btn" style="background:var(--bg3,#222);color:var(--text-dim,#888)" disabled title="no publisher / local desk">LOCAL ONLY</button>';

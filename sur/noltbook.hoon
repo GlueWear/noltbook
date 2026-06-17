@@ -131,6 +131,40 @@
       pinned-by=@p
       pinned-at=@da
   ==
+::  app-note-meta: durable note-level association with a Noltbook-capable app.
+::  This is NOT a note type — note-type stays notebook/group/gossip/dm/cover.
+::  It's metadata used later for note references, discovery, and app templates.
+::  created-by/created-at are server-stamped (never client-supplied).
++$  app-note-meta
+  $:  desk=@tas
+      title=(unit @t)
+      publisher=(unit @p)
+      tag=(unit @t)
+      template=(unit @tas)
+      created-by=@p
+      created-at=@da
+  ==
+::  note-anchor: optional per-note "anchored" placement of ONE existing artifact.
+::  Not a new artifact type and not a new note type — the artifact stays a normal
+::  %file/%app; the anchor only marks "render this in the anchored surface". target
+::  is the artifact's meta.eid (same identity pins use). One anchor per note;
+::  set-by/set-at are server-stamped. kind reserved (%artifact only this phase).
++$  note-anchor
+  $:  target=@uv
+      kind=?(%artifact)
+      set-by=@p
+      set-at=@da
+  ==
+::  note-pin: the one active pin per note (replaces both the old multi-pin list and
+::  the anchor). target is a message's meta.eid (kind=%message) or a %file/%app
+::  artifact's meta.eid (kind=%artifact); %code excluded. The pinned target renders
+::  in the stable surface above chat. Creator/host only; pinned-by/at server-stamped.
++$  note-pin
+  $:  target=@uv
+      kind=?(%message %artifact)
+      pinned-by=@p
+      pinned-at=@da
+  ==
 ::
 +$  avatar-type  ?(%urbit %s3 %ipfs %external)
 +$  avatar-ref  [type=avatar-type url=@t]
@@ -278,10 +312,6 @@
       [%remote-dm-artifact =artifact mime=@t bytes=octs]
       ::  cover/gossip artifact envelope mesh propagation; bytes never travel
       [%remote-artifact-envelope-ref note-id=@ta env=artifact-envelope hops=@ud]
-      ::  pin forwarding: admin on a member ship asks the host to (un)pin.
-      ::  Host validates has-mod-power src.bowl before applying.
-      [%remote-pin-entry note-id=@ta target=@uv kind=?(%message %artifact)]
-      [%remote-unpin-entry note-id=@ta target=@uv]
   ==
 ::  directed attention (Phase A scaffold). A single durable list per note that
 ::  unifies @-mentions (today) with reply / note-SEND attention (future phases).
@@ -367,10 +397,11 @@
       [%ack-durable-notification kind=durable-notification-kind note-id=@ta]
       ::  durable green sidebar unread: mark a note read (last-opened time)
       [%mark-note-read note-id=@ta]
-      ::  generic pinned entries (Phase 1): host/admin pin/unpin a message or a
-      ::  real %file/%app artifact by its meta.eid. Notebook/group notes only.
-      [%pin-entry note-id=@ta target=@uv kind=?(%message %artifact)]
-      [%unpin-entry note-id=@ta target=@uv]
+      ::  one active pin per note: target a message (kind=%message, by meta.eid) or
+      ::  a %file/%app artifact (kind=%artifact, by meta.eid). Creator/host only,
+      ::  host-authoritative + broadcast. Setting replaces; clearing keeps the target.
+      [%set-note-pin note-id=@ta target=@uv kind=?(%message %artifact)]
+      [%clear-note-pin note-id=@ta]
   ==
 ::  Developer API v1 (mark %noltbook-api). A small, STABLE surface for same-ship
 ::  apps so they don't bind to the internal `action` grab-bag. Each carries an
@@ -382,6 +413,24 @@
 ::  the authoring ship stamped server-side (never user-supplied). This is
 ::  ATTRIBUTION, not authorship: the real author stays the user/ship.
 +$  api-app  [desk=@tas title=(unit @t) publisher=(unit @p)]
+::  api-app-meta: client-supplied app-note metadata (set-note-app). All raw text
+::  — desk/publisher/template are validated server-side; created-by/created-at are
+::  stamped server-side and are NOT part of this client shape.
++$  api-app-meta
+  $:  desk=@t
+      title=(unit @t)
+      publisher=(unit @t)
+      tag=(unit @t)
+      template=(unit @t)
+  ==
+::  set-note-app's app argument, three-state (mirrors api-prof-avatar). %clear =
+::  JSON null; %set = an app object; %invalid = absent or a non-null non-object,
+::  so a malformed call never silently clears.
++$  api-app-arg
+  $%  [%clear ~]
+      [%set am=api-app-meta]
+      [%invalid ~]
+  ==
 ::  three-state profile-avatar arg (Phase 15): keep = field absent; clear = JSON
 ::  null; set = a parsed avatar-ref; invalid = present but unparseable.
 +$  api-prof-avatar
@@ -447,10 +496,14 @@
       ::  visibility are raw text, validated in the on-poke arm. headline='' clears
       ::  it; iconUrl='' clears the icon (URL only — no byte upload here).
       [%set-note-config request-id=(unit @ud) note-id=@ta name=(unit @t) visibility=(unit @t) writable=(unit ?) headline=(unit @t) icon-url=(unit @t)]
-      ::  generic pinned entries (Phase 1). target is a %uv eid string; kind is
-      ::  raw text ('message'|'artifact'), validated in the on-poke arm.
-      [%pin-entry request-id=(unit @ud) note-id=@ta target=@t kind=@t]
-      [%unpin-entry request-id=(unit @ud) note-id=@ta target=@t]
+      ::  durable app-note metadata. app is three-state (clear/set/invalid). desk
+      ::  required + must be a valid term; publisher/template validated server-side.
+      ::  created-by / created-at are always server-stamped. Creator-only.
+      [%set-note-app request-id=(unit @ud) note-id=@ta app=api-app-arg]
+      ::  one active pin per note. target is a %uv eid string; kind is raw text
+      ::  ('message'|'artifact'); both validated + resolved server-side. Creator-only.
+      [%set-note-pin request-id=(unit @ud) note-id=@ta target=@t kind=@t]
+      [%clear-note-pin request-id=(unit @ud) note-id=@ta]
   ==
 ::  subscription updates (agent to client)
 ::  api-result: per-request outcome fact for %noltbook-api clients. Emitted on
@@ -533,8 +586,8 @@
       ::  role updates
       [%admins-updated id=@ta admins=(list @p)]
       [%muted-updated id=@ta muted=(list @p)]
-      ::  generic pinned entries (Phase 1): authoritative per-note pin list.
-      [%pins-updated note-id=@ta pins=(list pin)]
+      ::  one active pin per note: authoritative per-note pin. ~ = cleared.
+      [%note-pin-updated note-id=@ta pin=(unit note-pin)]
       ::  cover/gossip artifact envelope updates
       [%artifact-envelope note-id=@ta env=artifact-envelope hops=@ud]
       [%artifact-envelope-list note-id=@ta envs=(list artifact-envelope)]

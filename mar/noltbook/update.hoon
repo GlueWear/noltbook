@@ -394,11 +394,11 @@
           ['muted' a+(turn muted.upd |=(p=@p s+(scot %p p)))]
       ==
     ::
-        %pins-updated
-      %+  frond  'pins-updated'
+        %note-pin-updated
+      %+  frond  'note-pin-updated'
       %-  pairs
       :~  ['noteId' s+(crip (trip note-id.upd))]
-          ['pins' a+(turn pins.upd pin-to-json)]
+          ['pin' (pin-to-json pin.upd)]
       ==
     ::
         %artifact-envelope
@@ -536,13 +536,16 @@
           ['preview' s+preview.h]
       ==
     ::
+    ::  note pin update payload; null when cleared. Live-only fact — the target's
+    ::  resolved message/artifact fields are read via the API, not carried here.
     ++  pin-to-json
-      |=  p=pin:noltbook
+      |=  pin=(unit note-pin:noltbook)
+      ?~  pin  ~
       %-  pairs
-      :~  ['target' s+(scot %uv target.p)]
-          ['kind' s+(crip (trip (scot %tas kind.p)))]
-          ['pinnedBy' s+(scot %p pinned-by.p)]
-          ['pinnedAt' (numb (da-to-ms pinned-at.p))]
+      :~  ['target' s+(scot %uv target.u.pin)]
+          ['kind' s+(crip (trip (scot %tas kind.u.pin)))]
+          ['pinnedBy' s+(scot %p pinned-by.u.pin)]
+          ['pinnedAt' (numb (da-to-ms pinned-at.u.pin))]
       ==
     ::
     ++  note-to-json
