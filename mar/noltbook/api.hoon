@@ -183,6 +183,16 @@
       [%set-note-pin rid nid (fall (get-str 'target') '') (fall (get-str 'kind') '')]
     ?:  =('clear-note-pin' tag)
       [%clear-note-pin rid nid]
+    ?:  =('set-note-active' tag)
+      ::  label/count/ttl from data; `app` is the poke's top-level attribution.
+      =/  get-num
+        |=  k=@t  ^-  (unit @ud)
+        =/  v  (~(get by d) k)
+        ?~  v  ~
+        ?.(?=([%n *] u.v) ~ `(rash p.u.v dem))
+      [%set-note-active rid app nid (get-str 'label') (get-num 'count') (get-num 'ttl')]
+    ?:  =('clear-note-active' tag)
+      [%clear-note-active rid nid]
     ?:  =('set-note-app' tag)
       ::  app three-state: explicit JSON null => %clear; object => %set (raw strings,
       ::  validated server-side); absent or non-null non-object => %invalid (the

@@ -165,6 +165,20 @@
       pinned-by=@p
       pinned-at=@da
   ==
+::  note-active: one developer/API-only "live" status per note ("5 listening",
+::  "playing", "live"). desk/title/publisher are server-stamped from the poke's
+::  top-level `app` attribution; set-by/updated-at/expires-at server-stamped. It is a
+::  heartbeat: reads/snapshots filter on expires-at, so stale entries never show.
++$  note-active
+  $:  desk=@tas
+      title=(unit @t)
+      publisher=(unit @p)
+      label=@t
+      count=(unit @ud)
+      set-by=@p
+      updated-at=@da
+      expires-at=@da
+  ==
 ::
 +$  avatar-type  ?(%urbit %s3 %ipfs %external)
 +$  avatar-ref  [type=avatar-type url=@t]
@@ -504,6 +518,11 @@
       ::  ('message'|'artifact'); both validated + resolved server-side. Creator-only.
       [%set-note-pin request-id=(unit @ud) note-id=@ta target=@t kind=@t]
       [%clear-note-pin request-id=(unit @ud) note-id=@ta]
+      ::  developer/API-only note "active" status. app = the poke's top-level
+      ::  attribution (REQUIRED; missing-app otherwise). label/count/ttl from data;
+      ::  ttl is seconds (default 120, capped 600). Creator-only.
+      [%set-note-active request-id=(unit @ud) app=(unit api-app) note-id=@ta label=(unit @t) count=(unit @ud) ttl=(unit @ud)]
+      [%clear-note-active request-id=(unit @ud) note-id=@ta]
   ==
 ::  subscription updates (agent to client)
 ::  api-result: per-request outcome fact for %noltbook-api clients. Emitted on
@@ -588,6 +607,8 @@
       [%muted-updated id=@ta muted=(list @p)]
       ::  one active pin per note: authoritative per-note pin. ~ = cleared.
       [%note-pin-updated note-id=@ta pin=(unit note-pin)]
+      ::  developer/API-only note "active" status. ~ = cleared/expired.
+      [%note-active-updated note-id=@ta active=(unit note-active)]
       ::  cover/gossip artifact envelope updates
       [%artifact-envelope note-id=@ta env=artifact-envelope hops=@ud]
       [%artifact-envelope-list note-id=@ta envs=(list artifact-envelope)]

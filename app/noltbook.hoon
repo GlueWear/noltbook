@@ -1208,6 +1208,54 @@
 ::  state-49: one active pin per note. note-pins is now (map @ta note-pin) — the old
 ::  multi-pin list AND note-anchors are gone. Migration moves anchors into note-pins
 ::  and discards the old multi-pin lists (the old feature is removed).
+::  state-50: developer/API-only note "active" status. note-active keys note id ->
+::  note-active. Only the field is added.
++$  state-50
+  $:  %50
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+  ==
 +$  state-49
   $:  %49
       notes=(map @ta note:noltbook)
@@ -1745,7 +1793,7 @@
 ::  chains through upgrade-20-to-21 → ... → upgrade-25-to-26
 ++  upgrade-19-to-20
   |=  s=state-19
-  ^-  state-49
+  ^-  state-50
   =/  new-seq=(map @ta @ud)
     %-  ~(rep by seq-counters.s)
     |=  [[[a=@p n=@ta] v=@ud] acc=(map @ta @ud)]
@@ -1765,7 +1813,7 @@
 ::  chains through upgrade-21-to-22 → upgrade-22-to-23
 ++  upgrade-20-to-21
   |=  s=state-20
-  ^-  state-49
+  ^-  state-50
   =/  new-msgs=(map @ta (list message:noltbook))
     %-  ~(run by messages.s)
     |=  msgs=(list message-20)
@@ -1807,7 +1855,7 @@
 ::  upgrade-21-to-22: add meta=(unit entry-meta) to envelopes
 ++  upgrade-21-to-22
   |=  s=state-21
-  ^-  state-49
+  ^-  state-50
   =/  new-envs=(map @ta (map @da envelope-44))
     %-  ~(run by gossip-envelopes.s)
     |=  envs=(map @da envelope-21)
@@ -1829,7 +1877,7 @@
 ::  upgrade-22-to-23: enrich mention storage with stable eid
 ++  upgrade-22-to-23
   |=  s=state-22
-  ^-  state-49
+  ^-  state-50
   =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
     %-  ~(urn by mentions.s)
     |=  [nid=@ta mns=(list [id=@da author=@p])]
@@ -1858,7 +1906,7 @@
 ::  in-flight forks to become fetchable.
 ++  upgrade-30-to-31
   |=  s=state-30
-  ^-  state-49
+  ^-  state-50
   =?  s  (gth ~(wyt by pending-fork-invites.s) 0)
     ~&  [%dropping-legacy-pending-fork-invites count=~(wyt by pending-fork-invites.s)]
     s(pending-fork-invites *(map @ta state-30-pending-fork-invite))
@@ -1881,7 +1929,7 @@
 ::  upgrade-31-to-32: add empty contacts set
 ++  upgrade-31-to-32
   |=  s=state-31
-  ^-  state-49
+  ^-  state-50
   %-  upgrade-32-to-33
   :*  %32
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1902,7 +1950,7 @@
 ::  upgrade-32-to-33: add empty dm-prefs map
 ++  upgrade-32-to-33
   |=  s=state-32
-  ^-  state-49
+  ^-  state-50
   %-  upgrade-33-to-34
   :*  %33
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1926,7 +1974,7 @@
 ::  pre-migration value.
 ++  upgrade-33-to-34
   |=  s=state-33
-  ^-  state-49
+  ^-  state-50
   =/  seeded-revs=(map @ta @ud)
     %-  ~(rep by notes.s)
     |=  [[k=@ta v=note:noltbook] acc=(map @ta @ud)]
@@ -1955,7 +2003,7 @@
 ::  encoder default.
 ++  upgrade-34-to-35
   |=  s=state-34
-  ^-  state-49
+  ^-  state-50
   %-  upgrade-35-to-36
   :*  %35
       notes.s  messages.s  artifacts.s  profiles.s
@@ -1979,7 +2027,7 @@
 ::  upgrade-35-to-36: add empty host-checks map.
 ++  upgrade-35-to-36
   |=  s=state-35
-  ^-  state-49
+  ^-  state-50
   %-  upgrade-36-to-37
   :*  %36
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2004,7 +2052,7 @@
 ::  upgrade-36-to-37: add empty notification-acks set.
 ++  upgrade-36-to-37
   |=  s=state-36
-  ^-  state-49
+  ^-  state-50
   %-  upgrade-37-to-38
   :*  %37
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2033,7 +2081,7 @@
 ::  (cover, ars-rumors) are excluded from seeding.
 ++  upgrade-37-to-38
   |=  s=state-37
-  ^-  state-49
+  ^-  state-50
   =/  seeded=(map @ta @da)
     =/  pairs=(list [nid=@ta msgs=(list message:noltbook)])  ~(tap by messages.s)
     =/  acc=(map @ta @da)  *(map @ta @da)
@@ -2079,7 +2127,7 @@
 ::  upgrade (unread is strict activity > read; equal seeds = read).
 ++  upgrade-38-to-39
   |=  s=state-38
-  ^-  state-49
+  ^-  state-50
   %-  upgrade-39-to-40
   :*  %39
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2108,7 +2156,7 @@
 ::  stamped going forward; existing artifacts have no meta).
 ++  upgrade-39-to-40
   |=  s=state-39
-  ^-  state-49
+  ^-  state-50
   =/  new-arts=(map @ta artifact:noltbook)
     %-  ~(run by artifacts.s)
     |=  a=artifact-pre40:noltbook
@@ -2148,7 +2196,7 @@
 ::  Byte hosting unchanged (only the meta field is populated).
 ++  upgrade-40-to-41
   |=  s=state-40
-  ^-  state-49
+  ^-  state-50
   =/  new-arts=(map @ta artifact:noltbook)
     %-  ~(run by artifacts.s)
     |=  a=artifact:noltbook
@@ -2191,7 +2239,7 @@
 ::  mentions via %attention-update). Existing mention UX is unchanged.
 ++  upgrade-41-to-42
   |=  s=state-41
-  ^-  state-49
+  ^-  state-50
   =/  att=(map @ta (list attention-item:noltbook))  ~
   ::  pipe through upgrade-42-to-43 so the chain terminates at state-43.
   %-  upgrade-42-to-43
@@ -2222,7 +2270,7 @@
 ::  upgrade-42-to-43: add durable cleared-mentions tombstones (empty on migration).
 ++  upgrade-42-to-43
   |=  s=state-42
-  ^-  state-49
+  ^-  state-50
   =/  cm=(map @ta (list [id=@da eid=(unit @uv)]))  ~
   %-  upgrade-43-to-44
   :*  %43
@@ -2253,7 +2301,7 @@
 ::  upgrade-43-to-44: add via-by-eid (durable per-eid app attribution), empty.
 ++  upgrade-43-to-44
   |=  s=state-43
-  ^-  state-49
+  ^-  state-50
   %-  upgrade-44-to-45
   :*  %44
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2284,7 +2332,7 @@
 ::  upgrade-44-to-45: add via=~ to every stored gossip/cover envelope.
 ++  upgrade-44-to-45
   |=  s=state-44
-  ^-  state-49
+  ^-  state-50
   =/  new-envs=(map @ta (map @da envelope:noltbook))
     %-  ~(run by gossip-envelopes.s)
     |=  inner=(map @da envelope-44)
@@ -2324,7 +2372,7 @@
 ::  Cap enforcement lives in the pin handler, never here.
 ++  upgrade-45-to-46
   |=  s=state-45
-  ^-  state-49
+  ^-  state-50
   %-  upgrade-46-to-47
   :*  %46
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2357,7 +2405,7 @@
 ::  rewrite notes, pins, or via; only appends the new field.
 ++  upgrade-46-to-47
   |=  s=state-46
-  ^-  state-49
+  ^-  state-50
   %-  upgrade-47-to-48
   :*  %47
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2391,7 +2439,7 @@
 ::  rewrite notes, pins, app metadata, or via; only appends the new field.
 ++  upgrade-47-to-48
   |=  s=state-47
-  ^-  state-49
+  ^-  state-50
   %-  upgrade-48-to-49
   :*  %48
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2427,12 +2475,13 @@
 ::  intentionally discarded (the multi-pin feature is removed). Other fields copied.
 ++  upgrade-48-to-49
   |=  s=state-48
-  ^-  state-49
+  ^-  state-50
   =/  new-pins=(map @ta note-pin:noltbook)
     %-  ~(run by note-anchors.s)
     |=  a=note-anchor:noltbook
     ^-  note-pin:noltbook
     [target.a %artifact set-by.a set-at.a]
+  %-  upgrade-49-to-50
   :*  %49
       notes.s  messages.s  artifacts.s  profiles.s
       transactions.s  current-note.s  peers.s  has-avatar.s
@@ -2461,10 +2510,44 @@
       new-pins
       note-apps.s
   ==
+::  upgrade-49-to-50: add note-active (empty). Developer/API-only "active" status.
+::  Only the field is added; no other state is rewritten.
+++  upgrade-49-to-50
+  |=  s=state-49
+  ^-  state-50
+  :*  %50
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      fork-parent-version.s
+      host-checks.s
+      notification-acks.s
+      note-activity.s
+      note-read.s
+      attention.s
+      cleared-mentions.s
+      via-by-eid.s
+      note-pins.s
+      note-apps.s
+      `(map @ta note-active:noltbook)`~
+  ==
 ::  upgrade-29-to-30: add pending-fork-invites map (empty).
 ++  upgrade-29-to-30
   |=  s=state-29
-  ^-  state-49
+  ^-  state-50
   %-  upgrade-30-to-31
   :*  %30
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2484,7 +2567,7 @@
 ::  note is treated as v1 (origin computed lazily by note-lineage-of helper).
 ++  upgrade-28-to-29
   |=  s=state-28
-  ^-  state-49
+  ^-  state-50
   %-  upgrade-29-to-30
   :*  %29
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2506,7 +2589,7 @@
 ::  remote host issues %remote-note-deleted post-upgrade.
 ++  upgrade-27-to-28
   |=  s=state-27
-  ^-  state-49
+  ^-  state-50
   %-  upgrade-28-to-29
   :*  %28
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2523,7 +2606,7 @@
 ::  upgrade-25-to-26: add blocked-by set
 ++  upgrade-26-to-27
   |=  s=state-26
-  ^-  state-49
+  ^-  state-50
   %-  upgrade-27-to-28
   :*  %27
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2538,7 +2621,7 @@
   ==
 ++  upgrade-25-to-26
   |=  s=state-25
-  ^-  state-49
+  ^-  state-50
   %-  upgrade-26-to-27
   :*  %26
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2553,7 +2636,7 @@
 ::  upgrade-24-to-25: add note-admins and note-muted maps
 ++  upgrade-24-to-25
   |=  s=state-24
-  ^-  state-49
+  ^-  state-50
   %-  upgrade-25-to-26
   :*  %25
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2643,6 +2726,23 @@
   ?:  (is-write-blocked nid hs nmap who)  [%.n %rejected]
   ?.  =(who creator.u.nt-u)  [%.n %rejected]
   [%.y ~]
+::  ===== developer/API-only note "active" status =====
+::  active-cards: broadcast the authoritative active status on /notes + /notes/[nid].
+++  active-cards
+  |=  [nid=@ta active=(unit note-active:noltbook)]
+  ^-  (list card:agent:gall)
+  =/  upd=update:noltbook  [%note-active-updated nid active]
+  :~  [%give %fact ~[/notes] %noltbook-update !>(upd)]
+      [%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]
+  ==
+::  active-live: the unexpired active entries (expires-at strictly after `now`).
+::  Snapshots/reads use this so stale heartbeats never show.
+++  active-live
+  |=  [m=(map @ta note-active:noltbook) now=@da]
+  ^-  (map @ta note-active:noltbook)
+  %-  ~(gas by *(map @ta note-active:noltbook))
+  %+  skim  ~(tap by m)
+  |=([@ta a=note-active:noltbook] (gth expires-at.a now))
 ::  collect-notebook-descendants: walk a note's children recursively; collect
 ::  the ids of descendants whose type is %notebook. Root itself excluded —
 ::  caller flips the root explicitly.
@@ -3094,7 +3194,7 @@
 ::  upgrade-23-to-24: add join-requests map
 ++  upgrade-23-to-24
   |=  s=state-23
-  ^-  state-49
+  ^-  state-50
   %-  upgrade-24-to-25
   :*  %24
       notes.s  messages.s  artifacts.s  profiles.s
@@ -3332,7 +3432,7 @@
   `-.i.hits
 ::  STABLE api read shapes (decoupled from the internal update enjs).
 ++  api-note-json
-  |=  [n=note:noltbook app=(unit app-note-meta:noltbook)]  ^-  json
+  |=  [n=note:noltbook app=(unit app-note-meta:noltbook) active=(unit note-active:noltbook) now=@da]  ^-  json
   %-  pairs:enjs:format
   :~  ['id' s+(crip (trip id.n))]
       ['name' s+name.n]
@@ -3342,6 +3442,7 @@
       ['userCount' (numb:enjs:format ~(wyt in users.n))]
       ['lastPreview' ?~(last-preview.n ~ s+u.last-preview.n)]
       ['app' (api-app-json app)]
+      ['active' (api-active-json active now)]
   ==
 ::  api-app-json: stable read shape for durable app-note metadata. null when the
 ::  note has no association. createdBy/createdAt are server-stamped.
@@ -3357,6 +3458,23 @@
       ['template' ?~(template.u.app ~ s+(scot %tas u.template.u.app))]
       ['createdBy' s+(scot %p created-by.u.app)]
       ['createdAt' (numb:enjs:format (api-da-ms created-at.u.app))]
+  ==
+::  api-active-json: stable read shape for a note's "active" status. null when absent
+::  OR expired (expires-at <= now) — stale heartbeats never read as live.
+++  api-active-json
+  |=  [active=(unit note-active:noltbook) now=@da]
+  ^-  json
+  ?~  active  ~
+  ?:  (lte expires-at.u.active now)  ~
+  %-  pairs:enjs:format
+  :~  ['desk' s+(scot %tas desk.u.active)]
+      ['title' ?~(title.u.active ~ s+u.title.u.active)]
+      ['publisher' ?~(publisher.u.active ~ s+(scot %p u.publisher.u.active))]
+      ['label' s+label.u.active]
+      ['count' ?~(count.u.active ~ (numb:enjs:format u.count.u.active))]
+      ['setBy' s+(scot %p set-by.u.active)]
+      ['updatedAt' (numb:enjs:format (api-da-ms updated-at.u.active))]
+      ['expiresAt' (numb:enjs:format (api-da-ms expires-at.u.active))]
   ==
 ::  api-pin-json: stable read shape for a note's one pin. null when none. Resolves
 ::  the target at read time: %message -> messageId/author/preview/timestamp; %artifact
@@ -4023,7 +4141,7 @@
   [(crip path-tape) args]
 --
 %-  agent:dbug
-=|  state-49
+=|  state-50
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -4060,7 +4178,10 @@
     =/  s48  !<(state-48 old)
     $(old !>((upgrade-48-to-49 s48)))
   ?:  ?=([%49 *] q.old)
-    =/  loaded  !<(state-49 old)
+    =/  s49  !<(state-49 old)
+    $(old !>((upgrade-49-to-50 s49)))
+  ?:  ?=([%50 *] q.old)
+    =/  loaded  !<(state-50 old)
     ::  fix: ensure cover note exists and is keyed as %cover
     ::  (same normalizations carried forward from state-24 load)
     =/  loaded
@@ -4582,6 +4703,12 @@
       %+  turn  ~(tap by active-calls)
       |=  [nid=@ta ci=call-info:noltbook]
       [%give %fact ~ %noltbook-update !>(`update:noltbook`[%call-state nid ci])]
+    ::  send live "active" status snapshots (unexpired only) so the sidebar shows
+    ::  them after a hard refresh / reconnect, like active call states.
+    =/  active-cards=(list card)
+      %+  turn  ~(tap by (active-live note-active now.bowl))
+      |=  [nid=@ta a=note-active:noltbook]
+      [%give %fact ~ %noltbook-update !>(`update:noltbook`[%note-active-updated nid `a])]
     ::  send pending join requests (host only sees their own)
     =/  jr-list=(list [note-id=@ta ship=@p note-name=@t])
       %-  zing
@@ -4698,7 +4825,7 @@
           [%give %fact ~ %noltbook-update !>(dialupd)]
       ==
     :_  this(notes notes-now, messages messages-now, notification-acks pruned-acks, note-activity pruned-activity, note-read pruned-read)
-    :(weld init-cards mention-cards attention-cards call-cards jr-cards role-cards bb-cards hs-cards lineage-cards pfi-cards ack-cards activity-cards read-cards)
+    :(weld init-cards mention-cards attention-cards call-cards active-cards jr-cards role-cards bb-cards hs-cards lineage-cards pfi-cards ack-cards activity-cards read-cards)
   ::
       [%notes @ ~]
     =/  nid=@ta  i.t.path
@@ -4786,6 +4913,12 @@
       =/  pin  (~(get by note-pins) nid)
       ?~  pin  ~
       ~[[%give %fact ~ %noltbook-update !>(`update:noltbook`[%note-pin-updated nid pin])]]
+    ::  send the live "active" status snapshot for this note (unexpired only).
+    =/  active-snapshot-cards=(list card)
+      =/  a  (~(get by note-active) nid)
+      ?~  a  ~
+      ?:  (lte expires-at.u.a now.bowl)  ~
+      ~[[%give %fact ~ %noltbook-update !>(`update:noltbook`[%note-active-updated nid `u.a])]]
     ::  send join-request data to admin subscribers
     =/  jr-admin-cards=(list card)
       =/  adms=(set @p)  (fall (~(get by note-admins) nid) ~)
@@ -4808,7 +4941,7 @@
       ?~  aenvs  ~
       ~[[%give %fact ~ %noltbook-update !>(`update:noltbook`[%artifact-envelope-list nid aenvs])]]
     :_  this(peers new-peers)
-    :(weld init-cards ~[[%give %fact ~ %noltbook-update !>(pupd)]] intro-cards call-cards note-role-cards pin-snapshot-cards jr-admin-cards art-env-cards)
+    :(weld init-cards ~[[%give %fact ~ %noltbook-update !>(pupd)]] intro-cards call-cards note-role-cards pin-snapshot-cards active-snapshot-cards jr-admin-cards art-env-cards)
   ::
       [%http-response @ ~]
     `this
@@ -4824,7 +4957,7 @@
       %+  frond:enjs:format  'notes'
       :-  %a
       %+  turn  ~(val by notes)
-      |=(n=note:noltbook (api-note-json n (~(get by note-apps) id.n)))
+      |=(n=note:noltbook (api-note-json n (~(get by note-apps) id.n) (~(get by note-active) id.n) now.bowl))
     ``[%json !>(jon)]
   ::
       [%x %api %notes @ ~]
@@ -4840,6 +4973,7 @@
           ['artifacts' a+(turn arts |=(a=artifact:noltbook (api-art-json a via-by-eid)))]
           ['app' (api-app-json (~(get by note-apps) nid))]
           ['pin' (api-pin-json (~(get by note-pins) nid) nid messages artifacts)]
+          ['active' (api-active-json (~(get by note-active) nid) now.bowl)]
       ==
     ``[%json !>(jon)]
   ::
@@ -4977,6 +5111,7 @@
           ['memberRev' ?~(mrev ~ (numb:enjs:format u.mrev))]
           ['app' (api-app-json (~(get by note-apps) nid))]
           ['pin' (api-pin-json (~(get by note-pins) nid) nid messages artifacts)]
+          ['active' (api-active-json (~(get by note-active) nid) now.bowl)]
           ['capabilities' (pairs:enjs:format caps)]
       ==
     ``[%json !>(jon)]
@@ -5788,6 +5923,66 @@
       :_  this
       %+  weld  cards
       (api-result-card request-id.aa %.y %pin-cleared 'pin cleared' `note-id.aa ~ cleared-eid)
+    ::
+        %set-note-active
+      ::  developer/API-only "active" status. REQUIRES top-level `app` attribution;
+      ::  desk/title/publisher are server-stamped from it, set-by/updated-at/expires-at
+      ::  from the server. Gate: note exists, notebook/group/gossip, not write-blocked,
+      ::  creator-only. Handled directly (no internal action); broadcasts + reads filter
+      ::  on expires-at. label default "live" (cap 32); ttl seconds default 120, cap 600.
+      ?~  app.aa
+        :_  this
+        (api-result-card request-id.aa %.n %missing-app 'set-note-active requires top-level app attribution' `note-id.aa ~ ~)
+      =/  nt-u  (~(get by notes) note-id.aa)
+      ?~  nt-u
+        :_  this
+        (api-result-card request-id.aa %.n %missing-note 'no such note' `note-id.aa ~ ~)
+      =/  nt=note:noltbook  u.nt-u
+      ?.  (pin-note-ok nt)
+        :_  this
+        (api-result-card request-id.aa %.n %unsupported 'note type does not support active status' `note-id.aa ~ ~)
+      ?:  (is-write-blocked note-id.aa host-status notes our.bowl)
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'write blocked' `note-id.aa ~ ~)
+      ?.  =(our.bowl creator.nt)
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'only the note creator can set active status' `note-id.aa ~ ~)
+      ::  label: 32-char cap; empty (absent or blank after truncation) -> "live".
+      =/  lbl=@t
+        =/  raw=@t  ?~(label.aa '' (crip (scag 32 (trip u.label.aa))))
+        ?:(=('' raw) 'live' raw)
+      ::  count: optional, clamped to 999 so the sidebar badge can't overflow.
+      =/  cnt=(unit @ud)  ?~(count.aa ~ `(min 999 u.count.aa))
+      =/  ttl-s=@ud  ?~(ttl.aa 120 (min 600 u.ttl.aa))
+      =/  exp=@da  (add now.bowl (mul ttl-s ~s1))
+      =/  active=note-active:noltbook
+        [desk.u.app.aa title.u.app.aa publisher.u.app.aa lbl cnt our.bowl now.bowl exp]
+      :_  this(note-active (~(put by note-active) note-id.aa active))
+      %+  weld  (active-cards note-id.aa `active)
+      (api-result-card request-id.aa %.y %active-set 'active set' `note-id.aa ~ ~)
+    ::
+        %clear-note-active
+      ::  clears the active status; no app attribution required.
+      =/  nt-u  (~(get by notes) note-id.aa)
+      ?~  nt-u
+        :_  this
+        (api-result-card request-id.aa %.n %missing-note 'no such note' `note-id.aa ~ ~)
+      =/  nt=note:noltbook  u.nt-u
+      ?.  (pin-note-ok nt)
+        :_  this
+        (api-result-card request-id.aa %.n %unsupported 'note type does not support active status' `note-id.aa ~ ~)
+      ?:  (is-write-blocked note-id.aa host-status notes our.bowl)
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'write blocked' `note-id.aa ~ ~)
+      ?.  =(our.bowl creator.nt)
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'only the note creator can clear active status' `note-id.aa ~ ~)
+      ::  idempotent: only broadcast a clear if there was an entry.
+      =/  had=?  (~(has by note-active) note-id.aa)
+      =/  clear-cards=(list card)  ?:(had (active-cards note-id.aa ~) ~)
+      :_  this(note-active (~(del by note-active) note-id.aa))
+      %+  weld  clear-cards
+      (api-result-card request-id.aa %.y %active-cleared 'active cleared' `note-id.aa ~ ~)
     ==
   ::
       %handle-http-request
@@ -11376,6 +11571,14 @@
         =.  note-pins
           ?~  pin.upd  (~(del by note-pins) note-id.upd)
           (~(put by note-pins) note-id.upd u.pin.upd)
+        :_  this
+        ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
+      ::
+          %note-active-updated
+        ::  host set/cleared the active status; store locally and relay to frontend.
+        =.  note-active
+          ?~  active.upd  (~(del by note-active) note-id.upd)
+          (~(put by note-active) note-id.upd u.active.upd)
         :_  this
         ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
       ::

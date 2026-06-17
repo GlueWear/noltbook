@@ -401,6 +401,13 @@
           ['pin' (pin-to-json pin.upd)]
       ==
     ::
+        %note-active-updated
+      %+  frond  'note-active-updated'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['active' (active-to-json active.upd)]
+      ==
+    ::
         %artifact-envelope
       %+  frond  'artifact-envelope'
       %-  pairs
@@ -546,6 +553,20 @@
           ['kind' s+(crip (trip (scot %tas kind.u.pin)))]
           ['pinnedBy' s+(scot %p pinned-by.u.pin)]
           ['pinnedAt' (numb (da-to-ms pinned-at.u.pin))]
+      ==
+    ::  note "active" status update payload; null when cleared/expired.
+    ++  active-to-json
+      |=  active=(unit note-active:noltbook)
+      ?~  active  ~
+      %-  pairs
+      :~  ['desk' s+(scot %tas desk.u.active)]
+          ['title' ?~(title.u.active ~ s+u.title.u.active)]
+          ['publisher' ?~(publisher.u.active ~ s+(scot %p u.publisher.u.active))]
+          ['label' s+label.u.active]
+          ['count' ?~(count.u.active ~ (numb u.count.u.active))]
+          ['setBy' s+(scot %p set-by.u.active)]
+          ['updatedAt' (numb (da-to-ms updated-at.u.active))]
+          ['expiresAt' (numb (da-to-ms expires-at.u.active))]
       ==
     ::
     ++  note-to-json

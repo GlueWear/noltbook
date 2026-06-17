@@ -470,6 +470,10 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .note-call-badge .call-pip{width:6px;height:6px;border-radius:50%;background:#00ff88;animation:callPulse 1.5s ease-in-out infinite}
 .note-item.has-call .note-call-badge{display:flex}
 .note-item.has-call .note-dot{display:none}
+.note-active-badge{display:none;align-items:center;gap:3px;margin-left:auto;flex-shrink:0;font-size:.65rem;color:#00ff88;white-space:nowrap}
+.note-active-badge .active-pip{width:6px;height:6px;border-radius:50%;background:#00ff88;animation:callPulse 1.5s ease-in-out infinite}
+.note-item.has-active .note-active-badge{display:flex}
+.note-item.has-active .note-dot{display:none}
 /* fixed footprint: the box reserves its final size before the image loads, so
    late artifact image loads do not expand the card and yank the timeline. */
 .artifact-img-box{display:block;width:100%;max-width:400px;height:300px;background:var(--bg2);border:1px solid var(--border);margin-top:.35rem;overflow:hidden}
@@ -757,7 +761,7 @@ const api = {
     this.reconnecting=false;
   }
 };
-const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteRead:{},coverPreview:null,notePins:{},pinArtId:null};
+const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteRead:{},coverPreview:null,notePins:{},pinArtId:null,noteActive:{}};
 // durable green sidebar unread: a non-pinned note is unread when its latest
 // activity time exceeds its last-read time. Both maps are replayed on boot.
 function isPinnedUnreadNote(id){return id==='cover'||(''+id).startsWith('ars-')}
@@ -1302,7 +1306,7 @@ function handleUpdate(upd){
   if(upd['note-list']){console.log('[note-list]',JSON.stringify(upd['note-list']));for(const n of upd['note-list'])state.notes[n.id]=n;rebuildDurableNotifications();updateLogoBadge();renderNoteList()}
   else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));const wasPendingJoin=!!state.pendingJoins[n.id];const wasAcceptedFork=state.acceptingForkRoots.has(n.id);if(wasAcceptedFork)state.acceptingForkRoots.delete(n.id);delete state.pendingJoins[n.id];delete state.removedFromNotes[n.id];state.notes[n.id]=n;if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id)}if(state.pendingWalletMsg&&n.type==='dm'){const pw=state.pendingWalletMsg;if(n.users&&n.users.length===2&&n.users.includes(pw.ship)){api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:n.id,text:pw.text}});state.pendingWalletMsg=null}}if(n.creator==='~'+api.ship){if(n.parent)state.expandedNotes.add(n.parent);openNote(n.id)}else if(wasAcceptedFork){if(state.palsView)switchView('notes');openNote(n.id)}else if(wasPendingJoin){document.querySelectorAll('.profile-flow-modal').forEach(el=>el.remove());state.viewingProfileShip=null;if(state.palsView)switchView('notes');if(n.visibility==='public'){openNote(n.id)}else{state.notifications.add(n.id)}}else{if(state.palsView)switchView('notes');state.notifications.add(n.id)}renderNoteList()}
   else if(upd['note-renamed']){const{id,name}=upd['note-renamed'];if(state.notes[id]){state.notes[id].name=name;renderNoteList()}if(state.currentNoteId===id)document.getElementById('chatNoteName').textContent=name}
-  else if(upd['note-deleted']){const{id}=upd['note-deleted'];const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];delete state.noteAdmins[id];delete state.noteMuted[id];delete state.notePins[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];delete state.attention[id];state.notifications.delete(id);state.notificationAcks.delete(notifAckKey('removed-status',id));state.notificationAcks.delete(notifAckKey('host-deleted-status',id));delete state.noteActivity[id];delete state.noteRead[id];if(state.currentNoteId===id)openNote('cover');renderNoteList()}
+  else if(upd['note-deleted']){const{id}=upd['note-deleted'];const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];delete state.noteAdmins[id];delete state.noteMuted[id];delete state.notePins[id];delete state.noteActive[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];delete state.attention[id];state.notifications.delete(id);state.notificationAcks.delete(notifAckKey('removed-status',id));state.notificationAcks.delete(notifAckKey('host-deleted-status',id));delete state.noteActivity[id];delete state.noteRead[id];if(state.currentNoteId===id)openNote('cover');renderNoteList()}
   else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];let maxSeq=0,revSum=0;for(const m of messages){if(m.meta){if(m.meta.seq>maxSeq)maxSeq=m.meta.seq;revSum+=m.meta.rev}}const hash=noteId+':'+messages.length+':'+maxSeq+':'+revSum;if(_lastMsgHash[noteId]===hash)return;_lastMsgHash[noteId]=hash;state.messages[noteId]=messages;for(const a of artifacts)state.artifacts[a.id]=a;if(state.currentNoteId===noteId){if(!ScrollCo.consumeOpenIntent(noteId))scheduleRender(noteId);renderPinSurface(noteId)}updateCoverPreview();scheduleNoteList()}
   else if(upd['new-message']){const msg=upd['new-message'];if(!state.messages[msg.noteId])state.messages[msg.noteId]=[];if(state.messages[msg.noteId].some(m=>(msg.meta&&msg.meta.eid&&m.meta&&m.meta.eid===msg.meta.eid)||m.id===msg.id))return;state.messages[msg.noteId].push(msg);if(state.notes[msg.noteId]){state.notes[msg.noteId].lastAuthor=msg.author;state.notes[msg.noteId].lastPreview=msg.text}if(state.currentNoteId===msg.noteId){const isOwn=msg.author===('~'+api.ship);if(!isOwn){const _cmEl=document.getElementById('chatMessages');if(_cmEl&&!isNearBottom(_cmEl)&&!state.unreadDividers[msg.noteId]){const _ord=msgOrder(msg);if(typeof _ord==='number')state.unreadDividers[msg.noteId]={order:_ord,until:_ord}}}appendMessage(msg,isOwn)}else state.notifications.add(msg.noteId);updateCoverPreview();markOpenNoteReadSoon(msg.noteId);scheduleNoteList()}
   else if(upd['artifact-created']){const a=upd['artifact-created'];state.artifacts[a.id]=a;if((a.type==='app'||a.type==='file')&&a.noteId===state.currentNoteId){scheduleRender(a.noteId);renderPinSurface(a.noteId)}}
@@ -1399,6 +1403,7 @@ function handleUpdate(upd){
   else if(upd['admins-updated']){const{id,admins}=upd['admins-updated'];state.noteAdmins[id]=admins;console.log('[admins-updated]',id,admins);refreshNoteInfoMembers(id)}
   else if(upd['muted-updated']){const{id,muted}=upd['muted-updated'];state.noteMuted[id]=muted;console.log('[muted-updated]',id,muted);if(state.currentNoteId===id)updateMuteUI();refreshNoteInfoMembers(id)}
   else if(upd['note-pin-updated']){const{noteId,pin}=upd['note-pin-updated'];if(pin)state.notePins[noteId]=pin;else delete state.notePins[noteId];if(noteId===state.currentNoteId){renderPinSurface(noteId);scheduleRender(noteId)}}
+  else if(upd['note-active-updated']){const{noteId,active}=upd['note-active-updated'];if(active)state.noteActive[noteId]=active;else delete state.noteActive[noteId];scheduleActiveExpiry(noteId);renderNoteList()}
   else if(upd['note-activity-list']){const list=upd['note-activity-list']||[];state.noteActivity={};for(const a of list)state.noteActivity[a.noteId]=a.activity;console.log('[note-activity-list]',list.length,'entries');rebuildSidebarUnread();scheduleNoteList()}
   else if(upd['note-activity']){const d=upd['note-activity'];const cur=state.noteActivity[d.noteId]||0;if(d.activity>cur)state.noteActivity[d.noteId]=d.activity;rederiveNoteUnread(d.noteId);scheduleNoteList()}
   else if(upd['note-read-list']){const list=upd['note-read-list']||[];state.noteRead={};for(const r of list)state.noteRead[r.noteId]=r.read;console.log('[note-read-list]',list.length,'entries');rebuildSidebarUnread();scheduleNoteList()}
@@ -2072,6 +2077,24 @@ function renderNoteList(){
   for(const n of sharedNotes)renderTree(n.id,0,sharedEl);
   updateCoverPreview();
 }
+// developer/API-only note "active" status (separate from calls). activeLive returns
+// the live row or null, dropping a locally-expired one. A per-note timer re-renders
+// the sidebar at expiry so the badge clears without another fact.
+const _activeTimers={};
+function activeLive(noteId){
+  const a=state.noteActive[noteId];
+  if(!a)return null;
+  if(a.expiresAt&&a.expiresAt<=Date.now()){delete state.noteActive[noteId];return null}
+  return a;
+}
+function scheduleActiveExpiry(noteId){
+  if(_activeTimers[noteId]){clearTimeout(_activeTimers[noteId]);delete _activeTimers[noteId]}
+  const a=state.noteActive[noteId];
+  if(!a||!a.expiresAt)return;
+  const ms=a.expiresAt-Date.now();
+  if(ms<=0){delete state.noteActive[noteId];return}
+  _activeTimers[noteId]=setTimeout(function(){delete _activeTimers[noteId];delete state.noteActive[noteId];renderNoteList()},Math.min(ms+50,2147483000));
+}
 function makeNoteItem(n,depth){
   const div=document.createElement('div');
   const hasChildren=n.children&&n.children.length>0;
@@ -2085,7 +2108,8 @@ function makeNoteItem(n,depth){
   // unread, below, stays suppressed for the open note via state.notifications.)
   const hasMention=hasAttentionData;
   const hasCall=!!state.activeCalls[n.id];
-  div.className='note-item'+(n.id===state.currentNoteId?' active':'')+((hasNotif||hasMention)?' has-notif':'')+(hasCall?' has-call':'')+(depth?` depth-${depth}`:'');
+  const active=activeLive(n.id);
+  div.className='note-item'+(n.id===state.currentNoteId?' active':'')+((hasNotif||hasMention)?' has-notif':'')+(hasCall?' has-call':'')+(active?' has-active':'')+(depth?` depth-${depth}`:'');
   div.setAttribute('data-note-id',n.id);
   const last=getLastMessage(n.id);
   const iconContent=noteDisplayIconHtml(n);
@@ -2103,7 +2127,10 @@ function makeNoteItem(n,depth){
   const sourceColor=rawSource?shipColor(rawSource):'';
   const dotColor=hasMention?'#ffaa00':'var(--bot)';
   const callBadge=hasCall?`<span class="note-call-badge"><span class="call-pip"></span>${state.activeCalls[n.id].participants.length}</span>`:'<span class="note-call-badge"></span>';
-  div.innerHTML=`${chevron}<div class="note-icon" ${hasCustomIcon?'style="display:flex"':''}>${iconContent}</div><div class="note-text"><span class="note-name">${escHtml(displayNameStr)}</span><span class="note-source"${sourceColor?' style="color:'+sourceColor+'"':''}>${escHtml(source)}</span><span class="note-preview">${previewHtml}</span></div>${callBadge}<span class="note-dot" style="background:${dotColor}"></span>`;
+  // live/presence badge in the call slot: count only, or "live" when no count.
+  // (label stays in the API/read data + noltbook-dev; not shown in the row.)
+  const activeBadge=active?`<span class="note-active-badge" title="${escAttr(active.label||'live')}"><span class="active-pip"></span>${active.count!=null?escHtml(''+active.count):'live'}</span>`:'';
+  div.innerHTML=`${chevron}<div class="note-icon" ${hasCustomIcon?'style="display:flex"':''}>${iconContent}</div><div class="note-text"><span class="note-name">${escHtml(displayNameStr)}</span><span class="note-source"${sourceColor?' style="color:'+sourceColor+'"':''}>${escHtml(source)}</span><span class="note-preview">${previewHtml}</span></div>${callBadge}${activeBadge}<span class="note-dot" style="background:${dotColor}"></span>`;
   let clickTimer=null;
   div.onclick=()=>{if(clickTimer)return;clickTimer=setTimeout(()=>{clickTimer=null;openNote(n.id)},250)};
   div.ondblclick=(e)=>{clearTimeout(clickTimer);clickTimer=null;e.preventDefault();toggleNoteExpand(n.id)};
