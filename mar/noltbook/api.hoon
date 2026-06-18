@@ -172,6 +172,25 @@
           (need (get-str 'desk'))
           (need (get-str 'name'))
       ==
+    ::  Actor Control (Phase A) host governance actions. desk/id/status/kind are
+    ::  raw text validated server-side; caps is an optional string array.
+    ?:  =('set-app-grant' tag)
+      =/  enabled=?
+        =/  v  (~(get by d) 'enabled')
+        ?~(v %.n ?.(?=([%b *] u.v) %.n p.u.v))
+      =/  caps=(unit (set @t))
+        =/  v  (~(get by d) 'caps')
+        ?~  v  ~
+        ?.  ?=([%a *] u.v)  ~
+        :-  ~
+        %-  ~(gas in *(set @t))
+        %+  murn  p.u.v
+        |=(j=^json ?.(?=([%s *] j) ~ `p.j))
+      [%set-app-grant rid (need (get-str 'desk')) enabled caps]
+    ?:  =('set-actor-status' tag)
+      [%set-actor-status rid (need (get-str 'desk')) (need (get-str 'id')) (need (get-str 'status'))]
+    ?:  =('update-actor' tag)
+      [%update-actor rid (need (get-str 'desk')) (need (get-str 'id')) (need (get-str 'name')) (need (get-str 'kind'))]
     ::  edit/delete resolve a target by eid (preferred) or msgId. msgId is the
     ::  @da string the read API returns; eid is the @uv string.
     =/  eid=(unit @uv)

@@ -1213,6 +1213,58 @@
 ::  state-51: app-scoped actor identity. actor-by-eid keys entry eid -> actor
 ::  (parallel to via-by-eid). Direct-note paths only; cover/gossip/ars-rumors
 ::  never write rows. Pure additive — empty map default, no envelope migration.
+::  state-52: Actor Control (Phase A). app-grants keys desk -> app-grant (host
+::  governance over local apps); actor-registry keys [desk id] -> actor-record
+::  (host lifecycle + TOFU). Both additive, empty by default.
++$  state-52
+  $:  %52
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      actor-by-eid=(map @uv actor:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      actor-registry=(map [@tas @t] actor-record:noltbook)
+  ==
 +$  state-51
   $:  %51
       notes=(map @ta note:noltbook)
@@ -1843,7 +1895,7 @@
 ::  chains through upgrade-20-to-21 → ... → upgrade-25-to-26
 ++  upgrade-19-to-20
   |=  s=state-19
-  ^-  state-51
+  ^-  state-52
   =/  new-seq=(map @ta @ud)
     %-  ~(rep by seq-counters.s)
     |=  [[[a=@p n=@ta] v=@ud] acc=(map @ta @ud)]
@@ -1863,7 +1915,7 @@
 ::  chains through upgrade-21-to-22 → upgrade-22-to-23
 ++  upgrade-20-to-21
   |=  s=state-20
-  ^-  state-51
+  ^-  state-52
   =/  new-msgs=(map @ta (list message:noltbook))
     %-  ~(run by messages.s)
     |=  msgs=(list message-20)
@@ -1905,7 +1957,7 @@
 ::  upgrade-21-to-22: add meta=(unit entry-meta) to envelopes
 ++  upgrade-21-to-22
   |=  s=state-21
-  ^-  state-51
+  ^-  state-52
   =/  new-envs=(map @ta (map @da envelope-44))
     %-  ~(run by gossip-envelopes.s)
     |=  envs=(map @da envelope-21)
@@ -1927,7 +1979,7 @@
 ::  upgrade-22-to-23: enrich mention storage with stable eid
 ++  upgrade-22-to-23
   |=  s=state-22
-  ^-  state-51
+  ^-  state-52
   =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
     %-  ~(urn by mentions.s)
     |=  [nid=@ta mns=(list [id=@da author=@p])]
@@ -1956,7 +2008,7 @@
 ::  in-flight forks to become fetchable.
 ++  upgrade-30-to-31
   |=  s=state-30
-  ^-  state-51
+  ^-  state-52
   =?  s  (gth ~(wyt by pending-fork-invites.s) 0)
     ~&  [%dropping-legacy-pending-fork-invites count=~(wyt by pending-fork-invites.s)]
     s(pending-fork-invites *(map @ta state-30-pending-fork-invite))
@@ -1979,7 +2031,7 @@
 ::  upgrade-31-to-32: add empty contacts set
 ++  upgrade-31-to-32
   |=  s=state-31
-  ^-  state-51
+  ^-  state-52
   %-  upgrade-32-to-33
   :*  %32
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2000,7 +2052,7 @@
 ::  upgrade-32-to-33: add empty dm-prefs map
 ++  upgrade-32-to-33
   |=  s=state-32
-  ^-  state-51
+  ^-  state-52
   %-  upgrade-33-to-34
   :*  %33
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2024,7 +2076,7 @@
 ::  pre-migration value.
 ++  upgrade-33-to-34
   |=  s=state-33
-  ^-  state-51
+  ^-  state-52
   =/  seeded-revs=(map @ta @ud)
     %-  ~(rep by notes.s)
     |=  [[k=@ta v=note:noltbook] acc=(map @ta @ud)]
@@ -2053,7 +2105,7 @@
 ::  encoder default.
 ++  upgrade-34-to-35
   |=  s=state-34
-  ^-  state-51
+  ^-  state-52
   %-  upgrade-35-to-36
   :*  %35
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2077,7 +2129,7 @@
 ::  upgrade-35-to-36: add empty host-checks map.
 ++  upgrade-35-to-36
   |=  s=state-35
-  ^-  state-51
+  ^-  state-52
   %-  upgrade-36-to-37
   :*  %36
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2102,7 +2154,7 @@
 ::  upgrade-36-to-37: add empty notification-acks set.
 ++  upgrade-36-to-37
   |=  s=state-36
-  ^-  state-51
+  ^-  state-52
   %-  upgrade-37-to-38
   :*  %37
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2131,7 +2183,7 @@
 ::  (cover, ars-rumors) are excluded from seeding.
 ++  upgrade-37-to-38
   |=  s=state-37
-  ^-  state-51
+  ^-  state-52
   =/  seeded=(map @ta @da)
     =/  pairs=(list [nid=@ta msgs=(list message:noltbook)])  ~(tap by messages.s)
     =/  acc=(map @ta @da)  *(map @ta @da)
@@ -2177,7 +2229,7 @@
 ::  upgrade (unread is strict activity > read; equal seeds = read).
 ++  upgrade-38-to-39
   |=  s=state-38
-  ^-  state-51
+  ^-  state-52
   %-  upgrade-39-to-40
   :*  %39
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2206,7 +2258,7 @@
 ::  stamped going forward; existing artifacts have no meta).
 ++  upgrade-39-to-40
   |=  s=state-39
-  ^-  state-51
+  ^-  state-52
   =/  new-arts=(map @ta artifact:noltbook)
     %-  ~(run by artifacts.s)
     |=  a=artifact-pre40:noltbook
@@ -2246,7 +2298,7 @@
 ::  Byte hosting unchanged (only the meta field is populated).
 ++  upgrade-40-to-41
   |=  s=state-40
-  ^-  state-51
+  ^-  state-52
   =/  new-arts=(map @ta artifact:noltbook)
     %-  ~(run by artifacts.s)
     |=  a=artifact:noltbook
@@ -2289,7 +2341,7 @@
 ::  mentions via %attention-update). Existing mention UX is unchanged.
 ++  upgrade-41-to-42
   |=  s=state-41
-  ^-  state-51
+  ^-  state-52
   =/  att=(map @ta (list attention-item:noltbook))  ~
   ::  pipe through upgrade-42-to-43 so the chain terminates at state-43.
   %-  upgrade-42-to-43
@@ -2320,7 +2372,7 @@
 ::  upgrade-42-to-43: add durable cleared-mentions tombstones (empty on migration).
 ++  upgrade-42-to-43
   |=  s=state-42
-  ^-  state-51
+  ^-  state-52
   =/  cm=(map @ta (list [id=@da eid=(unit @uv)]))  ~
   %-  upgrade-43-to-44
   :*  %43
@@ -2351,7 +2403,7 @@
 ::  upgrade-43-to-44: add via-by-eid (durable per-eid app attribution), empty.
 ++  upgrade-43-to-44
   |=  s=state-43
-  ^-  state-51
+  ^-  state-52
   %-  upgrade-44-to-45
   :*  %44
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2382,7 +2434,7 @@
 ::  upgrade-44-to-45: add via=~ to every stored gossip/cover envelope.
 ++  upgrade-44-to-45
   |=  s=state-44
-  ^-  state-51
+  ^-  state-52
   =/  new-envs=(map @ta (map @da envelope:noltbook))
     %-  ~(run by gossip-envelopes.s)
     |=  inner=(map @da envelope-44)
@@ -2422,7 +2474,7 @@
 ::  Cap enforcement lives in the pin handler, never here.
 ++  upgrade-45-to-46
   |=  s=state-45
-  ^-  state-51
+  ^-  state-52
   %-  upgrade-46-to-47
   :*  %46
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2455,7 +2507,7 @@
 ::  rewrite notes, pins, or via; only appends the new field.
 ++  upgrade-46-to-47
   |=  s=state-46
-  ^-  state-51
+  ^-  state-52
   %-  upgrade-47-to-48
   :*  %47
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2489,7 +2541,7 @@
 ::  rewrite notes, pins, app metadata, or via; only appends the new field.
 ++  upgrade-47-to-48
   |=  s=state-47
-  ^-  state-51
+  ^-  state-52
   %-  upgrade-48-to-49
   :*  %48
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2525,7 +2577,7 @@
 ::  intentionally discarded (the multi-pin feature is removed). Other fields copied.
 ++  upgrade-48-to-49
   |=  s=state-48
-  ^-  state-51
+  ^-  state-52
   =/  new-pins=(map @ta note-pin:noltbook)
     %-  ~(run by note-anchors.s)
     |=  a=note-anchor:noltbook
@@ -2564,7 +2616,7 @@
 ::  Only the field is added; no other state is rewritten.
 ++  upgrade-49-to-50
   |=  s=state-49
-  ^-  state-51
+  ^-  state-52
   %-  upgrade-50-to-51
   :*  %50
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2600,7 +2652,8 @@
 ::  and no envelope migration (actor is excluded from gossip/cover in v1).
 ++  upgrade-50-to-51
   |=  s=state-50
-  ^-  state-51
+  ^-  state-52
+  %-  upgrade-51-to-52
   :*  %51
       notes.s  messages.s  artifacts.s  profiles.s
       transactions.s  current-note.s  peers.s  has-avatar.s
@@ -2631,10 +2684,47 @@
       note-active.s
       `(map @uv actor:noltbook)`~
   ==
+::  upgrade-51-to-52: add app-grants + actor-registry (both empty). Actor Control
+::  Phase A — host governance over local app actors. Pure additive.
+++  upgrade-51-to-52
+  |=  s=state-51
+  ^-  state-52
+  :*  %52
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      fork-parent-version.s
+      host-checks.s
+      notification-acks.s
+      note-activity.s
+      note-read.s
+      attention.s
+      cleared-mentions.s
+      via-by-eid.s
+      note-pins.s
+      note-apps.s
+      note-active.s
+      actor-by-eid.s
+      `(map @tas app-grant:noltbook)`~
+      `(map [@tas @t] actor-record:noltbook)`~
+  ==
 ::  upgrade-29-to-30: add pending-fork-invites map (empty).
 ++  upgrade-29-to-30
   |=  s=state-29
-  ^-  state-51
+  ^-  state-52
   %-  upgrade-30-to-31
   :*  %30
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2654,7 +2744,7 @@
 ::  note is treated as v1 (origin computed lazily by note-lineage-of helper).
 ++  upgrade-28-to-29
   |=  s=state-28
-  ^-  state-51
+  ^-  state-52
   %-  upgrade-29-to-30
   :*  %29
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2676,7 +2766,7 @@
 ::  remote host issues %remote-note-deleted post-upgrade.
 ++  upgrade-27-to-28
   |=  s=state-27
-  ^-  state-51
+  ^-  state-52
   %-  upgrade-28-to-29
   :*  %28
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2693,7 +2783,7 @@
 ::  upgrade-25-to-26: add blocked-by set
 ++  upgrade-26-to-27
   |=  s=state-26
-  ^-  state-51
+  ^-  state-52
   %-  upgrade-27-to-28
   :*  %27
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2708,7 +2798,7 @@
   ==
 ++  upgrade-25-to-26
   |=  s=state-25
-  ^-  state-51
+  ^-  state-52
   %-  upgrade-26-to-27
   :*  %26
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2723,7 +2813,7 @@
 ::  upgrade-24-to-25: add note-admins and note-muted maps
 ++  upgrade-24-to-25
   |=  s=state-24
-  ^-  state-51
+  ^-  state-52
   %-  upgrade-25-to-26
   :*  %25
       notes.s  messages.s  artifacts.s  profiles.s
@@ -3281,7 +3371,7 @@
 ::  upgrade-23-to-24: add join-requests map
 ++  upgrade-23-to-24
   |=  s=state-23
-  ^-  state-51
+  ^-  state-52
   %-  upgrade-24-to-25
   :*  %24
       notes.s  messages.s  artifacts.s  profiles.s
@@ -3714,6 +3804,67 @@
   ^-  (unit [@uv actor:noltbook])
   =/  a  (~(get by amap) e)
   ?~(a ~ `[e u.a])
+::  gate-actor (Actor Control Phase A): host governance for a well-formed actor
+::  on an allowed note. Returns the stamped actor + updated registry on success,
+::  or a rejection code. Local apps only (host == our). Rules:
+::    no grant / disabled / no %attribute cap  => reject (post denied)
+::    unknown [desk id]                          => TOFU, auto-register %active
+::    %suspended / %revoked                      => reject (post denied)
+::    %active                                    => accept, bump last-seen
+++  gate-actor
+  |=  $:  our=@p  now=@da
+          desk=@tas  id=@t  name=@t  kind=?(%user %bot %app)
+          grants=(map @tas app-grant:noltbook)
+          registry=(map [@tas @t] actor-record:noltbook)
+      ==
+  ^-  %+  each
+        [actor=actor:noltbook registry=(map [@tas @t] actor-record:noltbook)]
+      [code=@tas msg=@t]
+  =/  g  (~(get by grants) desk)
+  ?~  g  [%.n %app-not-granted 'app has no actor grant']
+  ?.  enabled.u.g  [%.n %app-disabled 'app grant disabled']
+  ?.  (~(has in caps.u.g) %attribute)  [%.n %app-not-granted 'app lacks %attribute cap']
+  =/  key  [desk id]
+  =/  ax=actor:noltbook  [our desk id name kind]
+  =/  rec  (~(get by registry) key)
+  ?~  rec
+    ::  TOFU: first attributed post auto-registers an active actor.
+    =/  nr=actor-record:noltbook  [id name kind %active now now ~ now]
+    [%.y ax (~(put by registry) key nr)]
+  ?:  ?=(%suspended status.u.rec)  [%.n %actor-suspended 'actor suspended']
+  ?:  ?=(%revoked status.u.rec)    [%.n %actor-revoked 'actor revoked']
+  ::  active: refresh display name/kind + last-seen; keep status/created-at.
+  =/  nr=actor-record:noltbook
+    u.rec(name name, kind kind, last-seen now, updated-at now)
+  [%.y ax (~(put by registry) key nr)]
+::  api-grant-json / api-actor-record-json: host/developer read shapes for the
+::  Actor Control governance state (Phase A).
+++  api-grant-json
+  |=  g=app-grant:noltbook
+  ^-  json
+  %-  pairs:enjs:format
+  :~  ['desk' s+(scot %tas desk.g)]
+      ['enabled' b+enabled.g]
+      ['caps' a+(turn ~(tap in caps.g) |=(c=app-cap:noltbook s+(scot %tas c)))]
+      ['grantedBy' s+(scot %p granted-by.g)]
+      ['grantedAt' (numb:enjs:format (api-da-ms granted-at.g))]
+      ['updatedAt' (numb:enjs:format (api-da-ms updated-at.g))]
+      ['revokedAt' ?~(revoked-at.g ~ (numb:enjs:format (api-da-ms u.revoked-at.g)))]
+  ==
+++  api-actor-record-json
+  |=  [desk=@tas r=actor-record:noltbook]
+  ^-  json
+  %-  pairs:enjs:format
+  :~  ['desk' s+(scot %tas desk)]
+      ['id' s+id.r]
+      ['name' s+name.r]
+      ['kind' s+(scot %tas kind.r)]
+      ['status' s+(scot %tas status.r)]
+      ['createdAt' (numb:enjs:format (api-da-ms created-at.r))]
+      ['updatedAt' (numb:enjs:format (api-da-ms updated-at.r))]
+      ['revokedAt' ?~(revoked-at.r ~ (numb:enjs:format (api-da-ms u.revoked-at.r)))]
+      ['lastSeen' (numb:enjs:format (api-da-ms last-seen.r))]
+  ==
 ++  api-msg-json
   |=  [m=message:noltbook vmap=via-map:noltbook amap=actor-map:noltbook]  ^-  json
   %-  pairs:enjs:format
@@ -4267,7 +4418,7 @@
   [(crip path-tape) args]
 --
 %-  agent:dbug
-=|  state-51
+=|  state-52
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -4310,7 +4461,10 @@
     =/  s50  !<(state-50 old)
     $(old !>((upgrade-50-to-51 s50)))
   ?:  ?=([%51 *] q.old)
-    =/  loaded  !<(state-51 old)
+    =/  s51  !<(state-51 old)
+    $(old !>((upgrade-51-to-52 s51)))
+  ?:  ?=([%52 *] q.old)
+    =/  loaded  !<(state-52 old)
     ::  fix: ensure cover note exists and is keyed as %cover
     ::  (same normalizations carried forward from state-24 load)
     =/  loaded
@@ -5088,6 +5242,33 @@
       %+  turn  ~(val by notes)
       |=(n=note:noltbook (api-note-json n (~(get by note-apps) id.n) (~(get by note-active) id.n) now.bowl))
     ``[%json !>(jon)]
+  ::  Actor Control (Phase A) host/developer reads.
+  ::
+      [%x %api %actor-grants ~]
+    =/  jon=json
+      %+  frond:enjs:format  'grants'
+      a+(turn ~(val by app-grants) api-grant-json)
+    ``[%json !>(jon)]
+  ::
+      [%x %api %actors ~]
+    =/  jon=json
+      %+  frond:enjs:format  'actors'
+      :-  %a
+      %+  turn  ~(tap by actor-registry)
+      |=([k=[@tas @t] r=actor-record:noltbook] (api-actor-record-json -.k r))
+    ``[%json !>(jon)]
+  ::
+      [%x %api %actors @ ~]
+    =/  dterm=@tas  (fall (rush i.t.t.t.path sym) %$)
+    =/  jon=json
+      %+  frond:enjs:format  'actors'
+      :-  %a
+      %+  murn  ~(tap by actor-registry)
+      |=  [k=[@tas @t] r=actor-record:noltbook]
+      ^-  (unit json)
+      ?.  =(-.k dterm)  ~
+      `(api-actor-record-json -.k r)
+    ``[%json !>(jon)]
   ::
       [%x %api %notes @ ~]
     =/  nid=@ta  i.t.t.t.path
@@ -5369,20 +5550,29 @@
       =/  via=(unit via-app:noltbook)
         ?~  app.aa  ~
         `[desk.u.app.aa title.u.app.aa publisher.u.app.aa our.bowl]
-      ::  Phase ACTOR-1: build the app-scoped actor. Accepted ONLY when a valid
-      ::  app exists and the note is a direct-note type (cover/gossip/ars-rumors
-      ::  never carry actor). host=our.bowl + desk=app.desk are server-stamped;
-      ::  the kind check both rejects bad input and narrows the type. Missing/bad
-      ::  actor => ~, message still posts.
-      =/  actor=(unit actor:noltbook)
-        ?~  app.aa  ~
-        ?:  ?|(=(%cover type.nt) =(%gossip type.nt) =(%ars-rumors note-id.aa))  ~
-        ?~  actor.aa  ~
-        ?.  ?=(?(%user %bot %app) kind.u.actor.aa)  ~
-        `[our.bowl desk.u.app.aa id.u.actor.aa name.u.actor.aa kind.u.actor.aa]
+      ::  Phase ACTOR-A: governance gate. A well-formed actor on an allowed note
+      ::  (valid app, direct-note type, valid kind) must pass the host's app grant
+      ::  + actor registry (TOFU). A governance-DENIED actor REJECTS the post — it
+      ::  is never silently re-attributed to the host. No/malformed/excluded actor
+      ::  => host post, unchanged. An accepted actor bumps the registry.
+      =/  ar=(each [a=(unit actor:noltbook) reg=(map [@tas @t] actor-record:noltbook)] [code=@tas msg=@t])
+        ?.  ?&  ?=(^ app.aa)  ?=(^ actor.aa)
+                ?!  ?|(=(%cover type.nt) =(%gossip type.nt) =(%ars-rumors note-id.aa))
+                ?=(?(%user %bot %app) kind.u.actor.aa)
+            ==
+          [%.y ~ actor-registry]
+        =/  r  (gate-actor our.bowl now.bowl desk.u.app.aa id.u.actor.aa name.u.actor.aa kind.u.actor.aa app-grants actor-registry)
+        ?-  -.r
+          %.n  [%.n p.r]
+          %.y  [%.y `actor.p.r registry.p.r]
+        ==
+      ?:  ?=(%.n -.ar)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.ar msg.p.ar `note-id.aa ~ ~)
+      =.  actor-registry  reg.p.ar
       =+  conf=(api-send-confirm note-id.aa nt our.bowl now.bowl seq-counters)
       =^  cards  this
-        $(mark %noltbook-action, vase !>(`action:noltbook`[%send-message note-id.aa text.aa ~ reply-to-eid.aa ~ via actor]))
+        $(mark %noltbook-action, vase !>(`action:noltbook`[%send-message note-id.aa text.aa ~ reply-to-eid.aa ~ via a.p.ar]))
       :_  this
       %+  weld  cards
       (api-result-card request-id.aa %.y code.conf 'message sent' `note-id.aa mid.conf eid.conf)
@@ -5407,19 +5597,122 @@
       =/  via=(unit via-app:noltbook)
         ?~  app.aa  ~
         `[desk.u.app.aa title.u.app.aa publisher.u.app.aa our.bowl]
-      ::  Phase ACTOR-1: same actor gate as %post-message (direct-note types only).
-      =/  actor=(unit actor:noltbook)
-        ?~  app.aa  ~
-        ?:  ?|(=(%cover type.nt) =(%gossip type.nt) =(%ars-rumors note-id.aa))  ~
-        ?~  actor.aa  ~
-        ?.  ?=(?(%user %bot %app) kind.u.actor.aa)  ~
-        `[our.bowl desk.u.app.aa id.u.actor.aa name.u.actor.aa kind.u.actor.aa]
+      ::  Phase ACTOR-A: same governance gate as %post-message. Denied actor
+      ::  rejects the post; no/malformed/excluded actor => host post unchanged.
+      =/  ar=(each [a=(unit actor:noltbook) reg=(map [@tas @t] actor-record:noltbook)] [code=@tas msg=@t])
+        ?.  ?&  ?=(^ app.aa)  ?=(^ actor.aa)
+                ?!  ?|(=(%cover type.nt) =(%gossip type.nt) =(%ars-rumors note-id.aa))
+                ?=(?(%user %bot %app) kind.u.actor.aa)
+            ==
+          [%.y ~ actor-registry]
+        =/  r  (gate-actor our.bowl now.bowl desk.u.app.aa id.u.actor.aa name.u.actor.aa kind.u.actor.aa app-grants actor-registry)
+        ?-  -.r
+          %.n  [%.n p.r]
+          %.y  [%.y `actor.p.r registry.p.r]
+        ==
+      ?:  ?=(%.n -.ar)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.ar msg.p.ar `note-id.aa ~ ~)
+      =.  actor-registry  reg.p.ar
       =+  conf=(api-send-confirm note-id.aa nt our.bowl now.bowl seq-counters)
       =^  cards  this
-        $(mark %noltbook-action, vase !>(`action:noltbook`[%send-message note-id.aa p.res ~ ~ ~ via actor]))
+        $(mark %noltbook-action, vase !>(`action:noltbook`[%send-message note-id.aa p.res ~ ~ ~ via a.p.ar]))
       :_  this
       %+  weld  cards
       (api-result-card request-id.aa %.y code.conf 'app ref sent' `note-id.aa mid.conf eid.conf)
+    ::
+    ::  ---- Actor Control (Phase A): host governance over local app actors. ----
+    ::  These mutate grants/registry only; they never post content and the actor
+    ::  -bearing post path cannot reach them. Same-ship only (the on-poke guard);
+    ::  on one ship "host vs app" is cooperative, not a cryptographic boundary.
+        %set-app-grant
+      =/  dterm=(unit @tas)  (rush desk.aa sym)
+      ?~  dterm
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'desk did not parse' ~ ~ ~)
+      ::  caps default to {%attribute}; unknown cap strings are dropped.
+      =/  caps=(set app-cap:noltbook)
+        ?~  caps.aa  (sy ~[%attribute])
+        %-  ~(gas in *(set app-cap:noltbook))
+        %+  murn  ~(tap in u.caps.aa)
+        |=  c=@t  ^-  (unit app-cap:noltbook)
+        =/  ct  (rush c sym)
+        ?~  ct  ~
+        ?:  =(%attribute u.ct)  `%attribute
+        ?:  =(%manage-actors u.ct)  `%manage-actors
+        ~
+      =/  existing  (~(get by app-grants) u.dterm)
+      =/  prior-rev=(unit @da)  ?~(existing ~ revoked-at.u.existing)
+      =/  ng=app-grant:noltbook
+        :*  u.dterm  enabled.aa  caps  our.bowl
+            ?~(existing now.bowl granted-at.u.existing)
+            now.bowl
+            ?:(enabled.aa prior-rev `now.bowl)
+        ==
+      =.  app-grants  (~(put by app-grants) u.dterm ng)
+      :_  this
+      (api-result-card request-id.aa %.y ?:(enabled.aa %app-granted %app-disabled) 'app grant set' ~ ~ ~)
+    ::
+        %set-actor-status
+      =/  dterm=(unit @tas)  (rush desk.aa sym)
+      ?~  dterm
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'desk did not parse' ~ ~ ~)
+      =/  st=(unit actor-status:noltbook)
+        ?:  =('active' status.aa)  `%active
+        ?:  =('suspended' status.aa)  `%suspended
+        ?:  =('revoked' status.aa)  `%revoked
+        ~
+      ?~  st
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'bad status' ~ ~ ~)
+      =/  key  [u.dterm id.aa]
+      =/  rec  (~(get by actor-registry) key)
+      ?~  rec
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'no such actor' ~ ~ ~)
+      =/  nr=actor-record:noltbook
+        %=  u.rec
+          status      u.st
+          updated-at  now.bowl
+          revoked-at  ?:(?=(%revoked u.st) `now.bowl revoked-at.u.rec)
+        ==
+      =.  actor-registry  (~(put by actor-registry) key nr)
+      =/  code=@tas
+        ?-(u.st %active %actor-active, %suspended %actor-suspended, %revoked %actor-revoked)
+      :_  this
+      (api-result-card request-id.aa %.y code 'actor status set' ~ ~ ~)
+    ::
+        %update-actor
+      =/  dterm=(unit @tas)  (rush desk.aa sym)
+      ?~  dterm
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'desk did not parse' ~ ~ ~)
+      =/  knd=(unit ?(%user %bot %app))
+        ?:  =('user' kind.aa)  `%user
+        ?:  =('bot' kind.aa)  `%bot
+        ?:  =('app' kind.aa)  `%app
+        ~
+      ?~  knd
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'bad kind' ~ ~ ~)
+      ?:  =(0 (met 3 id.aa))
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'empty id' ~ ~ ~)
+      ::  %update-actor requires the app to hold %manage-actors (host-granted).
+      =/  g  (~(get by app-grants) u.dterm)
+      ?:  ?|(?=(~ g) !enabled.u.g !(~(has in caps.u.g) %manage-actors))
+        :_  this
+        (api-result-card request-id.aa %.n %app-not-granted 'app lacks %manage-actors' ~ ~ ~)
+      =/  key  [u.dterm id.aa]
+      =/  rec  (~(get by actor-registry) key)
+      =/  nr=actor-record:noltbook
+        ?~  rec
+          [id.aa name.aa u.knd %active now.bowl now.bowl ~ now.bowl]
+        u.rec(name name.aa, kind u.knd, updated-at now.bowl)
+      =.  actor-registry  (~(put by actor-registry) key nr)
+      :_  this
+      (api-result-card request-id.aa %.y %actor-updated 'actor updated' ~ ~ ~)
     ::
     ::  ---- Phase 12A: artifact creation (code/app only; no raw file upload). ----
         %create-artifact

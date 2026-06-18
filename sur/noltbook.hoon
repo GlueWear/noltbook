@@ -467,6 +467,42 @@
 +$  actor  [host=@p desk=@tas id=@t name=@t kind=?(%user %bot %app)]
 ::  actor-map: durable per-eid actor rows (state-51), parallel to via-map.
 +$  actor-map  (map @uv actor)
+::  Actor Control (Phase A, state-52). Host-controlled governance over which
+::  LOCAL apps may attribute actors and which actors are active. This is NOT
+::  hard isolation: Gall does not expose the calling agent, so app.desk is a
+::  cooperative, app-supplied name — not an authenticated caller identity. The
+::  grant layer gives the host revocation + audit, not protection from a
+::  malicious local agent (real authority stays our.bowl either way).
+::  app-cap: capabilities a host grants an app. %attribute = may attribute
+::  actors on posts; %manage-actors = may register/update its own actors.
++$  app-cap  ?(%attribute %manage-actors)
+::  app-grant: a host's grant to a single local app desk. enabled gates all
+::  attribution; revoked-at records the last disable (audit, never cleared).
++$  app-grant
+  $:  desk=@tas
+      enabled=?
+      caps=(set app-cap)
+      granted-by=@p
+      granted-at=@da
+      updated-at=@da
+      revoked-at=(unit @da)
+  ==
+::  actor-status: host lifecycle for one registered actor. %active honors
+::  attribution; %suspended/%revoked reject it (history stays attributed).
++$  actor-status  ?(%active %suspended %revoked)
+::  actor-record: registry row for one [desk id] actor. name/kind are the last
+::  app-supplied display values; status is host-controlled. TOFU: first
+::  attributed post auto-creates an %active record.
++$  actor-record
+  $:  id=@t
+      name=@t
+      kind=?(%user %bot %app)
+      status=actor-status
+      created-at=@da
+      updated-at=@da
+      revoked-at=(unit @da)
+      last-seen=@da
+  ==
 +$  api-action
   $%  [%create-note request-id=(unit @ud) name=@t parent=(unit @ta)]
       [%find-or-create-note request-id=(unit @ud) name=@t parent=(unit @ta)]
@@ -503,6 +539,13 @@
       [%unblock-pal request-id=(unit @ud) ship=@t]
       [%post-message request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta text=@t reply-to-eid=(unit @uv)]
       [%post-app-ref request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta publisher=@t desk=@t name=@t]
+      ::  Actor Control (Phase A): host-only governance over local app actors.
+      ::  desk is a bare term; caps default to {%attribute} when absent. set-actor
+      ::  -status/update-actor address one [desk id]. These mutate grants/registry,
+      ::  never post content; the actor-bearing post path cannot reach them.
+      [%set-app-grant request-id=(unit @ud) desk=@t enabled=? caps=(unit (set @t))]
+      [%set-actor-status request-id=(unit @ud) desk=@t id=@t status=@t]
+      [%update-actor request-id=(unit @ud) desk=@t id=@t name=@t kind=@t]
       [%edit-message request-id=(unit @ud) note-id=@ta eid=(unit @uv) msg-id=(unit @da) text=@t]
       [%delete-message request-id=(unit @ud) note-id=@ta eid=(unit @uv) msg-id=(unit @da)]
       ::  membership/admin mutations (Phase 9). ship/host are raw text, parsed in
