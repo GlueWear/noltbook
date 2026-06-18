@@ -115,12 +115,12 @@
       %+  frond  'message-list'
       %-  pairs
       :~  ['noteId' s+(crip (trip note-id.upd))]
-          ['messages' a+(turn messages.upd msg-to-json)]
+          ['messages' a+(turn messages.upd |=(m=message:noltbook (msg-list-actor m actor.upd)))]
           ['artifacts' a+(turn artifacts.upd art-to-json)]
       ==
     ::
         %new-message
-      (frond 'new-message' (msg-to-json msg.upd))
+      (frond 'new-message' (msg-json-actor msg.upd actor.upd))
     ::
         %message-edited
       %+  frond  'message-edited'
@@ -600,6 +600,34 @@
           ['edited' b+edited.m]
           ['meta' ?~(meta.m ~ (meta-to-json u.meta.m))]
       ==
+    ::  actor-to-json: (unit actor) -> null or {host,desk,id,name,kind}.
+    ++  actor-to-json
+      |=  a=(unit actor:noltbook)
+      ^-  ^json
+      ?~  a  ~
+      %-  pairs
+      :~  ['host' s+(scot %p host.u.a)]
+          ['desk' s+(scot %tas desk.u.a)]
+          ['id' s+id.u.a]
+          ['name' s+name.u.a]
+          ['kind' s+(scot %tas kind.u.a)]
+      ==
+    ::  msg-json-actor: a message object with an added 'actor' field. For a live
+    ::  %new-message the actor is supplied directly; for %message-list it's joined
+    ::  from the per-eid actor map. Additive — never wraps/changes the message
+    ::  object shape, so existing frontend handlers keep working.
+    ++  msg-json-actor
+      |=  [m=message:noltbook a=(unit actor:noltbook)]
+      ^-  ^json
+      =/  base=^json  (msg-to-json m)
+      ?.  ?=([%o *] base)  base
+      [%o (~(put by p.base) 'actor' (actor-to-json a))]
+    ::  msg-list-actor: like msg-json-actor but pulls actor from a map by eid.
+    ++  msg-list-actor
+      |=  [m=message:noltbook amap=(map @uv actor:noltbook)]
+      ^-  ^json
+      =/  a=(unit actor:noltbook)  ?~(meta.m ~ (~(get by amap) eid.u.meta.m))
+      (msg-json-actor m a)
     ::
     ++  meta-to-json
       |=  m=entry-meta:noltbook

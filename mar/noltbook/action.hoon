@@ -94,8 +94,8 @@
         ?.  ?=([%s *] u.dk-raw)  ~
         ?:  =('send' p.u.dk-raw)  `%send
         ~
-      ::  via attribution is API-only; frontend sends are never attributed.
-      [%send-message `@ta`p.nid-nd p.txt-nd rt rte dk ~]
+      ::  via/actor attribution is API-only; frontend sends are never attributed.
+      [%send-message `@ta`p.nid-nd p.txt-nd rt rte dk ~ ~]
     ::  edit-message
     ?:  =('edit-message' tag)
       =/  nid-nd  (need (~(get by d) 'noteId'))

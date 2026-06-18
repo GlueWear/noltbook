@@ -241,11 +241,11 @@
 ::  ship-to-ship remote pokes
 +$  remote
   $%  [%remote-invite note-id=@ta name=@t type=note-type creator=@p users=(set @p) visibility=note-visibility writable=?]
-      [%remote-message note-id=@ta msg=message directed-kind=(unit attention-kind) via=(unit via-app)]
+      [%remote-message note-id=@ta msg=message directed-kind=(unit attention-kind) via=(unit via-app) actor=(unit actor)]
       ::  atomic DM message: carries enough note metadata so the receiver
       ::  can recreate the DM locally if they previously left it. No
       ::  separate invite is sent; receiver does not subscribe.
-      [%remote-dm-message note=note msg=message via=(unit via-app)]
+      [%remote-dm-message note=note msg=message via=(unit via-app) actor=(unit actor)]
       [%remote-ars msg=message hops=@ud]
       [%remote-ars-ref env=envelope hops=@ud]
       [%remote-fetch-cover-msg requester=@p msg-id=@da eid=(unit @uv)]
@@ -353,7 +353,7 @@
       ::  directed-kind: explicit NOTE SEND marker (Phase C). %send => the
       ::  resulting reply attention is classified kind=%send instead of %reply.
       ::  Normal messages and wallet/DM SEND omit it (~).
-      [%send-message note-id=@ta text=@t reply-to=(unit @da) reply-to-eid=(unit @uv) directed-kind=(unit attention-kind) via=(unit via-app)]
+      [%send-message note-id=@ta text=@t reply-to=(unit @da) reply-to-eid=(unit @uv) directed-kind=(unit attention-kind) via=(unit via-app) actor=(unit actor)]
       [%edit-message note-id=@ta msg-id=@da eid=(unit @uv) text=@t]
       [%delete-message note-id=@ta msg-id=@da eid=(unit @uv)]
       [%set-note-meta id=@ta visibility=note-visibility icon-url=(unit @t) writable=?]
@@ -456,6 +456,17 @@
 +$  via-app  [desk=@tas title=(unit @t) publisher=(unit @p) ship=@p]
 ::  via-map: durable per-eid attribution rows, used by state-44 (defined in app).
 +$  via-map  (map @uv via-app)
+::  actor (Phase ACTOR-1). App-scoped identity INSIDE via: "Rick via %skiff on
+::  ~zod". v1 is attribution/display only — never the Urbit author, never a
+::  permission/membership principal. api-actor is the client-supplied shape on a
+::  poke; actor is the durable record with host/desk stamped server-side (host is
+::  ALWAYS our.bowl on send and re-verified == src.bowl on remote receive, never
+::  trusted from the wire). Direct-note paths only: cover/gossip/ars-rumors never
+::  carry actor, on sender or peer.
++$  api-actor  [id=@t name=@t kind=@tas]
++$  actor  [host=@p desk=@tas id=@t name=@t kind=?(%user %bot %app)]
+::  actor-map: durable per-eid actor rows (state-51), parallel to via-map.
++$  actor-map  (map @uv actor)
 +$  api-action
   $%  [%create-note request-id=(unit @ud) name=@t parent=(unit @ta)]
       [%find-or-create-note request-id=(unit @ud) name=@t parent=(unit @ta)]
@@ -490,8 +501,8 @@
       [%remove-pal request-id=(unit @ud) ship=@t]
       [%block-pal request-id=(unit @ud) ship=@t]
       [%unblock-pal request-id=(unit @ud) ship=@t]
-      [%post-message request-id=(unit @ud) app=(unit api-app) note-id=@ta text=@t reply-to-eid=(unit @uv)]
-      [%post-app-ref request-id=(unit @ud) app=(unit api-app) note-id=@ta publisher=@t desk=@t name=@t]
+      [%post-message request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta text=@t reply-to-eid=(unit @uv)]
+      [%post-app-ref request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta publisher=@t desk=@t name=@t]
       [%edit-message request-id=(unit @ud) note-id=@ta eid=(unit @uv) msg-id=(unit @da) text=@t]
       [%delete-message request-id=(unit @ud) note-id=@ta eid=(unit @uv) msg-id=(unit @da)]
       ::  membership/admin mutations (Phase 9). ship/host are raw text, parsed in
@@ -552,11 +563,11 @@
       [%fork-invite-received root-id=@ta source-name=@t source-version=@ud forker=@p]
       [%fork-invite-cleared root-id=@ta]
       [%fork-invite-accepted root-id=@ta]
-      [%message-list note-id=@ta messages=(list message) artifacts=(list artifact) via=(map @uv via-app)]
+      [%message-list note-id=@ta messages=(list message) artifacts=(list artifact) via=(map @uv via-app) actor=(map @uv actor)]
       ::  directed-kind: carries the NOTE SEND marker through host broadcasts so
       ::  non-host members classify reply attention as %send (Phase C). JSON shape
       ::  is unchanged (enjs emits the message directly); ~ for normal/sys/DM.
-      [%new-message msg=message directed-kind=(unit attention-kind) via=(unit via-app)]
+      [%new-message msg=message directed-kind=(unit attention-kind) via=(unit via-app) actor=(unit actor)]
       [%message-edited note-id=@ta msg=message]
       [%message-deleted note-id=@ta msg-id=@da eid=(unit @uv)]
       [%artifact-created artifact=artifact]

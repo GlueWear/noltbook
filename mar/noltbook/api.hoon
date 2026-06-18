@@ -39,6 +39,34 @@
         ?~  p  ~
         ?.(?=([%s *] u.p) ~ (slaw %p p.u.p))
       `[u.dterm ttl pub]
+    ::  optional top-level actor identity {id, name, kind}. Accepted ONLY when a
+    ::  valid app exists. kind must be user/bot/app. Empty id/name, missing parts,
+    ::  over-cap (id 128 / name 64 bytes), or bad kind => actor omitted entirely;
+    ::  the message still posts (the app handler treats ~ actor as no actor).
+    =/  actor=(unit api-actor:noltbook)
+      ?~  app  ~
+      =/  a  (~(get by obj) 'actor')
+      ?~  a  ~
+      ?.  ?=([%o *] u.a)  ~
+      =/  ao  p.u.a
+      =/  id=(unit @t)
+        =/  v  (~(get by ao) 'id')
+        ?~(v ~ ?.(?=([%s *] u.v) ~ `p.u.v))
+      ?~  id  ~
+      ?:  =(0 (met 3 u.id))  ~
+      ?:  (gth (met 3 u.id) 128)  ~
+      =/  name=(unit @t)
+        =/  v  (~(get by ao) 'name')
+        ?~(v ~ ?.(?=([%s *] u.v) ~ `p.u.v))
+      ?~  name  ~
+      ?:  =(0 (met 3 u.name))  ~
+      ?:  (gth (met 3 u.name) 64)  ~
+      =/  kind=(unit @tas)
+        =/  v  (~(get by ao) 'kind')
+        ?~(v ~ ?.(?=([%s *] u.v) ~ (rush p.u.v sym)))
+      ?~  kind  ~
+      ?.  ?=(?(%user %bot %app) u.kind)  ~
+      `[u.id u.name u.kind]
     =/  dat-nd  (need (~(get by obj) 'data'))
     ?>  ?=([%o *] dat-nd)
     =/  d  p.dat-nd
@@ -136,9 +164,9 @@
       =/  rte=(unit @uv)
         =/  v  (get-str 'replyToEid')
         ?~(v ~ `(slav %uv u.v))
-      [%post-message rid app `@ta`(need (get-str 'noteId')) (need (get-str 'text')) rte]
+      [%post-message rid app actor `@ta`(need (get-str 'noteId')) (need (get-str 'text')) rte]
     ?:  =('post-app-ref' tag)
-      :*  %post-app-ref  rid  app
+      :*  %post-app-ref  rid  app  actor
           `@ta`(need (get-str 'noteId'))
           (need (get-str 'publisher'))
           (need (get-str 'desk'))

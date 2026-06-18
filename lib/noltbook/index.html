@@ -11,7 +11,7 @@
 *::-webkit-scrollbar{width:4px;height:4px}
 *::-webkit-scrollbar-thumb{background:#333;border-radius:2px}
 :root{
-  --urbit:#ffaa00;--visitor:#569CD6;--bot:#6A9955;
+  --urbit:#ffaa00;--visitor:#569CD6;--bot:#6A9955;--actor:#65a9e8;
   --bg:#181818;--bg2:#2a2a2a;--bg3:#242424;
   --border:#222;--border2:#2a2a2a;
   --text:#ddd;--text-dim:#666;--text-muted:#888;
@@ -119,6 +119,11 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .msg-author{font-size:1rem;font-weight:500}
 .msg-author.urbit{color:#ddd}
 .msg-author.visitor{color:var(--visitor)}
+/* app/bot actor identity (Phase 2): distinct from ship + visitor colors. */
+.msg-author.actor{color:var(--actor)}
+.msg-avatar.actor-avatar{background:#0d1b22;color:var(--actor);font-weight:600;font-size:1.1rem;border:1px solid var(--actor)}
+.actor-kind{font-size:.55rem;letter-spacing:.08em;color:var(--actor);border:1px solid var(--actor);border-radius:2px;padding:0 .25rem;text-transform:uppercase;align-self:center}
+.actor-sub{font-size:.7rem;color:var(--text-dim)}
 .msg-time{font-size:.75rem;color:var(--text-dim)}
 .msg-text{font-family:var(--font);font-size:1rem;line-height:1.5;color:#ddd;word-break:break-word;white-space:pre-wrap}
 .msg:hover{background:rgba(255,255,255,.04)}
@@ -761,7 +766,7 @@ const api = {
     this.reconnecting=false;
   }
 };
-const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteRead:{},coverPreview:null,notePins:{},pinArtId:null,noteActive:{}};
+const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,lastMsgActorSig:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteRead:{},coverPreview:null,notePins:{},pinArtId:null,noteActive:{}};
 // durable green sidebar unread: a non-pinned note is unread when its latest
 // activity time exceeds its last-read time. Both maps are replayed on boot.
 function isPinnedUnreadNote(id){return id==='cover'||(''+id).startsWith('ars-')}
@@ -1307,7 +1312,7 @@ function handleUpdate(upd){
   else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));const wasPendingJoin=!!state.pendingJoins[n.id];const wasAcceptedFork=state.acceptingForkRoots.has(n.id);if(wasAcceptedFork)state.acceptingForkRoots.delete(n.id);delete state.pendingJoins[n.id];delete state.removedFromNotes[n.id];state.notes[n.id]=n;if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id)}if(state.pendingWalletMsg&&n.type==='dm'){const pw=state.pendingWalletMsg;if(n.users&&n.users.length===2&&n.users.includes(pw.ship)){api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:n.id,text:pw.text}});state.pendingWalletMsg=null}}if(n.creator==='~'+api.ship){if(n.parent)state.expandedNotes.add(n.parent);openNote(n.id)}else if(wasAcceptedFork){if(state.palsView)switchView('notes');openNote(n.id)}else if(wasPendingJoin){document.querySelectorAll('.profile-flow-modal').forEach(el=>el.remove());state.viewingProfileShip=null;if(state.palsView)switchView('notes');if(n.visibility==='public'){openNote(n.id)}else{state.notifications.add(n.id)}}else{if(state.palsView)switchView('notes');state.notifications.add(n.id)}renderNoteList()}
   else if(upd['note-renamed']){const{id,name}=upd['note-renamed'];if(state.notes[id]){state.notes[id].name=name;renderNoteList()}if(state.currentNoteId===id)document.getElementById('chatNoteName').textContent=name}
   else if(upd['note-deleted']){const{id}=upd['note-deleted'];const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];delete state.noteAdmins[id];delete state.noteMuted[id];delete state.notePins[id];delete state.noteActive[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];delete state.attention[id];state.notifications.delete(id);state.notificationAcks.delete(notifAckKey('removed-status',id));state.notificationAcks.delete(notifAckKey('host-deleted-status',id));delete state.noteActivity[id];delete state.noteRead[id];if(state.currentNoteId===id)openNote('cover');renderNoteList()}
-  else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];let maxSeq=0,revSum=0;for(const m of messages){if(m.meta){if(m.meta.seq>maxSeq)maxSeq=m.meta.seq;revSum+=m.meta.rev}}const hash=noteId+':'+messages.length+':'+maxSeq+':'+revSum;if(_lastMsgHash[noteId]===hash)return;_lastMsgHash[noteId]=hash;state.messages[noteId]=messages;for(const a of artifacts)state.artifacts[a.id]=a;if(state.currentNoteId===noteId){if(!ScrollCo.consumeOpenIntent(noteId))scheduleRender(noteId);renderPinSurface(noteId)}updateCoverPreview();scheduleNoteList()}
+  else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];let maxSeq=0,revSum=0,actorAcc='';for(const m of messages){if(m.meta){if(m.meta.seq>maxSeq)maxSeq=m.meta.seq;revSum+=m.meta.rev}if(m.actor)actorAcc+=(m.meta&&m.meta.eid?m.meta.eid:m.id)+'='+actorSig(m)+';'}const hash=noteId+':'+messages.length+':'+maxSeq+':'+revSum+':'+actorAcc;if(_lastMsgHash[noteId]===hash)return;_lastMsgHash[noteId]=hash;state.messages[noteId]=messages;for(const a of artifacts)state.artifacts[a.id]=a;if(state.currentNoteId===noteId){if(!ScrollCo.consumeOpenIntent(noteId))scheduleRender(noteId);renderPinSurface(noteId)}updateCoverPreview();scheduleNoteList()}
   else if(upd['new-message']){const msg=upd['new-message'];if(!state.messages[msg.noteId])state.messages[msg.noteId]=[];if(state.messages[msg.noteId].some(m=>(msg.meta&&msg.meta.eid&&m.meta&&m.meta.eid===msg.meta.eid)||m.id===msg.id))return;state.messages[msg.noteId].push(msg);if(state.notes[msg.noteId]){state.notes[msg.noteId].lastAuthor=msg.author;state.notes[msg.noteId].lastPreview=msg.text}if(state.currentNoteId===msg.noteId){const isOwn=msg.author===('~'+api.ship);if(!isOwn){const _cmEl=document.getElementById('chatMessages');if(_cmEl&&!isNearBottom(_cmEl)&&!state.unreadDividers[msg.noteId]){const _ord=msgOrder(msg);if(typeof _ord==='number')state.unreadDividers[msg.noteId]={order:_ord,until:_ord}}}appendMessage(msg,isOwn)}else state.notifications.add(msg.noteId);updateCoverPreview();markOpenNoteReadSoon(msg.noteId);scheduleNoteList()}
   else if(upd['artifact-created']){const a=upd['artifact-created'];state.artifacts[a.id]=a;if((a.type==='app'||a.type==='file')&&a.noteId===state.currentNoteId){scheduleRender(a.noteId);renderPinSurface(a.noteId)}}
   else if(upd['artifact-updated']){const a=upd['artifact-updated'];state.artifacts[a.id]=a;if(state.activeAppBridge&&state.activeAppBridge.artifactId===a.id){const lastVer=a.versions[a.versions.length-1];if(lastVer){try{const meta=JSON.parse(lastVer.content);const iframe=document.getElementById(state.activeAppBridge.iframeId);if(iframe&&iframe.contentWindow){iframe.contentWindow.postMessage({source:'noltbook-host',type:'nb:state',payload:meta.state||{}},'*')}}catch(e){}}}else if(document.getElementById('artifactPanel').classList.contains('open')&&document.getElementById('artifactPanelTitle').textContent===a.name)openArtifactPanel(a.id);if(a.noteId===state.currentNoteId)renderPinSurface(a.noteId)}
@@ -1361,7 +1366,7 @@ function handleUpdate(upd){
   else if(upd['headline-updated']){const d=upd['headline-updated'];const n=state.notes[d.id];if(n){n.headline=d.headline||null;renderNoteList()}}
   else if(upd['artifact-envelope']){const d=upd['artifact-envelope'];const nid=d.noteId;const env=d.envelope;if(!state.artifactEnvelopes[nid])state.artifactEnvelopes[nid]={};if(state.artifactEnvelopes[nid][env.aid])return;state.artifactEnvelopes[nid][env.aid]=env;state.artifactEnvHops[env.aid]=(typeof d.hops==='number')?d.hops:1;fetchTopWindowEnvelopes(nid);if(state.currentNoteId===nid)scheduleRender(nid);else if(artEnvVisible(env))state.notifications.add(nid);markOpenNoteReadSoon(nid);scheduleNoteList()}
   else if(upd['artifact-envelope-list']){const d=upd['artifact-envelope-list'];const nid=d.noteId;if(!state.artifactEnvelopes[nid])state.artifactEnvelopes[nid]={};let added=0;for(const e of d.envelopes||[]){if(state.artifactEnvelopes[nid][e.aid])continue;state.artifactEnvelopes[nid][e.aid]=e;if(state.artifactEnvHops[e.aid]===undefined)state.artifactEnvHops[e.aid]=1;added++}if(added)fetchTopWindowEnvelopes(nid);if(added&&state.currentNoteId===nid)scheduleRender(nid)}
-  else if(upd['message-edited']){const{noteId,message}=upd['message-edited'];const msgs=state.messages[noteId]||[];const eid=message.meta&&message.meta.eid;const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===message.id);if(fi>=0){msgs[fi]=message}if(state.currentNoteId===noteId)scheduleRender(noteId)}
+  else if(upd['message-edited']){const{noteId,message}=upd['message-edited'];const msgs=state.messages[noteId]||[];const eid=message.meta&&message.meta.eid;const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===message.id);if(fi>=0){if(!message.actor&&msgs[fi]&&msgs[fi].actor)message.actor=msgs[fi].actor;msgs[fi]=message}if(state.currentNoteId===noteId)scheduleRender(noteId)}
   else if(upd['message-deleted']){const{noteId,msgId,eid}=upd['message-deleted'];const msgs=state.messages[noteId]||[];const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===msgId);if(fi>=0)msgs.splice(fi,1);if(state.currentNoteId===noteId){renderPinSurface(noteId);scheduleRender(noteId)}}
   else if(upd['search-result']){const{reqId,query,hits,capped}=upd['search-result'];if(reqId!==state.searchReqInFlight)return;if(String(query||'')!==state.searchQuery)return;state.searchMessageHits=Array.isArray(hits)?hits:[];state.searchMessageCapped=!!capped;if(state.searchQuery)renderSidebarSearchResults()}
   else if(upd['profile-lookup-result']){const{reqId,ship,status}=upd['profile-lookup-result'];if(state.profileLookupInFlight[reqId]!==ship)return;delete state.profileLookupInFlight[reqId];if(state.profileLookupTimers[ship]){clearTimeout(state.profileLookupTimers[ship]);delete state.profileLookupTimers[ship]}if(status==='ok'){delete state.profileLookupStatus[ship];if(state._mentionLookups)state._mentionLookups.delete(ship);removeMentionLookupPopover(ship,0);if(state.searchQuery)renderSidebarSearchResults();viewProfile(ship)}else{state.profileLookupStatus[ship]='unreachable';if(state.searchQuery)renderSidebarSearchResults();if(state._mentionLookups&&state._mentionLookups.has(ship)){state._mentionLookups.delete(ship);if(_mentionLookupPopovers[ship]){showMentionLookupPopover(ship,"this user can't be reached",'#ff4444',null);removeMentionLookupPopover(ship,3000)}}}}
@@ -2698,6 +2703,12 @@ function renderPinnedMessageHtml(msg){
   const msgDisplay=isNockSend(msg.text)?parseNockSend(msg.text):renderText(msg.text);
   const timeSource=msg.meta&&msg.meta.created?msg.meta.created:msg.id;
   const timeStr=new Date(timeSource).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  // actor pin: app/bot glyph + actor header (no actions). Falls back to the
+  // normal ship header when the pinned message has no actor.
+  if(msg.actor){
+    const realTitle=escAttr('real author '+msg.author);
+    return `<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar actor-avatar" title="${realTitle}">${escHtml(actorInitial(msg.actor.name))}</div><div class="msg-body">${actorHeaderHtml(msg.actor,msg.author,timeStr,'')}<div class="msg-text">${msgDisplay}</div></div></div>`;
+  }
   return `<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar">${avatarHtml(msg.author)}</div><div class="msg-body">${pinCardHeaderHtml(msg.author,timeStr)}<div class="msg-text">${msgDisplay}</div></div></div>`;
 }
 // ===== pinned surface (Phase 2): one active pin per note =====
@@ -3211,8 +3222,11 @@ function renderMsg(el,msg,depth,isThreadAnchor){
   }
   // Envelope placeholder: null text = not yet fetched
   if(msg.text===null)return;
-  const grouped=msg.author===state.lastMsgAuthor&&depth===state.lastMsgDepth;
-  state.lastMsgAuthor=msg.author;state.lastMsgDepth=depth;
+  // grouping is conservative: same ship AND same actor identity. Two posts from
+  // the same ship but different actors (or actor vs no-actor) never group.
+  const aSig=actorSig(msg);
+  const grouped=msg.author===state.lastMsgAuthor&&aSig===state.lastMsgActorSig&&depth===state.lastMsgDepth;
+  state.lastMsgAuthor=msg.author;state.lastMsgActorSig=aSig;state.lastMsgDepth=depth;
   const isUrbit=msg.author.startsWith('~');
   const timeSource=msg.meta&&msg.meta.created?msg.meta.created:msg.id;
   const timeStr=new Date(timeSource).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
@@ -3243,7 +3257,15 @@ function renderMsg(el,msg,depth,isThreadAnchor){
     div.className='msg'+depthClass;
     div.id='msg-'+msg.id+idSuf;
     const authorColor=isUrbit?shipColor(msg.author):'var(--visitor)';
-    div.innerHTML=`<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar" style="cursor:pointer" onclick="event.stopPropagation();viewProfile('${escAttr(msg.author)}')">${avatarHtml(msg.author)}</div><div class="msg-body"><div class="msg-header"><span class="msg-author" style="color:${authorColor};cursor:pointer" onclick="event.stopPropagation();viewProfile('${escAttr(msg.author)}')">${escHtml(displayName(msg.author))}</span><span class="msg-time">${timeStr}</span>${actions}</div><div class="msg-text${nockSendClass}">${msgDisplay}${editedStamp}</div></div></div>`;
+    if(msg.actor){
+      // actor identity: app/bot glyph avatar (no sigil) + actor header. Avatar
+      // and name still open the REAL author's profile, and the title tooltip +
+      // "on ~host" subline keep the Urbit ship recoverable.
+      const realTitle=escAttr('real author '+msg.author);
+      div.innerHTML=`<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar actor-avatar" style="cursor:pointer" title="${realTitle}" onclick="event.stopPropagation();viewProfile('${escAttr(msg.author)}')">${escHtml(actorInitial(msg.actor.name))}</div><div class="msg-body">${actorHeaderHtml(msg.actor,msg.author,timeStr,actions)}<div class="msg-text${nockSendClass}">${msgDisplay}${editedStamp}</div></div></div>`;
+    }else{
+      div.innerHTML=`<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar" style="cursor:pointer" onclick="event.stopPropagation();viewProfile('${escAttr(msg.author)}')">${avatarHtml(msg.author)}</div><div class="msg-body"><div class="msg-header"><span class="msg-author" style="color:${authorColor};cursor:pointer" onclick="event.stopPropagation();viewProfile('${escAttr(msg.author)}')">${escHtml(displayName(msg.author))}</span><span class="msg-time">${timeStr}</span>${actions}</div><div class="msg-text${nockSendClass}">${msgDisplay}${editedStamp}</div></div></div>`;
+    }
   }
   el.appendChild(div);
 }
@@ -3335,6 +3357,25 @@ function sigilFallbackHtml(ship){
     return '<span style="color:'+shipColor(ship)+';font-size:.65rem">'+ship.slice(1,3)+'</span>';
   }
   return '<span style="color:var(--visitor)">'+ship[0].toUpperCase()+'</span>';
+}
+// ===== app/bot actor identity (Phase 2) =====
+// compact signature for grouping + snapshot-hash; '' when no actor.
+function actorSig(msg){const a=msg&&msg.actor;return a?(a.host+'|'+a.desk+'|'+a.id+'|'+a.kind):''}
+// avatar glyph: first letter of actor.name (never an Urbit sigil), '#' fallback.
+function actorInitial(name){const s=(''+(name||'')).trim();return s?s[0].toUpperCase():'#'}
+// header markup for an actor message: actor name (actor color) + kind chip +
+// "%desk on ~host" subline. The real author @p stays recoverable via the title
+// tooltip on every actor element and the ~host in the subline. timeStr+actions
+// optional (pin surface passes no actions). author = real Urbit ship.
+function actorHeaderHtml(av,author,timeStr,actions){
+  const realTitle=escAttr('real author '+author);
+  const kind=(''+(av.kind||'')).toUpperCase();
+  const sub=escHtml((av.desk?'%'+av.desk:'')+' on '+(av.host||author));
+  return `<div class="msg-header"><span class="msg-author actor" title="${realTitle}">${escHtml(av.name)}</span>`
+    +(kind?`<span class="actor-kind">${escHtml(kind)}</span>`:'')
+    +`<span class="actor-sub" title="${realTitle}">${sub}</span>`
+    +(timeStr?`<span class="msg-time">${timeStr}</span>`:'')
+    +(actions||'')+`</div>`;
 }
 function avatarHtml(ship){
   const url=resolveAvatarUrl(ship);
