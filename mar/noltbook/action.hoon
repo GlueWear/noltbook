@@ -289,6 +289,17 @@
       =/  req-nd  (need (~(get by d) 'reqId'))
       ?>  ?=([%n *] req-nd)
       [%request-profile (slav %p p.ship-nd) (rash p.req-nd dem)]
+    ::  request-actor-profile (Phase G4): frontend-internal actor profile lookup.
+    ?:  =('request-actor-profile' tag)
+      =/  host-nd  (need (~(get by d) 'host'))
+      ?>  ?=([%s *] host-nd)
+      =/  desk-nd  (need (~(get by d) 'desk'))
+      ?>  ?=([%s *] desk-nd)
+      =/  id-nd  (need (~(get by d) 'id'))
+      ?>  ?=([%s *] id-nd)
+      =/  req-nd  (need (~(get by d) 'reqId'))
+      ?>  ?=([%n *] req-nd)
+      [%request-actor-profile (slav %p p.host-nd) (rash p.desk-nd sym) p.id-nd (rash p.req-nd dem)]
     ::  nock-send-confirmed
     ?:  =('nock-send-confirmed' tag)
       =/  to-nd  (need (~(get by d) 'to'))

@@ -502,7 +502,131 @@
       :~  ['noteId' s+(crip (trip note-id))]
           ['read' (numb (da-to-ms read))]
       ==
+    ::
+    ::  Phase B: durable UNREAD activity (separate from recency note-activity).
+        %note-unread-activity
+      %+  frond  'note-unread-activity'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['activity' (numb (da-to-ms activity.upd))]
+      ==
+    ::
+        %note-unread-activity-list
+      %+  frond  'note-unread-activity-list'
+      :-  %a
+      %+  turn  activities.upd
+      |=  [note-id=@ta activity=@da]
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id))]
+          ['activity' (numb (da-to-ms activity))]
+      ==
+    ::
+    ::  Phase B: the real user's actor mute/block prefs (full authoritative snapshot).
+        %user-actor-preferences
+      %+  frond  'user-actor-preferences'
+      %-  pairs
+      :~  ['muted' a+(turn muted.upd actor-ref-json)]
+          ['blocked' a+(turn blocked.upd actor-ref-json)]
+      ==
+    ::
+    ::  Phase G4: actor profile resolution result (async) — same on /notes + /api/results.
+        %actor-profile-result
+      %+  frond  'actor-profile-result'
+      %-  pairs
+      :~  ['requestId' (numb req-id.upd)]
+          ['host' s+(scot %p host.upd)]
+          ['desk' s+(scot %tas desk.upd)]
+          ['id' s+id.upd]
+          ['status' s+(scot %tas status.upd)]
+          ['fetchedAt' ?~(fetched-at.upd ~ (numb (da-to-ms u.fetched-at.upd)))]
+          ['profile' ?~(profile.upd ~ (actor-pub-prof-json host.upd u.profile.upd))]
+      ==
+    ::
+    ::  Phase G4: local actor profile changed — public profile only (host=our.bowl).
+        %actor-profile-updated
+      (frond 'actor-profile-updated' (actor-pub-prof-json host.upd profile.upd))
+    ::
+    ::  Phase G5A: an actor-DM marker changed. meta=~ => removed.
+        %actor-dm-updated
+      %+  frond  'actor-dm-updated'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['meta' ?~(meta.upd ~ (actor-dm-meta-json u.meta.upd))]
+      ==
+    ::
+    ::  Phase G6B: an actor's directed reply notifications changed. full=%.n => delta
+    ::  (append carried rows); full=%.y => authoritative remaining list for [desk,id].
+        %actor-notifications-updated
+      %+  frond  'actor-notifications-updated'
+      %-  pairs
+      :~  ['desk' s+(scot %tas desk.upd)]
+          ['id' s+id.upd]
+          ['full' b+full.upd]
+          ['notifications' a+(turn notifications.upd actor-notif-json)]
+      ==
     ==
+    ::  Phase B: bare actor-ref [host,desk,id] encoder (real-user preference identity).
+    ++  actor-ref-json
+      |=  r=actor-ref:noltbook
+      ^-  ^json
+      %-  pairs
+      :~  ['host' s+(scot %p host.r)]
+          ['desk' s+(scot %tas desk.r)]
+          ['id' s+id.r]
+      ==
+    ::  Phase G6B: actor + notification-view encoders (mirror app field-for-field).
+    ++  actor-msg-ref-json
+      |=  a=actor:noltbook
+      ^-  ^json
+      %-  pairs
+      :~  ['host' s+(scot %p host.a)]
+          ['desk' s+(scot %tas desk.a)]
+          ['id' s+id.a]
+          ['name' s+name.a]
+          ['kind' s+(scot %tas kind.a)]
+      ==
+    ++  actor-notif-json
+      |=  v=actor-notification-view:noltbook
+      ^-  ^json
+      %-  pairs
+      :~  ['kind' s+(scot %tas kind.v)]
+          ['noteId' s+(crip (trip note-id.v))]
+          ['eid' s+(scot %uv eid.v)]
+          ['msgId' s+(scot %da msg-id.v)]
+          ['author' s+(scot %p author.v)]
+          ['actor' ?~(actor.v ~ (actor-msg-ref-json u.actor.v))]
+          ['preview' s+preview.v]
+          ['timestamp' (numb (da-to-ms timestamp.v))]
+      ==
+    ::  Phase G5A: actor-dm-meta encoder (mirrors api-actor-dm-json in app).
+    ++  actor-dm-meta-json
+      |=  m=actor-dm-meta:noltbook
+      ^-  ^json
+      %-  pairs
+      :~  ['host' s+(scot %p host.owner.m)]
+          ['desk' s+(scot %tas desk.owner.m)]
+          ['id' s+id.owner.m]
+          ['ownerName' s+name.owner.m]
+          ['ownerKind' s+(scot %tas kind.owner.m)]
+          ['target' s+(scot %p target.m)]
+          ['createdAt' (numb (da-to-ms created-at.m))]
+      ==
+    ::
+    ::  Phase G4: THE actor public-profile encoder (mirrors api-actor-pub-json in app).
+    ++  actor-pub-prof-json
+      |=  [host=@p p=actor-public-profile:noltbook]
+      ^-  ^json
+      %-  pairs
+      :~  ['host' s+(scot %p host)]
+          ['desk' s+(scot %tas desk.p)]
+          ['id' s+id.p]
+          ['displayName' s+display-name.p]
+          ['kind' s+(scot %tas kind.p)]
+          ['lifecycleStatus' s+(scot %tas lifecycle-status.p)]
+          ['avatar' ?~(avatar.p ~ (pairs ~[['type' s+(scot %tas type.u.avatar.p)] ['url' s+url.u.avatar.p]]))]
+          ['bio' ?~(bio.p ~ s+u.bio.p)]
+          ['statusText' ?~(status-text.p ~ s+u.status-text.p)]
+      ==
     ::
     ++  call-to-json
       |=  c=call-info:noltbook

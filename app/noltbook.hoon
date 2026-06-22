@@ -1213,6 +1213,701 @@
 ::  state-51: app-scoped actor identity. actor-by-eid keys entry eid -> actor
 ::  (parallel to via-by-eid). Direct-note paths only; cover/gossip/ars-rumors
 ::  never write rows. Pure additive — empty map default, no envelope migration.
+::  state-54: Actor Notes (Phase D). note-actor-owners keys note id -> actor-owner
+::  ([host desk id]); the note's real creator stays our.bowl. Additive, empty by
+::  default; existing notes have no actor owner.
+::  state-63: Actor Notifications Phase G6B. actor-notifications keys [app-desk,
+::  actor-id] -> (list actor-notification): durable directed reply notifications for
+::  that actor. Compact (resolve author/actor/preview from messages + actor-by-eid at
+::  read time). Additive; migration initializes it EMPTY (no retroactive notifications).
+::  state-64: Phase B. note-unread-activity (durable green-unread source, separate from
+::  note-activity recency) + the real ship-user's actor mute/block sets keyed by the full
+::  [host,desk,id]. Additive; migration seeds unread-activity from note-activity (unread
+::  state preserved) and the pref sets empty (notifications ON by default).
++$  state-64
+  $:  %64
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      actor-by-eid=(map @uv actor:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      actor-registry=(map [@tas @t] actor-record:noltbook)
+      note-actor-owners=(map @ta actor-owner:noltbook)
+      actor-profiles=(map [@tas @t] actor-profile:noltbook)
+      actor-contacts=(map [@tas @t] (set identity-ref:noltbook))
+      actor-preferences=(map [@tas @t] actor-preferences:noltbook)
+      actor-note-participation=(map @ta (set [desk=@tas id=@t]))
+      remote-actor-profiles=(map [host=@p desk=@tas id=@t] [profile=actor-public-profile:noltbook fetched-at=@da])
+      actor-dm-notes=(map @ta actor-dm-meta:noltbook)
+      actor-note-read=(map [@tas @t] (map @ta @da))
+      actor-notifications=(map [@tas @t] (list actor-notification:noltbook))
+      note-unread-activity=(map @ta @da)
+      user-muted-actors=(set actor-ref:noltbook)
+      user-blocked-actors=(set actor-ref:noltbook)
+  ==
++$  state-63
+  $:  %63
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      actor-by-eid=(map @uv actor:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      actor-registry=(map [@tas @t] actor-record:noltbook)
+      note-actor-owners=(map @ta actor-owner:noltbook)
+      actor-profiles=(map [@tas @t] actor-profile:noltbook)
+      actor-contacts=(map [@tas @t] (set identity-ref:noltbook))
+      actor-preferences=(map [@tas @t] actor-preferences:noltbook)
+      actor-note-participation=(map @ta (set [desk=@tas id=@t]))
+      remote-actor-profiles=(map [host=@p desk=@tas id=@t] [profile=actor-public-profile:noltbook fetched-at=@da])
+      actor-dm-notes=(map @ta actor-dm-meta:noltbook)
+      actor-note-read=(map [@tas @t] (map @ta @da))
+      actor-notifications=(map [@tas @t] (list actor-notification:noltbook))
+  ==
+::  state-62: Actor Notifications Phase G6A. actor-note-read keys [app-desk, actor-id]
+::  -> (map note-id read-cursor=@da). Each actor has an INDEPENDENT per-note message
+::  read cursor — reading as Rick never marks the note read for Alice or the host. The
+::  cursor is MESSAGE-only (artifacts never advance it). Additive; seeded on migration
+::  to the newest stored message per participating actor (no retroactive unread).
++$  state-62
+  $:  %62
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      actor-by-eid=(map @uv actor:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      actor-registry=(map [@tas @t] actor-record:noltbook)
+      note-actor-owners=(map @ta actor-owner:noltbook)
+      actor-profiles=(map [@tas @t] actor-profile:noltbook)
+      actor-contacts=(map [@tas @t] (set identity-ref:noltbook))
+      actor-preferences=(map [@tas @t] actor-preferences:noltbook)
+      actor-note-participation=(map @ta (set [desk=@tas id=@t]))
+      remote-actor-profiles=(map [host=@p desk=@tas id=@t] [profile=actor-public-profile:noltbook fetched-at=@da])
+      actor-dm-notes=(map @ta actor-dm-meta:noltbook)
+      actor-note-read=(map [@tas @t] (map @ta @da))
+  ==
+::  state-61: Actor DM Phase G5A. actor-dm-notes keys a note id -> actor-dm-meta,
+::  marking a secret two-ship %group note as a direct actor conversation (NOT a
+::  canonical %dm). Additive, empty by default; no notes/messages/actors rewritten.
++$  state-61
+  $:  %61
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      actor-by-eid=(map @uv actor:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      actor-registry=(map [@tas @t] actor-record:noltbook)
+      note-actor-owners=(map @ta actor-owner:noltbook)
+      actor-profiles=(map [@tas @t] actor-profile:noltbook)
+      actor-contacts=(map [@tas @t] (set identity-ref:noltbook))
+      actor-preferences=(map [@tas @t] actor-preferences:noltbook)
+      actor-note-participation=(map @ta (set [desk=@tas id=@t]))
+      remote-actor-profiles=(map [host=@p desk=@tas id=@t] [profile=actor-public-profile:noltbook fetched-at=@da])
+      actor-dm-notes=(map @ta actor-dm-meta:noltbook)
+  ==
+::  state-60: Actor Social Phase G4. remote-actor-profiles caches another ship's actor
+::  public profiles keyed [host desk id] -> [profile fetched-at], for remote display.
+::  Local actors still resolve from actor-registry + actor-profiles directly. Additive,
+::  empty by default; bounded freshness (~m10) decided at read/request time.
++$  state-60
+  $:  %60
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      actor-by-eid=(map @uv actor:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      actor-registry=(map [@tas @t] actor-record:noltbook)
+      note-actor-owners=(map @ta actor-owner:noltbook)
+      actor-profiles=(map [@tas @t] actor-profile:noltbook)
+      actor-contacts=(map [@tas @t] (set identity-ref:noltbook))
+      actor-preferences=(map [@tas @t] actor-preferences:noltbook)
+      actor-note-participation=(map @ta (set [desk=@tas id=@t]))
+      remote-actor-profiles=(map [host=@p desk=@tas id=@t] [profile=actor-public-profile:noltbook fetched-at=@da])
+  ==
+::  state-59: Actor Notes Phase G2. actor-note-participation keys note id -> a set of
+::  [app-desk, actor-id] that may use that note (durable, membership-like, host-local).
+::  The host @p stays the real note.users member; actors never enter note.users. An
+::  actor may act on a regular note ONLY if it owns it (note-actor-owners) or has a
+::  participation row here. Seeded from note-actor-owners on migration.
++$  state-59
+  $:  %59
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      actor-by-eid=(map @uv actor:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      actor-registry=(map [@tas @t] actor-record:noltbook)
+      note-actor-owners=(map @ta actor-owner:noltbook)
+      actor-profiles=(map [@tas @t] actor-profile:noltbook)
+      actor-contacts=(map [@tas @t] (set identity-ref:noltbook))
+      actor-preferences=(map [@tas @t] actor-preferences:noltbook)
+      actor-note-participation=(map @ta (set [desk=@tas id=@t]))
+  ==
+::  state-58: Actor Social Phase F3 (note-mute removed). actor-preferences keys
+::  [desk id] -> an actor's STORED-ONLY identity mute/block book (blocked/muted
+::  identity-refs only). The plugin consumes it; Noltbook never filters reads or
+::  blocks posts. host pal-blocked/blocked-by/contacts/note-muted untouched.
++$  state-58
+  $:  %58
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      actor-by-eid=(map @uv actor:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      actor-registry=(map [@tas @t] actor-record:noltbook)
+      note-actor-owners=(map @ta actor-owner:noltbook)
+      actor-profiles=(map [@tas @t] actor-profile:noltbook)
+      actor-contacts=(map [@tas @t] (set identity-ref:noltbook))
+      actor-preferences=(map [@tas @t] actor-preferences:noltbook)
+  ==
+::  state-57: Actor Social Phase F3 (frozen). actor-preferences keys [desk id] -> the
+::  old mute/block book (blocked/muted identity-refs + muted note ids). state-58 drops
+::  muted-notes; this shape exists only for the upgrade-57-to-58 load.
++$  state-57
+  $:  %57
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      actor-by-eid=(map @uv actor:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      actor-registry=(map [@tas @t] actor-record:noltbook)
+      note-actor-owners=(map @ta actor-owner:noltbook)
+      actor-profiles=(map [@tas @t] actor-profile:noltbook)
+      actor-contacts=(map [@tas @t] (set identity-ref:noltbook))
+      actor-preferences=(map [@tas @t] actor-preferences-57:noltbook)
+  ==
+::  state-56: Actor Social Phase F2. actor-contacts keys [desk id] -> a set of
+::  identity-refs (ship or actor). Per-actor contact books; never touches the host
+::  ship contacts. Additive, empty by default.
++$  state-56
+  $:  %56
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      actor-by-eid=(map @uv actor:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      actor-registry=(map [@tas @t] actor-record:noltbook)
+      note-actor-owners=(map @ta actor-owner:noltbook)
+      actor-profiles=(map [@tas @t] actor-profile:noltbook)
+      actor-contacts=(map [@tas @t] (set identity-ref:noltbook))
+  ==
+::  state-55: Actor Social Phase F1. actor-profiles keys [desk id] -> actor-profile
+::  (avatar/bio/status-text); the canonical display name stays in actor-record.name.
+::  Additive, empty by default; no actor attribution rewritten.
++$  state-55
+  $:  %55
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      actor-by-eid=(map @uv actor:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      actor-registry=(map [@tas @t] actor-record:noltbook)
+      note-actor-owners=(map @ta actor-owner:noltbook)
+      actor-profiles=(map [@tas @t] actor-profile:noltbook)
+  ==
+::  state-54: Actor Notes (Phase D). note-actor-owners keys note id -> actor-owner.
++$  state-54
+  $:  %54
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      actor-by-eid=(map @uv actor:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      actor-registry=(map [@tas @t] actor-record:noltbook)
+      note-actor-owners=(map @ta actor-owner:noltbook)
+  ==
+::  state-53: Actor Permissions (Phase C). actor-record gains caps=(unit (set
+::  app-cap)) (~ inherits the app grant; [set] narrows within it). Migration maps
+::  every existing record to caps=~ (inherit). app-grants/app-cap unchanged on the
+::  wire (the enum expands but old grants still load).
++$  state-53
+  $:  %53
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      actor-by-eid=(map @uv actor:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      actor-registry=(map [@tas @t] actor-record:noltbook)
+  ==
 ::  state-52: Actor Control (Phase A). app-grants keys desk -> app-grant (host
 ::  governance over local apps); actor-registry keys [desk id] -> actor-record
 ::  (host lifecycle + TOFU). Both additive, empty by default.
@@ -1263,7 +1958,7 @@
       note-active=(map @ta note-active:noltbook)
       actor-by-eid=(map @uv actor:noltbook)
       app-grants=(map @tas app-grant:noltbook)
-      actor-registry=(map [@tas @t] actor-record:noltbook)
+      actor-registry=(map [@tas @t] actor-record-52:noltbook)
   ==
 +$  state-51
   $:  %51
@@ -1895,7 +2590,7 @@
 ::  chains through upgrade-20-to-21 → ... → upgrade-25-to-26
 ++  upgrade-19-to-20
   |=  s=state-19
-  ^-  state-52
+  ^-  state-64
   =/  new-seq=(map @ta @ud)
     %-  ~(rep by seq-counters.s)
     |=  [[[a=@p n=@ta] v=@ud] acc=(map @ta @ud)]
@@ -1915,7 +2610,7 @@
 ::  chains through upgrade-21-to-22 → upgrade-22-to-23
 ++  upgrade-20-to-21
   |=  s=state-20
-  ^-  state-52
+  ^-  state-64
   =/  new-msgs=(map @ta (list message:noltbook))
     %-  ~(run by messages.s)
     |=  msgs=(list message-20)
@@ -1957,7 +2652,7 @@
 ::  upgrade-21-to-22: add meta=(unit entry-meta) to envelopes
 ++  upgrade-21-to-22
   |=  s=state-21
-  ^-  state-52
+  ^-  state-64
   =/  new-envs=(map @ta (map @da envelope-44))
     %-  ~(run by gossip-envelopes.s)
     |=  envs=(map @da envelope-21)
@@ -1979,7 +2674,7 @@
 ::  upgrade-22-to-23: enrich mention storage with stable eid
 ++  upgrade-22-to-23
   |=  s=state-22
-  ^-  state-52
+  ^-  state-64
   =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
     %-  ~(urn by mentions.s)
     |=  [nid=@ta mns=(list [id=@da author=@p])]
@@ -2008,7 +2703,7 @@
 ::  in-flight forks to become fetchable.
 ++  upgrade-30-to-31
   |=  s=state-30
-  ^-  state-52
+  ^-  state-64
   =?  s  (gth ~(wyt by pending-fork-invites.s) 0)
     ~&  [%dropping-legacy-pending-fork-invites count=~(wyt by pending-fork-invites.s)]
     s(pending-fork-invites *(map @ta state-30-pending-fork-invite))
@@ -2031,7 +2726,7 @@
 ::  upgrade-31-to-32: add empty contacts set
 ++  upgrade-31-to-32
   |=  s=state-31
-  ^-  state-52
+  ^-  state-64
   %-  upgrade-32-to-33
   :*  %32
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2052,7 +2747,7 @@
 ::  upgrade-32-to-33: add empty dm-prefs map
 ++  upgrade-32-to-33
   |=  s=state-32
-  ^-  state-52
+  ^-  state-64
   %-  upgrade-33-to-34
   :*  %33
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2076,7 +2771,7 @@
 ::  pre-migration value.
 ++  upgrade-33-to-34
   |=  s=state-33
-  ^-  state-52
+  ^-  state-64
   =/  seeded-revs=(map @ta @ud)
     %-  ~(rep by notes.s)
     |=  [[k=@ta v=note:noltbook] acc=(map @ta @ud)]
@@ -2105,7 +2800,7 @@
 ::  encoder default.
 ++  upgrade-34-to-35
   |=  s=state-34
-  ^-  state-52
+  ^-  state-64
   %-  upgrade-35-to-36
   :*  %35
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2129,7 +2824,7 @@
 ::  upgrade-35-to-36: add empty host-checks map.
 ++  upgrade-35-to-36
   |=  s=state-35
-  ^-  state-52
+  ^-  state-64
   %-  upgrade-36-to-37
   :*  %36
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2154,7 +2849,7 @@
 ::  upgrade-36-to-37: add empty notification-acks set.
 ++  upgrade-36-to-37
   |=  s=state-36
-  ^-  state-52
+  ^-  state-64
   %-  upgrade-37-to-38
   :*  %37
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2183,7 +2878,7 @@
 ::  (cover, ars-rumors) are excluded from seeding.
 ++  upgrade-37-to-38
   |=  s=state-37
-  ^-  state-52
+  ^-  state-64
   =/  seeded=(map @ta @da)
     =/  pairs=(list [nid=@ta msgs=(list message:noltbook)])  ~(tap by messages.s)
     =/  acc=(map @ta @da)  *(map @ta @da)
@@ -2229,7 +2924,7 @@
 ::  upgrade (unread is strict activity > read; equal seeds = read).
 ++  upgrade-38-to-39
   |=  s=state-38
-  ^-  state-52
+  ^-  state-64
   %-  upgrade-39-to-40
   :*  %39
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2258,7 +2953,7 @@
 ::  stamped going forward; existing artifacts have no meta).
 ++  upgrade-39-to-40
   |=  s=state-39
-  ^-  state-52
+  ^-  state-64
   =/  new-arts=(map @ta artifact:noltbook)
     %-  ~(run by artifacts.s)
     |=  a=artifact-pre40:noltbook
@@ -2298,7 +2993,7 @@
 ::  Byte hosting unchanged (only the meta field is populated).
 ++  upgrade-40-to-41
   |=  s=state-40
-  ^-  state-52
+  ^-  state-64
   =/  new-arts=(map @ta artifact:noltbook)
     %-  ~(run by artifacts.s)
     |=  a=artifact:noltbook
@@ -2341,7 +3036,7 @@
 ::  mentions via %attention-update). Existing mention UX is unchanged.
 ++  upgrade-41-to-42
   |=  s=state-41
-  ^-  state-52
+  ^-  state-64
   =/  att=(map @ta (list attention-item:noltbook))  ~
   ::  pipe through upgrade-42-to-43 so the chain terminates at state-43.
   %-  upgrade-42-to-43
@@ -2372,7 +3067,7 @@
 ::  upgrade-42-to-43: add durable cleared-mentions tombstones (empty on migration).
 ++  upgrade-42-to-43
   |=  s=state-42
-  ^-  state-52
+  ^-  state-64
   =/  cm=(map @ta (list [id=@da eid=(unit @uv)]))  ~
   %-  upgrade-43-to-44
   :*  %43
@@ -2403,7 +3098,7 @@
 ::  upgrade-43-to-44: add via-by-eid (durable per-eid app attribution), empty.
 ++  upgrade-43-to-44
   |=  s=state-43
-  ^-  state-52
+  ^-  state-64
   %-  upgrade-44-to-45
   :*  %44
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2434,7 +3129,7 @@
 ::  upgrade-44-to-45: add via=~ to every stored gossip/cover envelope.
 ++  upgrade-44-to-45
   |=  s=state-44
-  ^-  state-52
+  ^-  state-64
   =/  new-envs=(map @ta (map @da envelope:noltbook))
     %-  ~(run by gossip-envelopes.s)
     |=  inner=(map @da envelope-44)
@@ -2474,7 +3169,7 @@
 ::  Cap enforcement lives in the pin handler, never here.
 ++  upgrade-45-to-46
   |=  s=state-45
-  ^-  state-52
+  ^-  state-64
   %-  upgrade-46-to-47
   :*  %46
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2507,7 +3202,7 @@
 ::  rewrite notes, pins, or via; only appends the new field.
 ++  upgrade-46-to-47
   |=  s=state-46
-  ^-  state-52
+  ^-  state-64
   %-  upgrade-47-to-48
   :*  %47
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2541,7 +3236,7 @@
 ::  rewrite notes, pins, app metadata, or via; only appends the new field.
 ++  upgrade-47-to-48
   |=  s=state-47
-  ^-  state-52
+  ^-  state-64
   %-  upgrade-48-to-49
   :*  %48
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2577,7 +3272,7 @@
 ::  intentionally discarded (the multi-pin feature is removed). Other fields copied.
 ++  upgrade-48-to-49
   |=  s=state-48
-  ^-  state-52
+  ^-  state-64
   =/  new-pins=(map @ta note-pin:noltbook)
     %-  ~(run by note-anchors.s)
     |=  a=note-anchor:noltbook
@@ -2616,7 +3311,7 @@
 ::  Only the field is added; no other state is rewritten.
 ++  upgrade-49-to-50
   |=  s=state-49
-  ^-  state-52
+  ^-  state-64
   %-  upgrade-50-to-51
   :*  %50
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2652,7 +3347,7 @@
 ::  and no envelope migration (actor is excluded from gossip/cover in v1).
 ++  upgrade-50-to-51
   |=  s=state-50
-  ^-  state-52
+  ^-  state-64
   %-  upgrade-51-to-52
   :*  %51
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2688,7 +3383,8 @@
 ::  Phase A — host governance over local app actors. Pure additive.
 ++  upgrade-51-to-52
   |=  s=state-51
-  ^-  state-52
+  ^-  state-64
+  %-  upgrade-52-to-53
   :*  %52
       notes.s  messages.s  artifacts.s  profiles.s
       transactions.s  current-note.s  peers.s  has-avatar.s
@@ -2719,12 +3415,565 @@
       note-active.s
       actor-by-eid.s
       `(map @tas app-grant:noltbook)`~
-      `(map [@tas @t] actor-record:noltbook)`~
+      `(map [@tas @t] actor-record-52:noltbook)`~
+  ==
+::  upgrade-52-to-53: add per-actor caps (Phase C). Every existing record migrates
+::  to caps=~ (inherit the app grant). Only the actor-registry value shape changes.
+++  upgrade-52-to-53
+  |=  s=state-52
+  ^-  state-64
+  =/  new-registry=(map [@tas @t] actor-record:noltbook)
+    %-  ~(run by actor-registry.s)
+    |=  r=actor-record-52:noltbook
+    ^-  actor-record:noltbook
+    :*  id.r  name.r  kind.r  status.r
+        created-at.r  updated-at.r  revoked-at.r  last-seen.r
+        ~
+    ==
+  %-  upgrade-53-to-54
+  :*  %53
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      fork-parent-version.s
+      host-checks.s
+      notification-acks.s
+      note-activity.s
+      note-read.s
+      attention.s
+      cleared-mentions.s
+      via-by-eid.s
+      note-pins.s
+      note-apps.s
+      note-active.s
+      actor-by-eid.s
+      app-grants.s
+      new-registry
+  ==
+::  upgrade-53-to-54: add note-actor-owners (empty). Actor note ownership (Phase D).
+::  Pure additive; existing notes get no actor owner.
+++  upgrade-53-to-54
+  |=  s=state-53
+  ^-  state-64
+  %-  upgrade-54-to-55
+  :*  %54
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      fork-parent-version.s
+      host-checks.s
+      notification-acks.s
+      note-activity.s
+      note-read.s
+      attention.s
+      cleared-mentions.s
+      via-by-eid.s
+      note-pins.s
+      note-apps.s
+      note-active.s
+      actor-by-eid.s
+      app-grants.s
+      actor-registry.s
+      `(map @ta actor-owner:noltbook)`~
+  ==
+::  upgrade-54-to-55: add actor-profiles (empty). Actor Social Phase F1. Pure
+::  additive; no actor attribution or registry rewritten.
+++  upgrade-54-to-55
+  |=  s=state-54
+  ^-  state-64
+  %-  upgrade-55-to-56
+  :*  %55
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      fork-parent-version.s
+      host-checks.s
+      notification-acks.s
+      note-activity.s
+      note-read.s
+      attention.s
+      cleared-mentions.s
+      via-by-eid.s
+      note-pins.s
+      note-apps.s
+      note-active.s
+      actor-by-eid.s
+      app-grants.s
+      actor-registry.s
+      note-actor-owners.s
+      `(map [@tas @t] actor-profile:noltbook)`~
+  ==
+::  upgrade-56-to-57: add actor-preferences (empty). Actor Social Phase F3. Pure
+::  additive; registry/profiles/contacts/notes/host pals+contacts+note-muted
+::  untouched. Suspended/revoked actors keep any preferences for reactivation.
+++  upgrade-56-to-57
+  |=  s=state-56
+  ^-  state-64
+  %-  upgrade-57-to-58
+  :*  %57
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      fork-parent-version.s
+      host-checks.s
+      notification-acks.s
+      note-activity.s
+      note-read.s
+      attention.s
+      cleared-mentions.s
+      via-by-eid.s
+      note-pins.s
+      note-apps.s
+      note-active.s
+      actor-by-eid.s
+      app-grants.s
+      actor-registry.s
+      note-actor-owners.s
+      actor-profiles.s
+      actor-contacts.s
+      `(map [@tas @t] actor-preferences-57:noltbook)`~
+  ==
+::  upgrade-57-to-58: drop muted-notes from each actor-preferences row, keeping
+::  blocked/muted. Actor Social Phase F3 cleanup (note-mute removed). Pure projection;
+::  registry/profiles/contacts/notes/messages/ownership untouched.
+++  upgrade-57-to-58
+  |=  s=state-57
+  ^-  state-64
+  %-  upgrade-58-to-59
+  :*  %58
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      fork-parent-version.s
+      host-checks.s
+      notification-acks.s
+      note-activity.s
+      note-read.s
+      attention.s
+      cleared-mentions.s
+      via-by-eid.s
+      note-pins.s
+      note-apps.s
+      note-active.s
+      actor-by-eid.s
+      app-grants.s
+      actor-registry.s
+      note-actor-owners.s
+      actor-profiles.s
+      actor-contacts.s
+      ::  project each frozen row to [blocked muted], dropping muted-notes.
+      %-  ~(run by actor-preferences.s)
+      |=(p=actor-preferences-57:noltbook [blocked.p muted.p])
+  ==
+::  upgrade-58-to-59: add actor-note-participation (Actor Notes Phase G2). Seeded
+::  from note-actor-owners: every existing actor-owned note gives its [desk,id] owner
+::  a participation row. NOTHING is inferred from actor-by-eid/messages/host
+::  membership. All other state fields preserved unchanged.
+++  upgrade-58-to-59
+  |=  s=state-58
+  ^-  state-64
+  =/  seed=(map @ta (set [desk=@tas id=@t]))
+    %-  ~(run by note-actor-owners.s)
+    |=(o=actor-owner:noltbook (sy ~[[desk.o id.o]]))
+  %-  upgrade-59-to-60
+  :*  %59
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      fork-parent-version.s
+      host-checks.s
+      notification-acks.s
+      note-activity.s
+      note-read.s
+      attention.s
+      cleared-mentions.s
+      via-by-eid.s
+      note-pins.s
+      note-apps.s
+      note-active.s
+      actor-by-eid.s
+      app-grants.s
+      actor-registry.s
+      note-actor-owners.s
+      actor-profiles.s
+      actor-contacts.s
+      actor-preferences.s
+      seed
+  ==
+::  upgrade-59-to-60: add remote-actor-profiles (empty). Actor Social Phase G4. Pure
+::  additive; no actor/profile/message rewrite — just a remote display cache.
+++  upgrade-59-to-60
+  |=  s=state-59
+  ^-  state-64
+  %-  upgrade-60-to-61
+  :*  %60
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      fork-parent-version.s
+      host-checks.s
+      notification-acks.s
+      note-activity.s
+      note-read.s
+      attention.s
+      cleared-mentions.s
+      via-by-eid.s
+      note-pins.s
+      note-apps.s
+      note-active.s
+      actor-by-eid.s
+      app-grants.s
+      actor-registry.s
+      note-actor-owners.s
+      actor-profiles.s
+      actor-contacts.s
+      actor-preferences.s
+      actor-note-participation.s
+      `(map [host=@p desk=@tas id=@t] [profile=actor-public-profile:noltbook fetched-at=@da])`~
+  ==
+::  upgrade-60-to-61: add actor-dm-notes (empty). Actor DM Phase G5A. Pure additive;
+::  no notes/messages/actors/markers rewritten.
+++  upgrade-60-to-61
+  |=  s=state-60
+  ^-  state-64
+  %-  upgrade-61-to-62
+  :*  %61
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      fork-parent-version.s
+      host-checks.s
+      notification-acks.s
+      note-activity.s
+      note-read.s
+      attention.s
+      cleared-mentions.s
+      via-by-eid.s
+      note-pins.s
+      note-apps.s
+      note-active.s
+      actor-by-eid.s
+      app-grants.s
+      actor-registry.s
+      note-actor-owners.s
+      actor-profiles.s
+      actor-contacts.s
+      actor-preferences.s
+      actor-note-participation.s
+      remote-actor-profiles.s
+      `(map @ta actor-dm-meta:noltbook)`~
+  ==
+::  upgrade-61-to-62: add actor-note-read (Actor Notifications Phase G6A). SEED every
+::  participating actor as read through the newest currently-stored MESSAGE in each
+::  note, so no existing actor note becomes retroactively unread. Notes with no
+::  messages get no row. Nothing else (messages/participation/ownership/markers/host
+::  note-read) is rewritten.
+++  upgrade-61-to-62
+  |=  s=state-61
+  ^-  state-64
+  =/  seed=(map [@tas @t] (map @ta @da))
+    =/  acc=(map [@tas @t] (map @ta @da))  ~
+    =/  parts=(list [nid=@ta mem=(set [desk=@tas id=@t])])  ~(tap by actor-note-participation.s)
+    |-  ^+  acc
+    ?~  parts  acc
+    =/  newest=@da  (newest-msg-da (fall (~(get by messages.s) nid.i.parts) ~))
+    ?:  =(`@da`0 newest)  $(parts t.parts)
+    =/  acc2=(map [@tas @t] (map @ta @da))
+      =/  mem=(list [desk=@tas id=@t])  ~(tap in mem.i.parts)
+      |-  ^+  acc
+      ?~  mem  acc
+      =/  k=[@tas @t]  [desk.i.mem id.i.mem]
+      =/  inner=(map @ta @da)  (fall (~(get by acc) k) ~)
+      $(mem t.mem, acc (~(put by acc) k (~(put by inner) nid.i.parts newest)))
+    $(parts t.parts, acc acc2)
+  %-  upgrade-62-to-63
+  :*  %62
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      fork-parent-version.s
+      host-checks.s
+      notification-acks.s
+      note-activity.s
+      note-read.s
+      attention.s
+      cleared-mentions.s
+      via-by-eid.s
+      note-pins.s
+      note-apps.s
+      note-active.s
+      actor-by-eid.s
+      app-grants.s
+      actor-registry.s
+      note-actor-owners.s
+      actor-profiles.s
+      actor-contacts.s
+      actor-preferences.s
+      actor-note-participation.s
+      remote-actor-profiles.s
+      actor-dm-notes.s
+      seed
+  ==
+::  upgrade-62-to-63: add actor-notifications (EMPTY). Actor Notifications Phase G6B.
+::  Pure additive — no retroactive notifications; messages/actors/cursors/host
+::  attention are not rewritten.
+++  upgrade-62-to-63
+  |=  s=state-62
+  ^-  state-64
+  %-  upgrade-63-to-64
+  :*  %63
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      fork-parent-version.s
+      host-checks.s
+      notification-acks.s
+      note-activity.s
+      note-read.s
+      attention.s
+      cleared-mentions.s
+      via-by-eid.s
+      note-pins.s
+      note-apps.s
+      note-active.s
+      actor-by-eid.s
+      app-grants.s
+      actor-registry.s
+      note-actor-owners.s
+      actor-profiles.s
+      actor-contacts.s
+      actor-preferences.s
+      actor-note-participation.s
+      remote-actor-profiles.s
+      actor-dm-notes.s
+      actor-note-read.s
+      `(map [@tas @t] (list actor-notification:noltbook))`~
+  ==
+::  upgrade-63-to-64: Phase B. SEED note-unread-activity from note-activity (existing
+::  durable unread state is preserved), mute/block sets EMPTY (notifications ON by
+::  default). Pure additive — no actor/message/notification rewrite.
+++  upgrade-63-to-64
+  |=  s=state-63
+  ^-  state-64
+  :*  %64
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      fork-parent-version.s
+      host-checks.s
+      notification-acks.s
+      note-activity.s
+      note-read.s
+      attention.s
+      cleared-mentions.s
+      via-by-eid.s
+      note-pins.s
+      note-apps.s
+      note-active.s
+      actor-by-eid.s
+      app-grants.s
+      actor-registry.s
+      note-actor-owners.s
+      actor-profiles.s
+      actor-contacts.s
+      actor-preferences.s
+      actor-note-participation.s
+      remote-actor-profiles.s
+      actor-dm-notes.s
+      actor-note-read.s
+      actor-notifications.s
+      note-activity.s
+      `(set actor-ref:noltbook)`~
+      `(set actor-ref:noltbook)`~
+  ==
+::  upgrade-55-to-56: add actor-contacts (empty). Actor Social Phase F2. Pure
+::  additive; profiles/registry/ship-contacts untouched.
+++  upgrade-55-to-56
+  |=  s=state-55
+  ^-  state-64
+  %-  upgrade-56-to-57
+  :*  %56
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      fork-parent-version.s
+      host-checks.s
+      notification-acks.s
+      note-activity.s
+      note-read.s
+      attention.s
+      cleared-mentions.s
+      via-by-eid.s
+      note-pins.s
+      note-apps.s
+      note-active.s
+      actor-by-eid.s
+      app-grants.s
+      actor-registry.s
+      note-actor-owners.s
+      actor-profiles.s
+      `(map [@tas @t] (set identity-ref:noltbook))`~
   ==
 ::  upgrade-29-to-30: add pending-fork-invites map (empty).
 ++  upgrade-29-to-30
   |=  s=state-29
-  ^-  state-52
+  ^-  state-64
   %-  upgrade-30-to-31
   :*  %30
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2744,7 +3993,7 @@
 ::  note is treated as v1 (origin computed lazily by note-lineage-of helper).
 ++  upgrade-28-to-29
   |=  s=state-28
-  ^-  state-52
+  ^-  state-64
   %-  upgrade-29-to-30
   :*  %29
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2766,7 +4015,7 @@
 ::  remote host issues %remote-note-deleted post-upgrade.
 ++  upgrade-27-to-28
   |=  s=state-27
-  ^-  state-52
+  ^-  state-64
   %-  upgrade-28-to-29
   :*  %28
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2783,7 +4032,7 @@
 ::  upgrade-25-to-26: add blocked-by set
 ++  upgrade-26-to-27
   |=  s=state-26
-  ^-  state-52
+  ^-  state-64
   %-  upgrade-27-to-28
   :*  %27
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2798,7 +4047,7 @@
   ==
 ++  upgrade-25-to-26
   |=  s=state-25
-  ^-  state-52
+  ^-  state-64
   %-  upgrade-26-to-27
   :*  %26
       notes.s  messages.s  artifacts.s  profiles.s
@@ -2813,7 +4062,7 @@
 ::  upgrade-24-to-25: add note-admins and note-muted maps
 ++  upgrade-24-to-25
   |=  s=state-24
-  ^-  state-52
+  ^-  state-64
   %-  upgrade-25-to-26
   :*  %25
       notes.s  messages.s  artifacts.s  profiles.s
@@ -3144,6 +4393,261 @@
   |=  nid=@ta
   ^-  card:agent:gall
   [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%note-deleted nid])]
+::  prune-participation (Phase G2): drop actor-note-participation rows for a list of
+::  removed note ids. Shared by the primary local-removal paths (leave/remote-delete)
+::  so participation never outlives its note on those paths.
+++  prune-participation
+  |=  [ids=(list @ta) parts=(map @ta (set [desk=@tas id=@t]))]
+  ^-  (map @ta (set [desk=@tas id=@t]))
+  =/  acc=(map @ta (set [desk=@tas id=@t]))  parts
+  |-
+  ?~  ids  acc
+  $(ids t.ids, acc (~(del by acc) i.ids))
+::  ===== Phase G6A: actor-scoped message read cursors =====
+::  newest-msg-da: newest MESSAGE creation time (@da) in a list; 0 if none. Actor
+::  unread is MESSAGE-ONLY — artifacts never advance an actor cursor (actors have no
+::  artifact access), so we never consult note-activity (which also counts artifacts).
+++  newest-msg-da
+  |=  msgs=(list message:noltbook)
+  ^-  @da
+  %+  roll  msgs
+  |=  [m=message:noltbook acc=@da]
+  ?:((gth id.m acc) id.m acc)
+::  actor-read-get: an actor's read cursor for one note (0 = none).
+++  actor-read-get
+  |=  [read=(map [@tas @t] (map @ta @da)) desk=@tas aid=@t nid=@ta]
+  ^-  @da
+  (fall (~(get by (fall (~(get by read) [desk aid]) ~)) nid) `@da`0)
+::  actor-read-put: MONOTONICALLY advance an actor's cursor — never decreases.
+++  actor-read-put
+  |=  [read=(map [@tas @t] (map @ta @da)) desk=@tas aid=@t nid=@ta t=@da]
+  ^-  (map [@tas @t] (map @ta @da))
+  =/  inner=(map @ta @da)  (fall (~(get by read) [desk aid]) ~)
+  =/  cur=@da  (fall (~(get by inner) nid) `@da`0)
+  ?:  (lte t cur)  read
+  (~(put by read) [desk aid] (~(put by inner) nid t))
+::  actor-read-seed: set an actor's cursor to the newest stored message (so joining an
+::  existing note does NOT mark its history unread). No-op when there are no messages.
+++  actor-read-seed
+  |=  [read=(map [@tas @t] (map @ta @da)) desk=@tas aid=@t nid=@ta msgs=(list message:noltbook)]
+  ^-  (map [@tas @t] (map @ta @da))
+  (actor-read-put read desk aid nid (newest-msg-da msgs))
+::  actor-read-del: remove ONE actor/note cursor; drop the inner map if it empties.
+++  actor-read-del
+  |=  [read=(map [@tas @t] (map @ta @da)) desk=@tas aid=@t nid=@ta]
+  ^-  (map [@tas @t] (map @ta @da))
+  =/  inner=(map @ta @da)  (fall (~(get by read) [desk aid]) ~)
+  ?.  (~(has by inner) nid)  read
+  =/  ni=(map @ta @da)  (~(del by inner) nid)
+  ?:  =(~ ni)  (~(del by read) [desk aid])
+  (~(put by read) [desk aid] ni)
+::  actor-read-prune: drop a set of deleted note ids from EVERY actor's inner map;
+::  drop any inner map that empties. Used wherever participation is pruned for deleted
+::  notes, so cursors never outlive their note.
+++  actor-read-prune
+  |=  [read=(map [@tas @t] (map @ta @da)) ids=(list @ta)]
+  ^-  (map [@tas @t] (map @ta @da))
+  =/  idset=(set @ta)  (~(gas in *(set @ta)) ids)
+  =/  out=(map [@tas @t] (map @ta @da))  ~
+  =/  pairs=(list [k=[@tas @t] inner=(map @ta @da)])  ~(tap by read)
+  |-  ^+  out
+  ?~  pairs  out
+  =/  ni=(map @ta @da)
+    %-  ~(gas by *(map @ta @da))
+    %+  skip  ~(tap by inner.i.pairs)
+    |=([nid=@ta t=@da] (~(has in idset) nid))
+  ?:  =(~ ni)  $(pairs t.pairs)
+  $(pairs t.pairs, out (~(put by out) k.i.pairs ni))
+::  ===== Phase G6B: actor-directed reply notifications =====
+::  reply-parent-eid: the immediate parent's eid for a reply — reply-to-eid first,
+::  else the legacy reply-to (@da) mapped through the note's messages to that parent's
+::  eid. ~ if not a reply or the parent/eid can't be resolved. Only the immediate
+::  parent is consulted (no ancestor walk).
+++  reply-parent-eid
+  |=  [msg=message:noltbook note-msgs=(list message:noltbook)]
+  ^-  (unit @uv)
+  ?~  meta.msg  ~
+  ?^  reply-to-eid.u.meta.msg  reply-to-eid.u.meta.msg
+  ?~  reply-to.msg  ~
+  =/  hit=(list message:noltbook)  (skim note-msgs |=(m=message:noltbook =(id.m u.reply-to.msg)))
+  ?~  hit  ~
+  ?~  meta.i.hit  ~
+  `eid.u.meta.i.hit
+::  actor-notif-resolve: a durable notification -> the RESOLVED view, joining the
+::  replying message (author + current edited preview) and its actor (actor-by-eid).
+::  ~ when the replying message no longer exists (so a stale row never surfaces).
+++  actor-notif-resolve
+  |=  $:  n=actor-notification:noltbook
+          messages=(map @ta (list message:noltbook))
+          amap=actor-map:noltbook
+      ==
+  ^-  (unit actor-notification-view:noltbook)
+  =/  msgs=(list message:noltbook)  (fall (~(get by messages) note-id.n) ~)
+  =/  hit=(list message:noltbook)
+    (skim msgs |=(m=message:noltbook ?&(?=(^ meta.m) =(eid.u.meta.m eid.n))))
+  ?~  hit  ~
+  =/  m=message:noltbook  i.hit
+  ::  public timestamp is the replying MESSAGE's timestamp (identical on every ship),
+  ::  NOT the local receipt time (created-at, kept in the durable record for internal
+  ::  append-order/audit only).
+  `[kind.n note-id.n eid.n msg-id.n author.m (~(get by amap) eid.n) text.m timestamp.m]
+::  actor-notif-views: resolve a durable list to views, NEWEST-FIRST (stored append
+::  order is oldest-first, so flop). Unresolvable rows are dropped.
+++  actor-notif-views
+  |=  $:  ns=(list actor-notification:noltbook)
+          messages=(map @ta (list message:noltbook))
+          amap=actor-map:noltbook
+      ==
+  ^-  (list actor-notification-view:noltbook)
+  %-  flop
+  %+  murn  ns
+  |=(n=actor-notification:noltbook (actor-notif-resolve n messages amap))
+::  actor-notif-add: create a directed reply notification for the parent message's
+::  actor when ALL hold — parent is actor-attributed, that actor's host is ours, the
+::  sender is not the same actor, the target currently owns/participates (actor-DM
+::  rules included), the target is not revoked, and the sender is not muted/blocked in
+::  the target's prefs. Dedups by note-id + eid. Returns [notifs delta-cards]; the
+::  delta (full=%.n) carries the single new view on /api/results. NEVER creates host
+::  attention and NEVER mutates host pal/block/mute/note-read.
+++  actor-notif-add
+  |=  $:  notifs=(map [@tas @t] (list actor-notification:noltbook))
+          our=@p  now=@da  nid=@ta
+          msg=message:noltbook
+          sender-actor=(unit actor:noltbook)
+          amap=actor-map:noltbook
+          note-msgs=(list message:noltbook)
+          registry=(map [@tas @t] actor-record:noltbook)
+          owners=(map @ta actor-owner:noltbook)
+          parts=(map @ta (set [desk=@tas id=@t]))
+          dms=(map @ta actor-dm-meta:noltbook)
+          nmap=(map @ta note:noltbook)
+          prefs-map=(map [@tas @t] actor-preferences:noltbook)
+      ==
+  ^-  [(list card:agent:gall) (map [@tas @t] (list actor-notification:noltbook))]
+  ::  the replying message must carry an eid (it is the dedup + resolve identity).
+  ?~  meta.msg  [~ notifs]
+  =/  my-eid=@uv  eid.u.meta.msg
+  ::  resolve the immediate parent eid (reply-to-eid, else legacy reply-to @da).
+  =/  pe=(unit @uv)  (reply-parent-eid msg note-msgs)
+  ?~  pe  [~ notifs]
+  ::  the parent must be attributed to an actor; otherwise host attention handles it.
+  =/  tgt-u=(unit actor:noltbook)  (~(get by amap) u.pe)
+  ?~  tgt-u  [~ notifs]
+  =/  tgt=actor:noltbook  u.tgt-u
+  ::  only the target actor's OWN host records the notification (a remote host that
+  ::  stores the same message must not notify an actor hosted elsewhere).
+  ?.  =(host.tgt our)  [~ notifs]
+  ::  a reply from the EXACT same actor to itself notifies nobody. A host @p reply and
+  ::  a different actor under the same host are distinct identities and DO notify.
+  ?:  ?&  ?=(^ sender-actor)
+          =(host.u.sender-actor host.tgt)
+          =(desk.u.sender-actor desk.tgt)
+          =(id.u.sender-actor id.tgt)
+      ==
+    [~ notifs]
+  ::  the target must currently own or participate (inherits actor-DM owner/adopter
+  ::  host-role rules + the membership invariant from actor-note-access).
+  =/  acc  (actor-note-access our nid desk.tgt id.tgt nmap owners parts dms)
+  ?:  ?=(%.n -.acc)  [~ notifs]
+  ::  the target must have a CANONICAL registry row that is not revoked. A missing row
+  ::  (historical actor-by-eid attribution predating the registry migration) creates no
+  ::  notification and is NEVER silently TOFU-registered here; active/suspended accumulate.
+  ::  Host attention stays suppressed regardless (the caller gated on parent-is-actor).
+  =/  rec  (~(get by registry) [desk.tgt id.tgt])
+  ?:  ?|(?=(~ rec) ?=(%revoked status.u.rec))  [~ notifs]
+  ::  preference filter: sender muted OR blocked suppresses (message still posted).
+  =/  sender-ref=identity-ref:noltbook
+    ?~  sender-actor  [%ship author.msg]
+    [%actor host.u.sender-actor desk.u.sender-actor id.u.sender-actor]
+  =/  prefs=actor-preferences:noltbook  (fall (~(get by prefs-map) [desk.tgt id.tgt]) [~ ~])
+  ?:  |((~(has in muted.prefs) sender-ref) (~(has in blocked.prefs) sender-ref))
+    [~ notifs]
+  ::  dedup by note-id + eid.
+  =/  key=[@tas @t]  [desk.tgt id.tgt]
+  =/  cur=(list actor-notification:noltbook)  (fall (~(get by notifs) key) ~)
+  ?:  (lien cur |=(n=actor-notification:noltbook &(=(note-id.n nid) =(eid.n my-eid))))
+    [~ notifs]
+  ::  durable record keeps created-at=now (internal append-order/audit only).
+  =/  new-notif=actor-notification:noltbook  [%reply nid my-eid id.msg now]
+  ::  the delta view: the replying message's author/actor/preview (built directly, so it
+  ::  does not depend on the new message being in the messages map yet). The PUBLIC
+  ::  timestamp is the message timestamp (matches the durable read on every ship).
+  =/  view=actor-notification-view:noltbook
+    [%reply nid my-eid id.msg author.msg sender-actor text.msg timestamp.msg]
+  :-  ~[[%give %fact ~[/api/results] %noltbook-update !>(`update:noltbook`[%actor-notifications-updated desk.tgt id.tgt ~[view] %.n])]]
+  (~(put by notifs) key (snoc cur new-notif))
+::  actor-notif-del-eid: drop every notification targeting a replying eid (its message
+::  was deleted), across all actors; drop emptied per-actor rows.
+++  actor-notif-del-eid
+  |=  [notifs=(map [@tas @t] (list actor-notification:noltbook)) eid=@uv]
+  ^-  (map [@tas @t] (list actor-notification:noltbook))
+  =/  out=(map [@tas @t] (list actor-notification:noltbook))  ~
+  =/  pairs=(list [k=[@tas @t] l=(list actor-notification:noltbook)])  ~(tap by notifs)
+  |-  ^+  out
+  ?~  pairs  out
+  =/  nl=(list actor-notification:noltbook)
+    (skip l.i.pairs |=(n=actor-notification:noltbook =(eid.n eid)))
+  ?:  =(~ nl)  $(pairs t.pairs)
+  $(pairs t.pairs, out (~(put by out) k.i.pairs nl))
+::  actor-notif-del-actor-note: drop one actor's notifications for a single note (the
+::  actor left or was removed); drop the row if it empties.
+++  actor-notif-del-actor-note
+  |=  [notifs=(map [@tas @t] (list actor-notification:noltbook)) desk=@tas aid=@t nid=@ta]
+  ^-  (map [@tas @t] (list actor-notification:noltbook))
+  =/  cur=(list actor-notification:noltbook)  (fall (~(get by notifs) [desk aid]) ~)
+  =/  nl=(list actor-notification:noltbook)
+    (skip cur |=(n=actor-notification:noltbook =(note-id.n nid)))
+  ?:  =(~ nl)  (~(del by notifs) [desk aid])
+  (~(put by notifs) [desk aid] nl)
+::  actor-notif-prune-notes: drop notifications for a set of removed note ids across
+::  EVERY actor; drop emptied rows. Used at note/subtree/ship-level note removal.
+++  actor-notif-prune-notes
+  |=  [notifs=(map [@tas @t] (list actor-notification:noltbook)) ids=(list @ta)]
+  ^-  (map [@tas @t] (list actor-notification:noltbook))
+  =/  idset=(set @ta)  (~(gas in *(set @ta)) ids)
+  =/  out=(map [@tas @t] (list actor-notification:noltbook))  ~
+  =/  pairs=(list [k=[@tas @t] l=(list actor-notification:noltbook)])  ~(tap by notifs)
+  |-  ^+  out
+  ?~  pairs  out
+  =/  nl=(list actor-notification:noltbook)
+    (skip l.i.pairs |=(n=actor-notification:noltbook (~(has in idset) note-id.n)))
+  ?:  =(~ nl)  $(pairs t.pairs)
+  $(pairs t.pairs, out (~(put by out) k.i.pairs nl))
+::  actor-notif-full-cards: authoritative remaining list for one actor on /api/results
+::  (full=%.y) — used after a clear or a per-actor lifecycle prune.
+++  actor-notif-full-cards
+  |=  $:  notifs=(map [@tas @t] (list actor-notification:noltbook))
+          desk=@tas  aid=@t
+          messages=(map @ta (list message:noltbook))
+          amap=actor-map:noltbook
+      ==
+  ^-  (list card:agent:gall)
+  =/  views=(list actor-notification-view:noltbook)
+    (actor-notif-views (fall (~(get by notifs) [desk aid]) ~) messages amap)
+  ~[[%give %fact ~[/api/results] %noltbook-update !>(`update:noltbook`[%actor-notifications-updated desk aid views %.y])]]
+::  actor-notif-diff-cards: emit ONE authoritative full=%.y %actor-notifications-updated
+::  per actor key whose notification list ACTUALLY changed between the old and new maps
+::  (union of keys; a now-empty row emits an empty list; unchanged keys emit nothing, so
+::  an unrelated deletion is silent). Remaining rows resolve with the POST-mutation
+::  messages + actor-by-eid. Used by every deletion/note-removal pruning path so live
+::  /api/results clients drop stale rows without rereading the route.
+++  actor-notif-diff-cards
+  |=  $:  old=(map [@tas @t] (list actor-notification:noltbook))
+          new=(map [@tas @t] (list actor-notification:noltbook))
+          messages=(map @ta (list message:noltbook))
+          amap=actor-map:noltbook
+      ==
+  ^-  (list card:agent:gall)
+  =/  keys=(set [@tas @t])  (~(uni in ~(key by old)) ~(key by new))
+  %-  zing
+  %+  turn  ~(tap in keys)
+  |=  k=[@tas @t]
+  ^-  (list card:agent:gall)
+  =/  ol=(list actor-notification:noltbook)  (fall (~(get by old) k) ~)
+  =/  nl=(list actor-notification:noltbook)  (fall (~(get by new) k) ~)
+  ?:  =(ol nl)  ~
+  =/  views=(list actor-notification-view:noltbook)  (actor-notif-views nl messages amap)
+  ~[[%give %fact ~[/api/results] %noltbook-update !>(`update:noltbook`[%actor-notifications-updated -.k +.k views %.y])]]
 ::  ===== Phase 5: host-deleted preservation helpers =====
 ::  is-host-deleted: tests whether a note id is marked host-deleted in the
 ::  given host-status map. Used to gate fork-vs-leave decisions where the
@@ -3187,6 +4691,59 @@
   |=  [nid=@ta time=@da]
   ^-  card
   [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%note-read nid time])]
+::  ===== Phase B: separate unread-activity + real-user actor mute/block =====
+::  put-unread-activity: durable green-unread recency, parallel to put-activity (same
+::  pinned-note skip). note-activity keeps driving sidebar order; this drives the unread
+::  dot. Muted/blocked actor messages advance note-activity but NOT this map.
+++  put-unread-activity
+  |=  [nua=(map @ta @da) nid=@ta time=@da]
+  ^-  (map @ta @da)
+  ?:  (is-pinned-note nid)  nua
+  (~(put by nua) nid time)
+::  unread-activity-fact: /notes fact advancing a note's durable UNREAD activity.
+++  unread-activity-fact
+  |=  [nid=@ta time=@da]
+  ^-  card
+  [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%note-unread-activity nid time])]
+::  actor-ref-of: the stable [host,desk,id] preference key for a canonical actor.
+++  actor-ref-of
+  |=  a=actor:noltbook
+  ^-  actor-ref:noltbook
+  [host.a desk.a id.a]
+::  actor-user-suppressed: should THIS message's actor be suppressed for the real user?
+::  True when an actor is attributed AND its ref is in the muted OR blocked set. Uses
+::  only the canonical actor handed in at each storage path (never an unvalidated wire).
+++  actor-user-suppressed
+  |=  $:  actor=(unit actor:noltbook)
+          muted=(set actor-ref:noltbook)
+          blocked=(set actor-ref:noltbook)
+      ==
+  ^-  ?
+  ?~  actor  %.n
+  =/  ref=actor-ref:noltbook  (actor-ref-of u.actor)
+  |((~(has in muted) ref) (~(has in blocked) ref))
+::  user-actor-prefs-fact: ONE authoritative snapshot of the real user's actor mute/block
+::  prefs (full lists), replayed on watch and after every mutation. paths picks the wire.
+++  user-actor-prefs-fact
+  |=  $:  paths=(list path)
+          muted=(set actor-ref:noltbook)
+          blocked=(set actor-ref:noltbook)
+      ==
+  ^-  card
+  =/  upd=update:noltbook  [%user-actor-preferences ~(tap in muted) ~(tap in blocked)]
+  [%give %fact paths %noltbook-update !>(upd)]
+::  api-parse-actor-ref: validate a raw [host,desk,id] from the API into a typed ref.
+::  host=@p (else invalid-ship); desk=@tas + id non-empty <=128B (else invalid-actor).
+::  The target need NOT exist locally (remote actors are valid; no TOFU/last-seen).
+++  api-parse-actor-ref
+  |=  [host=@t desk=@t id=@t]
+  ^-  (each actor-ref:noltbook [code=@tas msg=@t])
+  =/  hp=(unit @p)  (slaw %p host)
+  ?~  hp  [%.n %invalid-ship 'host is not a valid @p']
+  =/  dt=(unit @tas)  (rush desk sym)
+  ?~  dt  [%.n %invalid-actor 'desk is not a valid @tas']
+  ?:  |(=(0 (met 3 id)) (gth (met 3 id) 128))  [%.n %invalid-actor 'id empty or too long']
+  [%.y u.hp u.dt id]
 ::  artifact-preview: compact sidebar preview text for a newly-created
 ::  artifact. "shared <name>" when named, else type-based fallback.
 ++  artifact-preview
@@ -3371,7 +4928,7 @@
 ::  upgrade-23-to-24: add join-requests map
 ++  upgrade-23-to-24
   |=  s=state-23
-  ^-  state-52
+  ^-  state-64
   %-  upgrade-24-to-25
   :*  %24
       notes.s  messages.s  artifacts.s  profiles.s
@@ -3621,6 +5178,35 @@
       ['app' (api-app-json app)]
       ['active' (api-active-json active now)]
   ==
+::  api-actor-note-summary (Phase G2): one note as seen through an actor's scoped
+::  /notes read. owned/participant flag WHY it is visible. No artifact data here.
+++  api-actor-note-summary
+  |=  $:  n=note:noltbook  owned=?  participant=?
+          owner=(unit actor-owner:noltbook)
+          registry=(map [@tas @t] actor-record:noltbook)
+          dm=(unit actor-dm-meta:noltbook)
+          activity=@da  read=@da
+      ==
+  ^-  json
+  %-  pairs:enjs:format
+  :~  ['id' s+(crip (trip id.n))]
+      ['name' s+name.n]
+      ['type' s+(crip (trip (scot %tas type.n)))]
+      ['creator' s+(scot %p creator.n)]
+      ['visibility' s+(crip (trip (scot %tas visibility.n)))]
+      ['writable' b+writable.n]
+      ['userCount' (numb:enjs:format ~(wyt in users.n))]
+      ['lastAuthor' ?~(last-author.n ~ s+(scot %p u.last-author.n))]
+      ['lastPreview' ?~(last-preview.n ~ s+u.last-preview.n)]
+      ['actorOwner' (api-actor-owner-json owner registry)]
+      ['actorDm' ?~(dm ~ (api-actor-dm-json u.dm))]
+      ['owned' b+owned]
+      ['participant' b+participant]
+      ::  G6A: actor-scoped unread (MESSAGE-only newest vs this actor's cursor; ms).
+      ['activity' ?:(=(`@da`0 activity) ~ (numb:enjs:format (api-da-ms activity)))]
+      ['read' ?:(=(`@da`0 read) ~ (numb:enjs:format (api-da-ms read)))]
+      ['unread' b+(gth activity read)]
+  ==
 ::  api-app-json: stable read shape for durable app-note metadata. null when the
 ::  note has no association. createdBy/createdAt are server-stamped.
 ++  api-app-json
@@ -3781,6 +5367,33 @@
       ['name' s+name.u.a]
       ['kind' s+(scot %tas kind.u.a)]
   ==
+::  actor-ref-json (Phase G6B): a bare actor [host desk id name kind] as JSON. Mirrored
+::  field-for-field by mar/update for the live notification event.
+++  actor-ref-json
+  |=  a=actor:noltbook
+  ^-  json
+  %-  pairs:enjs:format
+  :~  ['host' s+(scot %p host.a)]
+      ['desk' s+(scot %tas desk.a)]
+      ['id' s+id.a]
+      ['name' s+name.a]
+      ['kind' s+(scot %tas kind.a)]
+  ==
+::  api-actor-notif-json (Phase G6B): a resolved reply notification view as JSON.
+::  Mirrored by mar/update so the read route and the live event share one shape.
+++  api-actor-notif-json
+  |=  v=actor-notification-view:noltbook
+  ^-  json
+  %-  pairs:enjs:format
+  :~  ['kind' s+(scot %tas kind.v)]
+      ['noteId' s+(crip (trip note-id.v))]
+      ['eid' s+(scot %uv eid.v)]
+      ['msgId' s+(scot %da msg-id.v)]
+      ['author' s+(scot %p author.v)]
+      ['actor' ?~(actor.v ~ (actor-ref-json u.actor.v))]
+      ['preview' s+preview.v]
+      ['timestamp' (numb:enjs:format (api-da-ms timestamp.v))]
+  ==
 ::  api-actor-put: record an actor for a just-stored message, keyed by its eid,
 ::  when actor is present and the message carries an eid. No-op otherwise.
 ::  Mirrors api-via-put; used at every durable store on direct-note paths.
@@ -3811,9 +5424,15 @@
 ::    unknown [desk id]                          => TOFU, auto-register %active
 ::    %suspended / %revoked                      => reject (post denied)
 ::    %active                                    => accept, bump last-seen
-++  gate-actor
+::  gate-actor-cap (Phase C): governance + capability check. The app grant is the
+::  CEILING — every cap in `need` must be in app-grant.caps. Per-actor caps narrow
+::  within it: ~ inherits (ceiling already enforced), [set] must also contain every
+::  needed cap. suspended/revoked blocks everything. Unknown [desk id] => TOFU
+::  registers active with caps=~ (inherit). `need` = caps this action requires.
+++  gate-actor-cap
   |=  $:  our=@p  now=@da
           desk=@tas  id=@t  name=@t  kind=?(%user %bot %app)
+          need=(set app-cap:noltbook)
           grants=(map @tas app-grant:noltbook)
           registry=(map [@tas @t] actor-record:noltbook)
       ==
@@ -3823,20 +5442,245 @@
   =/  g  (~(get by grants) desk)
   ?~  g  [%.n %app-not-granted 'app has no actor grant']
   ?.  enabled.u.g  [%.n %app-disabled 'app grant disabled']
-  ?.  (~(has in caps.u.g) %attribute)  [%.n %app-not-granted 'app lacks %attribute cap']
+  ::  app grant ceiling: every needed cap must be granted to the app.
+  =/  app-miss  (~(dif in need) caps.u.g)
+  ?^  app-miss
+    [%.n %cap-missing (cat 3 'app lacks %' (scot %tas n.app-miss))]
   =/  key  [desk id]
-  =/  ax=actor:noltbook  [our desk id name kind]
   =/  rec  (~(get by registry) key)
   ?~  rec
-    ::  TOFU: first attributed post auto-registers an active actor.
-    =/  nr=actor-record:noltbook  [id name kind %active now now ~ now]
+    ::  TOFU: first attributed action auto-registers an active actor (caps=~
+    ::  inherit), initializing name/kind from this (valid) request.
+    =/  ax=actor:noltbook  [our desk id name kind]
+    =/  nr=actor-record:noltbook  [id name kind %active now now ~ now ~]
     [%.y ax (~(put by registry) key nr)]
   ?:  ?=(%suspended status.u.rec)  [%.n %actor-suspended 'actor suspended']
   ?:  ?=(%revoked status.u.rec)    [%.n %actor-revoked 'actor revoked']
-  ::  active: refresh display name/kind + last-seen; keep status/created-at.
+  ::  per-actor caps narrow within the grant: ~ inherits; [set] must contain need.
+  =/  act-miss=(set app-cap:noltbook)
+    ?~(caps.u.rec ~ (~(dif in need) u.caps.u.rec))
+  ?^  act-miss
+    [%.n %cap-missing (cat 3 'actor lacks %' (scot %tas n.act-miss))]
+  ::  CANONICAL identity (Phase F1): the registry's name/kind win for an existing
+  ::  actor — request-supplied name/kind are IGNORED here, so a stale poke can't
+  ::  rewrite the actor's display values. Only last-seen/updated-at advance; the
+  ::  returned stamp uses the canonical record values. (update-actor / update-actor
+  ::  -profile are the explicit paths to change name; history is never rewritten.)
+  =/  ax=actor:noltbook  [our desk id name.u.rec kind.u.rec]
   =/  nr=actor-record:noltbook
-    u.rec(name name, kind kind, last-seen now, updated-at now)
+    u.rec(last-seen now, updated-at now)
   [%.y ax (~(put by registry) key nr)]
+::  gate-actor-owns (Actor Tools Phase B): resolve a target message and verify the
+::  supplied app+actor OWNS it — the stored actor-by-eid row matches
+::  [our, app.desk, actor.id] — THEN run normal governance (gate-actor). Match is
+::  checked BEFORE gate so an unrelated actor never TOFU-registers against an old
+::  message. Returns the resolved target + its eid + updated registry, or a code.
+++  gate-actor-owns
+  |=  $:  our=@p  now=@da
+          app=(unit api-app:noltbook)  act=(unit api-actor:noltbook)
+          msgs=(list message:noltbook)
+          eid=(unit @uv)  mid=(unit @da)
+          need=(set app-cap:noltbook)
+          grants=(map @tas app-grant:noltbook)
+          registry=(map [@tas @t] actor-record:noltbook)
+          amap=actor-map:noltbook
+      ==
+  ^-  %+  each
+        [target=message:noltbook eid=@uv registry=(map [@tas @t] actor-record:noltbook)]
+      [code=@tas msg=@t]
+  ?~  app  [%.n %actor-invalid 'app required']
+  ?~  act  [%.n %actor-invalid 'actor required']
+  ?.  ?=(?(%user %bot %app) kind.u.act)  [%.n %actor-invalid 'bad actor kind']
+  =/  tgt  (api-resolve-msg msgs eid mid)
+  ?~  tgt  [%.n %missing-target 'no matching message']
+  ?~  meta.u.tgt  [%.n %missing-target 'message has no eid']
+  =/  teid=@uv  eid.u.meta.u.tgt
+  =/  stored  (~(get by amap) teid)
+  ?~  stored  [%.n %actor-missing 'message has no actor']
+  ?.  ?&  =(host.u.stored our)
+          =(desk.u.stored desk.u.app)
+          =(id.u.stored id.u.act)
+      ==
+    [%.n %actor-mismatch 'actor does not own this message']
+  ::  governance + capability on the matched [desk id]: gate-actor-cap cannot TOFU
+  ::  here (a stored row implies prior registration); it enforces grant/disabled/
+  ::  suspended/revoked AND the required caps (app ceiling + per-actor narrowing).
+  =/  g  (gate-actor-cap our now desk.u.app id.u.act name.u.act kind.u.act need grants registry)
+  ?-  -.g
+    %.n  [%.n p.g]
+    %.y  [%.y u.tgt teid registry.p.g]
+  ==
+::  actor-member-pre (Actor Member Management Phase E): shared gate for the six
+::  actor member actions. Verifies app+actor, EXACT note ownership, governance
+::  (%attribute %manage-members), a parsed target ship, write-blocked, non-DM, and
+::  host-protection. Returns [who target-note updated-registry] or a failure code.
+::  Per-action target-state checks (already-member, in-requests, etc.) stay in the
+::  branch; the internal mutation handlers are reused unchanged.
+++  actor-member-pre
+  |=  $:  our=@p  now=@da
+          app=(unit api-app:noltbook)  act=(unit api-actor:noltbook)
+          nid=@ta  ship-txt=@t
+          owners=(map @ta actor-owner:noltbook)
+          nmap=(map @ta note:noltbook)
+          hs=(map @ta ?(%host-deleted %host-unreachable))
+          grants=(map @tas app-grant:noltbook)
+          registry=(map [@tas @t] actor-record:noltbook)
+          dms=(map @ta actor-dm-meta:noltbook)
+      ==
+  ^-  %+  each
+        [who=@p nt=note:noltbook registry=(map [@tas @t] actor-record:noltbook)]
+      [code=@tas msg=@t]
+  ?~  app  [%.n %actor-invalid 'app required']
+  ?~  act  [%.n %actor-invalid 'actor required']
+  ?.  ?=(?(%user %bot %app) kind.u.act)  [%.n %actor-invalid 'bad actor kind']
+  ::  Phase G5A: actor member-management cannot touch an actor-DM note (its two-ship
+  ::  membership is invariant-bound — no third ship, no generic member ops).
+  ?:  (~(has by dms) nid)  [%.n %unsupported 'cannot manage members of an actor-DM note']
+  =/  nt-u  (~(get by nmap) nid)
+  ?~  nt-u  [%.n %missing-note 'no such note']
+  =/  nt=note:noltbook  u.nt-u
+  ::  exact ownership FIRST (stable [host desk id]); a different actor sharing the
+  ::  same desk/host, or an ordinary host note, is rejected here.
+  =/  owner  (~(get by owners) nid)
+  ?.  ?&  ?=(^ owner)
+          =(host.u.owner our)
+          =(desk.u.owner desk.u.app)
+          =(id.u.owner id.u.act)
+      ==
+    [%.n %actor-not-owner 'actor does not own this note']
+  ::  governance: app ceiling + per-actor narrow + status (attribute + manage-members).
+  =/  g  (gate-actor-cap our now desk.u.app id.u.act name.u.act kind.u.act (sy ~[%attribute %manage-members]) grants registry)
+  ?:  ?=(%.n -.g)  [%.n p.g]
+  =/  who=(unit @p)  (slaw %p ship-txt)
+  ?~  who  [%.n %invalid-ship 'ship did not parse']
+  ?:  (is-write-blocked nid hs nmap our)  [%.n %rejected 'write blocked']
+  ?:  =(%dm type.nt)  [%.n %rejected 'cannot manage DM members']
+  ?:  =(u.who our)  [%.n %rejected 'cannot target the host']
+  [%.y u.who nt registry.p.g]
+::  actor-pref-pre (Actor Social Phase F3): shared gate for the six actor preference
+::  actions. Verifies app+actor and governance (%attribute %manage-own-preferences:
+::  app grant is the ceiling, per-actor caps narrow, disabled/suspended/revoked
+::  reject, no host fallback). Returns the resolved [desk aid] + the candidate
+::  registry (held, NOT committed) so the caller validates target state and only then
+::  commits — a bad ref / missing target leaves no TOFU row and no last-seen bump.
+++  actor-pref-pre
+  |=  $:  our=@p  now=@da
+          app=(unit api-app:noltbook)  act=(unit api-actor:noltbook)
+          grants=(map @tas app-grant:noltbook)
+          registry=(map [@tas @t] actor-record:noltbook)
+      ==
+  ^-  %+  each
+        [desk=@tas aid=@t registry=(map [@tas @t] actor-record:noltbook)]
+      [code=@tas msg=@t]
+  ?~  app  [%.n %actor-invalid 'app required']
+  ?~  act  [%.n %actor-invalid 'actor required']
+  ?.  ?=(?(%user %bot %app) kind.u.act)  [%.n %actor-invalid 'bad actor kind']
+  =/  g  (gate-actor-cap our now desk.u.app id.u.act name.u.act kind.u.act (sy ~[%attribute %manage-own-preferences]) grants registry)
+  ?-  -.g
+    %.n  [%.n p.g]
+    %.y  [%.y desk.u.app id.u.act registry.p.g]
+  ==
+::  actor-note-access (Actor Notes Phase G2): the PURE participation/ownership gate.
+::  An actor [desk aid] may act on a regular note ONLY if (a) it owns the note
+::  (note-actor-owners with owner.host == our), or (b) the note's participation set
+::  contains [desk aid]. Eligible types are %notebook/%group; an explicitly supplied
+::  valid actor on an excluded type (%dm/%gossip/%cover/%ars-rumors) => %unsupported.
+::  Missing note => %missing-note; otherwise no access => %actor-not-participant.
+::  Governance (gate-actor-cap) is the CALLER's job and runs first; this is the
+::  membership-like layer on top. Returns the resolved note on success.
+++  actor-note-access
+  |=  $:  our=@p  nid=@ta  desk=@tas  aid=@t
+          nmap=(map @ta note:noltbook)
+          owners=(map @ta actor-owner:noltbook)
+          parts=(map @ta (set [desk=@tas id=@t]))
+          dms=(map @ta actor-dm-meta:noltbook)
+      ==
+  ^-  (each note:noltbook [code=@tas msg=@t])
+  =/  nt-u  (~(get by nmap) nid)
+  ?~  nt-u  [%.n %missing-note 'no such note']
+  =/  nt=note:noltbook  u.nt-u
+  ?.  ?|(=(%notebook type.nt) =(%group type.nt))
+    [%.n %unsupported 'note type not eligible for actor participation']
+  =/  owner  (~(get by owners) nid)
+  =/  owns=?
+    ?&  ?=(^ owner)
+        =(host.u.owner our)
+        =(desk.u.owner desk)
+        =(id.u.owner aid)
+    ==
+  =/  pset=(set [desk=@tas id=@t])  (fall (~(get by parts) nid) ~)
+  =/  participates=?  (~(has in pset) [desk aid])
+  =/  dm  (~(get by dms) nid)
+  ::  marked actor-DM (G5A hardening): enforce the membership invariant FIRST, then
+  ::  apply HOST-ROLE-SPECIFIC access — a stale/illicit participation row must never
+  ::  grant access. We rely on the AUTHORITATIVE meta.owner, not generic owner/
+  ::  participation flags.
+  ?^  dm
+    =/  m=actor-dm-meta:noltbook  u.dm
+    ?.  (actor-dm-valid nt m)
+      [%.n %rejected 'actor-DM membership invariant broken']
+    ?:  =(host.owner.m our)
+      ::  OWNER host: ONLY the exact owner actor [desk,id] may access. Participation
+      ::  rows never grant access to another actor here.
+      ?.  ?&(=(desk.owner.m desk) =(id.owner.m aid))
+        [%.n %actor-not-participant 'only the owner actor may access this actor DM']
+      [%.y nt]
+    ?:  =(target.m our)
+      ::  TARGET host: the participation set must contain EXACTLY ONE actor (multiple
+      ::  rows are an invariant failure, not permission for each), and it must be the
+      ::  requesting actor.
+      ?.  =(1 ~(wyt in pset))
+        [%.n %rejected 'actor-DM participation invariant broken (not exactly one adopter)']
+      ?.  (~(has in pset) [desk aid])
+        [%.n %actor-not-participant 'actor has not adopted this actor DM']
+      [%.y nt]
+    ::  any other host role cannot access an actor DM it neither owns nor is target of.
+    [%.n %rejected 'not a participant host of this actor DM']
+  ?:  |(owns participates)  [%.y nt]
+  [%.n %actor-not-participant 'actor does not own or participate in this note']
+::  actor-dm-valid (Phase G5A): the membership invariant for a marked actor-DM note —
+::  a SECRET two-ship %group hosted by the owner's host with users exactly
+::  {owner.host, target}. A broken invariant makes actor-DM actions reject/unsupported
+::  (never silently an ordinary actor note); actor member APIs can't add a third ship.
+++  actor-dm-valid
+  |=  [nt=note:noltbook meta=actor-dm-meta:noltbook]
+  ^-  ?
+  ?&  =(%group type.nt)
+      =(%secret visibility.nt)
+      =(host.owner.meta creator.nt)
+      =(2 ~(wyt in users.nt))
+      (~(has in users.nt) host.owner.meta)
+      (~(has in users.nt) target.meta)
+  ==
+::  live-actor-dm (Phase G5A hardening): THE shared resolver — returns a note's
+::  actor-DM marker ONLY when the note exists AND the membership invariant holds.
+::  A marker on a missing / invariant-broken note reads as ~ everywhere (reads,
+::  snapshots), so it never surfaces or hydrates the frontend as an actor DM.
+++  live-actor-dm
+  |=  [nid=@ta nmap=(map @ta note:noltbook) dms=(map @ta actor-dm-meta:noltbook)]
+  ^-  (unit actor-dm-meta:noltbook)
+  =/  m  (~(get by dms) nid)
+  ?~  m  ~
+  =/  nt-u  (~(get by nmap) nid)
+  ?~  nt-u  ~
+  ?.  (actor-dm-valid u.nt-u u.m)  ~
+  m
+::  api-actor-dm-json (Phase G5A): a marked actor-DM as a stable read object. owner is
+::  the stable [host desk id] + the snapshot name/kind fallback; current profile still
+::  resolves via G4. counterpart is filled by the caller (host sees target; adopted
+::  target sees the owner actor). No private actor state, no caps.
+++  api-actor-dm-json
+  |=  meta=actor-dm-meta:noltbook
+  ^-  json
+  %-  pairs:enjs:format
+  :~  ['host' s+(scot %p host.owner.meta)]
+      ['desk' s+(scot %tas desk.owner.meta)]
+      ['id' s+id.owner.meta]
+      ['ownerName' s+name.owner.meta]
+      ['ownerKind' s+(scot %tas kind.owner.meta)]
+      ['target' s+(scot %p target.meta)]
+      ['createdAt' (numb:enjs:format (api-da-ms created-at.meta))]
+  ==
 ::  api-grant-json / api-actor-record-json: host/developer read shapes for the
 ::  Actor Control governance state (Phase A).
 ++  api-grant-json
@@ -3864,6 +5708,143 @@
       ['updatedAt' (numb:enjs:format (api-da-ms updated-at.r))]
       ['revokedAt' ?~(revoked-at.r ~ (numb:enjs:format (api-da-ms u.revoked-at.r)))]
       ['lastSeen' (numb:enjs:format (api-da-ms last-seen.r))]
+      ::  caps: null = inherit the app grant; array = explicit per-actor subset.
+      ['caps' ?~(caps.r ~ a+(turn ~(tap in u.caps.r) |=(c=app-cap:noltbook s+(scot %tas c))))]
+  ==
+::  api-actor-profile-json (Actor Social Phase F1): the actor's full profile read.
+::  displayName/kind/lifecycleStatus come from the registry record; avatar/bio/
+::  statusText from actor-profiles (null when no profile row). host = our.bowl.
+::  build-actor-public-profile (Phase G4): registry record + (optional) profile row ->
+::  the cross-ship/cacheable presentation-only shape. host is NOT included (stamped at
+::  the boundary). lifecycle status is carried so suspended/revoked historical actors
+::  stay inspectable. No caps/grants/contacts/preferences ever leak here.
+++  build-actor-public-profile
+  |=  [desk=@tas rec=actor-record:noltbook prof=(unit actor-profile:noltbook)]
+  ^-  actor-public-profile:noltbook
+  :*  desk
+      id.rec
+      name.rec
+      kind.rec
+      status.rec
+      ?~(prof ~ avatar.u.prof)
+      ?~(prof ~ bio.u.prof)
+      ?~(prof ~ status-text.u.prof)
+  ==
+::  api-actor-pub-json (Phase G4): THE stable JSON encoder for an actor-public-profile.
+::  host is stamped by the caller (our.bowl locally, src.bowl on a remote response —
+::  never the payload). Reused by the F1 read, the cache read, and (mirrored field-for-
+::  field) by the %actor-profile-result/%actor-profile-updated facts in mar/update.
+++  api-actor-pub-json
+  |=  [host=@p p=actor-public-profile:noltbook]
+  ^-  json
+  %-  pairs:enjs:format
+  :~  ['host' s+(scot %p host)]
+      ['desk' s+(scot %tas desk.p)]
+      ['id' s+id.p]
+      ['displayName' s+display-name.p]
+      ['kind' s+(scot %tas kind.p)]
+      ['lifecycleStatus' s+(scot %tas lifecycle-status.p)]
+      ['avatar' ?~(avatar.p ~ (pairs:enjs:format ~[['type' s+(scot %tas type.u.avatar.p)] ['url' s+url.u.avatar.p]]))]
+      ['bio' ?~(bio.p ~ s+u.bio.p)]
+      ['statusText' ?~(status-text.p ~ s+u.status-text.p)]
+  ==
+::  api-actor-profile-json (Actor Social Phase F1): the actor's full profile read,
+::  delegating to the single public-profile encoder (G4). host = our.bowl.
+++  api-actor-profile-json
+  |=  $:  our=@p  desk=@tas  id=@t
+          rec=actor-record:noltbook
+          prof=(unit actor-profile:noltbook)
+      ==
+  ^-  json
+  (api-actor-pub-json our (build-actor-public-profile desk rec prof))
+::  actor-prof-result-cards (Phase G4): the async %actor-profile-result fact on BOTH
+::  /notes (main FE) and /api/results (dev clients), from one typed update.
+++  actor-prof-result-cards
+  |=  $:  req=@ud  host=@p  desk=@tas  id=@t
+          status=?(%ok %missing %unreachable %invalid-response)
+          fetched-at=(unit @da)
+          prof=(unit actor-public-profile:noltbook)
+      ==
+  ^-  (list card:agent:gall)
+  =/  upd=update:noltbook  [%actor-profile-result req host desk id status fetched-at prof]
+  :~  [%give %fact ~[/notes] %noltbook-update !>(upd)]
+      [%give %fact ~[/api/results] %noltbook-update !>(upd)]
+  ==
+::  actor-prof-fresh (Phase G4): is a cache entry within the ~m10 freshness window?
+++  actor-prof-fresh
+  |=  [now=@da fetched-at=@da]
+  ^-  ?
+  (lth (sub now fetched-at) ~m10)
+::  api-identity-ref-json (F2): a contact reference as a stable tagged object. No
+::  invented names/profile fields — only the durable identity.
+++  api-identity-ref-json
+  |=  r=identity-ref:noltbook
+  ^-  json
+  ?-  -.r
+      %ship
+    (pairs:enjs:format ~[['kind' s+'ship'] ['ship' s+(scot %p who.r)]])
+      %actor
+    %-  pairs:enjs:format
+    :~  ['kind' s+'actor']
+        ['host' s+(scot %p host.r)]
+        ['desk' s+(scot %tas desk.r)]
+        ['id' s+id.r]
+    ==
+  ==
+::  api-validate-ref (F2): raw api-identity-ref -> validated identity-ref, or a
+::  [code msg] failure. A %p parse failure (ship or actor host) => invalid-ship;
+::  bad desk/id => invalid-ref; a malformed parse => invalid-ref. Rejects an actor
+::  ref equal to our OWN [our, desk, aid] as a self-contact (a ship ref to the host
+::  is allowed — it is a distinct real identity). Display name is never authority.
+++  api-validate-ref
+  |=  [our=@p desk=@tas aid=@t raw=api-identity-ref:noltbook]
+  ^-  (each identity-ref:noltbook [code=@tas msg=@t])
+  ?-  -.raw
+      %invalid
+    [%.n %invalid-ref 'malformed contact reference']
+      %ship
+    =/  who  (slaw %p ship.raw)
+    ?~  who  [%.n %invalid-ship 'ship did not parse']
+    [%.y %ship u.who]
+      %actor
+    =/  h  (slaw %p host.raw)
+    ?~  h  [%.n %invalid-ship 'actor host did not parse']
+    =/  dt  (rush desk.raw sym)
+    ?~  dt  [%.n %invalid-ref 'actor desk is not a term']
+    ?:  =(0 (met 3 id.raw))  [%.n %invalid-ref 'actor id empty']
+    ?:  (gth (met 3 id.raw) 128)  [%.n %invalid-ref 'actor id too long']
+    ?:  ?&(=(u.h our) =(u.dt desk) =(id.raw aid))
+      [%.n %rejected 'cannot target yourself']
+    [%.y %actor u.h u.dt id.raw]
+  ==
+::  api-preferences-json (Actor Social Phase F3): one actor's STORED identity mute/
+::  block book as stable tagged refs. No name/profile resolution, no filtering or
+::  enforcement — the plugin applies it.
+++  api-preferences-json
+  |=  [our=@p desk=@tas aid=@t prefs=actor-preferences:noltbook]
+  ^-  json
+  %-  pairs:enjs:format
+  :~  ['host' s+(scot %p our)]
+      ['desk' s+(scot %tas desk)]
+      ['id' s+aid]
+      ['blocked' a+(turn ~(tap in blocked.prefs) api-identity-ref-json)]
+      ['muted' a+(turn ~(tap in muted.prefs) api-identity-ref-json)]
+  ==
+::  api-actor-owner-json (Actor Notes Phase D): a note's durable actor owner. null
+::  when none. host/desk/id are authoritative (from note-actor-owners); name/kind/
+::  status are resolved from actor-registry at read time (null if the row is gone).
+++  api-actor-owner-json
+  |=  [owner=(unit actor-owner:noltbook) registry=(map [@tas @t] actor-record:noltbook)]
+  ^-  json
+  ?~  owner  ~
+  =/  rec  (~(get by registry) [desk.u.owner id.u.owner])
+  %-  pairs:enjs:format
+  :~  ['host' s+(scot %p host.u.owner)]
+      ['desk' s+(scot %tas desk.u.owner)]
+      ['id' s+id.u.owner]
+      ['name' ?~(rec ~ s+name.u.rec)]
+      ['kind' ?~(rec ~ s+(scot %tas kind.u.rec))]
+      ['status' ?~(rec ~ s+(scot %tas status.u.rec))]
   ==
 ++  api-msg-json
   |=  [m=message:noltbook vmap=via-map:noltbook amap=actor-map:noltbook]  ^-  json
@@ -4354,19 +6335,30 @@
     ?^  mhit  `author.i.mhit
     ~
   ~
-::  add-reply-attn: if the immediate parent owner is our ship and the reply author
-::  is someone else, append a %reply attention item (the NEW reply is the target)
-::  and return [updated-attention live-delta-cards]. Dedups by eid > msg-id > aid.
+::  host-self (Phase A): is a stored message a GENUINE host self-post? True only when
+::  the @p author is us AND no actor is attributed. An actor message authored under our
+::  @p is a DISTINCT behavioral sender (host-self=%.n), so it may notify the host. A
+::  remote @p author is never host-self. Non-actor callers (artifacts/envelopes) pass
+::  ~ to recover the ordinary `author == our` test exactly.
+++  host-self
+  |=  [author=@p actor=(unit actor:noltbook) our=@p]
+  ^-  ?
+  &(=(author our) ?=(~ actor))
+::  add-reply-attn: if the immediate parent owner is our ship and the reply is NOT a
+::  host self-post (sender-self), append a %reply attention item (the NEW reply is the
+::  target) and return [updated-attention live-delta-cards]. Dedups by eid > msg-id >
+::  aid. sender-self is identity-aware (see host-self): an actor reply under our @p is
+::  a distinct sender and is NOT self, so it may notify the host.
 ++  add-reply-attn
   |=  $:  att=(map @ta (list attention-item:noltbook))
           nid=@ta
           our=@p
-          reply-author=@p
+          sender-self=?
           parent-owner=(unit @p)
           target=attention-item:noltbook
       ==
   ^-  [(map @ta (list attention-item:noltbook)) (list card:agent:gall)]
-  ?:  =(reply-author our)  [att ~]
+  ?:  sender-self  [att ~]
   ?.  ?=(^ parent-owner)  [att ~]
   ?.  =(u.parent-owner our)  [att ~]
   =/  cur=(list attention-item:noltbook)  (fall (~(get by att) nid) ~)
@@ -4418,7 +6410,7 @@
   [(crip path-tape) args]
 --
 %-  agent:dbug
-=|  state-52
+=|  state-64
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -4464,7 +6456,43 @@
     =/  s51  !<(state-51 old)
     $(old !>((upgrade-51-to-52 s51)))
   ?:  ?=([%52 *] q.old)
-    =/  loaded  !<(state-52 old)
+    =/  s52  !<(state-52 old)
+    $(old !>((upgrade-52-to-53 s52)))
+  ?:  ?=([%53 *] q.old)
+    =/  s53  !<(state-53 old)
+    $(old !>((upgrade-53-to-54 s53)))
+  ?:  ?=([%54 *] q.old)
+    =/  s54  !<(state-54 old)
+    $(old !>((upgrade-54-to-55 s54)))
+  ?:  ?=([%55 *] q.old)
+    =/  s55  !<(state-55 old)
+    $(old !>((upgrade-55-to-56 s55)))
+  ?:  ?=([%56 *] q.old)
+    =/  s56  !<(state-56 old)
+    $(old !>((upgrade-56-to-57 s56)))
+  ?:  ?=([%57 *] q.old)
+    =/  s57  !<(state-57 old)
+    $(old !>((upgrade-57-to-58 s57)))
+  ?:  ?=([%58 *] q.old)
+    =/  s58  !<(state-58 old)
+    $(old !>((upgrade-58-to-59 s58)))
+  ?:  ?=([%59 *] q.old)
+    =/  s59  !<(state-59 old)
+    $(old !>((upgrade-59-to-60 s59)))
+  ?:  ?=([%60 *] q.old)
+    =/  s60  !<(state-60 old)
+    $(old !>((upgrade-60-to-61 s60)))
+  ?:  ?=([%61 *] q.old)
+    =/  s61  !<(state-61 old)
+    $(old !>((upgrade-61-to-62 s61)))
+  ?:  ?=([%62 *] q.old)
+    =/  s62  !<(state-62 old)
+    $(old !>((upgrade-62-to-63 s62)))
+  ?:  ?=([%63 *] q.old)
+    =/  s63  !<(state-63 old)
+    $(old !>((upgrade-63-to-64 s63)))
+  ?:  ?=([%64 *] q.old)
+    =/  loaded  !<(state-64 old)
     ::  fix: ensure cover note exists and is keyed as %cover
     ::  (same normalizations carried forward from state-24 load)
     =/  loaded
@@ -5100,6 +7128,24 @@
     =/  read-cards=(list card)
       =/  read-list=(list [@ta @da])  ~(tap by pruned-read)
       ~[[%give %fact ~ %noltbook-update !>(`update:noltbook`[%note-read-list read-list])]]
+    ::  Phase B: durable UNREAD activity — prune like note-activity, then replay so the
+    ::  green dot survives a hard refresh. Always emit (even empty) to replace stale state.
+    =/  pruned-unread-activity=(map @ta @da)
+      =/  pairs=(list [nid=@ta t=@da])  ~(tap by note-unread-activity)
+      =/  acc=(map @ta @da)  *(map @ta @da)
+      |-  ^-  (map @ta @da)
+      ?~  pairs  acc
+      =/  nid=@ta  nid.i.pairs
+      ?:  |(=(nid %cover) =(nid %ars-rumors))  $(pairs t.pairs)
+      ?.  (~(has by notes-now) nid)  $(pairs t.pairs)
+      $(pairs t.pairs, acc (~(put by acc) nid t.i.pairs))
+    =/  unread-activity-cards=(list card)
+      =/  ua-list=(list [@ta @da])  ~(tap by pruned-unread-activity)
+      ~[[%give %fact ~ %noltbook-update !>(`update:noltbook`[%note-unread-activity-list ua-list])]]
+    ::  Phase B: replay the real user's actor mute/block prefs on watch (full snapshot,
+    ::  even empty), so the frontend hides blocked content + sets button state on connect.
+    =/  user-prefs-cards=(list card)
+      ~[(user-actor-prefs-fact ~ user-muted-actors user-blocked-actors)]
     =/  init-cards=(list card)
       :~  [%give %fact ~ %noltbook-update !>(upd)]
           [%give %fact ~ %noltbook-update !>(pupd)]
@@ -5107,8 +7153,17 @@
           [%give %fact ~ %noltbook-update !>(contactupd)]
           [%give %fact ~ %noltbook-update !>(dialupd)]
       ==
-    :_  this(notes notes-now, messages messages-now, notification-acks pruned-acks, note-activity pruned-activity, note-read pruned-read)
-    :(weld init-cards mention-cards attention-cards call-cards active-cards jr-cards role-cards bb-cards hs-cards lineage-cards pfi-cards ack-cards activity-cards read-cards)
+    ::  Phase G5A: replay only VALID LIVE actor-DM markers (note exists + invariant
+    ::  holds, via live-actor-dm) so the frontend never hydrates a broken marker.
+    =/  actor-dm-cards=(list card)
+      %+  murn  ~(tap by actor-dm-notes)
+      |=  [nid=@ta meta=actor-dm-meta:noltbook]
+      ^-  (unit card)
+      =/  live  (live-actor-dm nid notes-now actor-dm-notes)
+      ?~  live  ~
+      `[%give %fact ~ %noltbook-update !>(`update:noltbook`[%actor-dm-updated nid `u.live])]
+    :_  this(notes notes-now, messages messages-now, notification-acks pruned-acks, note-activity pruned-activity, note-unread-activity pruned-unread-activity, note-read pruned-read)
+    :(weld init-cards mention-cards attention-cards call-cards active-cards jr-cards role-cards bb-cards hs-cards lineage-cards pfi-cards ack-cards activity-cards read-cards unread-activity-cards user-prefs-cards actor-dm-cards)
   ::
       [%notes @ ~]
     =/  nid=@ta  i.t.path
@@ -5249,6 +7304,23 @@
       %+  frond:enjs:format  'grants'
       a+(turn ~(val by app-grants) api-grant-json)
     ``[%json !>(jon)]
+  ::  Phase B: the REAL user's actor mute/block prefs. Stable [host,desk,id] only —
+  ::  profile/display resolution stays client-side. Always 200 (empty lists if none).
+  ::
+      [%x %api %user %actor-preferences ~]
+    =/  ref-json
+      |=  r=actor-ref:noltbook  ^-  json
+      %-  pairs:enjs:format
+      :~  ['host' s+(scot %p host.r)]
+          ['desk' s+(scot %tas desk.r)]
+          ['id' s+id.r]
+      ==
+    =/  jon=json
+      %-  pairs:enjs:format
+      :~  ['muted' a+(turn ~(tap in user-muted-actors) ref-json)]
+          ['blocked' a+(turn ~(tap in user-blocked-actors) ref-json)]
+      ==
+    ``[%json !>(jon)]
   ::
       [%x %api %actors ~]
     =/  jon=json
@@ -5269,6 +7341,205 @@
       ?.  =(-.k dterm)  ~
       `(api-actor-record-json -.k r)
     ``[%json !>(jon)]
+  ::  one actor's registry record (Phase F1). Missing actor => no cage (404).
+  ::
+      [%x %api %actors @ @ ~]
+    =/  dterm=@tas  (fall (rush i.t.t.t.path sym) %$)
+    =/  aid=@t  i.t.t.t.t.path
+    =/  rec  (~(get by actor-registry) [dterm aid])
+    ?~  rec  ~
+    ``[%json !>((api-actor-record-json dterm u.rec))]
+  ::  one actor's full profile (Phase F1): registry name/kind/status + actor-profile.
+  ::
+      [%x %api %actors @ @ %profile ~]
+    =/  dterm=@tas  (fall (rush i.t.t.t.path sym) %$)
+    =/  aid=@t  i.t.t.t.t.path
+    =/  rec  (~(get by actor-registry) [dterm aid])
+    ?~  rec  ~
+    =/  prof  (~(get by actor-profiles) [dterm aid])
+    ``[%json !>((api-actor-profile-json our.bowl dterm aid u.rec prof))]
+  ::  actor public profile incl. REMOTE (Phase G4): local host resolves the current
+  ::  local profile (stale:false, fetchedAt:null); a remote host returns the CACHED
+  ::  profile plus fetchedAt + stale (older than ~m10); unknown/uncached => 404.
+  ::
+      [%x %api %actor-profiles @ @ @ ~]
+    =/  who=(unit @p)  (slaw %p i.t.t.t.path)
+    ?~  who  ~
+    =/  dterm=@tas  (fall (rush i.t.t.t.t.path sym) %$)
+    =/  aid=@t  i.t.t.t.t.t.path
+    ?:  =(u.who our.bowl)
+      =/  rec  (~(get by actor-registry) [dterm aid])
+      ?~  rec  ~
+      =/  pp  (build-actor-public-profile dterm u.rec (~(get by actor-profiles) [dterm aid]))
+      =/  base  (api-actor-pub-json our.bowl pp)
+      ?.  ?=([%o *] base)  ~
+      =/  obj  (~(put by p.base) 'fetchedAt' ~)
+      ``[%json !>([%o (~(put by obj) 'stale' b+%.n)])]
+    =/  cached  (~(get by remote-actor-profiles) [u.who dterm aid])
+    ?~  cached  ~
+    =/  base  (api-actor-pub-json u.who profile.u.cached)
+    ?.  ?=([%o *] base)  ~
+    =/  stale=?  !(actor-prof-fresh now.bowl fetched-at.u.cached)
+    =/  obj  (~(put by p.base) 'fetchedAt' (numb:enjs:format (api-da-ms fetched-at.u.cached)))
+    ``[%json !>([%o (~(put by obj) 'stale' b+stale)])]
+  ::  one actor's contact book (Phase F2): stable tagged refs only. 404 if no actor.
+  ::
+      [%x %api %actors @ @ %contacts ~]
+    =/  dterm=@tas  (fall (rush i.t.t.t.path sym) %$)
+    =/  aid=@t  i.t.t.t.t.path
+    =/  rec  (~(get by actor-registry) [dterm aid])
+    ?~  rec  ~
+    =/  cset=(set identity-ref:noltbook)  (fall (~(get by actor-contacts) [dterm aid]) ~)
+    =/  jon=json
+      %-  pairs:enjs:format
+      :~  ['host' s+(scot %p our.bowl)]
+          ['desk' s+(scot %tas dterm)]
+          ['id' s+aid]
+          ['contacts' a+(turn ~(tap in cset) api-identity-ref-json)]
+      ==
+    ``[%json !>(jon)]
+  ::  one actor's identity mute/block preferences (Phase F3): stable tagged refs;
+  ::  stored-only, no filtering. 404 if no actor.
+  ::
+      [%x %api %actors @ @ %preferences ~]
+    =/  dterm=@tas  (fall (rush i.t.t.t.path sym) %$)
+    =/  aid=@t  i.t.t.t.t.path
+    =/  rec  (~(get by actor-registry) [dterm aid])
+    ?~  rec  ~
+    =/  prefs=actor-preferences:noltbook
+      (fall (~(get by actor-preferences) [dterm aid]) [~ ~])
+    ``[%json !>((api-preferences-json our.bowl dterm aid prefs))]
+  ::  Actor-scoped notification read (Phase G6B): this actor's durable directed reply
+  ::  notifications, NEWEST-FIRST. author/actor/preview are resolved live (current
+  ::  edited preview); unresolvable rows (replying message gone) are dropped. 404 if
+  ::  the actor is not registered. Read-only — never mutates state.
+  ::
+      [%x %api %actors @ @ %notifications ~]
+    =/  dterm=@tas  (fall (rush i.t.t.t.path sym) %$)
+    =/  aid=@t  i.t.t.t.t.path
+    ?~  (~(get by actor-registry) [dterm aid])  ~
+    =/  views=(list actor-notification-view:noltbook)
+      (actor-notif-views (fall (~(get by actor-notifications) [dterm aid]) ~) messages actor-by-eid)
+    =/  jon=json
+      %-  pairs:enjs:format
+      :~  ['host' s+(scot %p our.bowl)]
+          ['desk' s+(scot %tas dterm)]
+          ['id' s+aid]
+          ['notifications' a+(turn views api-actor-notif-json)]
+      ==
+    ``[%json !>(jon)]
+  ::  Actor-scoped note list (Phase G2): only notes this actor owns or participates
+  ::  in, filtered to LIVE notes. 404 if the actor is not registered. No artifacts.
+  ::
+      [%x %api %actors @ @ %dms ~]
+    ::  Actor DM list (Phase G5A): only valid LIVE actor-DM notes this actor owns or has
+    ::  adopted. owner host sees the target ship; an adopted target sees the owner actor.
+    ::  No artifacts. 404 if the actor is not registered.
+    =/  dterm=@tas  (fall (rush i.t.t.t.path sym) %$)
+    =/  aid=@t  i.t.t.t.t.path
+    ?~  (~(get by actor-registry) [dterm aid])  ~
+    =/  jon=json
+      %+  frond:enjs:format  'dms'
+      :-  %a
+      %+  murn  ~(tap by actor-dm-notes)
+      |=  [nid=@ta meta=actor-dm-meta:noltbook]
+      ^-  (unit json)
+      =/  nt-u  (~(get by notes) nid)
+      ?~  nt-u  ~
+      ::  G5A hardening: authorize through the SAME host-role gate as actions — this
+      ::  validates the marker (actor-dm-valid) AND enforces owner-host-only / single-
+      ::  adopter-only. A stale participation row therefore never exposes a DM here.
+      =/  acc  (actor-note-access our.bowl nid dterm aid notes note-actor-owners actor-note-participation actor-dm-notes)
+      ?:  ?=(%.n -.acc)  ~
+      ::  owned: derived from the AUTHORITATIVE marker owner (not a participation row).
+      =/  owned=?
+        ?&(=(host.owner.meta our.bowl) =(desk.owner.meta dterm) =(id.owner.meta aid))
+      ::  adopted: the valid target-host role only (access already succeeded, not owner).
+      =/  adopted=?  &(=(target.meta our.bowl) !owned)
+      =/  activity=@da  (newest-msg-da (fall (~(get by messages) nid) ~))
+      =/  read=@da  (actor-read-get actor-note-read dterm aid nid)
+      :-  ~
+      %-  pairs:enjs:format
+      :~  ['noteId' s+(crip (trip nid))]
+          ['actorDm' (api-actor-dm-json meta)]
+          ['target' s+(scot %p target.meta)]
+          ['counterpart' ?:(owned s+(scot %p target.meta) (api-actor-dm-json meta))]
+          ['createdAt' (numb:enjs:format (api-da-ms created-at.meta))]
+          ['lastAuthor' ?~(last-author.u.nt-u ~ s+(scot %p u.last-author.u.nt-u))]
+          ['lastPreview' ?~(last-preview.u.nt-u ~ s+u.last-preview.u.nt-u)]
+          ['owned' b+owned]
+          ['adopted' b+adopted]
+          ['activity' ?:(=(`@da`0 activity) ~ (numb:enjs:format (api-da-ms activity)))]
+          ['read' ?:(=(`@da`0 read) ~ (numb:enjs:format (api-da-ms read)))]
+          ['unread' b+(gth activity read)]
+      ==
+    ``[%json !>(jon)]
+  ::
+      [%x %api %actors @ @ %notes ~]
+    =/  dterm=@tas  (fall (rush i.t.t.t.path sym) %$)
+    =/  aid=@t  i.t.t.t.t.path
+    ?~  (~(get by actor-registry) [dterm aid])  ~
+    =/  owned-ids=(list @ta)
+      %+  murn  ~(tap by note-actor-owners)
+      |=  [nid=@ta o=actor-owner:noltbook]
+      ^-  (unit @ta)
+      ?:(?&(=(host.o our.bowl) =(desk.o dterm) =(id.o aid)) `nid ~)
+    =/  part-ids=(list @ta)
+      %+  murn  ~(tap by actor-note-participation)
+      |=  [nid=@ta s=(set [desk=@tas id=@t])]
+      ^-  (unit @ta)
+      ?:((~(has in s) [dterm aid]) `nid ~)
+    =/  all-ids=(set @ta)
+      %-  ~(gas in *(set @ta))
+      (weld owned-ids part-ids)
+    =/  jon=json
+      %+  frond:enjs:format  'notes'
+      :-  %a
+      %+  murn  ~(tap in all-ids)
+      |=  nid=@ta
+      ^-  (unit json)
+      ::  single source of truth: actor-note-access enforces LIVE note + eligible
+      ::  type (%notebook/%group) + own-or-participate, so a stale row pointing at a
+      ::  dm/gossip/cover never surfaces here.
+      =/  acc  (actor-note-access our.bowl nid dterm aid notes note-actor-owners actor-note-participation actor-dm-notes)
+      ?:  ?=(%.n -.acc)  ~
+      =/  owner  (~(get by note-actor-owners) nid)
+      =/  owned=?
+        ?&(?=(^ owner) =(host.u.owner our.bowl) =(desk.u.owner dterm) =(id.u.owner aid))
+      =/  pset=(set [desk=@tas id=@t])  (fall (~(get by actor-note-participation) nid) ~)
+      =/  activity=@da  (newest-msg-da (fall (~(get by messages) nid) ~))
+      =/  read=@da  (actor-read-get actor-note-read dterm aid nid)
+      `(api-actor-note-summary p.acc owned (~(has in pset) [dterm aid]) owner actor-registry (live-actor-dm nid notes actor-dm-notes) activity read)
+    ``[%json !>(jon)]
+  ::  Actor-scoped single-note detail (Phase G2): metadata + recent messages with
+  ::  actor/via attribution. 404 if the actor/note is missing OR the actor neither
+  ::  owns nor participates. No artifact details/versions/urls/pins.
+  ::
+      [%x %api %actors @ @ %notes @ ~]
+    =/  dterm=@tas  (fall (rush i.t.t.t.path sym) %$)
+    =/  aid=@t  i.t.t.t.t.path
+    =/  nid=@ta  i.t.t.t.t.t.t.path
+    ?~  (~(get by actor-registry) [dterm aid])  ~
+    ::  shared gate: 404 (~) unless the note is LIVE, an eligible %notebook/%group,
+    ::  and the actor owns or participates — same logic as enforcement, no drift.
+    =/  acc  (actor-note-access our.bowl nid dterm aid notes note-actor-owners actor-note-participation actor-dm-notes)
+    ?:  ?=(%.n -.acc)  ~
+    =/  nt=note:noltbook  p.acc
+    =/  owner  (~(get by note-actor-owners) nid)
+    =/  owned=?
+      ?&(?=(^ owner) =(host.u.owner our.bowl) =(desk.u.owner dterm) =(id.u.owner aid))
+    =/  pset=(set [desk=@tas id=@t])  (fall (~(get by actor-note-participation) nid) ~)
+    =/  participant=?  (~(has in pset) [dterm aid])
+    =/  msgs=(list message:noltbook)  (fall (~(get by messages) nid) ~)
+    =/  activity=@da  (newest-msg-da msgs)
+    =/  read=@da  (actor-read-get actor-note-read dterm aid nid)
+    =/  jon=json
+      %-  pairs:enjs:format
+      :~  ['noteId' s+(crip (trip nid))]
+          ['note' (api-actor-note-summary nt owned participant owner actor-registry (live-actor-dm nid notes actor-dm-notes) activity read)]
+          ['messages' a+(turn msgs |=(m=message:noltbook (api-msg-json m via-by-eid actor-by-eid)))]
+      ==
+    ``[%json !>(jon)]
   ::
       [%x %api %notes @ ~]
     =/  nid=@ta  i.t.t.t.path
@@ -5284,6 +7555,8 @@
           ['app' (api-app-json (~(get by note-apps) nid))]
           ['pin' (api-pin-json (~(get by note-pins) nid) nid messages artifacts)]
           ['active' (api-active-json (~(get by note-active) nid) now.bowl)]
+          ['actorOwner' (api-actor-owner-json (~(get by note-actor-owners) nid) actor-registry)]
+          ['actorDm' =/(dm (live-actor-dm nid notes actor-dm-notes) ?~(dm ~ (api-actor-dm-json u.dm)))]
       ==
     ``[%json !>(jon)]
   ::
@@ -5423,6 +7696,8 @@
           ['pin' (api-pin-json (~(get by note-pins) nid) nid messages artifacts)]
           ['active' (api-active-json (~(get by note-active) nid) now.bowl)]
           ['capabilities' (pairs:enjs:format caps)]
+          ['actorOwner' (api-actor-owner-json (~(get by note-actor-owners) nid) actor-registry)]
+          ['actorDm' =/(dm (live-actor-dm nid notes actor-dm-notes) ?~(dm ~ (api-actor-dm-json u.dm)))]
       ==
     ``[%json !>(jon)]
   ::
@@ -5530,6 +7805,735 @@
       %+  weld  cards
       (api-result-card request-id.aa %.y code 'note created' `nid ~ ~)
     ::
+    ::  ---- Actor Notes (Phase D): explicit actor-only note create/configure. The
+    ::  real note.creator stays our.bowl; note-actor-owners records the actor owner
+    ::  by stable [host desk id]. No host fallback — missing/invalid actor rejects. ----
+        %create-actor-note
+      ?~  app.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'app required' ~ ~ ~)
+      ?~  actor.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'actor required' ~ ~ ~)
+      ?.  ?=(?(%user %bot %app) kind.u.actor.aa)
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'bad actor kind' ~ ~ ~)
+      ?:  =(0 (met 3 name.aa))
+        :_  this
+        (api-result-card request-id.aa %.n %invalid-name 'name cannot be empty' ~ ~ ~)
+      ::  governance: attribute + create-note (app ceiling, per-actor narrow, status).
+      =/  r  (gate-actor-cap our.bowl now.bowl desk.u.app.aa id.u.actor.aa name.u.actor.aa kind.u.actor.aa (sy ~[%attribute %create-note]) app-grants actor-registry)
+      ?:  ?=(%.n -.r)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.r msg.p.r ~ ~ ~)
+      =.  actor-registry  registry.p.r
+      ::  deterministic nid (same formula as %create-note); root %notebook, no parent.
+      =/  nid=@ta  (crip (weld "note-" (trip (scot %da now.bowl))))
+      =^  cards  this
+        $(mark %noltbook-action, vase !>(`action:noltbook`[%create-note name.aa ~]))
+      =.  note-actor-owners  (~(put by note-actor-owners) nid [our.bowl desk.u.app.aa id.u.actor.aa])
+      ::  Phase G2: the owner is automatically a participant of its own note.
+      =.  actor-note-participation
+        (~(put by actor-note-participation) nid (sy ~[[desk.u.app.aa id.u.actor.aa]]))
+      ::  G6A: seed the owner's read cursor (new note has no messages => no row yet).
+      =.  actor-note-read
+        (actor-read-seed actor-note-read desk.u.app.aa id.u.actor.aa nid (fall (~(get by messages) nid) ~))
+      :_  this
+      %+  weld  cards
+      (api-result-card request-id.aa %.y %actor-note-created 'actor note created' `nid ~ ~)
+    ::
+        %configure-actor-note
+      ?~  (~(get by notes) note-id.aa)
+        :_  this
+        (api-result-card request-id.aa %.n %missing-note 'no such note' `note-id.aa ~ ~)
+      ::  Phase G5A: configuring a marked actor-DM note is rejected — its name/
+      ::  visibility/type/membership are invariant-bound (preserve DM isolation).
+      ?:  (~(has by actor-dm-notes) note-id.aa)
+        :_  this
+        (api-result-card request-id.aa %.n %unsupported 'cannot configure an actor-DM note' `note-id.aa ~ ~)
+      ?~  app.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'app required' `note-id.aa ~ ~)
+      ?~  actor.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'actor required' `note-id.aa ~ ~)
+      ?.  ?=(?(%user %bot %app) kind.u.actor.aa)
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'bad actor kind' `note-id.aa ~ ~)
+      ::  owner match FIRST (stable [host desk id]); no owner or mismatch => not owner.
+      ::  This — NOT note.creator — is the authority, so a different actor sharing the
+      ::  same desk/host cannot configure this note.
+      =/  owner  (~(get by note-actor-owners) note-id.aa)
+      ?.  ?&  ?=(^ owner)
+              =(host.u.owner our.bowl)
+              =(desk.u.owner desk.u.app.aa)
+              =(id.u.owner id.u.actor.aa)
+          ==
+        :_  this
+        (api-result-card request-id.aa %.n %actor-not-owner 'actor does not own this note' `note-id.aa ~ ~)
+      ::  governance: attribute + configure-note.
+      =/  r  (gate-actor-cap our.bowl now.bowl desk.u.app.aa id.u.actor.aa name.u.actor.aa kind.u.actor.aa (sy ~[%attribute %configure-note]) app-grants actor-registry)
+      ?:  ?=(%.n -.r)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.r msg.p.r `note-id.aa ~ ~)
+      =.  actor-registry  registry.p.r
+      ?:  (is-write-blocked note-id.aa host-status notes our.bowl)
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'write blocked' `note-id.aa ~ ~)
+      =/  nt=note:noltbook  (~(got by notes) note-id.aa)
+      ::  same validation + partial-update semantics as set-note-config; reuse the
+      ::  internal rename-note / set-note-meta / set-headline handlers (creator=our
+      ::  passes their host gate). Only supplied fields are applied.
+      ?:  ?&(?=(^ name.aa) =('' u.name.aa))
+        :_  this
+        (api-result-card request-id.aa %.n %invalid-name 'name cannot be empty' `note-id.aa ~ ~)
+      =/  vis-ok=?
+        ?~  visibility.aa  %.y
+        ?|  =('public' u.visibility.aa)
+            =('private' u.visibility.aa)
+            =('secret' u.visibility.aa)
+        ==
+      ?.  vis-ok
+        :_  this
+        (api-result-card request-id.aa %.n %invalid-visibility 'visibility must be public/private/secret' `note-id.aa ~ ~)
+      =^  c1  this
+        ?~  name.aa  `this
+        $(mark %noltbook-action, vase !>(`action:noltbook`[%rename-note note-id.aa u.name.aa]))
+      =^  c2  this
+        ?:  ?&(?=(~ visibility.aa) ?=(~ writable.aa) ?=(~ icon-url.aa))  `this
+        =/  vis=note-visibility:noltbook
+          ?~  visibility.aa  visibility.nt
+          ?:  =('public' u.visibility.aa)   %public
+          ?:  =('private' u.visibility.aa)  %private
+          %secret
+        =/  wr=?  ?~(writable.aa writable.nt u.writable.aa)
+        =/  ic=(unit @t)
+          ?~  icon-url.aa  icon-url.nt
+          ?:(=('' u.icon-url.aa) ~ icon-url.aa)
+        $(mark %noltbook-action, vase !>(`action:noltbook`[%set-note-meta note-id.aa vis ic wr]))
+      =^  c3  this
+        ?~  headline.aa  `this
+        $(mark %noltbook-action, vase !>(`action:noltbook`[%set-headline note-id.aa u.headline.aa]))
+      :_  this
+      %+  weld  (weld c1 (weld c2 c3))
+      (api-result-card request-id.aa %.y %actor-note-configured 'actor note configured' `note-id.aa ~ ~)
+    ::
+    ::  ---- Actor Notes (Phase G1): an actor deletes a note IT owns. Authority is the
+    ::  stable [host desk id] in note-actor-owners, NOT note.creator. Reuses the internal
+    ::  %delete-note (which removes the note subtree AND its note-actor-owners rows). No
+    ::  actor leave/fork/host-note deletion. ----
+        %delete-actor-note
+      ?~  (~(get by notes) note-id.aa)
+        :_  this
+        (api-result-card request-id.aa %.n %missing-note 'no such note' `note-id.aa ~ ~)
+      ?~  app.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'app required' `note-id.aa ~ ~)
+      ?~  actor.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'actor required' `note-id.aa ~ ~)
+      ?.  ?=(?(%user %bot %app) kind.u.actor.aa)
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'bad actor kind' `note-id.aa ~ ~)
+      ::  exact actor ownership FIRST (stable [host desk id]); checked BEFORE the gate so
+      ::  a non-owner, an ordinary host note, another actor's note, a note owned through
+      ::  a different app desk, or a remote-hosted note never TOFU-registers this actor.
+      =/  owner  (~(get by note-actor-owners) note-id.aa)
+      ?.  ?&  ?=(^ owner)
+              =(host.u.owner our.bowl)
+              =(desk.u.owner desk.u.app.aa)
+              =(id.u.owner id.u.actor.aa)
+          ==
+        :_  this
+        (api-result-card request-id.aa %.n %actor-not-owner 'actor does not own this note' `note-id.aa ~ ~)
+      ::  governance: attribute + delete-own-note (app ceiling, per-actor narrow, status).
+      =/  r  (gate-actor-cap our.bowl now.bowl desk.u.app.aa id.u.actor.aa name.u.actor.aa kind.u.actor.aa (sy ~[%attribute %delete-own-note]) app-grants actor-registry)
+      ?:  ?=(%.n -.r)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.r msg.p.r `note-id.aa ~ ~)
+      ::  ATOMIC: hold the candidate registry; only commit after the note-state check
+      ::  passes, so a write-blocked rejection leaves no last-seen bump / TOFU row.
+      =/  cand-registry  registry.p.r
+      ?:  (is-write-blocked note-id.aa host-status notes our.bowl)
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'write blocked' `note-id.aa ~ ~)
+      =.  actor-registry  cand-registry
+      ::  reuse the internal %delete-note (creator=our.bowl passes its host gate); it
+      ::  deletes the subtree and drops note-actor-owners for every deleted id.
+      =^  cards  this
+        $(mark %noltbook-action, vase !>(`action:noltbook`[%delete-note note-id.aa]))
+      :_  this
+      %+  weld  cards
+      (api-result-card request-id.aa %.y %actor-note-deleted 'actor note deleted' `note-id.aa ~ ~)
+    ::
+    ::  ---- Actor Notes (Phase G2): durable actor participation. The host @p stays
+    ::  the real note.users member; these only manage the [app-desk, actor-id] rows in
+    ::  actor-note-participation. All require %attribute + %participate-note. ----
+        %actor-join-note
+      ?~  app.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'app required' `note-id.aa ~ ~)
+      ?~  actor.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'actor required' `note-id.aa ~ ~)
+      ?.  ?=(?(%user %bot %app) kind.u.actor.aa)
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'bad actor kind' `note-id.aa ~ ~)
+      ::  governance first (app ceiling + per-actor narrow + status); HOLD the
+      ::  candidate registry and commit only after the note checks pass.
+      =/  r  (gate-actor-cap our.bowl now.bowl desk.u.app.aa id.u.actor.aa name.u.actor.aa kind.u.actor.aa (sy ~[%attribute %participate-note]) app-grants actor-registry)
+      ?:  ?=(%.n -.r)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.r msg.p.r `note-id.aa ~ ~)
+      =/  cand-registry  registry.p.r
+      =/  nt-u  (~(get by notes) note-id.aa)
+      ?~  nt-u
+        :_  this
+        (api-result-card request-id.aa %.n %missing-note 'no such note' `note-id.aa ~ ~)
+      =/  nt=note:noltbook  u.nt-u
+      ?.  ?|(=(%notebook type.nt) =(%group type.nt))
+        :_  this
+        (api-result-card request-id.aa %.n %unsupported 'note type not eligible for actor participation' `note-id.aa ~ ~)
+      ::  Phase G5A: actor-DM notes are NOT joinable via generic participation — the
+      ::  target host must use actor-adopt-dm (one local actor) to preserve isolation.
+      ?:  (~(has by actor-dm-notes) note-id.aa)
+        :_  this
+        (api-result-card request-id.aa %.n %unsupported 'actor-DM note: use actor-adopt-dm' `note-id.aa ~ ~)
+      ::  the host @p must actually hold this note (real note.users member).
+      ?.  (~(has in users.nt) our.bowl)
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'host does not hold this note' `note-id.aa ~ ~)
+      =.  actor-registry  cand-registry
+      =/  cur=(set [desk=@tas id=@t])  (fall (~(get by actor-note-participation) note-id.aa) ~)
+      ::  duplicate join is idempotent (set put no-ops if present).
+      =.  actor-note-participation
+        (~(put by actor-note-participation) note-id.aa (~(put in cur) [desk.u.app.aa id.u.actor.aa]))
+      ::  G6A: seed the joiner to current ONLY on a NEW row, so a duplicate join
+      ::  never advances an existing actor's cursor (idempotent join must not
+      ::  silently clear unread state).
+      =?  actor-note-read  !(~(has in cur) [desk.u.app.aa id.u.actor.aa])
+        (actor-read-seed actor-note-read desk.u.app.aa id.u.actor.aa note-id.aa (fall (~(get by messages) note-id.aa) ~))
+      :_  this
+      (api-result-card request-id.aa %.y %actor-note-joined 'actor joined note' `note-id.aa ~ ~)
+    ::
+        %actor-add-participant
+      ?~  app.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'app required' `note-id.aa ~ ~)
+      ?~  actor.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'actor required' `note-id.aa ~ ~)
+      ?.  ?=(?(%user %bot %app) kind.u.actor.aa)
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'bad actor kind' `note-id.aa ~ ~)
+      ?:  =(0 (met 3 target-id.aa))
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'target id empty' `note-id.aa ~ ~)
+      =/  nt-u  (~(get by notes) note-id.aa)
+      ?~  nt-u
+        :_  this
+        (api-result-card request-id.aa %.n %missing-note 'no such note' `note-id.aa ~ ~)
+      ::  eligible regular-note types only — a converted/ineligible note (dm/gossip/
+      ::  cover) cannot hold actor participation even if an ownership row lingers.
+      ?.  ?|(=(%notebook type.u.nt-u) =(%group type.u.nt-u))
+        :_  this
+        (api-result-card request-id.aa %.n %unsupported 'note type not eligible for actor participation' `note-id.aa ~ ~)
+      ::  Phase G5A: generic participant management never touches actor-DM isolation.
+      ?:  (~(has by actor-dm-notes) note-id.aa)
+        :_  this
+        (api-result-card request-id.aa %.n %unsupported 'actor-DM note: participation is managed via actor DM actions only' `note-id.aa ~ ~)
+      ::  exact ownership FIRST (before the gate) so a non-owner never TOFU-registers.
+      =/  owner  (~(get by note-actor-owners) note-id.aa)
+      ?.  ?&  ?=(^ owner)
+              =(host.u.owner our.bowl)
+              =(desk.u.owner desk.u.app.aa)
+              =(id.u.owner id.u.actor.aa)
+          ==
+        :_  this
+        (api-result-card request-id.aa %.n %actor-not-owner 'actor does not own this note' `note-id.aa ~ ~)
+      =/  r  (gate-actor-cap our.bowl now.bowl desk.u.app.aa id.u.actor.aa name.u.actor.aa kind.u.actor.aa (sy ~[%attribute %participate-note]) app-grants actor-registry)
+      ?:  ?=(%.n -.r)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.r msg.p.r `note-id.aa ~ ~)
+      =/  cand-registry  registry.p.r
+      ::  target must ALREADY be registered under the SAME app desk (the key is
+      ::  [app.desk, targetId], so cross-desk targets are structurally impossible). A
+      ::  revoked target is rejected; a suspended target may be recorded (but stays
+      ::  unable to act until reactivated).
+      =/  trec  (~(get by actor-registry) [desk.u.app.aa target-id.aa])
+      ?~  trec
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'target actor not registered under this app' `note-id.aa ~ ~)
+      ?:  ?=(%revoked status.u.trec)
+        :_  this
+        (api-result-card request-id.aa %.n %actor-revoked 'target actor revoked' `note-id.aa ~ ~)
+      =.  actor-registry  cand-registry
+      =/  cur=(set [desk=@tas id=@t])  (fall (~(get by actor-note-participation) note-id.aa) ~)
+      ::  duplicate add is idempotent.
+      =.  actor-note-participation
+        (~(put by actor-note-participation) note-id.aa (~(put in cur) [desk.u.app.aa target-id.aa]))
+      ::  G6A: seed the TARGET actor to current ONLY on a NEW row — the owner must
+      ::  not be able to clear another actor's unread state by re-adding them.
+      =?  actor-note-read  !(~(has in cur) [desk.u.app.aa target-id.aa])
+        (actor-read-seed actor-note-read desk.u.app.aa target-id.aa note-id.aa (fall (~(get by messages) note-id.aa) ~))
+      :_  this
+      (api-result-card request-id.aa %.y %actor-participant-added 'actor participant added' `note-id.aa ~ ~)
+    ::
+        %actor-remove-participant
+      ?~  app.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'app required' `note-id.aa ~ ~)
+      ?~  actor.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'actor required' `note-id.aa ~ ~)
+      ?.  ?=(?(%user %bot %app) kind.u.actor.aa)
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'bad actor kind' `note-id.aa ~ ~)
+      ?:  =(0 (met 3 target-id.aa))
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'target id empty' `note-id.aa ~ ~)
+      =/  nt-u  (~(get by notes) note-id.aa)
+      ?~  nt-u
+        :_  this
+        (api-result-card request-id.aa %.n %missing-note 'no such note' `note-id.aa ~ ~)
+      ::  eligible regular-note types only (parity with add-participant + reads).
+      ?.  ?|(=(%notebook type.u.nt-u) =(%group type.u.nt-u))
+        :_  this
+        (api-result-card request-id.aa %.n %unsupported 'note type not eligible for actor participation' `note-id.aa ~ ~)
+      ::  Phase G5A: generic participant management never touches actor-DM isolation.
+      ?:  (~(has by actor-dm-notes) note-id.aa)
+        :_  this
+        (api-result-card request-id.aa %.n %unsupported 'actor-DM note: participation is managed via actor DM actions only' `note-id.aa ~ ~)
+      =/  owner  (~(get by note-actor-owners) note-id.aa)
+      ?.  ?&  ?=(^ owner)
+              =(host.u.owner our.bowl)
+              =(desk.u.owner desk.u.app.aa)
+              =(id.u.owner id.u.actor.aa)
+          ==
+        :_  this
+        (api-result-card request-id.aa %.n %actor-not-owner 'actor does not own this note' `note-id.aa ~ ~)
+      ::  the owner cannot remove its OWN required participation row (use delete-note
+      ::  to drop the note entirely; self-leave arrives in G3). Checked before the gate.
+      ?:  =(target-id.aa id.u.actor.aa)
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'owner cannot remove its own participation' `note-id.aa ~ ~)
+      =/  r  (gate-actor-cap our.bowl now.bowl desk.u.app.aa id.u.actor.aa name.u.actor.aa kind.u.actor.aa (sy ~[%attribute %participate-note]) app-grants actor-registry)
+      ?:  ?=(%.n -.r)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.r msg.p.r `note-id.aa ~ ~)
+      =/  cand-registry  registry.p.r
+      =/  cur=(set [desk=@tas id=@t])  (fall (~(get by actor-note-participation) note-id.aa) ~)
+      ::  target need not be active (revoked/suspended rows are cleanable). Absent
+      ::  participation => missing-target (no commit, so no last-seen bump).
+      ?.  (~(has in cur) [desk.u.app.aa target-id.aa])
+        :_  this
+        (api-result-card request-id.aa %.n %missing-target 'target is not a participant' `note-id.aa ~ ~)
+      =.  actor-registry  cand-registry
+      =/  new-set=(set [desk=@tas id=@t])  (~(del in cur) [desk.u.app.aa target-id.aa])
+      ::  drop the map row when the set becomes empty (keeps reads/storage clean).
+      =.  actor-note-participation
+        ?:  =(~ new-set)  (~(del by actor-note-participation) note-id.aa)
+        (~(put by actor-note-participation) note-id.aa new-set)
+      ::  G6A: drop the removed actor's read cursor for this note.
+      =.  actor-note-read
+        (actor-read-del actor-note-read desk.u.app.aa target-id.aa note-id.aa)
+      ::  G6B: drop the removed actor's directed notifications for this note + emit its
+      ::  authoritative remaining list (full=%.y).
+      =.  actor-notifications
+        (actor-notif-del-actor-note actor-notifications desk.u.app.aa target-id.aa note-id.aa)
+      :_  this
+      %+  weld
+        (actor-notif-full-cards actor-notifications desk.u.app.aa target-id.aa messages actor-by-eid)
+      (api-result-card request-id.aa %.y %actor-participant-removed 'actor participant removed' `note-id.aa ~ ~)
+    ::
+    ::  ---- Actor Notes (Phase G3): an actor leaves a note it PARTICIPATES in. This
+    ::  removes ONLY the actor's own [app.desk, actor.id] row. It NEVER calls the
+    ::  ship-level %leave-note: note.users/note.removed/subscriptions/messages and the
+    ::  host's notes map are all untouched, no %remote-leave / wire traffic fires, and
+    ::  other actors' rows are unaffected. The owner must DELETE (not leave). ----
+        %actor-leave-note
+      ?~  app.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'app required' `note-id.aa ~ ~)
+      ?~  actor.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'actor required' `note-id.aa ~ ~)
+      ?.  ?=(?(%user %bot %app) kind.u.actor.aa)
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'bad actor kind' `note-id.aa ~ ~)
+      =/  nt-u  (~(get by notes) note-id.aa)
+      ?~  nt-u
+        :_  this
+        (api-result-card request-id.aa %.n %missing-note 'no such note' `note-id.aa ~ ~)
+      ?.  ?|(=(%notebook type.u.nt-u) =(%group type.u.nt-u))
+        :_  this
+        (api-result-card request-id.aa %.n %unsupported 'note type not eligible for actor participation' `note-id.aa ~ ~)
+      ::  exact owner must DELETE, not leave (rejected, NOT actor-not-owner). Checked
+      ::  before the gate so the owner-as-non-participant path can't TOFU/last-seen.
+      =/  owner  (~(get by note-actor-owners) note-id.aa)
+      ?:  ?&  ?=(^ owner)
+              =(host.u.owner our.bowl)
+              =(desk.u.owner desk.u.app.aa)
+              =(id.u.owner id.u.actor.aa)
+          ==
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'owner must delete the note rather than leave' `note-id.aa ~ ~)
+      ::  must currently participate. Absent (incl. a repeated leave) => not a
+      ::  participant. Checked BEFORE the gate so a non-participant is never
+      ::  TOFU-registered and gets no last-seen update.
+      =/  cur=(set [desk=@tas id=@t])  (fall (~(get by actor-note-participation) note-id.aa) ~)
+      ?.  (~(has in cur) [desk.u.app.aa id.u.actor.aa])
+        :_  this
+        (api-result-card request-id.aa %.n %actor-not-participant 'actor does not participate in this note' `note-id.aa ~ ~)
+      ::  governance LAST (app ceiling + per-actor narrow + status); HOLD the candidate
+      ::  registry and commit only on success.
+      =/  r  (gate-actor-cap our.bowl now.bowl desk.u.app.aa id.u.actor.aa name.u.actor.aa kind.u.actor.aa (sy ~[%attribute %leave-note]) app-grants actor-registry)
+      ?:  ?=(%.n -.r)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.r msg.p.r `note-id.aa ~ ~)
+      =.  actor-registry  registry.p.r
+      ::  remove ONLY this actor's row; drop the map entry if the set becomes empty.
+      =/  new-set=(set [desk=@tas id=@t])  (~(del in cur) [desk.u.app.aa id.u.actor.aa])
+      =.  actor-note-participation
+        ?:  =(~ new-set)  (~(del by actor-note-participation) note-id.aa)
+        (~(put by actor-note-participation) note-id.aa new-set)
+      ::  G6A: drop this actor's read cursor (a later rejoin re-seeds to current).
+      =.  actor-note-read
+        (actor-read-del actor-note-read desk.u.app.aa id.u.actor.aa note-id.aa)
+      ::  G6B: drop this actor's directed notifications for the note it left + emit its
+      ::  authoritative remaining list (full=%.y).
+      =.  actor-notifications
+        (actor-notif-del-actor-note actor-notifications desk.u.app.aa id.u.actor.aa note-id.aa)
+      :_  this
+      %+  weld
+        (actor-notif-full-cards actor-notifications desk.u.app.aa id.u.actor.aa messages actor-by-eid)
+      (api-result-card request-id.aa %.y %actor-note-left 'actor left note' `note-id.aa ~ ~)
+    ::
+    ::  ---- Actor DM (Phase G5A): a private actor-to-ship conversation as a SECRET
+    ::  two-ship %group note (NOT canonical %dm). Idempotent per [owner, target]. The
+    ::  host @p stays the real note.users member; isolation is the unique note id. ----
+        %find-or-create-actor-dm
+      ?~  app.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'app required' ~ ~ ~)
+      ?~  actor.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'actor required' ~ ~ ~)
+      ?.  ?=(?(%user %bot %app) kind.u.actor.aa)
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'bad actor kind' ~ ~ ~)
+      =/  who=(unit @p)  (slaw %p ship.aa)
+      ?~  who
+        :_  this
+        (api-result-card request-id.aa %.n %invalid-ship 'ship did not parse' ~ ~ ~)
+      ?:  =(u.who our.bowl)
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'cannot actor-DM yourself' ~ ~ ~)
+      ?:  (~(has in pal-blocked) u.who)
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'ship is blocked' ~ ~ ~)
+      ::  governance: attribute + send-dm. HOLD the candidate registry; commit on success.
+      =/  r  (gate-actor-cap our.bowl now.bowl desk.u.app.aa id.u.actor.aa name.u.actor.aa kind.u.actor.aa (sy ~[%attribute %send-dm]) app-grants actor-registry)
+      ?:  ?=(%.n -.r)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.r msg.p.r ~ ~ ~)
+      =/  cand-registry  registry.p.r
+      ::  canonical actor [host desk id name kind] (host == our.bowl) for the marker.
+      =/  owner-actor=actor:noltbook  actor.p.r
+      ::  idempotent: a LIVE valid actor-DM matching [owner, target].
+      =/  found=(unit @ta)
+        =/  pairs=(list [nid=@ta meta=actor-dm-meta:noltbook])  ~(tap by actor-dm-notes)
+        |-  ^-  (unit @ta)
+        ?~  pairs  ~
+        =/  m=actor-dm-meta:noltbook  meta.i.pairs
+        ?.  ?&  =(host.owner.m our.bowl)
+                =(desk.owner.m desk.u.app.aa)
+                =(id.owner.m id.u.actor.aa)
+                =(target.m u.who)
+            ==
+          $(pairs t.pairs)
+        =/  nt-u  (~(get by notes) nid.i.pairs)
+        ?:  ?&(?=(^ nt-u) (actor-dm-valid u.nt-u m))  `nid.i.pairs
+        $(pairs t.pairs)
+      ?^  found
+        =.  actor-registry  cand-registry
+        :_  this
+        (api-result-card request-id.aa %.y %found 'actor dm found' `u.found ~ ~)
+      ::  prune any stale markers for this [owner,target] (note gone/invalid) so a fresh
+      ::  conversation is created cleanly.
+      =/  stale-ids=(list @ta)
+        %+  murn  ~(tap by actor-dm-notes)
+        |=  [nid=@ta m=actor-dm-meta:noltbook]
+        ^-  (unit @ta)
+        ?.  ?&  =(host.owner.m our.bowl)
+                =(desk.owner.m desk.u.app.aa)
+                =(id.owner.m id.u.actor.aa)
+                =(target.m u.who)
+            ==
+          ~
+        =/  nt-u  (~(get by notes) nid)
+        ?:  ?&(?=(^ nt-u) (actor-dm-valid u.nt-u m))  ~
+        `nid
+      =.  actor-dm-notes
+        (roll stale-ids |=([n=@ta acc=_actor-dm-notes] (~(del by acc) n)))
+      ::  G5A hardening: tell the FE to drop each pruned stale marker.
+      =/  stale-clear-cards=(list card)
+        %+  turn  stale-ids
+        |=  n=@ta
+        ^-  card
+        [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%actor-dm-updated n ~])]
+      ::  create: mint nid (note-{now}), reuse internal %create-note (secret %notebook),
+      ::  write owner + participation + marker, then reuse %invite-to-note for the one
+      ::  target (handles notebook->group + remote invite). Name = canonical actor name.
+      =/  nid=@ta  (crip (weld "note-" (trip (scot %da now.bowl))))
+      =/  dm-name=@t  (crip :(weld (trip name.owner-actor) " (DM with " (scow %p u.who) ")"))
+      =.  actor-registry  cand-registry
+      =^  c1  this
+        $(mark %noltbook-action, vase !>(`action:noltbook`[%create-note dm-name ~]))
+      =.  note-actor-owners  (~(put by note-actor-owners) nid [our.bowl desk.u.app.aa id.u.actor.aa])
+      =.  actor-note-participation
+        (~(put by actor-note-participation) nid (sy ~[[desk.u.app.aa id.u.actor.aa]]))
+      ::  G6A: seed the owner's read cursor (fresh DM note has no messages => no row).
+      =.  actor-note-read
+        (actor-read-seed actor-note-read desk.u.app.aa id.u.actor.aa nid (fall (~(get by messages) nid) ~))
+      =/  meta=actor-dm-meta:noltbook  [owner-actor u.who now.bowl]
+      =.  actor-dm-notes  (~(put by actor-dm-notes) nid meta)
+      =^  c2  this
+        $(mark %noltbook-action, vase !>(`action:noltbook`[%invite-to-note nid u.who]))
+      ::  G5A: after the invite, tell the target this group is a direct actor DM.
+      =/  meta-card=card
+        [%pass /actor-dm-meta/(scot %p u.who)/[nid] %agent [u.who %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-actor-dm-meta nid meta])]
+      =/  dm-fact=card
+        [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%actor-dm-updated nid `meta])]
+      :_  this
+      %-  zing
+      :~  stale-clear-cards  c1  c2  ~[meta-card dm-fact]
+          (api-result-card request-id.aa %.y %actor-dm-created 'actor dm created' `nid ~ ~)
+      ==
+    ::
+        %actor-adopt-dm
+      ?~  app.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'app required' `note-id.aa ~ ~)
+      ?~  actor.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'actor required' `note-id.aa ~ ~)
+      ?.  ?=(?(%user %bot %app) kind.u.actor.aa)
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'bad actor kind' `note-id.aa ~ ~)
+      =/  r  (gate-actor-cap our.bowl now.bowl desk.u.app.aa id.u.actor.aa name.u.actor.aa kind.u.actor.aa (sy ~[%attribute %send-dm]) app-grants actor-registry)
+      ?:  ?=(%.n -.r)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.r msg.p.r `note-id.aa ~ ~)
+      =/  cand-registry  registry.p.r
+      =/  nt-u  (~(get by notes) note-id.aa)
+      ?~  nt-u
+        :_  this
+        (api-result-card request-id.aa %.n %missing-note 'no such note' `note-id.aa ~ ~)
+      =/  nt=note:noltbook  u.nt-u
+      =/  dm-u  (~(get by actor-dm-notes) note-id.aa)
+      ?~  dm-u
+        :_  this
+        (api-result-card request-id.aa %.n %unsupported 'not an actor-DM note' `note-id.aa ~ ~)
+      =/  meta=actor-dm-meta:noltbook  u.dm-u
+      ::  the marker must be addressed to us, owner.host must be the note's creator, and
+      ::  the membership invariant (secret 2-ship %group, users {creator, our}) must hold.
+      ?.  =(target.meta our.bowl)
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'this actor DM is not addressed to us' `note-id.aa ~ ~)
+      ?.  =(host.owner.meta creator.nt)
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'owner host is not the note creator' `note-id.aa ~ ~)
+      ?.  (actor-dm-valid nt meta)
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'actor-DM membership invariant broken' `note-id.aa ~ ~)
+      ::  the adopting actor must not be a LOCAL owner of it (target host has no owner
+      ::  row; this is defensive against an illicit local owner row).
+      =/  owner-row  (~(get by note-actor-owners) note-id.aa)
+      ?:  ?&  ?=(^ owner-row)
+              =(host.u.owner-row our.bowl)
+              =(desk.u.owner-row desk.u.app.aa)
+              =(id.u.owner-row id.u.actor.aa)
+          ==
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'owner cannot adopt its own actor DM' `note-id.aa ~ ~)
+      ::  occupancy: at most ONE local actor participation row. This actor => idempotent
+      ::  success; a different actor already present => occupied/rejected.
+      =/  cur=(set [desk=@tas id=@t])  (fall (~(get by actor-note-participation) note-id.aa) ~)
+      ?:  (~(has in cur) [desk.u.app.aa id.u.actor.aa])
+        =.  actor-registry  cand-registry
+        :_  this
+        (api-result-card request-id.aa %.y %actor-dm-adopted 'actor dm adopted' `note-id.aa ~ ~)
+      ?.  =(0 ~(wyt in cur))
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'actor DM already adopted by another local actor' `note-id.aa ~ ~)
+      =.  actor-registry  cand-registry
+      =.  actor-note-participation
+        (~(put by actor-note-participation) note-id.aa (sy ~[[desk.u.app.aa id.u.actor.aa]]))
+      ::  G6A: seed the adopter's read cursor to current so adoption isn't all-unread.
+      =.  actor-note-read
+        (actor-read-seed actor-note-read desk.u.app.aa id.u.actor.aa note-id.aa (fall (~(get by messages) note-id.aa) ~))
+      :_  this
+      (api-result-card request-id.aa %.y %actor-dm-adopted 'actor dm adopted' `note-id.aa ~ ~)
+    ::
+    ::  ---- Actor Notifications (Phase G6A): advance THIS actor's per-note read cursor.
+    ::  Independent per actor; never touches host note-read or other actors' cursors. ----
+        %actor-mark-note-read
+      ?~  app.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'app required' `note-id.aa ~ ~)
+      ?~  actor.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'actor required' `note-id.aa ~ ~)
+      ?.  ?=(?(%user %bot %app) kind.u.actor.aa)
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'bad actor kind' `note-id.aa ~ ~)
+      ::  governance: attribute + manage-own-notifications. HOLD the candidate registry.
+      =/  r  (gate-actor-cap our.bowl now.bowl desk.u.app.aa id.u.actor.aa name.u.actor.aa kind.u.actor.aa (sy ~[%attribute %manage-own-notifications]) app-grants actor-registry)
+      ?:  ?=(%.n -.r)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.r msg.p.r `note-id.aa ~ ~)
+      =/  cand-registry  registry.p.r
+      ::  own-or-participate (inherits actor-DM host-role rules + invariant + honest
+      ::  missing-note/unsupported/actor-not-participant codes from actor-note-access).
+      =/  acc  (actor-note-access our.bowl note-id.aa desk.u.app.aa id.u.actor.aa notes note-actor-owners actor-note-participation actor-dm-notes)
+      ?:  ?=(%.n -.acc)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.acc msg.p.acc `note-id.aa ~ ~)
+      ::  commit registry, then advance THIS actor's cursor to the newest stored MESSAGE
+      ::  (monotonic; no messages => no row but still success). Never calls the internal
+      ::  %mark-note-read and never mutates host note-read.
+      =.  actor-registry  cand-registry
+      =/  newest=@da  (newest-msg-da (fall (~(get by messages) note-id.aa) ~))
+      =.  actor-note-read
+        (actor-read-put actor-note-read desk.u.app.aa id.u.actor.aa note-id.aa newest)
+      :_  this
+      (api-result-card request-id.aa %.y %actor-note-read 'actor note marked read' `note-id.aa ~ ~)
+    ::
+    ::  ---- Actor Notifications (Phase G6B): clear THIS actor's directed reply
+    ::  notifications. Independent of read state; never touches host attention. ----
+        %actor-clear-notification
+      ?~  app.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'app required' `note-id.aa ~ `eid.aa)
+      ?~  actor.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'actor required' `note-id.aa ~ `eid.aa)
+      ?.  ?=(?(%user %bot %app) kind.u.actor.aa)
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'bad actor kind' `note-id.aa ~ `eid.aa)
+      ::  governance: attribute + manage-own-notifications. HOLD the candidate registry.
+      =/  r  (gate-actor-cap our.bowl now.bowl desk.u.app.aa id.u.actor.aa name.u.actor.aa kind.u.actor.aa (sy ~[%attribute %manage-own-notifications]) app-grants actor-registry)
+      ?:  ?=(%.n -.r)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.r msg.p.r `note-id.aa ~ `eid.aa)
+      =/  cand-registry  registry.p.r
+      ::  the row (note-id + eid) must exist for THIS actor; else missing-target (do not
+      ::  commit the candidate registry — mirrors mark-read's failure handling).
+      =/  cur=(list actor-notification:noltbook)
+        (fall (~(get by actor-notifications) [desk.u.app.aa id.u.actor.aa]) ~)
+      ?.  (lien cur |=(n=actor-notification:noltbook &(=(note-id.n note-id.aa) =(eid.n eid.aa))))
+        :_  this
+        (api-result-card request-id.aa %.n %missing-target 'no such notification' `note-id.aa ~ `eid.aa)
+      ::  commit registry, drop the row for THIS actor (clearing never marks the note
+      ::  read), then emit the AUTHORITATIVE remaining list on /api/results (full=%.y).
+      =.  actor-registry  cand-registry
+      =/  nl=(list actor-notification:noltbook)
+        (skip cur |=(n=actor-notification:noltbook &(=(note-id.n note-id.aa) =(eid.n eid.aa))))
+      =.  actor-notifications
+        ?:  =(~ nl)  (~(del by actor-notifications) [desk.u.app.aa id.u.actor.aa])
+        (~(put by actor-notifications) [desk.u.app.aa id.u.actor.aa] nl)
+      :_  this
+      %+  weld
+        (actor-notif-full-cards actor-notifications desk.u.app.aa id.u.actor.aa messages actor-by-eid)
+      (api-result-card request-id.aa %.y %actor-notification-cleared 'notification cleared' `note-id.aa ~ `eid.aa)
+    ::
+        %actor-clear-notifications
+      ?~  app.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'app required' ~ ~ ~)
+      ?~  actor.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'actor required' ~ ~ ~)
+      ?.  ?=(?(%user %bot %app) kind.u.actor.aa)
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'bad actor kind' ~ ~ ~)
+      =/  r  (gate-actor-cap our.bowl now.bowl desk.u.app.aa id.u.actor.aa name.u.actor.aa kind.u.actor.aa (sy ~[%attribute %manage-own-notifications]) app-grants actor-registry)
+      ?:  ?=(%.n -.r)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.r msg.p.r ~ ~ ~)
+      ::  commit registry, drop ALL of this actor's notifications (idempotent success),
+      ::  then emit the now-empty authoritative list (full=%.y).
+      =.  actor-registry  registry.p.r
+      =.  actor-notifications
+        (~(del by actor-notifications) [desk.u.app.aa id.u.actor.aa])
+      :_  this
+      %+  weld
+        (actor-notif-full-cards actor-notifications desk.u.app.aa id.u.actor.aa messages actor-by-eid)
+      (api-result-card request-id.aa %.y %actor-notifications-cleared 'notifications cleared' ~ ~ ~)
+    ::
+    ::  ---- Phase B: REAL ship-user actor mute/block by full [host,desk,id]. Validate raw
+    ::  strings, delegate to the typed internal action, then mirror the authoritative prefs
+    ::  on /api/results + a result card. Idempotent add; unmute/unblock of an absent target
+    ::  => missing-target. mute/block independent; suppression = muted OR blocked. ----
+        %mute-actor
+      =/  pr  (api-parse-actor-ref host.aa desk.aa id.aa)
+      ?:  ?=(%.n -.pr)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.pr msg.p.pr ~ ~ ~)
+      =^  cards  this
+        $(mark %noltbook-action, vase !>(`action:noltbook`[%mute-actor p.pr]))
+      :_  this
+      :*  (user-actor-prefs-fact ~[/api/results] user-muted-actors user-blocked-actors)
+          %+  weld  cards
+          (api-result-card request-id.aa %.y %user-actor-muted 'actor muted' ~ ~ ~)
+      ==
+    ::
+        %unmute-actor
+      =/  pr  (api-parse-actor-ref host.aa desk.aa id.aa)
+      ?:  ?=(%.n -.pr)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.pr msg.p.pr ~ ~ ~)
+      ?.  (~(has in user-muted-actors) p.pr)
+        :_  this
+        (api-result-card request-id.aa %.n %missing-target 'actor was not muted' ~ ~ ~)
+      =^  cards  this
+        $(mark %noltbook-action, vase !>(`action:noltbook`[%unmute-actor p.pr]))
+      :_  this
+      :*  (user-actor-prefs-fact ~[/api/results] user-muted-actors user-blocked-actors)
+          %+  weld  cards
+          (api-result-card request-id.aa %.y %user-actor-unmuted 'actor unmuted' ~ ~ ~)
+      ==
+    ::
+        %block-actor
+      =/  pr  (api-parse-actor-ref host.aa desk.aa id.aa)
+      ?:  ?=(%.n -.pr)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.pr msg.p.pr ~ ~ ~)
+      =^  cards  this
+        $(mark %noltbook-action, vase !>(`action:noltbook`[%block-actor p.pr]))
+      :_  this
+      :*  (user-actor-prefs-fact ~[/api/results] user-muted-actors user-blocked-actors)
+          %+  weld  cards
+          (api-result-card request-id.aa %.y %user-actor-blocked 'actor blocked' ~ ~ ~)
+      ==
+    ::
+        %unblock-actor
+      =/  pr  (api-parse-actor-ref host.aa desk.aa id.aa)
+      ?:  ?=(%.n -.pr)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.pr msg.p.pr ~ ~ ~)
+      ?.  (~(has in user-blocked-actors) p.pr)
+        :_  this
+        (api-result-card request-id.aa %.n %missing-target 'actor was not blocked' ~ ~ ~)
+      =^  cards  this
+        $(mark %noltbook-action, vase !>(`action:noltbook`[%unblock-actor p.pr]))
+      :_  this
+      :*  (user-actor-prefs-fact ~[/api/results] user-muted-actors user-blocked-actors)
+          %+  weld  cards
+          (api-result-card request-id.aa %.y %user-actor-unblocked 'actor unblocked' ~ ~ ~)
+      ==
+    ::
         %post-message
       ::  cheap pre-checks mirror the internal handler's guards so obvious
       ::  failures report honestly instead of silently no-op'ing.
@@ -5550,18 +8554,22 @@
       =/  via=(unit via-app:noltbook)
         ?~  app.aa  ~
         `[desk.u.app.aa title.u.app.aa publisher.u.app.aa our.bowl]
-      ::  Phase ACTOR-A: governance gate. A well-formed actor on an allowed note
-      ::  (valid app, direct-note type, valid kind) must pass the host's app grant
-      ::  + actor registry (TOFU). A governance-DENIED actor REJECTS the post — it
-      ::  is never silently re-attributed to the host. No/malformed/excluded actor
-      ::  => host post, unchanged. An accepted actor bumps the registry.
+      ::  Phase ACTOR-A / G2: governance gate. A supplied actor = valid app + valid
+      ::  kind (note-type is NO LONGER part of this decision). Such an actor runs the
+      ::  host's app grant + registry (TOFU); a governance-DENIED actor REJECTS. The
+      ::  candidate registry is HELD — the G2 actor-note-access check below then
+      ::  enforces own-or-participate and FAILS %unsupported on an excluded note type
+      ::  (cover/gossip/ars-rumors/dm), so a valid actor is NEVER silently stripped
+      ::  and posted as the host. Only no-actor / missing-app / bad-kind => host post.
+      ::  Phase G5A: a post into a marked actor-DM note ALSO requires %send-dm.
+      =/  dm-need=(set app-cap:noltbook)
+        ?:((~(has by actor-dm-notes) note-id.aa) (sy ~[%attribute %post-message %send-dm]) (sy ~[%attribute %post-message]))
       =/  ar=(each [a=(unit actor:noltbook) reg=(map [@tas @t] actor-record:noltbook)] [code=@tas msg=@t])
         ?.  ?&  ?=(^ app.aa)  ?=(^ actor.aa)
-                ?!  ?|(=(%cover type.nt) =(%gossip type.nt) =(%ars-rumors note-id.aa))
                 ?=(?(%user %bot %app) kind.u.actor.aa)
             ==
           [%.y ~ actor-registry]
-        =/  r  (gate-actor our.bowl now.bowl desk.u.app.aa id.u.actor.aa name.u.actor.aa kind.u.actor.aa app-grants actor-registry)
+        =/  r  (gate-actor-cap our.bowl now.bowl desk.u.app.aa id.u.actor.aa name.u.actor.aa kind.u.actor.aa dm-need app-grants actor-registry)
         ?-  -.r
           %.n  [%.n p.r]
           %.y  [%.y `actor.p.r registry.p.r]
@@ -5569,8 +8577,26 @@
       ?:  ?=(%.n -.ar)
         :_  this
         (api-result-card request-id.aa %.n code.p.ar msg.p.ar `note-id.aa ~ ~)
+      ::  Phase G2: a supplied/attributed actor MUST own or participate in the note
+      ::  (eligible %notebook/%group only; %dm => unsupported). The gate's candidate
+      ::  registry is HELD; we commit only after this passes, so a denied actor never
+      ::  TOFU-registers, bumps last-seen, posts as host, or mutates messages. A
+      ::  no-actor host post (a.p.ar == ~) skips this entirely — host behavior unchanged.
+      =/  access-fail=(unit [code=@tas msg=@t])
+        ?~  a.p.ar  ~
+        =/  acc  (actor-note-access our.bowl note-id.aa desk.u.a.p.ar id.u.a.p.ar notes note-actor-owners actor-note-participation actor-dm-notes)
+        ?:(?=(%.y -.acc) ~ `p.acc)
+      ?^  access-fail
+        :_  this
+        (api-result-card request-id.aa %.n code.u.access-fail msg.u.access-fail `note-id.aa ~ ~)
       =.  actor-registry  reg.p.ar
       =+  conf=(api-send-confirm note-id.aa nt our.bowl now.bowl seq-counters)
+      ::  G6A: the posting actor's OWN message must not make it unread. Advance its
+      ::  cursor to now.bowl (= the local message id on a note we host). For a remote
+      ::  note the host re-stamps the message; the %new-message receipt path then
+      ::  advances to that exact id (monotonic). Other actors stay unread.
+      =?  actor-note-read  ?=(^ a.p.ar)
+        (actor-read-put actor-note-read desk.u.a.p.ar id.u.a.p.ar note-id.aa now.bowl)
       =^  cards  this
         $(mark %noltbook-action, vase !>(`action:noltbook`[%send-message note-id.aa text.aa ~ reply-to-eid.aa ~ via a.p.ar]))
       :_  this
@@ -5594,18 +8620,22 @@
       ?:  (api-dm-blocked note-id.aa nt our.bowl pal-blocked)
         :_  this
         (api-result-card request-id.aa %.n %rejected 'dm counterparty blocked' `note-id.aa ~ ~)
+      ::  Phase G5A: app-refs AS AN ACTOR are not supported inside actor-DM notes.
+      ?:  ?&((~(has by actor-dm-notes) note-id.aa) ?=(^ actor.aa))
+        :_  this
+        (api-result-card request-id.aa %.n %unsupported 'app-ref as actor is not supported in actor DMs' `note-id.aa ~ ~)
       =/  via=(unit via-app:noltbook)
         ?~  app.aa  ~
         `[desk.u.app.aa title.u.app.aa publisher.u.app.aa our.bowl]
-      ::  Phase ACTOR-A: same governance gate as %post-message. Denied actor
-      ::  rejects the post; no/malformed/excluded actor => host post unchanged.
+      ::  Phase ACTOR-A / G2: same as %post-message — a supplied actor (valid app +
+      ::  kind) runs governance, then actor-note-access enforces own-or-participate
+      ::  and FAILS %unsupported on excluded note types; never stripped to a host post.
       =/  ar=(each [a=(unit actor:noltbook) reg=(map [@tas @t] actor-record:noltbook)] [code=@tas msg=@t])
         ?.  ?&  ?=(^ app.aa)  ?=(^ actor.aa)
-                ?!  ?|(=(%cover type.nt) =(%gossip type.nt) =(%ars-rumors note-id.aa))
                 ?=(?(%user %bot %app) kind.u.actor.aa)
             ==
           [%.y ~ actor-registry]
-        =/  r  (gate-actor our.bowl now.bowl desk.u.app.aa id.u.actor.aa name.u.actor.aa kind.u.actor.aa app-grants actor-registry)
+        =/  r  (gate-actor-cap our.bowl now.bowl desk.u.app.aa id.u.actor.aa name.u.actor.aa kind.u.actor.aa (sy ~[%attribute %post-message]) app-grants actor-registry)
         ?-  -.r
           %.n  [%.n p.r]
           %.y  [%.y `actor.p.r registry.p.r]
@@ -5613,8 +8643,19 @@
       ?:  ?=(%.n -.ar)
         :_  this
         (api-result-card request-id.aa %.n code.p.ar msg.p.ar `note-id.aa ~ ~)
+      ::  Phase G2: same own-or-participate gate as %post-message (held registry).
+      =/  access-fail=(unit [code=@tas msg=@t])
+        ?~  a.p.ar  ~
+        =/  acc  (actor-note-access our.bowl note-id.aa desk.u.a.p.ar id.u.a.p.ar notes note-actor-owners actor-note-participation actor-dm-notes)
+        ?:(?=(%.y -.acc) ~ `p.acc)
+      ?^  access-fail
+        :_  this
+        (api-result-card request-id.aa %.n code.u.access-fail msg.u.access-fail `note-id.aa ~ ~)
       =.  actor-registry  reg.p.ar
       =+  conf=(api-send-confirm note-id.aa nt our.bowl now.bowl seq-counters)
+      ::  G6A: advance the posting actor's own cursor (see %post-message).
+      =?  actor-note-read  ?=(^ a.p.ar)
+        (actor-read-put actor-note-read desk.u.a.p.ar id.u.a.p.ar note-id.aa now.bowl)
       =^  cards  this
         $(mark %noltbook-action, vase !>(`action:noltbook`[%send-message note-id.aa p.res ~ ~ ~ via a.p.ar]))
       :_  this
@@ -5630,7 +8671,8 @@
       ?~  dterm
         :_  this
         (api-result-card request-id.aa %.n %actor-invalid 'desk did not parse' ~ ~ ~)
-      ::  caps default to {%attribute}; unknown cap strings are dropped.
+      ::  caps default to {%attribute}; any valid app-cap string is kept, unknown
+      ::  strings are dropped (the ?= narrows a parsed term to the app-cap enum).
       =/  caps=(set app-cap:noltbook)
         ?~  caps.aa  (sy ~[%attribute])
         %-  ~(gas in *(set app-cap:noltbook))
@@ -5638,9 +8680,8 @@
         |=  c=@t  ^-  (unit app-cap:noltbook)
         =/  ct  (rush c sym)
         ?~  ct  ~
-        ?:  =(%attribute u.ct)  `%attribute
-        ?:  =(%manage-actors u.ct)  `%manage-actors
-        ~
+        ?.  ?=(app-cap:noltbook u.ct)  ~
+        `u.ct
       =/  existing  (~(get by app-grants) u.dterm)
       =/  prior-rev=(unit @da)  ?~(existing ~ revoked-at.u.existing)
       =/  ng=app-grant:noltbook
@@ -5706,10 +8747,23 @@
         (api-result-card request-id.aa %.n %app-not-granted 'app lacks %manage-actors' ~ ~ ~)
       =/  key  [u.dterm id.aa]
       =/  rec  (~(get by actor-registry) key)
+      ::  caps three-state: ~ keep existing (or ~ for new); [~ ~] clear→inherit;
+      ::  [~ [~ strs]] set explicit (parsed/clamped to valid app-caps).
+      =/  new-caps=(unit (set app-cap:noltbook))
+        ?~  caps.aa  ?~(rec ~ caps.u.rec)
+        ?~  u.caps.aa  ~
+        :-  ~
+        %-  ~(gas in *(set app-cap:noltbook))
+        %+  murn  ~(tap in u.u.caps.aa)
+        |=  c=@t  ^-  (unit app-cap:noltbook)
+        =/  ct  (rush c sym)
+        ?~  ct  ~
+        ?.  ?=(app-cap:noltbook u.ct)  ~
+        `u.ct
       =/  nr=actor-record:noltbook
         ?~  rec
-          [id.aa name.aa u.knd %active now.bowl now.bowl ~ now.bowl]
-        u.rec(name name.aa, kind u.knd, updated-at now.bowl)
+          [id.aa name.aa u.knd %active now.bowl now.bowl ~ now.bowl new-caps]
+        u.rec(name name.aa, kind u.knd, updated-at now.bowl, caps new-caps)
       =.  actor-registry  (~(put by actor-registry) key nr)
       :_  this
       (api-result-card request-id.aa %.y %actor-updated 'actor updated' ~ ~ ~)
@@ -6110,9 +9164,113 @@
       ::  Phase 11A cleanup: drop the attribution row for a locally-deleted message.
       =?  via-by-eid  ?&(=(%deleted code) ?=(^ r-eid))
         (~(del by via-by-eid) u.r-eid)
+      ::  Phase B parity: also drop the actor row so deletes don't orphan it.
+      =?  actor-by-eid  ?&(=(%deleted code) ?=(^ r-eid))
+        (~(del by actor-by-eid) u.r-eid)
       :_  this
       %+  weld  cards
       (api-result-card request-id.aa %.y code 'message deleted' `note-id.aa r-mid r-eid)
+    ::
+    ::  ---- Actor Tools (Phase B / G3B): an app actor edits/deletes ONLY its own
+    ::  attributed messages. Require app+actor; verify actor-ownership via
+    ::  gate-actor-owns + current participation; then re-enter the existing internal
+    ::  edit/delete handler (authored as our.bowl). A note WE host applies durably
+    ::  (%actor-edited/%actor-deleted); a remote-hosted %group note forwards the
+    ::  existing %remote-edit-msg/%remote-delete-msg and returns %accepted. ----
+        %edit-actor-message
+      ?~  (~(get by notes) note-id.aa)
+        :_  this
+        (api-result-card request-id.aa %.n %missing-note 'no such note' ~ ~ ~)
+      ?:  (is-write-blocked note-id.aa host-status notes our.bowl)
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'write blocked' `note-id.aa ~ ~)
+      =/  nt=note:noltbook  (~(got by notes) note-id.aa)
+      ?~  app.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'app required' `note-id.aa ~ ~)
+      ?~  actor.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'actor required' `note-id.aa ~ ~)
+      =/  msgs=(list message:noltbook)  (fall (~(get by messages) note-id.aa) ~)
+      ::  Phase G5A: editing inside a marked actor-DM note ALSO requires %send-dm.
+      =/  edit-need=(set app-cap:noltbook)
+        ?:((~(has by actor-dm-notes) note-id.aa) (sy ~[%attribute %edit-own-message %send-dm]) (sy ~[%attribute %edit-own-message]))
+      =/  g  (gate-actor-owns our.bowl now.bowl app.aa actor.aa msgs eid.aa msg-id.aa edit-need app-grants actor-registry actor-by-eid)
+      ?:  ?=(%.n -.g)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.g msg.p.g `note-id.aa ~ ~)
+      ::  Phase G2: beyond exact actor-by-eid ownership, also require CURRENT note
+      ::  ownership/participation — an actor that no longer participates cannot edit
+      ::  its earlier messages via the actor API. The gate's candidate registry is
+      ::  held; we commit only after this passes (no TOFU/last-seen on failure).
+      =/  acc  (actor-note-access our.bowl note-id.aa desk.u.app.aa id.u.actor.aa notes note-actor-owners actor-note-participation actor-dm-notes)
+      ?:  ?=(%.n -.acc)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.acc msg.p.acc `note-id.aa ~ ~)
+      =.  actor-registry  registry.p.g
+      =/  tgt=message:noltbook  target.p.g
+      =/  teid=@uv  eid.p.g
+      ::  G3B: a note WE host (creator==our) edits durably here; a remote-hosted %group
+      ::  note re-enters the SAME internal %edit-message, whose non-creator branch
+      ::  forwards the existing %remote-edit-msg to the host (no new wire shape). A
+      ::  forwarded edit is HANDED-OFF, not host-confirmed => %accepted, never
+      ::  %actor-edited. actor-by-eid is never rewritten, so the host's %message-edited
+      ::  (same eid) re-renders as the same actor.
+      =/  is-local=?  =(our.bowl creator.nt)
+      =^  cards  this
+        $(mark %noltbook-action, vase !>(`action:noltbook`[%edit-message note-id.aa id.tgt `teid text.aa]))
+      :_  this
+      %+  weld  cards
+      ?:  is-local
+        (api-result-card request-id.aa %.y %actor-edited 'actor edited message' `note-id.aa `id.tgt `teid)
+      (api-result-card request-id.aa %.y %accepted 'actor edit forwarded to host' `note-id.aa `id.tgt `teid)
+    ::
+        %delete-actor-message
+      ?~  (~(get by notes) note-id.aa)
+        :_  this
+        (api-result-card request-id.aa %.n %missing-note 'no such note' ~ ~ ~)
+      ?:  (is-write-blocked note-id.aa host-status notes our.bowl)
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'write blocked' `note-id.aa ~ ~)
+      =/  nt=note:noltbook  (~(got by notes) note-id.aa)
+      ?~  app.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'app required' `note-id.aa ~ ~)
+      ?~  actor.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'actor required' `note-id.aa ~ ~)
+      =/  msgs=(list message:noltbook)  (fall (~(get by messages) note-id.aa) ~)
+      ::  Phase G5A: deleting inside a marked actor-DM note ALSO requires %send-dm.
+      =/  del-need=(set app-cap:noltbook)
+        ?:((~(has by actor-dm-notes) note-id.aa) (sy ~[%attribute %delete-own-message %send-dm]) (sy ~[%attribute %delete-own-message]))
+      =/  g  (gate-actor-owns our.bowl now.bowl app.aa actor.aa msgs eid.aa msg-id.aa del-need app-grants actor-registry actor-by-eid)
+      ?:  ?=(%.n -.g)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.g msg.p.g `note-id.aa ~ ~)
+      ::  Phase G2: also require CURRENT note ownership/participation (held registry).
+      =/  acc  (actor-note-access our.bowl note-id.aa desk.u.app.aa id.u.actor.aa notes note-actor-owners actor-note-participation actor-dm-notes)
+      ?:  ?=(%.n -.acc)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.acc msg.p.acc `note-id.aa ~ ~)
+      =.  actor-registry  registry.p.g
+      =/  tgt=message:noltbook  target.p.g
+      =/  teid=@uv  eid.p.g
+      ::  G3B: a note WE host deletes durably here; a remote-hosted %group note re-enters
+      ::  the SAME internal %delete-message, whose non-creator branch forwards the
+      ::  existing %remote-delete-msg to the host (handed-off, NOT host-confirmed =>
+      ::  %accepted). Only prune attribution on the LOCAL delete — for a forwarded
+      ::  delete the message (and its via/actor rows) stay until the host's authoritative
+      ::  %message-deleted arrives, which the subscriber path then prunes.
+      =/  is-local=?  =(our.bowl creator.nt)
+      =^  cards  this
+        $(mark %noltbook-action, vase !>(`action:noltbook`[%delete-message note-id.aa id.tgt `teid]))
+      =?  via-by-eid    is-local  (~(del by via-by-eid) teid)
+      =?  actor-by-eid  is-local  (~(del by actor-by-eid) teid)
+      :_  this
+      %+  weld  cards
+      ?:  is-local
+        (api-result-card request-id.aa %.y %actor-deleted 'actor deleted message' `note-id.aa `id.tgt `teid)
+      (api-result-card request-id.aa %.y %accepted 'actor delete forwarded to host' `note-id.aa `id.tgt `teid)
     ::
     ::  ---- Phase 9: membership/admin mutations (re-enter the existing handlers
     ::  so all ownership/host checks still apply). %mod ops forward to the host
@@ -6213,6 +9371,384 @@
       :_  this
       %+  weld  cards
       (api-result-card request-id.aa %.y %admin-removed 'remove-admin' `note-id.aa ~ ~)
+    ::
+    ::  ---- Actor Member Management (Phase E): an actor manages REAL @p members of
+    ::  notes it owns. Shared actor-member-pre does ownership + governance + ship +
+    ::  host-protection; each branch adds its target-state check and reuses the
+    ::  existing internal handler (durable host-local; the host sends remote pokes). ----
+        %actor-add-member
+      =/  pre  (actor-member-pre our.bowl now.bowl app.aa actor.aa note-id.aa ship.aa note-actor-owners notes host-status app-grants actor-registry actor-dm-notes)
+      ?:  ?=(%.n -.pre)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.pre msg.p.pre `note-id.aa ~ ~)
+      =.  actor-registry  registry.p.pre
+      ?:  (~(has in users.nt.p.pre) who.p.pre)
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'already a member' `note-id.aa ~ ~)
+      ::  first member converts a %notebook to %group (intentional).
+      =^  cards  this
+        $(mark %noltbook-action, vase !>(`action:noltbook`[%invite-to-note note-id.aa who.p.pre]))
+      :_  this
+      %+  weld  cards
+      (api-result-card request-id.aa %.y %actor-member-added 'actor added member' `note-id.aa ~ ~)
+    ::
+        %actor-remove-member
+      =/  pre  (actor-member-pre our.bowl now.bowl app.aa actor.aa note-id.aa ship.aa note-actor-owners notes host-status app-grants actor-registry actor-dm-notes)
+      ?:  ?=(%.n -.pre)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.pre msg.p.pre `note-id.aa ~ ~)
+      =.  actor-registry  registry.p.pre
+      ?.  (~(has in users.nt.p.pre) who.p.pre)
+        :_  this
+        (api-result-card request-id.aa %.n %missing-target 'not a member' `note-id.aa ~ ~)
+      ::  protect host-appointed admins from actor removal (admin boundary host-only).
+      ?:  (~(has in (fall (~(get by note-admins) note-id.aa) ~)) who.p.pre)
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'cannot remove an admin' `note-id.aa ~ ~)
+      =^  cards  this
+        $(mark %noltbook-action, vase !>(`action:noltbook`[%remove-member note-id.aa who.p.pre]))
+      :_  this
+      %+  weld  cards
+      (api-result-card request-id.aa %.y %actor-member-removed 'actor removed member' `note-id.aa ~ ~)
+    ::
+        %actor-approve-join
+      =/  pre  (actor-member-pre our.bowl now.bowl app.aa actor.aa note-id.aa ship.aa note-actor-owners notes host-status app-grants actor-registry actor-dm-notes)
+      ?:  ?=(%.n -.pre)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.pre msg.p.pre `note-id.aa ~ ~)
+      =.  actor-registry  registry.p.pre
+      ?.  (~(has in (fall (~(get by join-requests) note-id.aa) ~)) who.p.pre)
+        :_  this
+        (api-result-card request-id.aa %.n %missing-target 'no pending join request' `note-id.aa ~ ~)
+      =^  cards  this
+        $(mark %noltbook-action, vase !>(`action:noltbook`[%approve-join note-id.aa who.p.pre]))
+      :_  this
+      %+  weld  cards
+      (api-result-card request-id.aa %.y %actor-approved 'actor approved join' `note-id.aa ~ ~)
+    ::
+        %actor-deny-join
+      =/  pre  (actor-member-pre our.bowl now.bowl app.aa actor.aa note-id.aa ship.aa note-actor-owners notes host-status app-grants actor-registry actor-dm-notes)
+      ?:  ?=(%.n -.pre)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.pre msg.p.pre `note-id.aa ~ ~)
+      =.  actor-registry  registry.p.pre
+      ?.  (~(has in (fall (~(get by join-requests) note-id.aa) ~)) who.p.pre)
+        :_  this
+        (api-result-card request-id.aa %.n %missing-target 'no pending join request' `note-id.aa ~ ~)
+      ::  %deny-join only (no block); pal-blocked / note.removed are never touched.
+      =^  cards  this
+        $(mark %noltbook-action, vase !>(`action:noltbook`[%deny-join note-id.aa who.p.pre]))
+      :_  this
+      %+  weld  cards
+      (api-result-card request-id.aa %.y %actor-denied 'actor denied join' `note-id.aa ~ ~)
+    ::
+        %actor-mute-member
+      =/  pre  (actor-member-pre our.bowl now.bowl app.aa actor.aa note-id.aa ship.aa note-actor-owners notes host-status app-grants actor-registry actor-dm-notes)
+      ?:  ?=(%.n -.pre)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.pre msg.p.pre `note-id.aa ~ ~)
+      =.  actor-registry  registry.p.pre
+      ?.  (~(has in users.nt.p.pre) who.p.pre)
+        :_  this
+        (api-result-card request-id.aa %.n %missing-target 'not a member' `note-id.aa ~ ~)
+      ?:  (~(has in (fall (~(get by note-admins) note-id.aa) ~)) who.p.pre)
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'cannot mute an admin' `note-id.aa ~ ~)
+      ::  idempotent: muting an already-muted member reports success (the internal
+      ::  handler is a no-op set-add).
+      =^  cards  this
+        $(mark %noltbook-action, vase !>(`action:noltbook`[%mute-member note-id.aa who.p.pre]))
+      :_  this
+      %+  weld  cards
+      (api-result-card request-id.aa %.y %actor-muted 'actor muted member' `note-id.aa ~ ~)
+    ::
+        %actor-unmute-member
+      =/  pre  (actor-member-pre our.bowl now.bowl app.aa actor.aa note-id.aa ship.aa note-actor-owners notes host-status app-grants actor-registry actor-dm-notes)
+      ?:  ?=(%.n -.pre)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.pre msg.p.pre `note-id.aa ~ ~)
+      =.  actor-registry  registry.p.pre
+      ?.  (~(has in (fall (~(get by note-muted) note-id.aa) ~)) who.p.pre)
+        :_  this
+        (api-result-card request-id.aa %.n %missing-target 'not muted' `note-id.aa ~ ~)
+      =^  cards  this
+        $(mark %noltbook-action, vase !>(`action:noltbook`[%unmute-member note-id.aa who.p.pre]))
+      :_  this
+      %+  weld  cards
+      (api-result-card request-id.aa %.y %actor-unmuted 'actor unmuted member' `note-id.aa ~ ~)
+    ::
+    ::  ---- Actor Social (Phase F1): an actor updates its OWN profile. displayName
+    ::  is the canonical actor-record.name; avatar/bio/statusText live in
+    ::  actor-profiles. Three-state per field. Self-scoped to [our, desk, id] —
+    ::  Noltbook enforces the host grant; the trusted app (Skiff) authenticates
+    ::  which Earth user supplied the actor id (Gall cannot). ----
+        %update-actor-profile
+      ?~  app.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'app required' ~ ~ ~)
+      ?~  actor.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'actor required' ~ ~ ~)
+      ?.  ?=(?(%user %bot %app) kind.u.actor.aa)
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'bad actor kind' ~ ~ ~)
+      =/  r  (gate-actor-cap our.bowl now.bowl desk.u.app.aa id.u.actor.aa name.u.actor.aa kind.u.actor.aa (sy ~[%attribute %update-own-profile]) app-grants actor-registry)
+      ?:  ?=(%.n -.r)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.r msg.p.r ~ ~ ~)
+      ::  ATOMIC: hold the gate's candidate registry locally (TOFU/last-seen are NOT
+      ::  committed yet). Validate every supplied field first; mutate actor-registry
+      ::  / actor-profiles only on full success, so an invalid request leaves no
+      ::  TOFU row, no last-seen bump, and no profile change.
+      =/  cand-registry  registry.p.r
+      =/  dkey  [desk.u.app.aa id.u.actor.aa]
+      =/  rec  (~(got by cand-registry) dkey)
+      =/  prof  (~(get by actor-profiles) dkey)
+      =/  cur-av=(unit actor-avatar-ref:noltbook)  ?~(prof ~ avatar.u.prof)
+      ::  displayName three-state -> actor-record.name. absent keep; null reset to
+      ::  id; string cap 64 bytes; empty after cap => invalid-name.
+      =/  name-res=(each @t @tas)
+        ?~  display-name.aa  [%.y name.rec]
+        ?~  u.display-name.aa  [%.y id.u.actor.aa]
+        =/  capped=@t  (end [3 64] u.u.display-name.aa)
+        ?:  =(0 (met 3 capped))  [%.n %invalid-name]
+        [%.y capped]
+      ::  avatar four-state -> profile.avatar. %keep current; %clear ~; %invalid =>
+      ::  invalid-avatar; %set validates type (s3/ipfs/external, urbit rejected),
+      ::  url non-empty, url <= 2048 bytes.
+      =/  av-res=(each (unit actor-avatar-ref:noltbook) @tas)
+        ?-    -.avatar.aa
+            %keep     [%.y cur-av]
+            %clear    [%.y ~]
+            %invalid  [%.n %invalid-avatar]
+            %set
+          =/  ty=@t  type.avatar.aa
+          ?:  =('urbit' ty)  [%.n %invalid-avatar]
+          =/  at=(unit actor-avatar-type:noltbook)
+            ?:  =('s3' ty)        `%s3
+            ?:  =('ipfs' ty)      `%ipfs
+            ?:  =('external' ty)  `%external
+            ~
+          ?~  at  [%.n %invalid-avatar]
+          ?:  =(0 (met 3 url.avatar.aa))  [%.n %invalid-avatar]
+          ?:  (gth (met 3 url.avatar.aa) 2.048)  [%.n %invalid-avatar]
+          [%.y `[u.at url.avatar.aa]]
+        ==
+      ::  bio (cap 280) + statusText (cap 64): absent keep; null clear; string set.
+      =/  new-bio=(unit @t)
+        ?~  bio.aa  ?~(prof ~ bio.u.prof)
+        ?~  u.bio.aa  ~
+        `(end [3 280] u.u.bio.aa)
+      =/  new-st=(unit @t)
+        ?~  status-text.aa  ?~(prof ~ status-text.u.prof)
+        ?~  u.status-text.aa  ~
+        `(end [3 64] u.u.status-text.aa)
+      ::  validation gates — return BEFORE any mutation (actor-registry untouched).
+      ?:  ?=(%.n -.name-res)
+        :_  this
+        (api-result-card request-id.aa %.n %invalid-name 'display name empty' ~ ~ ~)
+      ?:  ?=(%.n -.av-res)
+        :_  this
+        (api-result-card request-id.aa %.n %invalid-avatar 'bad avatar (type/url)' ~ ~ ~)
+      ::  success: commit the candidate registry (with canonical name + gate's
+      ::  last-seen) and the profile row (always written; all-null reads as absent).
+      =.  actor-registry  (~(put by cand-registry) dkey rec(name p.name-res))
+      =.  actor-profiles  (~(put by actor-profiles) dkey [p.av-res new-bio new-st])
+      ::  Phase G4: refresh the main FE immediately with the new PUBLIC profile (host=
+      ::  our.bowl). Not pushed to remotes — they re-resolve through the cache/TTL.
+      =/  pp  (build-actor-public-profile desk.u.app.aa rec(name p.name-res) `[p.av-res new-bio new-st])
+      =/  pupd=update:noltbook  [%actor-profile-updated our.bowl pp]
+      :_  this
+      %+  weld  ~[[%give %fact ~[/notes] %noltbook-update !>(pupd)]]
+      (api-result-card request-id.aa %.y %actor-profile-updated 'actor profile updated' ~ ~ ~)
+    ::
+    ::  ---- Actor Social (Phase G4): developer actor-profile resolution. Validates,
+    ::  emits the immediate scalar, then re-enters the internal %request-actor-profile
+    ::  so local/cache/remote logic is shared; the async %actor-profile-result lands on
+    ::  /api/results (and /notes). requestId is required for correlation. ----
+        %request-actor-profile
+      ?~  request-id.aa
+        :_  this
+        (api-result-card ~ %.n %actor-invalid 'requestId required' ~ ~ ~)
+      =/  who  (slaw %p host.aa)
+      ?~  who
+        :_  this
+        (api-result-card request-id.aa %.n %invalid-ship 'host did not parse' ~ ~ ~)
+      =/  dt  (rush desk.aa sym)
+      ?~  dt
+        :_  this
+        (api-result-card request-id.aa %.n %invalid-desk 'desk is not a term' ~ ~ ~)
+      ?:  =(0 (met 3 id.aa))
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'id empty' ~ ~ ~)
+      ?:  (gth (met 3 id.aa) 128)
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'id too long' ~ ~ ~)
+      =^  cards  this
+        $(mark %noltbook-action, vase !>(`action:noltbook`[%request-actor-profile u.who u.dt id.aa u.request-id.aa]))
+      :_  this
+      %+  weld  cards
+      (api-result-card request-id.aa %.y %actor-profile-requested 'actor profile lookup started' ~ ~ ~)
+    ::
+    ::  ---- Actor Social (Phase F2): an actor's own contact book. Contacts are
+    ::  tagged identity-refs (ship or actor); they grant NO trust/pal/membership and
+    ::  never touch the host's ship contacts. Self-scoped to [our, desk, id]. ----
+        %actor-add-contact
+      ?~  app.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'app required' ~ ~ ~)
+      ?~  actor.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'actor required' ~ ~ ~)
+      ?.  ?=(?(%user %bot %app) kind.u.actor.aa)
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'bad actor kind' ~ ~ ~)
+      =/  r  (gate-actor-cap our.bowl now.bowl desk.u.app.aa id.u.actor.aa name.u.actor.aa kind.u.actor.aa (sy ~[%attribute %manage-own-contacts]) app-grants actor-registry)
+      ?:  ?=(%.n -.r)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.r msg.p.r ~ ~ ~)
+      ::  ATOMIC: hold the gate's candidate registry; validate the ref before any
+      ::  commit, so a bad ref / self-contact leaves no TOFU row and no last-seen bump.
+      =/  cand-registry  registry.p.r
+      =/  vr  (api-validate-ref our.bowl desk.u.app.aa id.u.actor.aa ref.aa)
+      ?:  ?=(%.n -.vr)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.vr msg.p.vr ~ ~ ~)
+      =/  dkey  [desk.u.app.aa id.u.actor.aa]
+      =/  cur=(set identity-ref:noltbook)  (fall (~(get by actor-contacts) dkey) ~)
+      ::  duplicate add is idempotent success (set put is a no-op if present).
+      =.  actor-registry  cand-registry
+      =.  actor-contacts  (~(put by actor-contacts) dkey (~(put in cur) p.vr))
+      :_  this
+      (api-result-card request-id.aa %.y %actor-contact-added 'actor contact added' ~ ~ ~)
+    ::
+        %actor-remove-contact
+      ?~  app.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'app required' ~ ~ ~)
+      ?~  actor.aa
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'actor required' ~ ~ ~)
+      ?.  ?=(?(%user %bot %app) kind.u.actor.aa)
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'bad actor kind' ~ ~ ~)
+      =/  r  (gate-actor-cap our.bowl now.bowl desk.u.app.aa id.u.actor.aa name.u.actor.aa kind.u.actor.aa (sy ~[%attribute %manage-own-contacts]) app-grants actor-registry)
+      ?:  ?=(%.n -.r)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.r msg.p.r ~ ~ ~)
+      =/  cand-registry  registry.p.r
+      =/  vr  (api-validate-ref our.bowl desk.u.app.aa id.u.actor.aa ref.aa)
+      ?:  ?=(%.n -.vr)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.vr msg.p.vr ~ ~ ~)
+      =/  dkey  [desk.u.app.aa id.u.actor.aa]
+      =/  cur=(set identity-ref:noltbook)  (fall (~(get by actor-contacts) dkey) ~)
+      ?.  (~(has in cur) p.vr)
+        :_  this
+        (api-result-card request-id.aa %.n %missing-target 'not a contact' ~ ~ ~)
+      =/  new-set=(set identity-ref:noltbook)  (~(del in cur) p.vr)
+      =.  actor-registry  cand-registry
+      ::  drop the map row when the set becomes empty (keeps reads/storage clean).
+      =.  actor-contacts
+        ?:  =(~ new-set)  (~(del by actor-contacts) dkey)
+        (~(put by actor-contacts) dkey new-set)
+      :_  this
+      (api-result-card request-id.aa %.y %actor-contact-removed 'actor contact removed' ~ ~ ~)
+    ::
+    ::  ---- Actor Social (Phase F3): an actor's own STORED-ONLY identity mute/block
+    ::  book. Every write gates on %attribute + %manage-own-preferences via
+    ::  actor-pref-pre. Block and mute are independent sets; nothing host-level
+    ::  (pal-blocked/contacts/note-muted/membership/attention) is touched and reads
+    ::  are NOT filtered. ATOMIC: the candidate registry is held and committed only on
+    ::  success, so a failed action never TOFU-registers or bumps last-seen, and every
+    ::  failure with a requestId still emits a visible /api/results fact. ----
+        %actor-block-identity
+      =/  pre  (actor-pref-pre our.bowl now.bowl app.aa actor.aa app-grants actor-registry)
+      ?:  ?=(%.n -.pre)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.pre msg.p.pre ~ ~ ~)
+      =/  cand-registry  registry.p.pre
+      =/  vr  (api-validate-ref our.bowl desk.p.pre aid.p.pre ref.aa)
+      ?:  ?=(%.n -.vr)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.vr msg.p.vr ~ ~ ~)
+      =/  dkey  [desk.p.pre aid.p.pre]
+      =/  cur=actor-preferences:noltbook  (fall (~(get by actor-preferences) dkey) [~ ~])
+      ::  duplicate add is idempotent; muted is left untouched (independent set).
+      =.  actor-registry  cand-registry
+      =.  actor-preferences
+        (~(put by actor-preferences) dkey cur(blocked (~(put in blocked.cur) p.vr)))
+      :_  this
+      (api-result-card request-id.aa %.y %actor-identity-blocked 'actor identity blocked' ~ ~ ~)
+    ::
+        %actor-unblock-identity
+      =/  pre  (actor-pref-pre our.bowl now.bowl app.aa actor.aa app-grants actor-registry)
+      ?:  ?=(%.n -.pre)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.pre msg.p.pre ~ ~ ~)
+      =/  cand-registry  registry.p.pre
+      =/  vr  (api-validate-ref our.bowl desk.p.pre aid.p.pre ref.aa)
+      ?:  ?=(%.n -.vr)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.vr msg.p.vr ~ ~ ~)
+      =/  dkey  [desk.p.pre aid.p.pre]
+      =/  cur=actor-preferences:noltbook  (fall (~(get by actor-preferences) dkey) [~ ~])
+      ?.  (~(has in blocked.cur) p.vr)
+        :_  this
+        (api-result-card request-id.aa %.n %missing-target 'identity not blocked' ~ ~ ~)
+      ::  remove ONLY from blocked; muted is independent and stays.
+      =/  np=actor-preferences:noltbook  cur(blocked (~(del in blocked.cur) p.vr))
+      =.  actor-registry  cand-registry
+      =.  actor-preferences
+        ?:  &(=(~ blocked.np) =(~ muted.np))
+          (~(del by actor-preferences) dkey)
+        (~(put by actor-preferences) dkey np)
+      :_  this
+      (api-result-card request-id.aa %.y %actor-identity-unblocked 'actor identity unblocked' ~ ~ ~)
+    ::
+        %actor-mute-identity
+      =/  pre  (actor-pref-pre our.bowl now.bowl app.aa actor.aa app-grants actor-registry)
+      ?:  ?=(%.n -.pre)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.pre msg.p.pre ~ ~ ~)
+      =/  cand-registry  registry.p.pre
+      =/  vr  (api-validate-ref our.bowl desk.p.pre aid.p.pre ref.aa)
+      ?:  ?=(%.n -.vr)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.vr msg.p.vr ~ ~ ~)
+      =/  dkey  [desk.p.pre aid.p.pre]
+      =/  cur=actor-preferences:noltbook  (fall (~(get by actor-preferences) dkey) [~ ~])
+      ::  duplicate add is idempotent; blocked is left untouched (independent set).
+      =.  actor-registry  cand-registry
+      =.  actor-preferences
+        (~(put by actor-preferences) dkey cur(muted (~(put in muted.cur) p.vr)))
+      :_  this
+      (api-result-card request-id.aa %.y %actor-identity-muted 'actor identity muted' ~ ~ ~)
+    ::
+        %actor-unmute-identity
+      =/  pre  (actor-pref-pre our.bowl now.bowl app.aa actor.aa app-grants actor-registry)
+      ?:  ?=(%.n -.pre)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.pre msg.p.pre ~ ~ ~)
+      =/  cand-registry  registry.p.pre
+      =/  vr  (api-validate-ref our.bowl desk.p.pre aid.p.pre ref.aa)
+      ?:  ?=(%.n -.vr)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.vr msg.p.vr ~ ~ ~)
+      =/  dkey  [desk.p.pre aid.p.pre]
+      =/  cur=actor-preferences:noltbook  (fall (~(get by actor-preferences) dkey) [~ ~])
+      ?.  (~(has in muted.cur) p.vr)
+        :_  this
+        (api-result-card request-id.aa %.n %missing-target 'identity not muted' ~ ~ ~)
+      ::  remove ONLY from muted; blocked is independent and stays.
+      =/  np=actor-preferences:noltbook  cur(muted (~(del in muted.cur) p.vr))
+      =.  actor-registry  cand-registry
+      =.  actor-preferences
+        ?:  &(=(~ blocked.np) =(~ muted.np))
+          (~(del by actor-preferences) dkey)
+        (~(put by actor-preferences) dkey np)
+      :_  this
+      (api-result-card request-id.aa %.y %actor-identity-unmuted 'actor identity unmuted' ~ ~ ~)
     ::
     ::  ---- Phase 10: note configuration. Applies only the supplied fields via
     ::  the existing rename-note / set-note-meta / set-headline handlers, emitting
@@ -6769,7 +10305,7 @@
         =/  prev=@t  (art-env-preview env)
         ::  own upload → advance both activity and read so it isn't self-unread.
         =/  act-cards=(list card)
-          ?:  is-gossipy-note  ~[(activity-fact nid now.bowl) (note-read-fact nid now.bowl)]
+          ?:  is-gossipy-note  ~[(activity-fact nid now.bowl) (unread-activity-fact nid now.bowl) (note-read-fact nid now.bowl)]
           ~
         ::  sidebar preview signal for both user gossip and cover (cover is
         ::  pinned: the frontend updates its %Grimoire preview but never dots).
@@ -6785,6 +10321,7 @@
               artifact-envelopes
                 (~(put by artifact-envelopes) nid (cap-art-envs (~(put by envs-cur) aid env)))
               note-activity  (put-activity note-activity nid now.bowl)
+              note-unread-activity  (put-unread-activity note-unread-activity nid now.bowl)
               note-read  (put-read note-read nid now.bowl)
             ==
         %+  weld  http-cards
@@ -6813,12 +10350,13 @@
                   !>(`remote:noltbook`[%remote-dm-artifact new-art mtype u.bod])
               ==
           ==
-        :_  this(notes (~(put by notes) nid upd-note), artifacts (~(put by artifacts) aid new-art), note-activity (put-activity note-activity nid now.bowl), note-read (put-read note-read nid now.bowl))
+        :_  this(notes (~(put by notes) nid upd-note), artifacts (~(put by artifacts) aid new-art), note-activity (put-activity note-activity nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity nid now.bowl), note-read (put-read note-read nid now.bowl))
         %+  weld  http-cards
         %+  weld
           :~  clay-card
               [%give %fact ~[pax] %noltbook-update !>(upd)]
               (activity-fact nid now.bowl)
+              (unread-activity-fact nid now.bowl)
               (note-read-fact nid now.bowl)
               (sidebar-signal nid our.bowl `prev %artifact now.bowl)
           ==
@@ -6829,11 +10367,12 @@
         =/  pax=path  ~[%notes nid]
         =/  prev=@t  (artifact-preview new-art)
         =/  upd-note=note:noltbook  u.nt(last-author `our.bowl, last-preview `prev)
-        :_  this(notes (~(put by notes) nid upd-note), artifacts (~(put by artifacts) aid new-art), note-activity (put-activity note-activity nid now.bowl), note-read (put-read note-read nid now.bowl))
+        :_  this(notes (~(put by notes) nid upd-note), artifacts (~(put by artifacts) aid new-art), note-activity (put-activity note-activity nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity nid now.bowl), note-read (put-read note-read nid now.bowl))
         %+  weld  http-cards
         :~  clay-card
             [%give %fact ~[pax] %noltbook-update !>(upd)]
             (activity-fact nid now.bowl)
+            (unread-activity-fact nid now.bowl)
             (note-read-fact nid now.bowl)
             (sidebar-signal nid our.bowl `prev %artifact now.bowl)
         ==
@@ -6878,6 +10417,30 @@
       %noltbook-action
     =/  act  !<(action:noltbook vase)
     ?-  -.act
+    ::  ---- Phase B: REAL ship-user actor mute/block (typed actor-ref). mute/block are
+    ::  independent; effective suppression = muted OR blocked. Each emits the authoritative
+    ::  full prefs snapshot on /notes so the frontend rerenders buttons + hidden content.
+    ::  Pure user preference — no grant/caps/status, no host pal/membership mutation. ----
+        %mute-actor
+      =.  user-muted-actors  (~(put in user-muted-actors) ref.act)
+      :_  this
+      ~[(user-actor-prefs-fact ~[/notes] user-muted-actors user-blocked-actors)]
+    ::
+        %unmute-actor
+      =.  user-muted-actors  (~(del in user-muted-actors) ref.act)
+      :_  this
+      ~[(user-actor-prefs-fact ~[/notes] user-muted-actors user-blocked-actors)]
+    ::
+        %block-actor
+      =.  user-blocked-actors  (~(put in user-blocked-actors) ref.act)
+      :_  this
+      ~[(user-actor-prefs-fact ~[/notes] user-muted-actors user-blocked-actors)]
+    ::
+        %unblock-actor
+      =.  user-blocked-actors  (~(del in user-blocked-actors) ref.act)
+      :_  this
+      ~[(user-actor-prefs-fact ~[/notes] user-muted-actors user-blocked-actors)]
+    ::
         %switch-note
       ::  switch + trigger host-reachability probe for remote-hosted %group
       ::  notes we still belong to. We use a separate /host-probe wire so
@@ -6891,11 +10454,13 @@
       =/  stamp=?  &(?=(^ n) !(is-pinned-note id.act))
       =/  na=(map @ta @da)
         ?:(stamp (put-activity note-activity id.act now.bowl) note-activity)
+      =/  nua=(map @ta @da)
+        ?:(stamp (put-unread-activity note-unread-activity id.act now.bowl) note-unread-activity)
       =/  nr=(map @ta @da)
         ?:(stamp (put-read note-read id.act now.bowl) note-read)
       =/  act-cards=(list card)
-        ?:(stamp ~[(activity-fact id.act now.bowl) (note-read-fact id.act now.bowl)] ~)
-      =/  base=_this  this(current-note id.act, note-activity na, note-read nr)
+        ?:(stamp ~[(activity-fact id.act now.bowl) (unread-activity-fact id.act now.bowl) (note-read-fact id.act now.bowl)] ~)
+      =/  base=_this  this(current-note id.act, note-activity na, note-unread-activity nua, note-read nr)
       ?~  n  [act-cards base]
       ?.  ?&  =(%group type.u.n)
               !=(creator.u.n our.bowl)
@@ -7045,6 +10610,46 @@
         |-
         ?~  todo  acc
         $(todo t.todo, acc (~(del by acc) i.todo))
+      ::  Phase D: drop actor ownership rows for every deleted note in the subtree.
+      =/  new-note-actor-owners=(map @ta actor-owner:noltbook)
+        =/  acc=(map @ta actor-owner:noltbook)  note-actor-owners
+        =/  todo=(list @ta)  subtree-ids
+        |-
+        ?~  todo  acc
+        $(todo t.todo, acc (~(del by acc) i.todo))
+      ::  Phase G2: drop actor participation rows for every deleted note in the subtree.
+      =/  new-actor-note-participation=(map @ta (set [desk=@tas id=@t]))
+        =/  acc=(map @ta (set [desk=@tas id=@t]))  actor-note-participation
+        =/  todo=(list @ta)  subtree-ids
+        |-
+        ?~  todo  acc
+        $(todo t.todo, acc (~(del by acc) i.todo))
+      ::  Phase G6A: prune actor read cursors for every deleted id in the subtree
+      ::  (across every actor's nested map).
+      =/  new-actor-note-read=(map [@tas @t] (map @ta @da))
+        (actor-read-prune actor-note-read subtree-ids)
+      ::  Phase G6B: prune actor notifications for every deleted id in the subtree, and
+      ::  emit authoritative full=%.y updates to affected actors (resolved with the
+      ::  post-deletion messages map; actor-by-eid is unchanged on this path).
+      =/  new-actor-notifications=(map [@tas @t] (list actor-notification:noltbook))
+        (actor-notif-prune-notes actor-notifications subtree-ids)
+      =/  notif-diff-cards=(list card)
+        (actor-notif-diff-cards actor-notifications new-actor-notifications new-messages actor-by-eid)
+      ::  Phase G5A: prune actor-DM markers for every deleted id in the subtree.
+      =/  new-actor-dm-notes=(map @ta actor-dm-meta:noltbook)
+        =/  acc=(map @ta actor-dm-meta:noltbook)  actor-dm-notes
+        =/  todo=(list @ta)  subtree-ids
+        |-
+        ?~  todo  acc
+        $(todo t.todo, acc (~(del by acc) i.todo))
+      ::  emit %actor-dm-updated nid ~ for any marker that was actually removed so the
+      ::  FE drops state.actorDms for it.
+      =/  actor-dm-clear-cards=(list card)
+        %+  murn  subtree-ids
+        |=  nid=@ta
+        ^-  (unit card)
+        ?.  (~(has by actor-dm-notes) nid)  ~
+        `[%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%actor-dm-updated nid ~])]
       ::  clean up artifacts whose note-id is in the deleted subtree
       =/  new-artifacts  (delete-artifacts-for-notes subtree-ids artifacts)
       ::  emit %note-deleted for every deleted id so FE clears subtree
@@ -7069,9 +10674,14 @@
             note-muted  new-note-muted
             artifact-envelopes  new-artifact-envelopes
             artifacts  new-artifacts
+            note-actor-owners  new-note-actor-owners
+            actor-note-participation  new-actor-note-participation
+            actor-note-read  new-actor-note-read
+            actor-notifications  new-actor-notifications
+            actor-dm-notes  new-actor-dm-notes
           ==
       ^-  (list card)
-      (weld delete-updates delete-remote-cards)
+      :(weld delete-updates delete-remote-cards actor-dm-clear-cards notif-diff-cards)
     ::
         %create-note
       ::  no parent: personal root note — created as %notebook
@@ -7082,9 +10692,9 @@
           :*  nid  name.act  %notebook  our.bowl  self-set  ~  ~  ~  ~  %secret  ~  &  ~  ~
           ==
         =/  upd=update:noltbook  [%note-created new-note]
-        :_  this(notes (~(put by notes) nid new-note), messages (~(put by messages) nid *(list message:noltbook)), note-activity (put-activity note-activity nid now.bowl), note-read (put-read note-read nid now.bowl))
+        :_  this(notes (~(put by notes) nid new-note), messages (~(put by messages) nid *(list message:noltbook)), note-activity (put-activity note-activity nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity nid now.bowl), note-read (put-read note-read nid now.bowl))
         ^-  (list card:agent:gall)
-        ~[[%give %fact ~[/notes] %noltbook-update !>(upd)] (activity-fact nid now.bowl) (note-read-fact nid now.bowl)]
+        ~[[%give %fact ~[/notes] %noltbook-update !>(upd)] (activity-fact nid now.bowl) (unread-activity-fact nid now.bowl) (note-read-fact nid now.bowl)]
       =/  pid=@ta  u.parent.act
       =/  par-u=(unit note:noltbook)  (~(get by notes) pid)
       ?~  par-u  `this
@@ -7113,9 +10723,9 @@
         |=  p=@p
         ?:  =(p our.bowl)  ~
         `[%pass /child-out/(scot %p p)/[nid] %agent [p %noltbook] %poke %noltbook-remote !>(`remote:noltbook`[%remote-child-note pid new-note])]
-      :_  this(notes n2, messages (~(put by messages) nid *(list message:noltbook)), note-activity (put-activity note-activity nid now.bowl), note-read (put-read note-read nid now.bowl))
+      :_  this(notes n2, messages (~(put by messages) nid *(list message:noltbook)), note-activity (put-activity note-activity nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity nid now.bowl), note-read (put-read note-read nid now.bowl))
       =/  head-cards=(list card:agent:gall)
-        ~[[%give %fact ~[/notes] %noltbook-update !>(upd)] (activity-fact nid now.bowl) (note-read-fact nid now.bowl)]
+        ~[[%give %fact ~[/notes] %noltbook-update !>(upd)] (activity-fact nid now.bowl) (unread-activity-fact nid now.bowl) (note-read-fact nid now.bowl)]
       (weld head-cards broadcast)
     ::
         %create-gossip-note
@@ -7130,9 +10740,9 @@
         ?~  hl  headlines
         (~(put by headlines) nid u.hl)
       ::  gossip note created locally only — distribute via share/invite
-      :_  this(notes (~(put by notes) nid new-note), messages (~(put by messages) nid *(list message:noltbook)), headlines new-headlines, note-activity (put-activity note-activity nid now.bowl), note-read (put-read note-read nid now.bowl))
+      :_  this(notes (~(put by notes) nid new-note), messages (~(put by messages) nid *(list message:noltbook)), headlines new-headlines, note-activity (put-activity note-activity nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity nid now.bowl), note-read (put-read note-read nid now.bowl))
       ^-  (list card:agent:gall)
-      ~[[%give %fact ~[/notes] %noltbook-update !>(upd)] (activity-fact nid now.bowl) (note-read-fact nid now.bowl)]
+      ~[[%give %fact ~[/notes] %noltbook-update !>(upd)] (activity-fact nid now.bowl) (unread-activity-fact nid now.bowl) (note-read-fact nid now.bowl)]
     ::
         %send-message
       =/  sys-note=?  ?|(=(note-id.act %cover) =(note-id.act %ars-rumors))
@@ -7210,10 +10820,11 @@
               gossip-hops  (~(put by gossip-hops) id.msg 0)
               seq-counters  (~(put by seq-counters) nid nxt-seq)
               note-activity  (put-activity note-activity nid now.bowl)
+              note-unread-activity  (put-unread-activity note-unread-activity nid now.bowl)
               note-read  (put-read note-read nid now.bowl)
             ==
         =/  head-cards=(list card:agent:gall)
-          ~[[%give %fact ~[/notes] %noltbook-update !>(upd)] (activity-fact nid now.bowl) (note-read-fact nid now.bowl)]
+          ~[[%give %fact ~[/notes] %noltbook-update !>(upd)] (activity-fact nid now.bowl) (unread-activity-fact nid now.bowl) (note-read-fact nid now.bowl)]
         :(weld head-cards ~[[%give %fact ~[/notes/[nid]] %noltbook-update !>(env-upd)]] gossip)
       ::  RUMORS: anonymous gossip — intentionally uses content-hash identity,
       ::  NOT entry-meta. Author is stripped (set to ~hosted), so eid/seq
@@ -7263,12 +10874,12 @@
           ?:  =(other our.bowl)  ~
           ~[[%pass /dm-msg/[note-id.act] %agent [other %noltbook] %poke %noltbook-remote !>(dm-rem)]]
         =/  notes-cards=(list card:agent:gall)
-          ~[[%give %fact ~[/notes] %noltbook-update !>(upd)] (activity-fact note-id.act now.bowl) (note-read-fact note-id.act now.bowl)]
+          ~[[%give %fact ~[/notes] %noltbook-update !>(upd)] (activity-fact note-id.act now.bowl) (unread-activity-fact note-id.act now.bowl) (note-read-fact note-id.act now.bowl)]
         ::  Phase 11B: attribute our own stored DM copy (via.ship = us, the sender).
         =.  via-by-eid  (api-via-put via-by-eid via.act msg)
         ::  Phase ACTOR-1: store the actor row for our local DM copy (direct path).
         =.  actor-by-eid  (api-actor-put actor-by-eid actor.act msg)
-        :_  this(notes (~(put by notes) note-id.act upd-note), messages (~(put by messages) note-id.act (snoc cur msg)), seq-counters ?:(is-regular (~(put by seq-counters) note-id.act nxt-seq) seq-counters), note-activity (put-activity note-activity note-id.act now.bowl), note-read (put-read note-read note-id.act now.bowl))
+        :_  this(notes (~(put by notes) note-id.act upd-note), messages (~(put by messages) note-id.act (snoc cur msg)), seq-counters ?:(is-regular (~(put by seq-counters) note-id.act nxt-seq) seq-counters), note-activity (put-activity note-activity note-id.act now.bowl), note-unread-activity (put-unread-activity note-unread-activity note-id.act now.bowl), note-read (put-read note-read note-id.act now.bowl))
         :(weld ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] notes-cards peer-cards)
       ::  remote note: forward to creator
       ?.  =(our.bowl creator.u.exists)
@@ -7304,13 +10915,63 @@
       ::  Phase ACTOR-1: store the actor row for our local copy (direct path); the
       ::  %new-message fact above carries actor to subscribed members too.
       =.  actor-by-eid  (api-actor-put actor-by-eid actor.act msg)
-      :_  this(notes (~(put by notes) note-id.act upd-note), messages (~(put by messages) note-id.act (snoc cur msg)), seq-counters new-seq-counters, note-activity (put-activity note-activity note-id.act now.bowl), note-read (put-read note-read note-id.act now.bowl))
-      ^-  (list card:agent:gall)
-      :~  [%give %fact ~[pax] %noltbook-update !>(upd)]
-          [%give %fact ~[/notes] %noltbook-update !>(upd)]
-          (activity-fact note-id.act now.bowl)
-          (note-read-fact note-id.act now.bowl)
-      ==
+      ::  Phase G6B: if this message replies to a message attributed to a LOCAL actor,
+      ::  record a directed reply notification for that actor (own host only). The
+      ::  host's own post can still notify a different local actor (distinct identity).
+      =^  notif-cards  actor-notifications
+        (actor-notif-add actor-notifications our.bowl now.bowl note-id.act msg actor.act actor-by-eid cur actor-registry note-actor-owners actor-note-participation actor-dm-notes notes actor-preferences)
+      ::  Phase A: a locally-posted ACTOR message is a DISTINCT behavioral sender for our
+      ::  host. host-self is true only for a genuine host post (no actor) — that case
+      ::  keeps the prior byte-for-byte behavior (advance + emit host note-read). An actor
+      ::  post advances note-activity only (host stays unread), and runs host mention /
+      ::  reply attention. An ordinary host post creates none of that.
+      =/  is-host-self=?  (host-self our.bowl actor.act our.bowl)
+      ::  Phase B: if the REAL user muted/blocked this actor, suppress its host unread +
+      ::  reply/@~host attention (message still stored/delivered; recency still advances;
+      ::  the actor's own G6B notifications are untouched).
+      =/  u-suppressed=?  (actor-user-suppressed actor.act user-muted-actors user-blocked-actors)
+      =/  msg-eid=(unit @uv)  ?~(meta.msg ~ `eid.u.meta.msg)
+      ::  @~host mention by the actor (ordinary host self-mention stays ignored).
+      =/  mentioned=?  &(?=(^ actor.act) !u-suppressed (has-our-mention text.act our.bowl))
+      =/  active-mentioned=?
+        ?&(mentioned !(mention-cleared (fall (~(get by cleared-mentions) note-id.act) ~) id.msg msg-eid))
+      =/  mention-cards=(list card)
+        ?.  active-mentioned  ~
+        (attn-mention-cards note-id.act id.msg msg-eid our.bowl)
+      =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+        ?.  active-mentioned  mentions
+        =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) note-id.act) ~)
+        (~(put by mentions) note-id.act (snoc cur-m [id.msg msg-eid our.bowl]))
+      ::  reply attention: actor reply to a NORMAL host message may notify the host. A
+      ::  parent that is itself actor-attributed stays G6B-only (host attention suppressed).
+      =/  note-arts=(list artifact:noltbook)
+        (skim ~(val by artifacts) |=(a=artifact:noltbook =(note-id.a note-id.act)))
+      =/  note-aenvs=(list artifact-envelope:noltbook)
+        ~(val by (fall (~(get by artifact-envelopes) note-id.act) *(map @ta artifact-envelope:noltbook)))
+      =/  rte=(unit @uv)  ?~(meta.msg ~ reply-to-eid.u.meta.msg)
+      =/  par-owner=(unit @p)  (attn-parent-owner rte reply-to.act cur note-arts note-aenvs)
+      =/  par-eid=(unit @uv)  (reply-parent-eid msg cur)
+      =/  parent-is-actor=?  ?&(?=(^ par-eid) (~(has by actor-by-eid) u.par-eid))
+      =/  rkind=attention-kind:noltbook  ?:(=(`%send directed-kind.act) %send %reply)
+      =/  rtarget=attention-item:noltbook  [rkind %message msg-eid `id.msg ~ our.bowl id.msg]
+      =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
+        ?:  |(is-host-self parent-is-actor u-suppressed)  [attention ~]
+        (add-reply-attn attention note-id.act our.bowl is-host-self par-owner rtarget)
+      ::  host note-read advances ONLY for a genuine host self-post; an actor post leaves
+      ::  the host unread (the open-note delayed mark-read still clears a viewed note).
+      =.  note-read  ?:(is-host-self (put-read note-read note-id.act now.bowl) note-read)
+      ::  unread-activity advances unless a muted/blocked actor (recency still advances).
+      =/  new-unread-activity=(map @ta @da)
+        ?:(u-suppressed note-unread-activity (put-unread-activity note-unread-activity note-id.act now.bowl))
+      =/  base-cards=(list card)
+        :~  [%give %fact ~[pax] %noltbook-update !>(upd)]
+            [%give %fact ~[/notes] %noltbook-update !>(upd)]
+            (activity-fact note-id.act now.bowl)
+        ==
+      =?  base-cards  !u-suppressed  (snoc base-cards (unread-activity-fact note-id.act now.bowl))
+      =?  base-cards  is-host-self  (snoc base-cards (note-read-fact note-id.act now.bowl))
+      :_  this(notes (~(put by notes) note-id.act upd-note), messages (~(put by messages) note-id.act (snoc cur msg)), seq-counters new-seq-counters, note-activity (put-activity note-activity note-id.act now.bowl), note-unread-activity new-unread-activity, note-read note-read, mentions new-mentions, attention na.ar)
+      :(weld notif-cards mention-cards ac.ar base-cards)
     ::
         %edit-message
       ?:  (is-write-blocked note-id.act host-status notes our.bowl)  `this
@@ -7471,8 +11132,17 @@
       =/  new-pins=(map @ta note-pin:noltbook)
         ?:(pin-hit (~(del by note-pins) note-id.act) note-pins)
       =/  pin-clear-cards=(list card)  ?:(pin-hit (pin-cards note-id.act ~) ~)
-      :_  this(messages (~(put by messages) note-id.act new-msgs), note-pins new-pins)
-      (weld facts pin-clear-cards)
+      ::  Phase G6B: if the deleted message was itself a notifying reply, drop every
+      ::  actor notification targeting its eid (no stale rows), and emit an authoritative
+      ::  full=%.y update to each affected actor so live clients drop the row at once.
+      =/  old-notifs  actor-notifications
+      =?  actor-notifications  ?=(^ del-eid)
+        (actor-notif-del-eid actor-notifications u.del-eid)
+      =/  msgs-after  (~(put by messages) note-id.act new-msgs)
+      =/  notif-cards=(list card)
+        (actor-notif-diff-cards old-notifs actor-notifications msgs-after actor-by-eid)
+      :_  this(messages msgs-after, note-pins new-pins)
+      (weld notif-cards (weld facts pin-clear-cards))
     ::
         %set-note-meta
       ?:  (is-write-blocked id.act host-status notes our.bowl)  `this
@@ -7811,10 +11481,11 @@
       =/  pax=path  ~[%notes note-id.act]
       =/  prev=@t  (artifact-preview new-art)
       =/  upd-note=note:noltbook  u.exists(last-author `our.bowl, last-preview `prev)
-      :_  this(notes (~(put by notes) note-id.act upd-note), artifacts (~(put by artifacts) aid new-art), note-activity (put-activity note-activity note-id.act now.bowl), note-read (put-read note-read note-id.act now.bowl))
+      :_  this(notes (~(put by notes) note-id.act upd-note), artifacts (~(put by artifacts) aid new-art), note-activity (put-activity note-activity note-id.act now.bowl), note-unread-activity (put-unread-activity note-unread-activity note-id.act now.bowl), note-read (put-read note-read note-id.act now.bowl))
       ^-  (list card:agent:gall)
       :~  [%give %fact ~[pax] %noltbook-update !>(upd)]
           (activity-fact note-id.act now.bowl)
+          (unread-activity-fact note-id.act now.bowl)
           (note-read-fact note-id.act now.bowl)
           (sidebar-signal note-id.act our.bowl `prev %artifact now.bowl)
       ==
@@ -7923,6 +11594,32 @@
       =/  req=remote:noltbook  [%remote-profile-request req-id.act]
       :_  this
       ~[[%pass /profile-lookup/(scot %p ship.act)/(scot %ud req-id.act) %agent [ship.act %noltbook] %poke %noltbook-remote !>(req)]]
+    ::
+        %request-actor-profile
+      ::  Phase G4: resolve an actor public profile. Local host => answer now from
+      ::  actor-registry + actor-profiles. Remote: a FRESH cache (~m10) answers now;
+      ::  otherwise send %remote-actor-profile-request (and let the on-agent nack arm
+      ::  flip to %unreachable). A STALE cache is kept as stored fallback (served by
+      ::  /api/actor-profiles) but is NOT echoed now — we wait for the fresh response.
+      ?:  =(host.act our.bowl)
+        =/  rec  (~(get by actor-registry) [desk.act actor-id.act])
+        ?~  rec
+          :_  this
+          (actor-prof-result-cards req-id.act our.bowl desk.act actor-id.act %missing ~ ~)
+        =/  pp  (build-actor-public-profile desk.act u.rec (~(get by actor-profiles) [desk.act actor-id.act]))
+        :_  this
+        ::  local => fetched-at ~ (always current).
+        (actor-prof-result-cards req-id.act our.bowl desk.act actor-id.act %ok ~ `pp)
+      =/  cached  (~(get by remote-actor-profiles) [host.act desk.act actor-id.act])
+      ?:  ?&(?=(^ cached) (actor-prof-fresh now.bowl fetched-at.u.cached))
+        :_  this
+        ::  fresh cache => carry the STORED fetch time so the FE reflects backend age.
+        (actor-prof-result-cards req-id.act host.act desk.act actor-id.act %ok `fetched-at.u.cached `profile.u.cached)
+      =/  req=remote:noltbook  [%remote-actor-profile-request req-id.act desk.act actor-id.act]
+      =/  wire=path
+        /actor-prof-lookup/(scot %p host.act)/(scot %tas desk.act)/(scot %t actor-id.act)/(scot %ud req-id.act)
+      :_  this
+      ~[[%pass wire %agent [host.act %noltbook] %poke %noltbook-remote !>(req)]]
     ::
         %request-remote-notes
       ::  frontend wants another ship's public/private notes
@@ -8395,8 +12092,13 @@
       ::  dm leave: local-only cleanup, counterparty keeps their copy intact
       ?:  =(%dm type.u.old)
         =/  upd=update:noltbook  [%note-deleted id.act]
-        :_  this(notes (~(del by notes) id.act), messages (~(del by messages) id.act), artifacts cleaned-arts, cleared-mentions (~(del by cleared-mentions) id.act))
-        ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
+        =/  new-notifs  (actor-notif-prune-notes actor-notifications ~[id.act])
+        =/  msgs-after  (~(del by messages) id.act)
+        =/  notif-cards=(list card)
+          (actor-notif-diff-cards actor-notifications new-notifs msgs-after actor-by-eid)
+        =/  base-cards=(list card)  ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
+        :_  this(notes (~(del by notes) id.act), messages msgs-after, artifacts cleaned-arts, cleared-mentions (~(del by cleared-mentions) id.act), actor-note-participation (prune-participation ~[id.act] actor-note-participation), actor-note-read (actor-read-prune actor-note-read ~[id.act]), actor-notifications new-notifs)
+        (weld notif-cards base-cards)
       ::  sole user: act like delete
       ?:  (lte user-count 1)
         =/  trimmed=(map @ta note:noltbook)
@@ -8405,8 +12107,13 @@
           ?~  par  notes
           (~(put by notes) u.parent.u.old u.par(children (skim children.u.par |=(c=@ta !=(c id.act)))))
         =/  upd=update:noltbook  [%note-deleted id.act]
-        :_  this(notes (~(del by trimmed) id.act), messages (~(del by messages) id.act), artifacts cleaned-arts, cleared-mentions (~(del by cleared-mentions) id.act))
-        ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
+        =/  new-notifs  (actor-notif-prune-notes actor-notifications ~[id.act])
+        =/  msgs-after  (~(del by messages) id.act)
+        =/  notif-cards=(list card)
+          (actor-notif-diff-cards actor-notifications new-notifs msgs-after actor-by-eid)
+        =/  base-cards=(list card)  ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
+        :_  this(notes (~(del by trimmed) id.act), messages msgs-after, artifacts cleaned-arts, cleared-mentions (~(del by cleared-mentions) id.act), actor-note-participation (prune-participation ~[id.act] actor-note-participation), actor-note-read (actor-read-prune actor-note-read ~[id.act]), actor-notifications new-notifs)
+        (weld notif-cards base-cards)
       ::  Phase 3: collect %group descendants once for both host and non-host
       ::  branches (computed against pre-deletion notes map).
       =/  group-descs=(list @ta)
@@ -8449,8 +12156,11 @@
           |=  nid=@ta
           ^-  card
           [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%note-deleted nid])]
-        :_  this(notes notes-after, messages msgs-after, artifacts arts-after)
-        :(weld local-deletes ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] kick-cards)
+        =/  new-notifs  (actor-notif-prune-notes actor-notifications subtree-ids)
+        =/  notif-cards=(list card)
+          (actor-notif-diff-cards actor-notifications new-notifs msgs-after actor-by-eid)
+        :_  this(notes notes-after, messages msgs-after, artifacts arts-after, actor-note-participation (prune-participation subtree-ids actor-note-participation), actor-note-read (actor-read-prune actor-note-read subtree-ids), actor-notifications new-notifs)
+        :(weld local-deletes ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] kick-cards notif-cards)
       ::  non-host leaving shared note: unsub root + descendants, poke host
       ::  about the root (host cascades to its own copy), drop local subtree.
       =/  host=@p  creator.u.old
@@ -8480,8 +12190,11 @@
         |=  nid=@ta
         ^-  card
         [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%note-deleted nid])]
-      :_  this(notes notes-after, messages msgs-after, artifacts arts-after)
-      :(weld unsub-cards ~[leave-card] local-deletes)
+      =/  new-notifs  (actor-notif-prune-notes actor-notifications subtree-ids)
+      =/  notif-cards=(list card)
+        (actor-notif-diff-cards actor-notifications new-notifs msgs-after actor-by-eid)
+      :_  this(notes notes-after, messages msgs-after, artifacts arts-after, actor-note-participation (prune-participation subtree-ids actor-note-participation), actor-note-read (actor-read-prune actor-note-read subtree-ids), actor-notifications new-notifs)
+      :(weld unsub-cards ~[leave-card] local-deletes notif-cards)
     ::
         %fork-note
       ::  Phase 6: clone a %group subtree into a new fork hosted by us.
@@ -9268,12 +12981,14 @@
               sub-card
               [%give %fact ~[/notes] %noltbook-update !>(upd)]
               (activity-fact note-id.rem now.bowl)
+              (unread-activity-fact note-id.rem now.bowl)
           ==
         :_  %=  this
               notes  (~(put by trimmed) note-id.rem new-note)
               messages  (~(put by trimmed-msgs) note-id.rem ~)
               peers  new-peers
               note-activity  (put-activity note-activity note-id.rem now.bowl)
+              note-unread-activity  (put-unread-activity note-unread-activity note-id.rem now.bowl)
             ==
         :(weld head-cards ars-cards)
       ::  no collision: original path
@@ -9292,8 +13007,8 @@
         :(weld [[%give %fact ~[/notes] %noltbook-update !>(upd)] ~] ars-cards)
       =/  sub-card=card
         [%pass /remote-note/[note-id.rem] %agent [creator.rem %noltbook] %watch /notes/[note-id.rem]]
-      :_  this(notes (~(put by notes) note-id.rem new-note), messages (~(put by messages) note-id.rem ~), peers new-peers, note-activity (put-activity note-activity note-id.rem now.bowl))
-      :(weld [sub-card [%give %fact ~[/notes] %noltbook-update !>(upd)] (activity-fact note-id.rem now.bowl) ~] ars-cards)
+      :_  this(notes (~(put by notes) note-id.rem new-note), messages (~(put by messages) note-id.rem ~), peers new-peers, note-activity (put-activity note-activity note-id.rem now.bowl), note-unread-activity (put-unread-activity note-unread-activity note-id.rem now.bowl))
+      :(weld [sub-card [%give %fact ~[/notes] %noltbook-update !>(upd)] (activity-fact note-id.rem now.bowl) (unread-activity-fact note-id.rem now.bowl) ~] ars-cards)
     ::
         %remote-gossip-invite
       ::  someone invited us to their gossip note (with headline)
@@ -9318,8 +13033,9 @@
             peers  new-peers
             headlines  new-headlines
             note-activity  (put-activity note-activity note-id.rem now.bowl)
+            note-unread-activity  (put-unread-activity note-unread-activity note-id.rem now.bowl)
           ==
-      :(weld [sub-card [%give %fact ~[/notes] %noltbook-update !>(upd)] (activity-fact note-id.rem now.bowl) ~] ars-cards)
+      :(weld [sub-card [%give %fact ~[/notes] %noltbook-update !>(upd)] (activity-fact note-id.rem now.bowl) (unread-activity-fact note-id.rem now.bowl) ~] ars-cards)
     ::
         %remote-dm-message
       ::  atomic DM delivery: payload carries DM note metadata, so the
@@ -9401,8 +13117,8 @@
         ==
       =.  via-by-eid  (api-via-put via-by-eid via.rem local-msg)
       =.  actor-by-eid  (api-actor-put actor-by-eid dm-actor local-msg)
-      :_  this(notes (~(put by staged-notes) target-nid upd-note), messages (~(put by staged-msgs) target-nid new-cur), note-activity (put-activity note-activity target-nid now.bowl))
-      :(weld note-cards msg-cards ~[(activity-fact target-nid now.bowl)])
+      :_  this(notes (~(put by staged-notes) target-nid upd-note), messages (~(put by staged-msgs) target-nid new-cur), note-activity (put-activity note-activity target-nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity target-nid now.bowl))
+      :(weld note-cards msg-cards ~[(activity-fact target-nid now.bowl) (unread-activity-fact target-nid now.bowl)])
     ::
         %remote-message
       ::  a remote user sent a message to a note we host
@@ -9482,8 +13198,11 @@
       =/  upd=update:noltbook  [%new-message stamped directed-kind.rem via.rem rem-actor]
       =/  pax=path  ~[%notes note-id.rem]
       =/  upd-note=note:noltbook  u.old(last-author `author.msg.rem, last-preview `text.msg.rem)
+      ::  Phase B: real-user mute/block of the (guarded) sender actor suppresses host
+      ::  unread + @~host mention + reply attention; the message still stores/delivers.
+      =/  u-suppressed=?  (actor-user-suppressed rem-actor user-muted-actors user-blocked-actors)
       ::  mention detection: check if @~our appears in message text
-      =/  mentioned=?  (has-our-mention text.msg.rem our.bowl)
+      =/  mentioned=?  &(!u-suppressed (has-our-mention text.msg.rem our.bowl))
       =/  stamped-eid=(unit @uv)
         ?~  meta.stamped  ~
         `eid.u.meta.stamped
@@ -9507,22 +13226,37 @@
         ~(val by (fall (~(get by artifact-envelopes) note-id.rem) *(map @ta artifact-envelope:noltbook)))
       =/  rte=(unit @uv)  ?~(meta.msg.rem ~ reply-to-eid.u.meta.msg.rem)
       =/  par-owner=(unit @p)  (attn-parent-owner rte reply-to.msg.rem cur note-arts note-aenvs)
+      ::  Phase G6B: if the immediate parent is attributed to an actor, route to actor
+      ::  notification logic and SUPPRESS host reply attention for that parent (even if
+      ::  the actor is remote or the notification is later filtered).
+      =/  par-eid=(unit @uv)  (reply-parent-eid msg.rem cur)
+      =/  parent-is-actor=?  ?&(?=(^ par-eid) (~(has by actor-by-eid) u.par-eid))
       ::  NOTE SEND payment posts get kind=%send via the explicit marker carried
       ::  on the %remote-message poke (no longer text-prefix based).
       =/  rkind=attention-kind:noltbook  ?:(=(`%send directed-kind.rem) %send %reply)
       =/  rtarget=attention-item:noltbook  [rkind %message stamped-eid `id.stamped ~ author.msg.rem id.stamped]
       =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
-        (add-reply-attn attention note-id.rem our.bowl author.msg.rem par-owner rtarget)
+        ?:  |(parent-is-actor u-suppressed)  [attention ~]
+        (add-reply-attn attention note-id.rem our.bowl (host-self author.msg.rem rem-actor our.bowl) par-owner rtarget)
       ::  Phase 11B: host records attribution against its own stamped eid.
       =.  via-by-eid  (api-via-put via-by-eid via.rem stamped)
       ::  Phase ACTOR-1: host records the guarded actor against the stamped eid.
       =.  actor-by-eid  (api-actor-put actor-by-eid rem-actor stamped)
-      :_  this(notes (~(put by notes) note-id.rem upd-note), messages (~(put by messages) note-id.rem (snoc cur stamped)), mentions new-mentions, attention na.ar, seq-counters new-seq, note-activity (put-activity note-activity note-id.rem now.bowl))
+      ::  Phase G6B: actor reply notification on the parent actor's host (this ship).
+      =^  notif-cards  actor-notifications
+        ?.  parent-is-actor  [~ actor-notifications]
+        (actor-notif-add actor-notifications our.bowl now.bowl note-id.rem stamped rem-actor actor-by-eid cur actor-registry note-actor-owners actor-note-participation actor-dm-notes notes actor-preferences)
+      ::  Phase B: unread-activity advances unless a muted/blocked sender actor.
+      =/  new-unread-activity=(map @ta @da)
+        ?:(u-suppressed note-unread-activity (put-unread-activity note-unread-activity note-id.rem now.bowl))
+      =/  unread-card=(list card)
+        ?:(u-suppressed ~ ~[(unread-activity-fact note-id.rem now.bowl)])
+      :_  this(notes (~(put by notes) note-id.rem upd-note), messages (~(put by messages) note-id.rem (snoc cur stamped)), mentions new-mentions, attention na.ar, seq-counters new-seq, note-activity (put-activity note-activity note-id.rem now.bowl), note-unread-activity new-unread-activity)
       ^-  (list card:agent:gall)
       :*  [%give %fact ~[pax] %noltbook-update !>(upd)]
           [%give %fact ~[/notes] %noltbook-update !>(upd)]
           (activity-fact note-id.rem now.bowl)
-          (weld mention-cards ac.ar)
+          (weld unread-card (weld notif-cards (weld mention-cards ac.ar)))
       ==
     ::
         %remote-ars
@@ -9609,7 +13343,7 @@
       =/  par-owner=(unit @p)  (attn-parent-owner env-rte reply-to.env cur note-arts note-aenvs)
       =/  rtarget=attention-item:noltbook  [%reply %message env-eid `msg-id.env ~ author.env timestamp.env]
       =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
-        (add-reply-attn attention %cover our.bowl author.env par-owner rtarget)
+        (add-reply-attn attention %cover our.bowl (host-self author.env ~ our.bowl) par-owner rtarget)
       ::  Phase 11C: record the cover envelope's app attribution by eid.
       =.  via-by-eid  (api-via-put-env via-by-eid env)
       :_  this(gossip-envelopes (~(put by gossip-envelopes) %cover (cap-envs (~(put by cenv) msg-id.env env))), gossip-hops (~(put by gossip-hops) msg-id.env my-hops), attention na.ar)
@@ -9725,6 +13459,7 @@
             ::  triggers fetchGossipContent → %cover-msg-content → preview.
             [%give %fact ~[/notes] %noltbook-update !>(upd)]
             (activity-fact nid now.bowl)
+            (unread-activity-fact nid now.bowl)
             (sidebar-signal nid author.env ~ %gossip now.bowl)
         ==
       ::  reply attention: user-gossip text reply → notify the parent owner if us
@@ -9736,10 +13471,10 @@
       =/  par-owner=(unit @p)  (attn-parent-owner env-rte reply-to.env cur note-arts note-aenvs)
       =/  rtarget=attention-item:noltbook  [%reply %message env-eid `msg-id.env ~ author.env timestamp.env]
       =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
-        (add-reply-attn attention nid our.bowl author.env par-owner rtarget)
+        (add-reply-attn attention nid our.bowl (host-self author.env ~ our.bowl) par-owner rtarget)
       ::  Phase 11C: record the gossip envelope's app attribution by eid.
       =.  via-by-eid  (api-via-put-env via-by-eid env)
-      :_  this(gossip-envelopes (~(put by gossip-envelopes) nid (cap-envs (~(put by nenv) msg-id.env env))), gossip-hops (~(put by gossip-hops) msg-id.env my-hops), attention na.ar, note-activity (put-activity note-activity nid now.bowl))
+      :_  this(gossip-envelopes (~(put by gossip-envelopes) nid (cap-envs (~(put by nenv) msg-id.env env))), gossip-hops (~(put by gossip-hops) msg-id.env my-hops), attention na.ar, note-activity (put-activity note-activity nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity nid now.bowl))
       (weld (weld head-cards relay) ac.ar)
     ::
         %remote-fetch-gossip-msg
@@ -9871,6 +13606,65 @@
       :~  [%give %fact ~[/notes] %noltbook-update !>(pupd)]
           [%give %fact ~[/notes] %noltbook-update !>(rupd)]
       ==
+    ::
+        %remote-actor-profile-request
+      ::  Phase G4: a peer asks for one of OUR actors' public profile. Blocked peers
+      ::  are silently dropped (same privacy as %remote-profile-request — they time
+      ::  out on their end). Validate the actor id (non-empty, <=128 bytes); desk is
+      ::  already a term. Suspended/revoked actors are STILL returned so historical
+      ::  attributed messages remain inspectable; no actor => profile=~. Never include
+      ::  caps/grants/contacts/preferences — only the public profile.
+      ?:  (~(has in pal-blocked) src.bowl)  `this
+      =/  prof=(unit actor-public-profile:noltbook)
+        ?:  =(0 (met 3 actor-id.rem))  ~
+        ?:  (gth (met 3 actor-id.rem) 128)  ~
+        =/  rec  (~(get by actor-registry) [desk.rem actor-id.rem])
+        ?~  rec  ~
+        `(build-actor-public-profile desk.rem u.rec (~(get by actor-profiles) [desk.rem actor-id.rem]))
+      =/  resp=remote:noltbook  [%remote-actor-profile-response req-id.rem desk.rem actor-id.rem prof]
+      :_  this
+      ~[[%pass /actor-prof-resp/(scot %p src.bowl)/(scot %ud req-id.rem) %agent [src.bowl %noltbook] %poke %noltbook-remote !>(resp)]]
+    ::
+        %remote-actor-profile-response
+      ::  Phase G4: a host replied to our actor-profile lookup. The host is src.bowl
+      ::  (NOT trusted from payload); the response echoes desk/actor-id. profile=~ =>
+      ::  %missing (no such actor there) — cache nothing. profile=^ but its desk/id do
+      ::  NOT match the request => %invalid-response, cache NOTHING (a host can only
+      ::  assert profiles under its own authenticated src.bowl namespace; this stops a
+      ::  mismatched Alice payload from being normalized into a Rick cache key). Match =>
+      ::  cache under [src.bowl desk actor-id] with now as fetched-at and emit %ok.
+      ?~  profile.rem
+        :_  this
+        (actor-prof-result-cards req-id.rem src.bowl desk.rem actor-id.rem %missing ~ ~)
+      ?.  ?&(=(desk.u.profile.rem desk.rem) =(id.u.profile.rem actor-id.rem))
+        :_  this
+        (actor-prof-result-cards req-id.rem src.bowl desk.rem actor-id.rem %invalid-response ~ ~)
+      =/  key=[@p @tas @t]  [src.bowl desk.rem actor-id.rem]
+      :_  this(remote-actor-profiles (~(put by remote-actor-profiles) key [u.profile.rem now.bowl]))
+      (actor-prof-result-cards req-id.rem src.bowl desk.rem actor-id.rem %ok `now.bowl `u.profile.rem)
+    ::
+        %remote-actor-dm-meta
+      ::  Phase G5A: the host of an actor DM tells us this group note is a direct actor
+      ::  conversation. The host is src.bowl (NOT trusted from payload): require
+      ::  meta.owner.host == src.bowl and meta.target == our.bowl. Reject a marker
+      ::  claiming another host. Validate the actor id cap. If the note already exists
+      ::  it must be src.bowl's secret %group containing both ships; if metadata arrives
+      ::  before the invite it is stored provisionally (reads/access re-verify against
+      ::  the live note via actor-dm-valid). Store + emit a frontend fact.
+      ?.  =(host.owner.meta.rem src.bowl)  `this
+      ?.  =(target.meta.rem our.bowl)  `this
+      ?:  =(0 (met 3 id.owner.meta.rem))  `this
+      ?:  (gth (met 3 id.owner.meta.rem) 128)  `this
+      ::  G5A hardening: if the note already exists it must pass the FULL invariant
+      ::  (secret, exactly two users == {src.bowl, our.bowl}, creator == src.bowl) via
+      ::  the shared actor-dm-valid — not just creator/type/membership. If the note has
+      ::  not arrived yet, the marker is stored provisionally (reads/access re-verify).
+      =/  nt-u  (~(get by notes) note-id.rem)
+      ?:  ?&(?=(^ nt-u) !(actor-dm-valid u.nt-u meta.rem))
+        `this
+      =.  actor-dm-notes  (~(put by actor-dm-notes) note-id.rem meta.rem)
+      :_  this
+      ~[[%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%actor-dm-updated note-id.rem `meta.rem])]]
     ::
         %remote-note-request
       ::  someone is asking for our joinable notes
@@ -10082,10 +13876,18 @@
         |-  ^-  (map @ta @da)
         ?~  subs  acc
         $(subs t.subs, acc (put-activity acc i.subs now.bowl))
+      ::  Phase B: mirror unread-activity for freshly-installed shared notes.
+      =/  nua2=(map @ta @da)
+        =/  subs=(list @ta)  merged-subs
+        =/  acc=(map @ta @da)  note-unread-activity
+        |-  ^-  (map @ta @da)
+        ?~  subs  acc
+        $(subs t.subs, acc (put-unread-activity acc i.subs now.bowl))
       =/  act-cards=(list card)
+        %-  zing
         %+  turn  merged-subs
-        |=(nid=@ta (activity-fact nid now.bowl))
-      :_  this(notes merged-notes, messages merged-msgs, member-revs new-revs, note-activity na2)
+        |=(nid=@ta ~[(activity-fact nid now.bowl) (unread-activity-fact nid now.bowl)])
+      :_  this(notes merged-notes, messages merged-msgs, member-revs new-revs, note-activity na2, note-unread-activity nua2)
       :(weld (snoc sub-cards fact-card) act-cards)
     ::
         %remote-note-state-denied
@@ -10201,10 +14003,11 @@
         =/  sub-card=card
           [%pass /remote-note/[id.note.rem] %agent [creator.note.rem %noltbook] %watch /notes/[id.note.rem]]
         =/  upd=update:noltbook  [%note-created note.rem]
-        :_  this(notes (~(put by notes) id.note.rem note.rem), messages (~(put by messages) id.note.rem *(list message:noltbook)), note-activity (put-activity note-activity id.note.rem now.bowl))
+        :_  this(notes (~(put by notes) id.note.rem note.rem), messages (~(put by messages) id.note.rem *(list message:noltbook)), note-activity (put-activity note-activity id.note.rem now.bowl), note-unread-activity (put-unread-activity note-unread-activity id.note.rem now.bowl))
         :~  sub-card
             [%give %fact ~[/notes] %noltbook-update !>(upd)]
             (activity-fact id.note.rem now.bowl)
+            (unread-activity-fact id.note.rem now.bowl)
         ==
       ::  parent present — host must match parent creator
       ?.  =(src.bowl creator.u.old-par)  `this
@@ -10221,10 +14024,11 @@
       =/  sub-card=card
         [%pass /remote-note/[id.note.rem] %agent [creator.note.rem %noltbook] %watch /notes/[id.note.rem]]
       =/  upd=update:noltbook  [%note-created note.rem]
-      :_  this(notes new-notes, messages (~(put by messages) id.note.rem *(list message:noltbook)), note-activity (put-activity note-activity id.note.rem now.bowl))
+      :_  this(notes new-notes, messages (~(put by messages) id.note.rem *(list message:noltbook)), note-activity (put-activity note-activity id.note.rem now.bowl), note-unread-activity (put-unread-activity note-unread-activity id.note.rem now.bowl))
       :~  sub-card
           [%give %fact ~[/notes] %noltbook-update !>(upd)]
           (activity-fact id.note.rem now.bowl)
+          (unread-activity-fact id.note.rem now.bowl)
       ==
     ::
         %remote-delete-msg
@@ -10266,7 +14070,21 @@
       =/  new-pins=(map @ta note-pin:noltbook)
         ?:(pin-hit (~(del by note-pins) note-id.rem) note-pins)
       =/  pin-clear-cards=(list card)  ?:(pin-hit (pin-cards note-id.rem ~) ~)
-      :_  this(messages (~(put by messages) note-id.rem new-msgs), note-pins new-pins)
+      ::  G3B hygiene: the host owns this delete authoritatively — prune the deleted
+      ::  message's via/actor attribution rows when an eid resolved.
+      =?  via-by-eid    ?=(^ del-eid)  (~(del by via-by-eid) u.del-eid)
+      =?  actor-by-eid  ?=(^ del-eid)  (~(del by actor-by-eid) u.del-eid)
+      ::  Phase G6B: prune actor notifications targeting the deleted message's eid +
+      ::  emit authoritative full=%.y updates to affected actors (resolved post-mutation).
+      =/  old-notifs  actor-notifications
+      =?  actor-notifications  ?=(^ del-eid)
+        (actor-notif-del-eid actor-notifications u.del-eid)
+      =/  msgs-after  (~(put by messages) note-id.rem new-msgs)
+      ::  actor-by-eid is already post-deletion here (the =? above ran).
+      =/  notif-cards=(list card)
+        (actor-notif-diff-cards old-notifs actor-notifications msgs-after actor-by-eid)
+      :_  this(messages msgs-after, note-pins new-pins)
+      %+  weld  notif-cards
       %+  weld
         ^-  (list card)
         :~  [%give %fact ~[pax] %noltbook-update !>(upd)]
@@ -11374,11 +15192,12 @@
       =/  par-owner=(unit @p)  (attn-parent-owner art-rte ~ cur-msgs note-arts note-aenvs)
       =/  rtarget=attention-item:noltbook  [%reply %artifact art-eid ~ `id.art creator.art art-when]
       =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
-        (add-reply-attn attention nid our.bowl creator.art par-owner rtarget)
-      :_  this(notes (~(put by notes) nid upd-note), artifacts (~(put by artifacts) id.art art), attention na.ar, note-activity (put-activity note-activity nid now.bowl))
+        (add-reply-attn attention nid our.bowl (host-self creator.art ~ our.bowl) par-owner rtarget)
+      :_  this(notes (~(put by notes) nid upd-note), artifacts (~(put by artifacts) id.art art), attention na.ar, note-activity (put-activity note-activity nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity nid now.bowl))
       ^-  (list card:agent:gall)
       :*  [%give %fact ~[pax] %noltbook-update !>(upd)]
           (activity-fact nid now.bowl)
+          (unread-activity-fact nid now.bowl)
           (sidebar-signal nid creator.art `prev %artifact now.bowl)
           ac.ar
       ==
@@ -11428,12 +15247,13 @@
       =/  par-owner=(unit @p)  (attn-parent-owner art-rte ~ cur-msgs note-arts note-aenvs)
       =/  rtarget=attention-item:noltbook  [%reply %artifact art-eid ~ `id.art creator.art art-when]
       =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
-        (add-reply-attn attention nid our.bowl creator.art par-owner rtarget)
-      :_  this(notes (~(put by notes) nid upd-note), artifacts (~(put by artifacts) id.art art), attention na.ar, note-activity (put-activity note-activity nid now.bowl))
+        (add-reply-attn attention nid our.bowl (host-self creator.art ~ our.bowl) par-owner rtarget)
+      :_  this(notes (~(put by notes) nid upd-note), artifacts (~(put by artifacts) id.art art), attention na.ar, note-activity (put-activity note-activity nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity nid now.bowl))
       :*  clay-card
           [%give %fact ~[pax] %noltbook-update !>(upd)]
           [%give %fact ~[/notes] %noltbook-update !>(upd)]
           (activity-fact nid now.bowl)
+          (unread-activity-fact nid now.bowl)
           (sidebar-signal nid creator.art `prev %artifact now.bowl)
           ac.ar
       ==
@@ -11478,7 +15298,7 @@
       =/  is-user-gossip=?  ?=(%gossip type.u.nt)
       =/  prev=@t  (art-env-preview env.rem)
       =/  act-cards=(list card)
-        ?:  is-user-gossip  ~[(activity-fact nid now.bowl)]
+        ?:  is-user-gossip  ~[(activity-fact nid now.bowl) (unread-activity-fact nid now.bowl)]
         ~
       ::  signal for user gossip (dots+preview) and cover (preview only; the
       ::  frontend never dots cover). Recency/note-preview-persist stay gossip-only.
@@ -11498,8 +15318,8 @@
       =/  par-owner=(unit @p)  (attn-parent-owner env-rte ~ cur-msgs note-arts ~(val by envs))
       =/  rtarget=attention-item:noltbook  [%reply %artifact-envelope env-eid ~ `aid.env.rem author.env.rem timestamp.env.rem]
       =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
-        (add-reply-attn attention nid our.bowl author.env.rem par-owner rtarget)
-      :_  this(notes new-notes, artifact-envelopes (~(put by artifact-envelopes) nid (cap-art-envs (~(put by envs) aid.env.rem env.rem))), attention na.ar, note-activity (put-activity note-activity nid now.bowl))
+        (add-reply-attn attention nid our.bowl (host-self author.env.rem ~ our.bowl) par-owner rtarget)
+      :_  this(notes new-notes, artifact-envelopes (~(put by artifact-envelopes) nid (cap-art-envs (~(put by envs) aid.env.rem env.rem))), attention na.ar, note-activity (put-activity note-activity nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity nid now.bowl))
       :(weld ~[[%give %fact ~[pax] %noltbook-update !>(upd)]] relay act-cards sig-cards ac.ar)
     ==
   ==
@@ -11657,6 +15477,7 @@
           =.  via-by-eid  (api-via-put-env via-by-eid env)
           =.  gossip-hops  (~(put by gossip-hops) msg-id.env my-hops)
           =.  note-activity  (put-activity note-activity nid now.bowl)
+          =.  note-unread-activity  (put-unread-activity note-unread-activity nid now.bowl)
           ::  dot-only signal: text not yet fetched, so preview ~ (no overwrite).
           :_  this
           ^-  (list card:agent:gall)
@@ -11665,6 +15486,7 @@
               ::  triggers fetchGossipContent → %cover-msg-content → preview.
               [%give %fact ~[/notes] %noltbook-update !>(gupd)]
               (activity-fact nid now.bowl)
+              (unread-activity-fact nid now.bowl)
               (sidebar-signal nid author.env ~ %gossip now.bowl)
           ==
         ::
@@ -11760,11 +15582,13 @@
             =.  messages  (~(put by messages) nid (cap-msgs (snoc cur msg) %.y))
             =.  gossip-hops  (~(put by gossip-hops) id.msg my-hops)
             =.  note-activity  (put-activity note-activity nid now.bowl)
+            =.  note-unread-activity  (put-unread-activity note-unread-activity nid now.bowl)
             =.  note-read  (put-read note-read nid now.bowl)
             :_  this
             ^-  (list card:agent:gall)
             :~  [%give %fact ~[pax] %noltbook-update !>(eupd)]
                 (activity-fact nid now.bowl)
+                (unread-activity-fact nid now.bowl)
                 (note-read-fact nid now.bowl)
                 (sidebar-signal nid author.msg `prev %gossip now.bowl)
             ==
@@ -11772,11 +15596,13 @@
           =.  gossip-envelopes  (~(put by gossip-envelopes) nid (cap-envs (~(put by note-envs) id.msg env)))
           =.  gossip-hops  (~(put by gossip-hops) id.msg my-hops)
           =.  note-activity  (put-activity note-activity nid now.bowl)
+          =.  note-unread-activity  (put-unread-activity note-unread-activity nid now.bowl)
           :_  this
           ^-  (list card:agent:gall)
           :~  [%give %fact ~[pax] %noltbook-update !>(eupd)]
               [%give %fact ~[/notes] %noltbook-update !>(content-upd)]
               (activity-fact nid now.bowl)
+              (unread-activity-fact nid now.bowl)
               (sidebar-signal nid author.msg `prev %gossip now.bowl)
           ==
         ::
@@ -11812,11 +15638,13 @@
             =.  messages  (~(put by messages) nid (cap-msgs (snoc cur msg) %.y))
             =.  gossip-hops  (~(put by gossip-hops) id.msg 1)
             =.  note-activity  (put-activity note-activity nid now.bowl)
+            =.  note-unread-activity  (put-unread-activity note-unread-activity nid now.bowl)
             =.  note-read  (put-read note-read nid now.bowl)
             :_  this
             ^-  (list card:agent:gall)
             :~  [%give %fact ~[pax] %noltbook-update !>(eupd)]
                 (activity-fact nid now.bowl)
+                (unread-activity-fact nid now.bowl)
                 (note-read-fact nid now.bowl)
                 (sidebar-signal nid author.msg `prev %gossip now.bowl)
             ==
@@ -11824,11 +15652,13 @@
           =.  gossip-envelopes  (~(put by gossip-envelopes) nid (cap-envs (~(put by note-envs) id.msg env)))
           =.  gossip-hops  (~(put by gossip-hops) id.msg 1)
           =.  note-activity  (put-activity note-activity nid now.bowl)
+          =.  note-unread-activity  (put-unread-activity note-unread-activity nid now.bowl)
           :_  this
           ^-  (list card:agent:gall)
           :~  [%give %fact ~[pax] %noltbook-update !>(eupd)]
               [%give %fact ~[/notes] %noltbook-update !>(content-upd)]
               (activity-fact nid now.bowl)
+              (unread-activity-fact nid now.bowl)
               (sidebar-signal nid author.msg `prev %gossip now.bowl)
           ==
         ::
@@ -11879,15 +15709,28 @@
         ::  Phase ACTOR-1: member records the actor carried on the fact (host
         ::  already host==src guarded it on receive; member trusts host relay).
         =.  actor-by-eid  (api-actor-put actor-by-eid actor.upd msg)
+        ::  G6A: if THIS subscribed message is one of OUR OWN actors' (actor.host ==
+        ::  our.bowl — e.g. our post to a remote-hosted note coming back host-restamped),
+        ::  advance that actor's cursor to the message's exact id so its own message
+        ::  never reads as unread. Other actors / host / remote authors never advance.
+        =?  actor-note-read  ?&(?=(^ actor.upd) =(host.u.actor.upd our.bowl))
+          (actor-read-put actor-note-read desk.u.actor.upd id.u.actor.upd nid id.msg)
         =?  notes  ?=(^ note)
           (~(put by notes) nid u.note(last-author `author.msg, last-preview `text.msg))
         ::  recency: a genuinely-new subscribed message bumps this note.
         =.  note-activity  (put-activity note-activity nid now.bowl)
+        ::  Phase B: real-user mute/block of the (host-relayed) sender actor suppresses
+        ::  host unread + @~host mention + reply attention; recency above still advances.
+        =/  u-suppressed=?  (actor-user-suppressed actor.upd user-muted-actors user-blocked-actors)
+        =?  note-unread-activity  !u-suppressed  (put-unread-activity note-unread-activity nid now.bowl)
         ::  mention detection for subscribed notes
         =/  msg-eid=(unit @uv)
           ?~  meta.msg  ~
           `eid.u.meta.msg
-        =/  mentioned=?  &(!=(author.msg our.bowl) (has-our-mention text.msg our.bowl))
+        ::  Phase A: an actor message authored under our @p is a DISTINCT sender, so a
+        ::  local-actor rebroadcast mentioning @~host creates host mention; only an
+        ::  ordinary host self-post (no actor) is suppressed. Phase B mute/block also gates.
+        =/  mentioned=?  &(!u-suppressed !(host-self author.msg actor.upd our.bowl) (has-our-mention text.msg our.bowl))
         =/  active-mentioned=?
           ?&(mentioned !(mention-cleared (fall (~(get by cleared-mentions) nid) ~) id.msg msg-eid))
         =?  mentions  active-mentioned
@@ -11903,21 +15746,32 @@
           ~(val by (fall (~(get by artifact-envelopes) nid) *(map @ta artifact-envelope:noltbook)))
         =/  rte=(unit @uv)  ?~(meta.msg ~ reply-to-eid.u.meta.msg)
         =/  par-owner=(unit @p)  (attn-parent-owner rte reply-to.msg cur note-arts note-aenvs)
+        ::  Phase G6B: actor-attributed parent => route to actor notifications + suppress
+        ::  host reply attention for that parent.
+        =/  par-eid=(unit @uv)  (reply-parent-eid msg cur)
+        =/  parent-is-actor=?  ?&(?=(^ par-eid) (~(has by actor-by-eid) u.par-eid))
         ::  classify %send via the marker the host preserved on the broadcast;
         ::  otherwise %reply. (Member-origin NOTE SEND: member→host %remote-message
         ::  carried directed-kind, host rebroadcast it on %new-message.)
         =/  rkind=attention-kind:noltbook  ?:(=(`%send directed-kind.upd) %send %reply)
         =/  rtarget=attention-item:noltbook  [rkind %message msg-eid `id.msg ~ author.msg id.msg]
         =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
-          (add-reply-attn attention nid our.bowl author.msg par-owner rtarget)
+          ?:  |(parent-is-actor u-suppressed)  [attention ~]
+          (add-reply-attn attention nid our.bowl (host-self author.msg actor.upd our.bowl) par-owner rtarget)
         =.  attention  na.ar
+        ::  Phase G6B: notification on the parent actor's host (this ship), if any.
+        =^  notif-cards  actor-notifications
+          ?.  parent-is-actor  [~ actor-notifications]
+          (actor-notif-add actor-notifications our.bowl now.bowl nid msg actor.upd actor-by-eid cur actor-registry note-actor-owners actor-note-participation actor-dm-notes notes actor-preferences)
+        ::  Phase B: emit the unread-activity fact only when not user-suppressed.
         =/  base-cards=(list card)
           :~  [%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]
               [%give %fact ~[/notes] %noltbook-update !>(upd)]
               (activity-fact nid now.bowl)
           ==
+        =?  base-cards  !u-suppressed  (snoc base-cards (unread-activity-fact nid now.bowl))
         :_  this
-        :(weld base-cards mention-cards ac.ar)
+        :(weld base-cards notif-cards mention-cards ac.ar)
       ::
           %message-edited
         =/  msgs=(list message:noltbook)  (fall (~(get by messages) note-id.upd) ~)
@@ -11966,6 +15820,20 @@
             %.n
           !=(id.m msg-id.upd)
         =.  messages  (~(put by messages) note-id.upd new-msgs)
+        ::  G3B hygiene: when the authoritative deletion carries an eid, prune that
+        ::  message's via/actor attribution rows. Kept in place until now so a
+        ::  remote-forwarded actor delete still rendered as the right actor in flight.
+        =?  via-by-eid    ?=(^ del-eid)  (~(del by via-by-eid) u.del-eid)
+        =?  actor-by-eid  ?=(^ del-eid)  (~(del by actor-by-eid) u.del-eid)
+        ::  Phase G6B: member-side prune too — a missed separate fact must not leave a
+        ::  stale notification row for the deleted replying message's eid. Emit the
+        ::  authoritative full=%.y update on /api/results (apps may not watch /notes).
+        ::  messages + actor-by-eid above are already post-deletion.
+        =/  old-notifs  actor-notifications
+        =?  actor-notifications  ?=(^ del-eid)
+          (actor-notif-del-eid actor-notifications u.del-eid)
+        =/  notif-cards=(list card)
+          (actor-notif-diff-cards old-notifs actor-notifications messages actor-by-eid)
         ::  if this note's pinned message was the one deleted, self-prune note-pins
         ::  (and emit a local %note-pin-updated ~) in case the host's clear is missed.
         =/  pin-hit=?
@@ -11974,15 +15842,17 @@
           ?~  pn  %.n
           &(=(%message kind.u.pn) =(u.del-eid target.u.pn))
         =?  note-pins  pin-hit  (~(del by note-pins) note-id.upd)
-        :_  this
-        ?.  pin-hit
+        =/  base-cards=(list card)
+          ?.  pin-hit
+            :~  [%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]
+                [%give %fact ~[/notes] %noltbook-update !>(upd)]
+            ==
           :~  [%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]
               [%give %fact ~[/notes] %noltbook-update !>(upd)]
+              [%give %fact ~[/notes/[nid]] %noltbook-update !>(`update:noltbook`[%note-pin-updated note-id.upd ~])]
           ==
-        :~  [%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]
-            [%give %fact ~[/notes] %noltbook-update !>(upd)]
-            [%give %fact ~[/notes/[nid]] %noltbook-update !>(`update:noltbook`[%note-pin-updated note-id.upd ~])]
-        ==
+        :_  this
+        (weld notif-cards base-cards)
       ::
           %note-meta-updated
         ::  relay visibility changes from remote creator to local frontend
@@ -12066,6 +15936,7 @@
         =.  artifacts  (~(put by artifacts) id.artifact.upd artifact.upd)
         ::  recency: a genuinely-new artifact from the host bumps this note.
         =.  note-activity  (put-activity note-activity nid now.bowl)
+        =.  note-unread-activity  (put-unread-activity note-unread-activity nid now.bowl)
         ::  sidebar signal + preview persistence for the closed-note case.
         =/  prev=@t  (artifact-preview artifact.upd)
         =?  notes  ?=(^ note)
@@ -12083,12 +15954,13 @@
         =/  par-owner=(unit @p)  (attn-parent-owner art-rte ~ cur-msgs note-arts note-aenvs)
         =/  rtarget=attention-item:noltbook  [%reply %artifact art-eid ~ `id.art2 creator.art2 art-when]
         =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
-          (add-reply-attn attention nid our.bowl creator.art2 par-owner rtarget)
+          (add-reply-attn attention nid our.bowl (host-self creator.art2 ~ our.bowl) par-owner rtarget)
         =.  attention  na.ar
         :_  this
         ^-  (list card:agent:gall)
         :*  [%give %fact ~[/notes/[nid]] %noltbook-update !>(upd)]
             (activity-fact nid now.bowl)
+            (unread-activity-fact nid now.bowl)
             (sidebar-signal nid creator.artifact.upd `prev %artifact now.bowl)
             ac.ar
         ==
@@ -12498,6 +16370,25 @@
       =/  upd=update:noltbook  [%profile-lookup-result rid who %unreachable]
       :_  this
       ~[[%give %fact ~[/notes] %noltbook-update !>(upd)]]
+    ==
+  ::
+      [%actor-prof-lookup @ @ @ @ ~]
+    ::  Phase G4: our actor-profile request to a remote host returned. A NACK
+    ::  (host down / no agent / old peer that can't parse the new variant) =>
+    ::  emit %actor-profile-result %unreachable. A successful ack waits for the
+    ::  actual %remote-actor-profile-response. (True silence from a reachable but
+    ::  unresponsive/blocking host is NOT detectable here — the frontend/API timeout
+    ::  covers that; we never fabricate a confirmation.)
+    =/  host=@p   (slav %p i.t.wire)
+    =/  desk=@tas  (slav %tas i.t.t.wire)
+    =/  aid=@t    (slav %t i.t.t.t.wire)
+    =/  rid=@ud   (slav %ud i.t.t.t.t.wire)
+    ?+  -.sign  `this
+        %poke-ack
+      ?~  p.sign  `this
+      ~&  [%actor-prof-lookup-failed wire u.p.sign]
+      :_  this
+      (actor-prof-result-cards rid host desk aid %unreachable ~ ~)
     ==
   ::
       [%msg-del @ ~]
