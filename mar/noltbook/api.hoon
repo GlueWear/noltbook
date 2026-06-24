@@ -77,6 +77,16 @@
       ?~  v  ~
       ?.  ?=([%s *] u.v)  ~
       `p.u.v
+    ::  A1.3b: STRICT three-state target desk — absent => %default; present-but-empty or
+    ::  non-term => %invalid; valid term => [%set desk]. Never silently defaults.
+    =/  parse-tdesk
+      |=  k=@t  ^-  tdesk-spec:noltbook
+      =/  v  (get-str k)
+      ?~  v  %default
+      ?:  =('' u.v)  %invalid
+      =/  p  (rush u.v sym)
+      ?~  p  %invalid
+      [%set u.p]
     ::  three-state profile string: ~ keep (absent), [~ ~] clear (null),
     ::  [~ [~ x]] set (Phase 15 partial-update semantics).
     =/  three-str
@@ -352,11 +362,38 @@
     ::  which the handler rejects as actor-invalid). app/actor are top-level.
     ?:  =('actor-join-note' tag)      [%actor-join-note rid app actor nid]
     ?:  |(=('actor-add-participant' tag) =('actor-remove-participant' tag))
+      ::  A1.3a: optional targetDesk (omitted => %$, handler defaults to the owner app desk).
+      =/  tdesk=tdesk-spec:noltbook  (parse-tdesk 'targetDesk')
       =/  tid=@t
         =/  v  (fall (get-str 'targetId') '')
         ?:((gth (met 3 v) 128) '' v)
-      ?:  =('actor-add-participant' tag)     [%actor-add-participant rid app actor nid tid]
-      [%actor-remove-participant rid app actor nid tid]
+      ?:  =('actor-add-participant' tag)     [%actor-add-participant rid app actor nid tdesk tid]
+      [%actor-remove-participant rid app actor nid tdesk tid]
+    ::  Phase A1: owner-actor request management + note-level actor mute. targetDesk
+    ::  (malformed => %$) + targetId (over-cap/missing => '', handler rejects) name the
+    ::  full local target ref [our, targetDesk, targetId].
+    ?:  ?|  =('actor-approve-request' tag)  =('actor-deny-request' tag)
+            =('actor-mute-participant' tag)  =('actor-unmute-participant' tag)
+        ==
+      =/  tdesk=tdesk-spec:noltbook  (parse-tdesk 'targetDesk')
+      =/  tid=@t
+        =/  v  (fall (get-str 'targetId') '')
+        ?:((gth (met 3 v) 128) '' v)
+      ?:  =('actor-approve-request' tag)      [%actor-approve-request rid app actor nid tdesk tid]
+      ?:  =('actor-deny-request' tag)         [%actor-deny-request rid app actor nid tdesk tid]
+      ?:  =('actor-mute-participant' tag)     [%actor-mute-participant rid app actor nid tdesk tid]
+      [%actor-unmute-participant rid app actor nid tdesk tid]
+    ::  A1.3b: compact host + emergency veneers — RAW op/host/desk/id, validated in the
+    ::  handler (malformed => honest error). targetDesk via the strict three-state spec.
+    ?:  |(=('manage-note-actor' tag) =('emergency-manage-note-actor' tag))
+      =/  th=@t  (fall (get-str 'targetHost') '')
+      =/  tdesk=tdesk-spec:noltbook  (parse-tdesk 'targetDesk')
+      =/  tid=@t
+        =/  v  (fall (get-str 'targetId') '')
+        ?:((gth (met 3 v) 128) '' v)
+      =/  opv=@t  (fall (get-str 'op') '')
+      ?:  =('manage-note-actor' tag)  [%manage-note-actor rid nid opv th tdesk tid]
+      [%emergency-manage-note-actor rid nid opv th tdesk tid]
     ::  Actor Notes (Phase G3): actor leaves a note it participates in. noteId only.
     ?:  =('actor-leave-note' tag)     [%actor-leave-note rid app actor nid]
     ::  Actor DM (Phase G5A): adopt an incoming actor DM (noteId).

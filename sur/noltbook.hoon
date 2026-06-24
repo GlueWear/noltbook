@@ -358,6 +358,11 @@
       [%create-gossip-note name=@t headline=@t]
       [%rename-note id=@ta name=@t]
       [%delete-note id=@ta]
+      ::  A1.3b: compact host + emergency actor management (the host's own UI pokes these
+      ::  directly; the API veneers reuse the same shared helpers). target is a full LOCAL
+      ::  actor-ref [our.bowl desk id]; remote targets are deferred to A3.
+      [%manage-note-actor note-id=@ta op=note-actor-op target=actor-ref]
+      [%emergency-manage-note-actor note-id=@ta op=emergency-actor-op target=actor-ref]
       [%switch-note id=@ta]
       ::  Phase B: the REAL ship user's actor notification preferences, keyed by the
       ::  full stable [host,desk,id]. mute/block independent; effective suppression =
@@ -523,6 +528,12 @@
 ::  actor-status: host lifecycle for one registered actor. %active honors
 ::  attribution; %suspended/%revoked reject it (history stays attributed).
 +$  actor-status  ?(%active %suspended %revoked)
+::  A1.3b: compact actor-management operation enums (host + emergency families share one
+::  op-tagged action each instead of many near-duplicate unions) + a STRICT three-state
+::  target desk so a malformed targetDesk can never silently default to the owner app desk.
++$  note-actor-op  ?(%approve %deny %invite %remove %mute %unmute)
++$  emergency-actor-op  ?(%remove %mute %unmute)
++$  tdesk-spec  $@(?(%default %invalid) [%set desk=@tas])
 ::  actor-record-52: frozen pre-Phase-C record shape (state-52 load only).
 +$  actor-record-52
   $:  id=@t
@@ -686,13 +697,34 @@
       ::  actor's row. All require %attribute + %participate-note. Host @p stays the real
       ::  note.users member; actors never enter note.users.
       [%actor-join-note request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta]
-      [%actor-add-participant request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta target-id=@t]
-      [%actor-remove-participant request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta target-id=@t]
+      ::  A1.3a/A1.3b: target-desk is the STRICT three-state tdesk-spec naming the full
+      ::  LOCAL ref [our.bowl desk target-id]: %default (absent) => owner app desk;
+      ::  [%set d] => d; %invalid (malformed) => actor-invalid (never silent default).
+      ::  Owner authority + %attribute + %manage-members; remote target hosts deferred to A3.
+      [%actor-add-participant request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta target-desk=tdesk-spec target-id=@t]
+      [%actor-remove-participant request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta target-desk=tdesk-spec target-id=@t]
       ::  Actor Notes (Phase G3): an actor LEAVES a regular note it participates in —
       ::  removes ONLY its own [app.desk, actor.id] participation row. Never calls the
       ::  ship-level %leave-note: the host @p stays in note.users/subscribed and other
       ::  actors are unaffected. Requires %attribute + %leave-note. Owner must delete.
       [%actor-leave-note request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta]
+      ::  Phase A1: durable actor membership requests + note-level actor mute. The note's
+      ::  OWNER actor (via its governing app, %attribute + %manage-members) approves/denies
+      ::  a pending actor request and mutes/unmutes a participant actor. The target ref is
+      ::  [our.bowl target-desk target-id] (A1 is local-only; A3 adds remote). No host
+      ::  fallback; actors never become admins; actor-DM notes stay isolated.
+      ::  A1.3b: target-desk is the STRICT tdesk-spec; for these four a valid desk is
+      ::  REQUIRED — %default or %invalid both => actor-invalid (no silent default).
+      [%actor-approve-request request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta target-desk=tdesk-spec target-id=@t]
+      [%actor-deny-request request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta target-desk=tdesk-spec target-id=@t]
+      [%actor-mute-participant request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta target-desk=tdesk-spec target-id=@t]
+      [%actor-unmute-participant request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta target-desk=tdesk-spec target-id=@t]
+      ::  A1.3b: compact request-correlated API veneers for the ordinary-host and explicit
+      ::  emergency families. RAW fields (op/host/desk/id) are parsed + validated in the
+      ::  handler so malformed input returns an honest error, never a mark crash. host must
+      ::  == our.bowl; op is validated against the family's allowed operations.
+      [%manage-note-actor request-id=(unit @ud) note-id=@ta op=@t target-host=@t target-desk=tdesk-spec target-id=@t]
+      [%emergency-manage-note-actor request-id=(unit @ud) note-id=@ta op=@t target-host=@t target-desk=tdesk-spec target-id=@t]
       ::  Actor DM (Phase G5A): a private actor-to-ship direct conversation modeled as a
       ::  SECRET two-ship %group note (NOT a canonical %dm). find-or-create is idempotent
       ::  per [owner, target]; adopt lets ONE local actor on the target host claim an

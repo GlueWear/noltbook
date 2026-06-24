@@ -34,6 +34,41 @@
         ?.  ?=([%s *] u.hl-raw)  ''
         p.u.hl-raw
       [%create-gossip-note p.nm-nd hl]
+    ::  A2: internal host + emergency actor management. Strict — a malformed host/desk/id/op
+    ::  fails mark conversion (need/?>/!!), never produces a wrong actor ref or op.
+    ?:  |(=('manage-note-actor' tag) =('emergency-manage-note-actor' tag))
+      =/  nid-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] nid-nd)
+      =/  op-nd  (need (~(get by d) 'op'))
+      ?>  ?=([%s *] op-nd)
+      =/  host-nd  (need (~(get by d) 'targetHost'))
+      ?>  ?=([%s *] host-nd)
+      =/  desk-nd  (need (~(get by d) 'targetDesk'))
+      ?>  ?=([%s *] desk-nd)
+      =/  id-nd  (need (~(get by d) 'targetId'))
+      ?>  ?=([%s *] id-nd)
+      =/  tref=actor-ref:noltbook
+        [(need (slaw %p p.host-nd)) (need (rush p.desk-nd sym)) p.id-nd]
+      =/  ops=@tas  (need (rush p.op-nd sym))
+      =/  nid=@ta  `@ta`p.nid-nd
+      ?:  =('manage-note-actor' tag)
+        =/  op=note-actor-op:noltbook
+          ?+  ops  ~|('bad host op' !!)
+            %approve  %approve
+            %deny     %deny
+            %invite   %invite
+            %remove   %remove
+            %mute     %mute
+            %unmute   %unmute
+          ==
+        [%manage-note-actor nid op tref]
+      =/  op=emergency-actor-op:noltbook
+        ?+  ops  ~|('bad emergency op' !!)
+          %remove  %remove
+          %mute    %mute
+          %unmute  %unmute
+        ==
+      [%emergency-manage-note-actor nid op tref]
     ::  rename-note
     ?:  =('rename-note' tag)
       =/  id-nd  (need (~(get by d) 'id'))

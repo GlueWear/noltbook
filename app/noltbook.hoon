@@ -1224,6 +1224,78 @@
 ::  note-activity recency) + the real ship-user's actor mute/block sets keyed by the full
 ::  [host,desk,id]. Additive; migration seeds unread-activity from note-activity (unread
 ::  state preserved) and the pref sets empty (notifications ON by default).
+::  state-65: Actors Phase 1A schema foundation. Replaces actor-note-participation
+::  (local [desk,id]) with actor-note-roster keyed by FULL actor-ref [host desk id],
+::  and adds the durable participation-layer fields (no behavior yet): note-members
+::  (logical human participants), actor-join-requests (pending actor requests),
+::  note-actor-muted (per-note actor posting bans), user-actor-contacts (real-user
+::  actor bookmarks). Migration converts each local participation row to [our desk id]
+::  and seeds note-members from note.users (minus the actor owner's host).
++$  state-65
+  $:  %65
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      actor-by-eid=(map @uv actor:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      actor-registry=(map [@tas @t] actor-record:noltbook)
+      note-actor-owners=(map @ta actor-owner:noltbook)
+      actor-profiles=(map [@tas @t] actor-profile:noltbook)
+      actor-contacts=(map [@tas @t] (set identity-ref:noltbook))
+      actor-preferences=(map [@tas @t] actor-preferences:noltbook)
+      actor-note-roster=(map @ta (set actor-ref:noltbook))
+      remote-actor-profiles=(map [host=@p desk=@tas id=@t] [profile=actor-public-profile:noltbook fetched-at=@da])
+      actor-dm-notes=(map @ta actor-dm-meta:noltbook)
+      actor-note-read=(map [@tas @t] (map @ta @da))
+      actor-notifications=(map [@tas @t] (list actor-notification:noltbook))
+      note-unread-activity=(map @ta @da)
+      user-muted-actors=(set actor-ref:noltbook)
+      user-blocked-actors=(set actor-ref:noltbook)
+      note-members=(map @ta (set @p))
+      actor-join-requests=(map @ta (set actor-ref:noltbook))
+      note-actor-muted=(map @ta (set actor-ref:noltbook))
+      user-actor-contacts=(set actor-ref:noltbook)
+  ==
 +$  state-64
   $:  %64
       notes=(map @ta note:noltbook)
@@ -3929,6 +4001,100 @@
       `(set actor-ref:noltbook)`~
       `(set actor-ref:noltbook)`~
   ==
+::  upgrade-64-to-65: Actors Phase 1A. Convert local [desk,id] participation rows to
+::  full actor-ref [our,desk,id] roster rows; seed note-members from note.users (minus
+::  the actor owner's transport host); initialize the remaining participation-layer
+::  fields empty. Pure/additive — no notes/messages/owners/registry rewritten. Takes
+::  `our` because upgrade arms have no bowl and the roster ref needs the host @p.
+++  upgrade-64-to-65
+  |=  [our=@p s=state-64]
+  ^-  state-65
+  :*  %65
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      fork-parent-version.s
+      host-checks.s
+      notification-acks.s
+      note-activity.s
+      note-read.s
+      attention.s
+      cleared-mentions.s
+      via-by-eid.s
+      note-pins.s
+      note-apps.s
+      note-active.s
+      actor-by-eid.s
+      app-grants.s
+      actor-registry.s
+      note-actor-owners.s
+      actor-profiles.s
+      actor-contacts.s
+      actor-preferences.s
+      (roster-from-participation our actor-note-participation.s)
+      remote-actor-profiles.s
+      actor-dm-notes.s
+      actor-note-read.s
+      actor-notifications.s
+      note-unread-activity.s
+      user-muted-actors.s
+      user-blocked-actors.s
+      (members-from-notes notes.s note-actor-owners.s)
+      `(map @ta (set actor-ref:noltbook))`~
+      `(map @ta (set actor-ref:noltbook))`~
+      `(set actor-ref:noltbook)`~
+  ==
+::  roster-from-participation: each local [desk,id] participation row -> a full actor-ref
+::  [our,desk,id] roster row. Drops empty sets. Phase 1A migration only.
+++  roster-from-participation
+  |=  [our=@p parts=(map @ta (set [desk=@tas id=@t]))]
+  ^-  (map @ta (set actor-ref:noltbook))
+  %-  ~(rep by parts)
+  |=  [[nid=@ta s=(set [desk=@tas id=@t])] acc=(map @ta (set actor-ref:noltbook))]
+  ?:  =(~ s)  acc
+  =/  refs=(set actor-ref:noltbook)
+    %-  ~(run in s)
+    |=  [desk=@tas id=@t]
+    ^-  actor-ref:noltbook
+    [our desk id]
+  (~(put by acc) nid refs)
+::  members-from-notes: seed logical human participants per note. Ordinary note =>
+::  note.users; actor-owned note => note.users minus the owner's transport host.
+::  Drops empty member sets. Phase 1A migration only; no behavior is active yet.
+++  members-from-notes
+  |=  [nmap=(map @ta note:noltbook) owners=(map @ta actor-owner:noltbook)]
+  ^-  (map @ta (set @p))
+  %-  ~(rep by nmap)
+  |=  [[nid=@ta nt=note:noltbook] acc=(map @ta (set @p))]
+  =/  base=(set @p)  users.nt
+  =/  mem=(set @p)
+    =/  o=(unit actor-owner:noltbook)  (~(get by owners) nid)
+    ?~  o  base
+    (~(del in base) host.u.o)
+  ::  1B.1: store the row even when empty (an empty logical set is authoritative).
+  (~(put by acc) nid mem)
+::  prune-note-members: drop note-members rows for a list of removed note ids (parity
+::  with prune-participation, but the value type is (set @p)). Phase 1A cleanup helper.
+++  prune-note-members
+  |=  [ids=(list @ta) m=(map @ta (set @p))]
+  ^-  (map @ta (set @p))
+  =/  acc=(map @ta (set @p))  m
+  |-
+  ?~  ids  acc
+  $(ids t.ids, acc (~(del by acc) i.ids))
 ::  upgrade-55-to-56: add actor-contacts (empty). Actor Social Phase F2. Pure
 ::  additive; profiles/registry/ship-contacts untouched.
 ++  upgrade-55-to-56
@@ -4393,13 +4559,13 @@
   |=  nid=@ta
   ^-  card:agent:gall
   [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%note-deleted nid])]
-::  prune-participation (Phase G2): drop actor-note-participation rows for a list of
+::  prune-participation (Phase G2): drop actor-note-roster rows for a list of
 ::  removed note ids. Shared by the primary local-removal paths (leave/remote-delete)
 ::  so participation never outlives its note on those paths.
 ++  prune-participation
-  |=  [ids=(list @ta) parts=(map @ta (set [desk=@tas id=@t]))]
-  ^-  (map @ta (set [desk=@tas id=@t]))
-  =/  acc=(map @ta (set [desk=@tas id=@t]))  parts
+  |=  [ids=(list @ta) parts=(map @ta (set actor-ref:noltbook))]
+  ^-  (map @ta (set actor-ref:noltbook))
+  =/  acc=(map @ta (set actor-ref:noltbook))  parts
   |-
   ?~  ids  acc
   $(ids t.ids, acc (~(del by acc) i.ids))
@@ -4518,7 +4684,7 @@
           note-msgs=(list message:noltbook)
           registry=(map [@tas @t] actor-record:noltbook)
           owners=(map @ta actor-owner:noltbook)
-          parts=(map @ta (set [desk=@tas id=@t]))
+          parts=(map @ta (set actor-ref:noltbook))
           dms=(map @ta actor-dm-meta:noltbook)
           nmap=(map @ta note:noltbook)
           prefs-map=(map [@tas @t] actor-preferences:noltbook)
@@ -5166,14 +5332,15 @@
   `-.i.hits
 ::  STABLE api read shapes (decoupled from the internal update enjs).
 ++  api-note-json
-  |=  [n=note:noltbook app=(unit app-note-meta:noltbook) active=(unit note-active:noltbook) now=@da]  ^-  json
+  ::  1B.2: lcount is the LOGICAL human-member count (not ~(wyt in users.n) transport).
+  |=  [n=note:noltbook app=(unit app-note-meta:noltbook) active=(unit note-active:noltbook) now=@da lcount=@ud]  ^-  json
   %-  pairs:enjs:format
   :~  ['id' s+(crip (trip id.n))]
       ['name' s+name.n]
       ['type' s+(crip (trip (scot %tas type.n)))]
       ['creator' s+(scot %p creator.n)]
       ['visibility' s+(crip (trip (scot %tas visibility.n)))]
-      ['userCount' (numb:enjs:format ~(wyt in users.n))]
+      ['userCount' (numb:enjs:format lcount)]
       ['lastPreview' ?~(last-preview.n ~ s+u.last-preview.n)]
       ['app' (api-app-json app)]
       ['active' (api-active-json active now)]
@@ -5185,7 +5352,7 @@
           owner=(unit actor-owner:noltbook)
           registry=(map [@tas @t] actor-record:noltbook)
           dm=(unit actor-dm-meta:noltbook)
-          activity=@da  read=@da
+          activity=@da  read=@da  lcount=@ud
       ==
   ^-  json
   %-  pairs:enjs:format
@@ -5195,7 +5362,8 @@
       ['creator' s+(scot %p creator.n)]
       ['visibility' s+(crip (trip (scot %tas visibility.n)))]
       ['writable' b+writable.n]
-      ['userCount' (numb:enjs:format ~(wyt in users.n))]
+      ::  1B.3: logical human count (0 for a fresh actor note; transport host excluded).
+      ['userCount' (numb:enjs:format lcount)]
       ['lastAuthor' ?~(last-author.n ~ s+(scot %p u.last-author.n))]
       ['lastPreview' ?~(last-preview.n ~ s+u.last-preview.n)]
       ['actorOwner' (api-actor-owner-json owner registry)]
@@ -5526,6 +5694,7 @@
           grants=(map @tas app-grant:noltbook)
           registry=(map [@tas @t] actor-record:noltbook)
           dms=(map @ta actor-dm-meta:noltbook)
+          nmuted=(map @ta (set actor-ref:noltbook))
       ==
   ^-  %+  each
         [who=@p nt=note:noltbook registry=(map [@tas @t] actor-record:noltbook)]
@@ -5548,6 +5717,9 @@
           =(id.u.owner id.u.act)
       ==
     [%.n %actor-not-owner 'actor does not own this note']
+  ::  A1.3a: a muted acting owner cannot manage human members either.
+  ?:  (~(has in (fall (~(get by nmuted) nid) ~)) [our desk.u.app id.u.act])
+    [%.n %note-actor-muted 'acting actor is muted in this note']
   ::  governance: app ceiling + per-actor narrow + status (attribute + manage-members).
   =/  g  (gate-actor-cap our now desk.u.app id.u.act name.u.act kind.u.act (sy ~[%attribute %manage-members]) grants registry)
   ?:  ?=(%.n -.g)  [%.n p.g]
@@ -5557,6 +5729,225 @@
   ?:  =(%dm type.nt)  [%.n %rejected 'cannot manage DM members']
   ?:  =(u.who our)  [%.n %rejected 'cannot target the host']
   [%.y u.who nt registry.p.g]
+::  actor-muted (Phase A1): is the exact full actor ref banned from writing in nid?
+++  actor-muted
+  |=  [nid=@ta ref=actor-ref:noltbook nmuted=(map @ta (set actor-ref:noltbook))]
+  ^-  ?
+  (~(has in (fall (~(get by nmuted) nid) ~)) ref)
+::  put/del-actor-row (Phase A1): add/remove an actor ref in a per-note ref-set map
+::  (roster / requests / note-actor-muted). del drops empty rows; put never stores empty.
+++  put-actor-row
+  |=  [nid=@ta ref=actor-ref:noltbook m=(map @ta (set actor-ref:noltbook))]
+  ^-  (map @ta (set actor-ref:noltbook))
+  (~(put by m) nid (~(put in (fall (~(get by m) nid) ~)) ref))
+++  del-actor-row
+  |=  [nid=@ta ref=actor-ref:noltbook m=(map @ta (set actor-ref:noltbook))]
+  ^-  (map @ta (set actor-ref:noltbook))
+  =/  s=(set actor-ref:noltbook)  (~(del in (fall (~(get by m) nid) ~)) ref)
+  ?:  =(~ s)  (~(del by m) nid)
+  (~(put by m) nid s)
+::  sweep-actor-requests (A1.3a): remove an actor ref from EVERY per-note request set
+::  (used on revoke), dropping any row that becomes empty. Roster/mute/history untouched.
+++  sweep-actor-requests
+  |=  [ref=actor-ref:noltbook reqs=(map @ta (set actor-ref:noltbook))]
+  ^-  (map @ta (set actor-ref:noltbook))
+  %-  ~(rep by reqs)
+  |=  [[nid=@ta s=(set actor-ref:noltbook)] acc=(map @ta (set actor-ref:noltbook))]
+  =/  s2=(set actor-ref:noltbook)  (~(del in s) ref)
+  ?:  =(~ s2)  acc
+  (~(put by acc) nid s2)
+::  tdesk-resolve (A1.3b): the STRICT three-state target desk -> (unit @tas). ~ means
+::  reject (actor-invalid). %default -> the owner app desk only when allow-default.
+++  tdesk-resolve
+  |=  [spec=tdesk-spec:noltbook default-desk=@tas allow-default=?]
+  ^-  (unit @tas)
+  ?-  spec
+    [%set *]  `desk.spec
+    %invalid  ~
+    %default  ?:(allow-default `default-desk ~)
+  ==
+::  host-actor-pre (A1.3b): ordinary-host moderation authority over an ORDINARY note
+::  (NO actor owner). Local + eligible + not-actor-DM + host/admin + write-block.
+++  host-actor-pre
+  |=  $:  our=@p  nid=@ta
+          owners=(map @ta actor-owner:noltbook)
+          nmap=(map @ta note:noltbook)
+          hs=(map @ta ?(%host-deleted %host-unreachable))
+          admins=(map @ta (set @p))
+          dms=(map @ta actor-dm-meta:noltbook)
+      ==
+  ^-  (each note:noltbook [code=@tas msg=@t])
+  ?:  (~(has by dms) nid)  [%.n %unsupported 'cannot manage an actor-DM note']
+  =/  nt-u  (~(get by nmap) nid)
+  ?~  nt-u  [%.n %missing-note 'no such note']
+  =/  nt=note:noltbook  u.nt-u
+  ?.  ?|(=(%notebook type.nt) =(%group type.nt))
+    [%.n %unsupported 'note type not eligible for actor participation']
+  ?:  (~(has by owners) nid)
+    [%.n %unsupported 'actor-owned note: use owner-actor or emergency controls']
+  ?.  =(our creator.nt)
+    [%.n %unsupported 'remote-hosted note: remote-admin forwarding deferred to A3']
+  ?.  (has-mod-power our nid creator.nt admins)
+    [%.n %rejected 'not host or admin']
+  ?:  (is-write-blocked nid hs nmap our)  [%.n %rejected 'write blocked']
+  [%.y nt]
+::  emergency-actor-pre (A1.3b): EXPLICIT host emergency authority over an ACTOR-OWNED
+::  note. Local + eligible + not-DM + has an actor owner + hosted by us + write-block.
+::  Returns the note + the owner ref (so removal can reject it). NOT a fallback.
+++  emergency-actor-pre
+  |=  $:  our=@p  nid=@ta
+          owners=(map @ta actor-owner:noltbook)
+          nmap=(map @ta note:noltbook)
+          hs=(map @ta ?(%host-deleted %host-unreachable))
+          dms=(map @ta actor-dm-meta:noltbook)
+      ==
+  ^-  (each [nt=note:noltbook owner=actor-ref:noltbook] [code=@tas msg=@t])
+  ?:  (~(has by dms) nid)  [%.n %unsupported 'cannot manage an actor-DM note']
+  =/  nt-u  (~(get by nmap) nid)
+  ?~  nt-u  [%.n %missing-note 'no such note']
+  =/  nt=note:noltbook  u.nt-u
+  ?.  ?|(=(%notebook type.nt) =(%group type.nt))
+    [%.n %unsupported 'note type not eligible for actor participation']
+  =/  owner  (~(get by owners) nid)
+  ?~  owner  [%.n %unsupported 'not an actor-owned note']
+  ?.  =(host.u.owner our)  [%.n %rejected 'not the actor-note host']
+  ?.  =(our creator.nt)  [%.n %rejected 'remote-hosted: emergency host control deferred to A3']
+  ?:  (is-write-blocked nid hs nmap our)  [%.n %rejected 'write blocked']
+  [%.y nt u.owner]
+::  actor-manage-apply (A1.3b): the SHARED per-operation mutation for owner/host/emergency
+::  actor management. Authority is gated by the CALLER; this validates target STATE per op
+::  and returns the new maps + cards + result. Never TOFU-registers; never touches human
+::  note-muted; preserves messages + attribution. Local refs only (tref.host == our).
+++  actor-manage-apply
+  |=  $:  our=@p  nid=@ta  op=@tas  tref=actor-ref:noltbook  nt=note:noltbook
+          roster=(map @ta (set actor-ref:noltbook))
+          requests=(map @ta (set actor-ref:noltbook))
+          muted=(map @ta (set actor-ref:noltbook))
+          read=(map [@tas @t] (map @ta @da))
+          notifs=(map [@tas @t] (list actor-notification:noltbook))
+          notes=(map @ta note:noltbook)
+          msgs=(map @ta (list message:noltbook))
+          registry=(map [@tas @t] actor-record:noltbook)
+          nm=(map @ta (set @p))
+          owners=(map @ta actor-owner:noltbook)
+          abe=actor-map:noltbook
+      ==
+  ^-  $:  ok=?  code=@tas  msg=@t
+          roster=(map @ta (set actor-ref:noltbook))
+          requests=(map @ta (set actor-ref:noltbook))
+          muted=(map @ta (set actor-ref:noltbook))
+          read=(map [@tas @t] (map @ta @da))
+          notifs=(map [@tas @t] (list actor-notification:noltbook))
+          notes=(map @ta note:noltbook)
+          cards=(list card:agent:gall)
+      ==
+  =/  tdesk=@tas  desk.tref
+  =/  tid=@t  id.tref
+  =/  in-roster=?  (~(has in (fall (~(get by roster) nid) ~)) tref)
+  =/  in-requests=?  (~(has in (fall (~(get by requests) nid) ~)) tref)
+  =/  in-muted=?  (~(has in (fall (~(get by muted) nid) ~)) tref)
+  =/  trec  (~(get by registry) [tdesk tid])
+  =/  base  [ok=%.y code=%ok msg='' roster=roster requests=requests muted=muted read=read notifs=notifs notes=notes cards=`(list card:agent:gall)`~]
+  ?+  op  base(ok %.n, code %unsupported, msg 'unknown actor-manage op')
+      %deny
+    ?.  in-requests  base(ok %.n, code %missing-target, msg 'no pending actor request')
+    base(requests (del-actor-row nid tref requests))
+      %mute
+    ?.  in-roster  base(ok %.n, code %actor-not-participant, msg 'target is not a participant')
+    base(muted (put-actor-row nid tref muted))
+      %unmute
+    ?.  in-muted  base(ok %.n, code %missing-target, msg 'actor is not muted in this note')
+    base(muted (del-actor-row nid tref muted))
+      %remove
+    ?.  in-roster  base(ok %.n, code %missing-target, msg 'target is not a participant')
+    =/  new-notifs  (actor-notif-del-actor-note notifs tdesk tid nid)
+    %=  base
+      roster    (del-actor-row nid tref roster)
+      muted     (del-actor-row nid tref muted)
+      requests  (del-actor-row nid tref requests)
+      read      (actor-read-del read tdesk tid nid)
+      notifs    new-notifs
+      cards     (actor-notif-full-cards new-notifs tdesk tid msgs abe)
+    ==
+      ?(%approve %invite)
+    ?:  &(=(%approve op) !in-requests)
+      base(ok %.n, code %missing-target, msg 'no pending actor request')
+    ?~  trec  base(ok %.n, code %actor-invalid, msg 'target actor not registered')
+    ?:  ?=(%revoked status.u.trec)  base(ok %.n, code %actor-revoked, msg 'target actor revoked')
+    =/  conv  (actor-convert-cards our nid nt notes nm owners)
+    %=  base
+      requests  (del-actor-row nid tref requests)
+      roster    (~(put by roster) nid (~(put in (fall (~(get by roster) nid) ~)) tref))
+      read      ?:(in-roster read (actor-read-seed read tdesk tid nid (fall (~(get by msgs) nid) ~)))
+      notes     notes.conv
+      cards     cards.conv
+    ==
+  ==
+::  actor-convert-cards (Phase A1): when a non-owner actor is actually added to a still
+::  %notebook actor note, convert it to %group via the established human type-update
+::  behavior. Returns the updated notes + the type-update cards, gated by host visibility
+::  (a hidden owner host never receives the global /notes fact; transport peers do).
+++  actor-convert-cards
+  |=  $:  our=@p  nid=@ta  nt=note:noltbook
+          nmap=(map @ta note:noltbook)
+          nm=(map @ta (set @p))
+          owners=(map @ta actor-owner:noltbook)
+      ==
+  ^-  [notes=(map @ta note:noltbook) cards=(list card:agent:gall)]
+  ?.  =(%notebook type.nt)  [nmap ~]
+  =/  notes-after=(map @ta note:noltbook)  (apply-type-group ~[nid] nmap)
+  =/  upd=update:noltbook  [%note-type-updated nid %group]
+  :-  notes-after
+  %:  human-note-cards  nid  our
+      nm  owners  notes-after
+    ~[(gf-paths ~[/notes/[nid]] upd) (gf-notes upd)]
+  ==
+::  actor-owner-pre (Phase A1): owner-management precheck for actor request/mute actions.
+::  Validates app+actor+kind, not-actor-DM, eligible LOCALLY-HOSTED note (creator==our —
+::  remote is deferred to A3), EXACT owner authority (note-actor-owners), and governance
+::  (%attribute + %manage-members). Holds the candidate registry; returns [nt registry].
+::  No host fallback; atomic (caller commits only on success).
+++  actor-owner-pre
+  |=  $:  our=@p  now=@da
+          app=(unit api-app:noltbook)  act=(unit api-actor:noltbook)
+          nid=@ta
+          owners=(map @ta actor-owner:noltbook)
+          nmap=(map @ta note:noltbook)
+          hs=(map @ta ?(%host-deleted %host-unreachable))
+          grants=(map @tas app-grant:noltbook)
+          registry=(map [@tas @t] actor-record:noltbook)
+          dms=(map @ta actor-dm-meta:noltbook)
+          nmuted=(map @ta (set actor-ref:noltbook))
+      ==
+  ^-  %+  each
+        [nt=note:noltbook registry=(map [@tas @t] actor-record:noltbook)]
+      [code=@tas msg=@t]
+  ?~  app  [%.n %actor-invalid 'app required']
+  ?~  act  [%.n %actor-invalid 'actor required']
+  ?.  ?=(?(%user %bot %app) kind.u.act)  [%.n %actor-invalid 'bad actor kind']
+  ?:  (~(has by dms) nid)  [%.n %unsupported 'cannot manage an actor-DM note']
+  =/  nt-u  (~(get by nmap) nid)
+  ?~  nt-u  [%.n %missing-note 'no such note']
+  =/  nt=note:noltbook  u.nt-u
+  ?.  ?|(=(%notebook type.nt) =(%group type.nt))
+    [%.n %unsupported 'note type not eligible for actor participation']
+  ?.  =(our creator.nt)
+    [%.n %unsupported 'remote-hosted note: actor membership deferred to A3']
+  ?:  (is-write-blocked nid hs nmap our)  [%.n %rejected 'write blocked']
+  =/  owner  (~(get by owners) nid)
+  ?.  ?&  ?=(^ owner)
+          =(host.u.owner our)
+          =(desk.u.owner desk.u.app)
+          =(id.u.owner id.u.act)
+      ==
+    [%.n %actor-not-owner 'actor does not own this note']
+  ::  A1.2: a muted acting owner cannot moderate/configure (emergency mute neutralizes a
+  ::  rogue owner). Read/leave/notification paths never call this precheck.
+  ?:  (~(has in (fall (~(get by nmuted) nid) ~)) [our desk.u.app id.u.act])
+    [%.n %note-actor-muted 'acting actor is muted in this note']
+  =/  g  (gate-actor-cap our now desk.u.app id.u.act name.u.act kind.u.act (sy ~[%attribute %manage-members]) grants registry)
+  ?:  ?=(%.n -.g)  [%.n p.g]
+  [%.y nt registry.p.g]
 ::  actor-pref-pre (Actor Social Phase F3): shared gate for the six actor preference
 ::  actions. Verifies app+actor and governance (%attribute %manage-own-preferences:
 ::  app grant is the ceiling, per-actor caps narrow, disabled/suspended/revoked
@@ -5592,7 +5983,7 @@
   |=  $:  our=@p  nid=@ta  desk=@tas  aid=@t
           nmap=(map @ta note:noltbook)
           owners=(map @ta actor-owner:noltbook)
-          parts=(map @ta (set [desk=@tas id=@t]))
+          parts=(map @ta (set actor-ref:noltbook))
           dms=(map @ta actor-dm-meta:noltbook)
       ==
   ^-  (each note:noltbook [code=@tas msg=@t])
@@ -5608,8 +5999,8 @@
         =(desk.u.owner desk)
         =(id.u.owner aid)
     ==
-  =/  pset=(set [desk=@tas id=@t])  (fall (~(get by parts) nid) ~)
-  =/  participates=?  (~(has in pset) [desk aid])
+  =/  pset=(set actor-ref:noltbook)  (fall (~(get by parts) nid) ~)
+  =/  participates=?  (~(has in pset) [our desk aid])
   =/  dm  (~(get by dms) nid)
   ::  marked actor-DM (G5A hardening): enforce the membership invariant FIRST, then
   ::  apply HOST-ROLE-SPECIFIC access — a stale/illicit participation row must never
@@ -5631,7 +6022,7 @@
       ::  requesting actor.
       ?.  =(1 ~(wyt in pset))
         [%.n %rejected 'actor-DM participation invariant broken (not exactly one adopter)']
-      ?.  (~(has in pset) [desk aid])
+      ?.  (~(has in pset) [our desk aid])
         [%.n %actor-not-participant 'actor has not adopted this actor DM']
       [%.y nt]
     ::  any other host role cannot access an actor DM it neither owns nor is target of.
@@ -5846,6 +6237,48 @@
       ['kind' ?~(rec ~ s+(scot %tas kind.u.rec))]
       ['status' ?~(rec ~ s+(scot %tas status.u.rec))]
   ==
+::  api-actor-ref-json (A2): render a full actor ref + role + muted, resolving name/kind/
+::  lifecycle from actor-registry. Unresolved refs keep the stable {host,desk,id} identity
+::  with null display fields (never dropped).
+++  api-actor-ref-json
+  |=  $:  ref=actor-ref:noltbook  role=@t  muted=?
+          registry=(map [@tas @t] actor-record:noltbook)
+      ==
+  ^-  json
+  =/  rec  (~(get by registry) [desk.ref id.ref])
+  %-  pairs:enjs:format
+  :~  ['host' s+(scot %p host.ref)]
+      ['desk' s+(scot %tas desk.ref)]
+      ['id' s+id.ref]
+      ['name' ?~(rec ~ s+name.u.rec)]
+      ['kind' ?~(rec ~ s+(scot %tas kind.u.rec))]
+      ['lifecycleStatus' ?~(rec ~ s+(scot %tas status.u.rec))]
+      ['role' s+role]
+      ['muted' b+muted]
+  ==
+::  api-note-actors (A2): the member-safe roster for a note — owner first (deduped from
+::  the roster), then member actors, each with muted state. Returns [owner-json members].
+++  api-note-actors
+  |=  $:  nid=@ta
+          owners=(map @ta actor-owner:noltbook)
+          roster=(map @ta (set actor-ref:noltbook))
+          muted=(map @ta (set actor-ref:noltbook))
+          registry=(map [@tas @t] actor-record:noltbook)
+      ==
+  ^-  [owner=json actors=(list json)]
+  =/  o  (~(get by owners) nid)
+  =/  owner-ref=(unit actor-ref:noltbook)  ?~(o ~ `[host.u.o desk.u.o id.u.o])
+  =/  mset=(set actor-ref:noltbook)  (fall (~(get by muted) nid) ~)
+  =/  rset=(set actor-ref:noltbook)  (fall (~(get by roster) nid) ~)
+  =/  owner-json=json
+    ?~  owner-ref  ~
+    (api-actor-ref-json u.owner-ref 'owner' (~(has in mset) u.owner-ref) registry)
+  =/  member-set=(set actor-ref:noltbook)
+    ?~  owner-ref  rset  (~(del in rset) u.owner-ref)
+  :-  owner-json
+  %+  turn  ~(tap in member-set)
+  |=  ref=actor-ref:noltbook
+  (api-actor-ref-json ref 'member' (~(has in mset) ref) registry)
 ++  api-msg-json
   |=  [m=message:noltbook vmap=via-map:noltbook amap=actor-map:noltbook]  ^-  json
   %-  pairs:enjs:format
@@ -5988,6 +6421,9 @@
           admins=(map @ta (set @p))
           muted-map=(map @ta (set @p))
           hs=(map @ta ?(%host-deleted %host-unreachable))
+          nm=(map @ta (set @p))
+          owners=(map @ta actor-owner:noltbook)
+          nmap=(map @ta note:noltbook)
       ==
   ^-  (list [@t json])
   =/  host-st  (~(get by hs) nid)
@@ -5995,12 +6431,19 @@
   =/  is-host-unreach=?  ?=([~ %host-unreachable] host-st)
   =/  is-removed=?  (~(has in removed.nt) our)
   =/  write-blocked=?  ?|(?=(^ host-st) is-removed)
-  =/  is-creator=?  =(our creator.nt)
-  =/  is-admin=?  (~(has in (fall (~(get by admins) nid) ~)) our)
+  ::  1B.3: capabilities are LOGICAL-membership aware. A transport-only creator/host of
+  ::  an actor-owned note gets NO ordinary post/member/admin caps merely from creator==our.
+  =/  is-actor-owned=?  (~(has by owners) nid)
+  =/  is-member=?  (~(has in (logical-members-of nid nm owners nmap)) our)
+  ::  ordinary creator authority requires being a logical member AND not an actor note.
+  =/  is-creator=?  ?&(=(our creator.nt) is-member !is-actor-owned)
+  ::  raw transport creator + the emergency host control it still carries (delete/config).
+  =/  raw-creator=?  =(our creator.nt)
+  =/  emergency-host=?  &(raw-creator is-actor-owned)
+  =/  is-admin=?  &((~(has in (fall (~(get by admins) nid) ~)) our) is-member)
   =/  has-mod=?  ?|(is-creator is-admin)
   =/  is-dm=?  =(%dm type.nt)
   =/  is-cover=?  =(%cover type.nt)
-  =/  is-member=?  (~(has in users.nt) our)
   =/  is-muted=?  (~(has in (fall (~(get by muted-map) nid) ~)) our)
   =/  is-shared=?  (gth ~(wyt in users.nt) 1)
   =/  exempt=?  ?|(is-dm is-cover)
@@ -6010,13 +6453,16 @@
         ?|(exempt writable.nt is-creator is-admin)
         ?|(exempt !is-muted is-creator is-admin)
     ==
-  =/  can-post=?  !write-blocked
+  ::  1B.3: ordinary post/read require logical membership (system DM/cover exempt).
+  =/  can-post=?  &(!write-blocked ?|(exempt is-member))
+  =/  can-read=?  ?|(exempt is-member)
   =/  reason=@tas
     ?:  is-removed         %removed
     ?:  is-host-deleted     %host-deleted
     ?:  is-host-unreach     %host-unreachable
+    ?:  &(!is-member !exempt)  %not-participant
     %none
-  :~  ['canRead' b+&]
+  :~  ['canRead' b+can-read]
       ['canPost' b+can-post]
       ['canUploadArtifact' b+can-upload]
       ['canEditOwnMessages' b+can-post]
@@ -6025,8 +6471,12 @@
       ['canManageAdmins' b+?&(!write-blocked !is-dm is-creator)]
       ['canMuteMembers' b+?&(!write-blocked !is-dm is-shared has-mod)]
       ['canChangeSettings' b+?|(?&(!write-blocked is-creator) ?&(is-dm is-member))]
-      ['isCreator' b+is-creator]
+      ['isCreator' b+raw-creator]
       ['isAdmin' b+is-admin]
+      ::  emergency host control (delete/configure for governance) is reported SEPARATELY
+      ::  from ordinary membership/admin — a hidden actor note's host has this but is not
+      ::  an ordinary member/admin.
+      ['emergencyHostControl' b+emergency-host]
       ['isMuted' b+is-muted]
       ['isRemoved' b+is-removed]
       ['isHostDeleted' b+is-host-deleted]
@@ -6434,9 +6884,189 @@
   |=  act=action:noltbook
   ^-  vase
   !>(act)
+::  ===== Phase 1B: logical human participation. note-members is the read authority
+::  for the local human principal; note.users stays transport. Compact by design to
+::  protect the literal budget. System notes (%cover/%ars-rumors) keep their special
+::  always-visible behavior. =====
+::  logical-members-of: note-members row if present; else fall back to note.users
+::  (minus the actor owner's transport host for actor-owned notes). The fallback
+::  protects ordinary notes created before 1B activation and un-propagated remote copies.
+::  Read-only — never persists.
+++  logical-members-of
+  |=  $:  nid=@ta
+          nm=(map @ta (set @p))
+          owners=(map @ta actor-owner:noltbook)
+          nmap=(map @ta note:noltbook)
+      ==
+  ^-  (set @p)
+  =/  row  (~(get by nm) nid)
+  ?^  row  u.row
+  =/  nt  (~(get by nmap) nid)
+  ?~  nt  ~
+  =/  o  (~(get by owners) nid)
+  ?~  o  users.u.nt
+  (~(del in users.u.nt) host.u.o)
+::  human-sees-note: may the local human `who` see nid? System notes always; otherwise
+::  logical membership. A physical creator/transport host is NOT visible by creator alone.
+++  human-sees-note
+  |=  $:  nid=@ta  who=@p
+          nm=(map @ta (set @p))
+          owners=(map @ta actor-owner:noltbook)
+          nmap=(map @ta note:noltbook)
+      ==
+  ^-  ?
+  ?:  |(=(nid %cover) =(nid %ars-rumors))  &
+  (~(has in (logical-members-of nid nm owners nmap)) who)
+::  put/del-logical-member (1B.1): a PRESENT note-members row is authoritative even when
+::  empty; an ABSENT row derives from note.users (minus the actor owner's host). So the
+::  mutation base is logical-members-of, and both always WRITE a row (incl. empty) — they
+::  never delete the key (only physical note deletion removes a row). Never touch note.users.
+++  put-logical-member
+  |=  $:  nid=@ta  who=@p
+          nm=(map @ta (set @p))
+          owners=(map @ta actor-owner:noltbook)
+          nmap=(map @ta note:noltbook)
+      ==
+  ^-  (map @ta (set @p))
+  (~(put by nm) nid (~(put in (logical-members-of nid nm owners nmap)) who))
+++  del-logical-member
+  |=  $:  nid=@ta  who=@p
+          nm=(map @ta (set @p))
+          owners=(map @ta actor-owner:noltbook)
+          nmap=(map @ta note:noltbook)
+      ==
+  ^-  (map @ta (set @p))
+  (~(put by nm) nid (~(del in (logical-members-of nid nm owners nmap)) who))
+::  set-logical-members: write the supplied logical set verbatim, including empty (an
+::  explicit empty row means "transport peers may exist but zero logical humans").
+++  set-logical-members
+  |=  [nid=@ta s=(set @p) nm=(map @ta (set @p))]
+  ^-  (map @ta (set @p))
+  (~(put by nm) nid s)
+::  ensure-note-members: give every live note an EXPLICIT note-members row (incl. empty)
+::  on load, so visibility never depends on the derive-fallback for an existing note (a
+::  transport carrier can't be resurrected as a human). Ordinary note -> note.users;
+::  actor-owned note -> note.users minus owner.host. Leaves present rows untouched.
+++  ensure-note-members
+  |=  $:  nm=(map @ta (set @p))
+          nmap=(map @ta note:noltbook)
+          owners=(map @ta actor-owner:noltbook)
+      ==
+  ^-  (map @ta (set @p))
+  %-  ~(rep by nmap)
+  |=  [[nid=@ta nt=note:noltbook] acc=(map @ta (set @p))]
+  ?:  (~(has by acc) nid)  acc
+  =/  o=(unit actor-owner:noltbook)  (~(get by owners) nid)
+  =/  mem=(set @p)  ?~(o users.nt (~(del in users.nt) host.u.o))
+  (~(put by acc) nid mem)
+::  add/del-member-to-ids: apply a logical membership change across a root + its shared
+::  descendants (mirrors the note.users cascade). Always writes rows (incl. empty).
+++  add-member-to-ids
+  |=  $:  who=@p  ids=(list @ta)
+          nm=(map @ta (set @p))
+          owners=(map @ta actor-owner:noltbook)
+          nmap=(map @ta note:noltbook)
+      ==
+  ^-  (map @ta (set @p))
+  ?~  ids  nm
+  $(ids t.ids, nm (put-logical-member i.ids who nm owners nmap))
+++  del-member-from-ids
+  |=  $:  who=@p  ids=(list @ta)
+          nm=(map @ta (set @p))
+          owners=(map @ta actor-owner:noltbook)
+          nmap=(map @ta note:noltbook)
+      ==
+  ^-  (map @ta (set @p))
+  ?~  ids  nm
+  $(ids t.ids, nm (del-logical-member i.ids who nm owners nmap))
+::  add-ships-to-ids: add a SET of humans across a root+descendants (batch invite cascade).
+++  add-ships-to-ids
+  |=  $:  whos=(set @p)  ids=(list @ta)
+          nm=(map @ta (set @p))
+          owners=(map @ta actor-owner:noltbook)
+          nmap=(map @ta note:noltbook)
+      ==
+  ^-  (map @ta (set @p))
+  %-  ~(rep in whos)
+  |=  [w=@p acc=_nm]
+  (add-member-to-ids w ids acc owners nmap)
+::  drop-local-notes-facts: remove ONLY the local-human global-/notes facts from a card
+::  list (a give-fact on exactly ~[/notes]); preserves /notes/[nid] transport facts and
+::  every %pass/remote card. Used to strip leaks from re-entered handler card lists.
+++  drop-local-notes-facts
+  |=  cards=(list card:agent:gall)
+  ^-  (list card:agent:gall)
+  %+  skip  cards
+  |=  c=card:agent:gall
+  ^-  ?
+  ?=([%give %fact [[%notes ~] ~] *] c)
+::  human-note-cards (1B.2): the central card-gating choke point. If the local human
+::  logically sees nid -> return cards unchanged; otherwise strip ONLY the global
+::  ~[/notes] facts (drop-local-notes-facts), preserving /notes/[nid] transport facts,
+::  every %pass/remote card, /api/results, and unrelated global facts. Applied at the
+::  return of handlers that mutate a single note and mix local-human + transport cards.
+++  human-note-cards
+  |=  $:  nid=@ta  who=@p
+          nm=(map @ta (set @p))
+          owners=(map @ta actor-owner:noltbook)
+          nmap=(map @ta note:noltbook)
+          cards=(list card:agent:gall)
+      ==
+  ^-  (list card:agent:gall)
+  ?:  (human-sees-note nid who nm owners nmap)  cards
+  (drop-local-notes-facts cards)
+::  drop-local-relay-facts (1B.3): for the on-agent SUBSCRIBER relay, the local browser
+::  subscribes to BOTH ~[/notes] and ~[/notes/[nid]], so a transport-only carrier must
+::  drop a single-path give-fact on EITHER (any path whose head is %notes). Preserves
+::  %pass, /api/results, and multi-path/unrelated facts.
+++  drop-local-relay-facts
+  |=  cards=(list card:agent:gall)
+  ^-  (list card:agent:gall)
+  %+  skip  cards
+  |=  c=card:agent:gall
+  ^-  ?
+  ?=([%give %fact [[%notes *] ~] *] c)
+::  human-relay-cards (1B.3): on-agent relay gate. Human sees nid -> relay unchanged;
+::  else drop BOTH the global /notes and the note-specific /notes/[nid] browser facts.
+++  human-relay-cards
+  |=  $:  nid=@ta  who=@p
+          nm=(map @ta (set @p))
+          owners=(map @ta actor-owner:noltbook)
+          nmap=(map @ta note:noltbook)
+          cards=(list card:agent:gall)
+      ==
+  ^-  (list card:agent:gall)
+  ?:  (human-sees-note nid who nm owners nmap)  cards
+  (drop-local-relay-facts cards)
+::  visible-note-ids: every nid the local human principal may see (system + member).
+++  visible-note-ids
+  |=  $:  who=@p
+          nm=(map @ta (set @p))
+          owners=(map @ta actor-owner:noltbook)
+          nmap=(map @ta note:noltbook)
+      ==
+  ^-  (set @ta)
+  %-  ~(gas in *(set @ta))
+  %+  murn  ~(tap by nmap)
+  |=  [nid=@ta n=note:noltbook]
+  ^-  (unit @ta)
+  ?:  (human-sees-note nid who nm owners nmap)  `nid  ~
+::  can-user-post: the NEW gate for ordinary (non-actor) human posting — not write-
+::  blocked AND a logical member. The existing writable/muted/role checks remain at
+::  the call sites; creator==our.bowl alone never satisfies this for an actor note.
+++  can-user-post
+  |=  $:  nid=@ta  who=@p
+          hs=(map @ta ?(%host-deleted %host-unreachable))
+          nmap=(map @ta note:noltbook)
+          nm=(map @ta (set @p))
+          owners=(map @ta actor-owner:noltbook)
+      ==
+  ^-  ?
+  ?:  (is-write-blocked nid hs nmap who)  %.n
+  (human-sees-note nid who nm owners nmap)
 --
 %-  agent:dbug
-=|  state-64
+=|  state-65
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -6518,7 +7148,10 @@
     =/  s63  !<(state-63 old)
     $(old !>((upgrade-63-to-64 s63)))
   ?:  ?=([%64 *] q.old)
-    =/  loaded  !<(state-64 old)
+    =/  s64  !<(state-64 old)
+    $(old !>((upgrade-64-to-65 our.bowl s64)))
+  ?:  ?=([%65 *] q.old)
+    =/  loaded  !<(state-65 old)
     ::  fix: ensure cover note exists and is keyed as %cover
     ::  (same normalizations carried forward from state-24 load)
     =/  loaded
@@ -6633,6 +7266,10 @@
       =/  [nid=@ta n=note:noltbook]  i.todo
       =.  nmap  (~(put by nmap) nid n(type %group))
       $(todo t.todo)
+    ::  1B.1: give every live note an EXPLICIT note-members row (incl. empty) so human
+    ::  visibility never depends on the derive-fallback for an existing %65 note.
+    =/  loaded=state-65
+      loaded(note-members (ensure-note-members note-members.loaded notes.loaded note-actor-owners.loaded))
     =/  prof  (fall (~(get by profiles.loaded) our.bowl) *profile:noltbook)
     =/  prof-cards=(list card)
       %+  turn  ~(tap in peers.loaded)
@@ -6715,7 +7352,7 @@
       |=  p=@p
       ^-  card
       (rpoke /prof-out/(scot %p p) p `remote:noltbook`[%remote-profile our.bowl prof])
-    [prof-cards this(state loaded(active-calls *(map @ta call-info:noltbook)))]
+    [prof-cards this(state (upgrade-64-to-65 our.bowl loaded(active-calls *(map @ta call-info:noltbook))))]
   ?:  ?=([%19 *] q.old)
     =/  s19  !<(state-19 old)
     =/  loaded  (upgrade-19-to-20 s19)
@@ -6725,7 +7362,7 @@
       |=  p=@p
       ^-  card
       (rpoke /prof-out/(scot %p p) p `remote:noltbook`[%remote-profile our.bowl prof])
-    [prof-cards this(state loaded(active-calls *(map @ta call-info:noltbook)))]
+    [prof-cards this(state (upgrade-64-to-65 our.bowl loaded(active-calls *(map @ta call-info:noltbook))))]
   ?:  ?=([%18 *] q.old)
     =/  s18  !<(state-18 old)
     =/  loaded  (upgrade-19-to-20 (upgrade-18-to-19 s18))
@@ -6735,7 +7372,7 @@
       |=  p=@p
       ^-  card
       (rpoke /prof-out/(scot %p p) p `remote:noltbook`[%remote-profile our.bowl prof])
-    [prof-cards this(state loaded(active-calls *(map @ta call-info:noltbook)))]
+    [prof-cards this(state (upgrade-64-to-65 our.bowl loaded(active-calls *(map @ta call-info:noltbook))))]
   ?:  ?=([%17 *] q.old)
     =/  s17  !<(state-17 old)
     ::  fix: ensure cover note exists and is keyed as %cover (note-17 shape)
@@ -6774,7 +7411,7 @@
       |=  p=@p
       ^-  card
       (rpoke /prof-out/(scot %p p) p `remote:noltbook`[%remote-profile our.bowl prof])
-    [prof-cards this(state loaded(active-calls *(map @ta call-info:noltbook)))]
+    [prof-cards this(state (upgrade-64-to-65 our.bowl loaded(active-calls *(map @ta call-info:noltbook))))]
   ?:  ?=([%16 *] q.old)
     =/  s16  !<(state-16 old)
     =/  s17  (upgrade-16-to-17 s16)
@@ -6828,7 +7465,7 @@
       |=  p=@p
       ^-  card
       (rpoke /prof-out/(scot %p p) p `remote:noltbook`[%remote-profile our.bowl prof])
-    [prof-cards this(state loaded(active-calls *(map @ta call-info:noltbook)))]
+    [prof-cards this(state (upgrade-64-to-65 our.bowl loaded(active-calls *(map @ta call-info:noltbook))))]
   ?:  ?=([%15 *] q.old)
     =/  loaded  !<(state-15 old)
     =/  s16=state-16
@@ -6845,10 +7482,10 @@
       |=  p=@p
       ^-  card
       (rpoke /prof-out/(scot %p p) p `remote:noltbook`[%remote-profile our.bowl prof])
-    [prof-cards this(state (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 s16)))))]
+    [prof-cards this(state (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 s16))))))]
   ?:  ?=([%14 *] q.old)
     =/  loaded  !<(state-14 old)
-    `this(state (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 loaded)))))))
+    `this(state (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 loaded))))))))
   ?:  ?=([%13 *] q.old)
     =/  loaded  !<(state-13 old)
     =/  s15  (upgrade-14-to-15 (upgrade-13-to-14 loaded))
@@ -6856,7 +7493,7 @@
       =/  rumors=note-17  [%ars-rumors 'RUMORS' %cover our.bowl (sy ~[our.bowl]) ~ ~ ~ ~ %secret ~ & ~]
       s15(notes (~(put by notes.s15) %ars-rumors rumors), messages (~(put by messages.s15) %ars-rumors *(list message-18)))
     s15
-    `this(state (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 s15))))))
+    `this(state (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 s15)))))))
   ::  state-12 → state-20
   ?:  ?=([%12 *] q.old)
     =/  s12  !<(state-12 old)
@@ -6867,35 +7504,35 @@
       s15(notes (~(put by notes.s15) %ars-rumors rumors), messages (~(put by messages.s15) %ars-rumors *(list message-18)))
     s15
     =/  s19  (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 s15)))))
-    `this(state s19)
+    `this(state (upgrade-64-to-65 our.bowl s19))
   ::  state-11 → state-19
   ?:  ?=([%11 *] q.old)
     =/  s11  !<(state-11 old)
     =/  s19  (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 s11)))))))))
-    `this(state s19)
+    `this(state (upgrade-64-to-65 our.bowl s19))
   ::  state-10 → ... → state-19
   ?:  ?=([%10 *] q.old)
     =/  s10  !<(state-10 old)
-    `this(state (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 s10)))))))))))
+    `this(state (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 s10))))))))))))
   ::  state-9 → ... → state-19
   ?:  ?=([%9 *] q.old)
     =/  s9  !<(state-9 old)
-    `this(state (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 s9))))))))))))
+    `this(state (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 s9)))))))))))))
   ::  state-8 → ... → state-20
   ?:  ?=([%8 *] q.old)
-    `this(state (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 !<(state-8 old))))))))))))))
+    `this(state (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 !<(state-8 old)))))))))))))))
   ::  state-7 → ... → state-20
   ?:  ?=([%7 *] q.old)
     =/  s7  !<(state-7 old)
     =/  s8=state-8
       [%8 notes.s7 messages.s7 artifacts.s7 profiles.s7 transactions.s7 current-note.s7 peers.s7 has-avatar.s7 pal-outgoing.s7 pal-incoming.s7 pal-blocked.s7 0 ~]
-    `this(state (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))))))
+    `this(state (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))))))))))
   ::  state-6 → ... → state-19
   ?:  ?=([%6 *] q.old)
     =/  s6  !<(state-6 old)
     =/  s8=state-8
       [%8 notes.s6 messages.s6 artifacts.s6 profiles.s6 transactions.s6 current-note.s6 peers.s6 has-avatar.s6 peers.s6 ~ ~ 0 ~]
-    `this(state (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))))))
+    `this(state (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))))))))))
   ?:  ?=([%5 *] q.old)
     =/  s5  !<(state-5 old)
     =/  new-profiles=(map @p profile:noltbook)
@@ -6905,7 +7542,7 @@
       [display-name.p ~ wallet-address.p azimuth-address.p]
     =/  s8=state-8
       [%8 notes.s5 messages.s5 artifacts.s5 new-profiles transactions.s5 current-note.s5 peers.s5 %.n ~ ~ ~ 0 ~]
-    `this(state (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))))))
+    `this(state (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))))))))))
   ?:  ?=([%4 *] q.old)
     =/  s4  !<(state-4 old)
     =/  init-peers=(set @p)
@@ -6920,7 +7557,7 @@
       [display-name.p ~ wallet-address.p azimuth-address.p]
     =/  s8=state-8
       [%8 notes.s4 messages.s4 artifacts.s4 new-profiles transactions.s4 current-note.s4 init-peers %.n ~ ~ ~ 0 ~]
-    `this(state (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))))))
+    `this(state (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))))))))))
   ?:  ?=([%3 *] q.old)
     =/  s3  !<(state-3 old)
     =/  new-notes=(map @ta note-4)
@@ -6935,7 +7572,7 @@
       [display-name.p ~ wallet-address.p azimuth-address.p]
     =/  s8=state-8
       [%8 new-notes messages.s3 artifacts.s3 new-profiles transactions.s3 current-note.s3 ~ %.n ~ ~ ~ 0 ~]
-    `this(state (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))))))
+    `this(state (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))))))))))
   ?:  ?=([%2 *] q.old)
     =/  s2  !<(state-2 old)
     =/  new-arts=(map @ta artifact-pre40:noltbook)
@@ -6958,7 +7595,7 @@
       [display-name.p ~ wallet-address.p azimuth-address.p]
     =/  s8=state-8
       [%8 new-notes messages.s2 new-arts new-profiles transactions.s2 current-note.s2 ~ %.n ~ ~ ~ 0 ~]
-    `this(state (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))))))
+    `this(state (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))))))))))
   =/  s1  !<(state-1 old)
   =/  cov  (~(get by notes.s1) %cover)
   =/  fixed-notes=(map @ta note-3:noltbook)
@@ -6985,7 +7622,7 @@
     [id.n name.n type.n creator.n users.n children.n parent.n last-author.n last-preview.n %secret ~ &]
   =/  s8=state-8
     [%8 new-notes messages.s1 new-arts new-profiles transactions.s1 current-note.s1 ~ %.n ~ ~ ~ 0 ~]
-  `this(state (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))))))
+  `this(state (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))))))))))
 ::
 ++  on-watch
   |=  =path
@@ -7001,7 +7638,14 @@
     =/  sys  (ensure-system-notes notes messages our.bowl)
     =/  notes-now=(map @ta note:noltbook)  notes.sys
     =/  messages-now=(map @ta (list message:noltbook))  messages.sys
-    =/  note-list=(list note:noltbook)  ~(val by notes-now)
+    ::  Phase 1B: the local human principal only hydrates notes it logically sees
+    ::  (system notes + note-members), so hidden actor-owned notes vanish on reconnect.
+    ::  note-list stays an authoritative replacement; every per-note snapshot below is
+    ::  guarded by vis-set so we never hydrate state for a note the human can't see.
+    =/  vis-set=(set @ta)
+      (visible-note-ids our.bowl note-members note-actor-owners notes-now)
+    =/  note-list=(list note:noltbook)
+      (skim ~(val by notes-now) |=(n=note:noltbook (~(has in vis-set) id.n)))
     =/  upd=update:noltbook  [%note-list note-list]
     =/  prof-list=(list [@p profile:noltbook])  ~(tap by profiles)
     =/  pupd=update:noltbook  [%profile-list prof-list]
@@ -7025,32 +7669,41 @@
     =/  dialupd=update:noltbook  [%dial-update dial]
     ::  send all current mention states (eid stored natively since state-23)
     =/  mention-cards=(list card)
-      %+  turn  ~(tap by mentions)
+      %+  murn  ~(tap by mentions)
       |=  [nid=@ta mns=(list [id=@da eid=(unit @uv) author=@p])]
-      (gf-paths ~ `update:noltbook`[%mention-update nid mns])
+      ^-  (unit card)
+      ?.  (~(has in vis-set) nid)  ~
+      `(gf-paths ~ `update:noltbook`[%mention-update nid mns])
     ::  Phase A: also send the typed directed-attention state (mentions mirrored
     ::  + stored reply/send attention) so the frontend's state.attention is current.
     ::  full=& : authoritative per-note snapshot (frontend replaces that note's list)
     =/  attention-cards=(list card)
-      %+  turn  ~(tap by (all-attention mentions attention))
+      %+  murn  ~(tap by (all-attention mentions attention))
       |=  [nid=@ta its=(list attention-item:noltbook)]
-      (gf-paths ~ `update:noltbook`[%attention-update nid its %.y])
+      ^-  (unit card)
+      ?.  (~(has in vis-set) nid)  ~
+      `(gf-paths ~ `update:noltbook`[%attention-update nid its %.y])
     ::  send active call states
     =/  call-cards=(list card)
-      %+  turn  ~(tap by active-calls)
+      %+  murn  ~(tap by active-calls)
       |=  [nid=@ta ci=call-info:noltbook]
-      (gf-paths ~ `update:noltbook`[%call-state nid ci])
+      ^-  (unit card)
+      ?.  (~(has in vis-set) nid)  ~
+      `(gf-paths ~ `update:noltbook`[%call-state nid ci])
     ::  send live "active" status snapshots (unexpired only) so the sidebar shows
     ::  them after a hard refresh / reconnect, like active call states.
     =/  active-cards=(list card)
-      %+  turn  ~(tap by (active-live note-active now.bowl))
+      %+  murn  ~(tap by (active-live note-active now.bowl))
       |=  [nid=@ta a=note-active:noltbook]
-      (gf-paths ~ `update:noltbook`[%note-active-updated nid `a])
+      ^-  (unit card)
+      ?.  (~(has in vis-set) nid)  ~
+      `(gf-paths ~ `update:noltbook`[%note-active-updated nid `a])
     ::  send pending join requests (host only sees their own)
     =/  jr-list=(list [note-id=@ta ship=@p note-name=@t])
       %-  zing
       %+  turn  ~(tap by join-requests)
       |=  [nid=@ta ships=(set @p)]
+      ?.  (~(has in vis-set) nid)  ~
       =/  note  (~(get by notes-now) nid)
       ?~  note  ~
       (turn ~(tap in ships) |=(s=@p [nid s name.u.note]))
@@ -7062,6 +7715,7 @@
       %-  zing
       %+  turn  ~(tap by notes-now)
       |=  [nid=@ta n=note:noltbook]
+      ?.  (~(has in vis-set) nid)  *(list card)
       =/  adms=(set @p)  (fall (~(get by note-admins) nid) ~)
       =/  mts=(set @p)  (fall (~(get by note-muted) nid) ~)
       =/  out=(list card)  ~
@@ -7077,15 +7731,19 @@
       ~[(gf-paths ~ `update:noltbook`[%blocked-by-list bb-list])]
     ::  replay host-status entries so host-deleted banners persist over refresh
     =/  hs-cards=(list card)
-      %+  turn  ~(tap by host-status)
+      %+  murn  ~(tap by host-status)
       |=  [nid=@ta st=?(%host-deleted %host-unreachable)]
-      (gf-paths ~ `update:noltbook`[%note-host-status nid `st])
+      ^-  (unit card)
+      ?.  (~(has in vis-set) nid)  ~
+      `(gf-paths ~ `update:noltbook`[%note-host-status nid `st])
     ::  replay lineage for every note so v1/vN ~host badges render after
     ::  refresh. Falls back to defaults for notes without explicit lineage
     ::  (origin = sham[creator id], version = 1, fork-of = ~).
     =/  lineage-cards=(list card)
-      %+  turn  ~(tap by notes-now)
+      %+  murn  ~(tap by notes-now)
       |=  [nid=@ta n=note:noltbook]
+      ^-  (unit card)
+      ?.  (~(has in vis-set) nid)  ~
       =/  origin=@uv  (lineage-origin-of n fork-origin)
       =/  version=@ud  (lineage-version-of nid fork-version)
       =/  parent=(unit [host=@p nid=@ta])  (~(get by fork-of) nid)
@@ -7094,13 +7752,15 @@
         ?^  stored  `u.stored
         ?:  (gth version 1)  `(sub version 1)
         ~
-      (gf-paths ~ `update:noltbook`[%note-lineage-set nid origin version parent parent-ver])
+      `(gf-paths ~ `update:noltbook`[%note-lineage-set nid origin version parent parent-ver])
     ::  replay pending fork invites so the receiver sees the banner again
     ::  after refresh.
     =/  pfi-cards=(list card)
-      %+  turn  ~(tap by pending-fork-invites)
+      %+  murn  ~(tap by pending-fork-invites)
       |=  [nid=@ta pi=pending-fork-invite:noltbook]
-      (gf-paths ~ `update:noltbook`[%fork-invite-received root-id.pi source-name.pi source-version.pi sender.pi])
+      ^-  (unit card)
+      ?.  (~(has in vis-set) nid)  ~
+      `(gf-paths ~ `update:noltbook`[%fork-invite-received root-id.pi source-name.pi source-version.pi sender.pi])
     ::  prune stale acks against live conditions, then replay so passive
     ::  condition red dots stay cleared after a hard refresh. Centralizing the
     ::  cleanup here (rather than in every delete/membership/host-status path)
@@ -7135,7 +7795,7 @@
       ?~  pairs  acc
       =/  nid=@ta  nid.i.pairs
       ?:  |(=(nid %cover) =(nid %ars-rumors))  $(pairs t.pairs)
-      ?.  (~(has by notes-now) nid)  $(pairs t.pairs)
+      ?.  (~(has in vis-set) nid)  $(pairs t.pairs)
       $(pairs t.pairs, acc (~(put by acc) nid t.i.pairs))
     =/  activity-cards=(list card)
       =/  act-list=(list [@ta @da])  ~(tap by pruned-activity)
@@ -7149,7 +7809,7 @@
       ?~  pairs  acc
       =/  nid=@ta  nid.i.pairs
       ?:  |(=(nid %cover) =(nid %ars-rumors))  $(pairs t.pairs)
-      ?.  (~(has by notes-now) nid)  $(pairs t.pairs)
+      ?.  (~(has in vis-set) nid)  $(pairs t.pairs)
       $(pairs t.pairs, acc (~(put by acc) nid t.i.pairs))
     =/  read-cards=(list card)
       =/  read-list=(list [@ta @da])  ~(tap by pruned-read)
@@ -7163,7 +7823,7 @@
       ?~  pairs  acc
       =/  nid=@ta  nid.i.pairs
       ?:  |(=(nid %cover) =(nid %ars-rumors))  $(pairs t.pairs)
-      ?.  (~(has by notes-now) nid)  $(pairs t.pairs)
+      ?.  (~(has in vis-set) nid)  $(pairs t.pairs)
       $(pairs t.pairs, acc (~(put by acc) nid t.i.pairs))
     =/  unread-activity-cards=(list card)
       =/  ua-list=(list [@ta @da])  ~(tap by pruned-unread-activity)
@@ -7185,6 +7845,9 @@
       %+  murn  ~(tap by actor-dm-notes)
       |=  [nid=@ta meta=actor-dm-meta:noltbook]
       ^-  (unit card)
+      ::  Phase 1B: the actor-DM marker is human-DM presentation — only the logical
+      ::  participant (the target human) hydrates it; the owner's transport host does not.
+      ?.  (~(has in vis-set) nid)  ~
       =/  live  (live-actor-dm nid notes-now actor-dm-notes)
       ?~  live  ~
       `(gf-paths ~ `update:noltbook`[%actor-dm-updated nid `u.live])
@@ -7193,8 +7856,14 @@
   ::
       [%notes @ ~]
     =/  nid=@ta  i.t.path
-    ::  permission check for remote subscribers
-    ?>  ?|  =(src.bowl our.bowl)
+    ::  permission check. Phase 1B: a LOCAL (src==our) human subscription must pass
+    ::  logical membership (system notes exempt) so the human can't open a hidden
+    ::  actor-owned note via /notes/[nid]; local apps use the developer/actor API reads.
+    ::  REMOTE subscribers stay authorized by note.users (transport) — this never blocks
+    ::  a remote actor carrier whose human is not a logical member.
+    ?>  ?|  ?&  =(src.bowl our.bowl)
+                (human-sees-note nid our.bowl note-members note-actor-owners notes)
+            ==
             =(nid %cover)
             =(nid %ars-rumors)
             =/  note  (~(get by notes) nid)
@@ -7317,11 +7986,15 @@
   ?+  path  (on-peek:def path)
   ::  Developer API v1 stable read shapes (returned as %json, owned by the API).
       [%x %api %notes ~]
+    ::  Phase 1B: /api/notes is the local human principal's list — only logically
+    ::  visible notes (system + note-members); hidden actor-owned notes never appear.
     =/  jon=json
       %+  frond:enjs:format  'notes'
       :-  %a
-      %+  turn  ~(val by notes)
-      |=(n=note:noltbook (api-note-json n (~(get by note-apps) id.n) (~(get by note-active) id.n) now.bowl))
+      %+  turn
+        %+  skim  ~(val by notes)
+        |=(n=note:noltbook (human-sees-note id.n our.bowl note-members note-actor-owners notes))
+      |=(n=note:noltbook (api-note-json n (~(get by note-apps) id.n) (~(get by note-active) id.n) now.bowl ~(wyt in (logical-members-of id.n note-members note-actor-owners notes))))
     ``[%json !>(jon)]
   ::  Actor Control (Phase A) host/developer reads.
   ::
@@ -7475,7 +8148,7 @@
       ::  G5A hardening: authorize through the SAME host-role gate as actions — this
       ::  validates the marker (actor-dm-valid) AND enforces owner-host-only / single-
       ::  adopter-only. A stale participation row therefore never exposes a DM here.
-      =/  acc  (actor-note-access our.bowl nid dterm aid notes note-actor-owners actor-note-participation actor-dm-notes)
+      =/  acc  (actor-note-access our.bowl nid dterm aid notes note-actor-owners actor-note-roster actor-dm-notes)
       ?:  ?=(%.n -.acc)  ~
       ::  owned: derived from the AUTHORITATIVE marker owner (not a participation row).
       =/  owned=?
@@ -7511,10 +8184,10 @@
       ^-  (unit @ta)
       ?:(?&(=(host.o our.bowl) =(desk.o dterm) =(id.o aid)) `nid ~)
     =/  part-ids=(list @ta)
-      %+  murn  ~(tap by actor-note-participation)
-      |=  [nid=@ta s=(set [desk=@tas id=@t])]
+      %+  murn  ~(tap by actor-note-roster)
+      |=  [nid=@ta s=(set actor-ref:noltbook)]
       ^-  (unit @ta)
-      ?:((~(has in s) [dterm aid]) `nid ~)
+      ?:((~(has in s) [our.bowl dterm aid]) `nid ~)
     =/  all-ids=(set @ta)
       %-  ~(gas in *(set @ta))
       (weld owned-ids part-ids)
@@ -7527,15 +8200,15 @@
       ::  single source of truth: actor-note-access enforces LIVE note + eligible
       ::  type (%notebook/%group) + own-or-participate, so a stale row pointing at a
       ::  dm/gossip/cover never surfaces here.
-      =/  acc  (actor-note-access our.bowl nid dterm aid notes note-actor-owners actor-note-participation actor-dm-notes)
+      =/  acc  (actor-note-access our.bowl nid dterm aid notes note-actor-owners actor-note-roster actor-dm-notes)
       ?:  ?=(%.n -.acc)  ~
       =/  owner  (~(get by note-actor-owners) nid)
       =/  owned=?
         ?&(?=(^ owner) =(host.u.owner our.bowl) =(desk.u.owner dterm) =(id.u.owner aid))
-      =/  pset=(set [desk=@tas id=@t])  (fall (~(get by actor-note-participation) nid) ~)
+      =/  pset=(set actor-ref:noltbook)  (fall (~(get by actor-note-roster) nid) ~)
       =/  activity=@da  (newest-msg-da (fall (~(get by messages) nid) ~))
       =/  read=@da  (actor-read-get actor-note-read dterm aid nid)
-      `(api-actor-note-summary p.acc owned (~(has in pset) [dterm aid]) owner actor-registry (live-actor-dm nid notes actor-dm-notes) activity read)
+      `(api-actor-note-summary p.acc owned (~(has in pset) [our.bowl dterm aid]) owner actor-registry (live-actor-dm nid notes actor-dm-notes) activity read ~(wyt in (logical-members-of nid note-members note-actor-owners notes)))
     ``[%json !>(jon)]
   ::  Actor-scoped single-note detail (Phase G2): metadata + recent messages with
   ::  actor/via attribution. 404 if the actor/note is missing OR the actor neither
@@ -7548,21 +8221,39 @@
     ?~  (~(get by actor-registry) [dterm aid])  ~
     ::  shared gate: 404 (~) unless the note is LIVE, an eligible %notebook/%group,
     ::  and the actor owns or participates — same logic as enforcement, no drift.
-    =/  acc  (actor-note-access our.bowl nid dterm aid notes note-actor-owners actor-note-participation actor-dm-notes)
+    =/  acc  (actor-note-access our.bowl nid dterm aid notes note-actor-owners actor-note-roster actor-dm-notes)
     ?:  ?=(%.n -.acc)  ~
     =/  nt=note:noltbook  p.acc
     =/  owner  (~(get by note-actor-owners) nid)
     =/  owned=?
       ?&(?=(^ owner) =(host.u.owner our.bowl) =(desk.u.owner dterm) =(id.u.owner aid))
-    =/  pset=(set [desk=@tas id=@t])  (fall (~(get by actor-note-participation) nid) ~)
-    =/  participant=?  (~(has in pset) [dterm aid])
+    =/  pset=(set actor-ref:noltbook)  (fall (~(get by actor-note-roster) nid) ~)
+    =/  participant=?  (~(has in pset) [our.bowl dterm aid])
     =/  msgs=(list message:noltbook)  (fall (~(get by messages) nid) ~)
     =/  activity=@da  (newest-msg-da msgs)
     =/  read=@da  (actor-read-get actor-note-read dterm aid nid)
+    ::  A2 membership: member-safe roster for any participant; mutedActors + pendingRequests
+    ::  ONLY for the EXACT owner actor (cooperative same-ship read — the mutation handlers
+    ::  remain the real authority boundary; a scry cannot prove app/actor identity).
+    =/  na  (api-note-actors nid note-actor-owners actor-note-roster note-actor-muted actor-registry)
+    =/  mset=(set actor-ref:noltbook)  (fall (~(get by note-actor-muted) nid) ~)
+    =/  reqs=(set actor-ref:noltbook)  (fall (~(get by actor-join-requests) nid) ~)
+    =/  membership=json
+      %-  pairs:enjs:format
+      :~  ['owner' owner.na]
+          ['actors' a+actors.na]
+          :-  'mutedActors'
+          ?.  owned  a+~
+          a+(turn ~(tap in mset) |=(ref=actor-ref:noltbook (api-actor-ref-json ref 'muted' %.y actor-registry)))
+          :-  'pendingRequests'
+          ?.  owned  a+~
+          a+(turn ~(tap in reqs) |=(ref=actor-ref:noltbook (api-actor-ref-json ref 'pending' %.n actor-registry)))
+      ==
     =/  jon=json
       %-  pairs:enjs:format
       :~  ['noteId' s+(crip (trip nid))]
-          ['note' (api-actor-note-summary nt owned participant owner actor-registry (live-actor-dm nid notes actor-dm-notes) activity read)]
+          ['note' (api-actor-note-summary nt owned participant owner actor-registry (live-actor-dm nid notes actor-dm-notes) activity read ~(wyt in (logical-members-of nid note-members note-actor-owners notes)))]
+          ['membership' membership]
           ['messages' a+(turn msgs |=(m=message:noltbook (api-msg-json m via-by-eid actor-by-eid)))]
       ==
     ``[%json !>(jon)]
@@ -7649,6 +8340,48 @@
       ==
     ``[%json !>(jon)]
   ::
+      [%x %api %notes @ %actors ~]
+    ::  A2 member-safe actor roster. Note must exist + the local human must logically see
+    ::  it (a hidden actor-owned note never surfaces here). owner first, deduped from the
+    ::  roster; NO pending requests in this route; actor-DM isolation unchanged.
+    =/  nid=@ta  i.t.t.t.path
+    =/  nt-u=(unit note:noltbook)  (~(get by notes) nid)
+    ?~  nt-u  ~
+    ?.  (human-sees-note nid our.bowl note-members note-actor-owners notes)  ~
+    =/  na  (api-note-actors nid note-actor-owners actor-note-roster note-actor-muted actor-registry)
+    =/  jon=json
+      %-  pairs:enjs:format
+      :~  ['noteId' s+(crip (trip nid))]
+          ['owner' owner.na]
+          ['actors' a+actors.na]
+      ==
+    ``[%json !>(jon)]
+  ::
+      [%x %api %notes @ %actor-requests ~]
+    ::  A2 ordinary-host pending-request read. Authoritatively local + ORDINARY (no
+    ::  note-actor-owners) + caller has REAL host/admin moderation authority (NOT merely
+    ::  human-sees-note). Hidden actor-owned pending requests never appear; actor-DM => 404.
+    ::  Remote-admin request management is deferred to A3.
+    =/  nid=@ta  i.t.t.t.path
+    =/  nt-u=(unit note:noltbook)  (~(get by notes) nid)
+    ?~  nt-u  ~
+    =/  nt=note:noltbook  u.nt-u
+    ?:  (~(has by actor-dm-notes) nid)  ~
+    ?.  =(our.bowl creator.nt)  ~
+    ?:  (~(has by note-actor-owners) nid)  ~
+    ?.  (has-mod-power our.bowl nid creator.nt note-admins)  ~
+    =/  reqs=(set actor-ref:noltbook)  (fall (~(get by actor-join-requests) nid) ~)
+    =/  jon=json
+      %-  pairs:enjs:format
+      :~  ['noteId' s+(crip (trip nid))]
+          :-  'requests'
+          :-  %a
+          %+  turn  ~(tap in reqs)
+          |=  ref=actor-ref:noltbook
+          (api-actor-ref-json ref 'pending' %.n actor-registry)
+      ==
+    ``[%json !>(jon)]
+  ::
       [%x %api %notes @ %members ~]
     =/  nid=@ta  i.t.t.t.path
     =/  nt-u=(unit note:noltbook)  (~(get by notes) nid)
@@ -7656,8 +8389,11 @@
     =/  nt=note:noltbook  u.nt-u
     =/  admins=(set @p)  (fall (~(get by note-admins) nid) ~)
     =/  muted=(set @p)  (fall (~(get by note-muted) nid) ~)
-    ::  members = current users plus any still-tracked removed ships (flagged).
-    =/  members=(set @p)  (~(uni in users.nt) removed.nt)
+    ::  1B.1: members = LOGICAL human participants (not transport note.users) plus any
+    ::  still-tracked removed ships. The transport host is not a member by creator alone.
+    =/  is-actor-owned=?  (~(has by note-actor-owners) nid)
+    =/  logical=(set @p)  (logical-members-of nid note-members note-actor-owners notes)
+    =/  members=(set @p)  (~(uni in logical) removed.nt)
     =/  jon=json
       %-  pairs:enjs:format
       :~  ['noteId' s+(crip (trip nid))]
@@ -7668,7 +8404,14 @@
           ^-  json
           =/  base=(list [@t json])
             (api-ship-pairs s profiles contacts pal-outgoing pal-incoming pal-blocked %.y)
-          =/  role=@tas  ?:(?|(=(s creator.nt) (~(has in admins) s)) %admin %member)
+          ::  creator is %admin only when it is itself a logical member AND the note is
+          ::  not actor-owned; explicit real admins keep %admin only while participating.
+          =/  role=@tas
+            ?:  ?&  ?|(&(=(s creator.nt) !is-actor-owned) (~(has in admins) s))
+                    (~(has in logical) s)
+                ==
+              %admin
+            %member
           =/  extra=(list [@t json])
             :~  ['role' s+(scot %tas role)]
                 ['muted' b+(~(has in muted) s)]
@@ -7694,7 +8437,7 @@
     =/  fof  (~(get by fork-of) nid)
     =/  mrev  (~(get by member-revs) nid)
     =/  caps=(list [@t json])
-      (api-capabilities-pairs nid nt our.bowl note-admins note-muted host-status)
+      (api-capabilities-pairs nid nt our.bowl note-admins note-muted host-status note-members note-actor-owners notes)
     =/  jon=json
       %-  pairs:enjs:format
       :~  ['id' s+(crip (trip id.nt))]
@@ -7705,7 +8448,8 @@
           ['writable' b+writable.nt]
           ['parent' ?~(parent.nt ~ s+(crip (trip u.parent.nt)))]
           ['children' a+(turn children.nt |=(c=@ta `json`s+(crip (trip c))))]
-          ['userCount' (numb:enjs:format ~(wyt in users.nt))]
+          ::  1B.2: logical human count (transport note.users no longer drives this).
+          ['userCount' (numb:enjs:format ~(wyt in (logical-members-of nid note-members note-actor-owners notes)))]
           ['removedCount' (numb:enjs:format ~(wyt in removed.nt))]
           ['iconUrl' ?~(icon-url.nt ~ s+u.icon-url.nt)]
           ['headline' ?~(headline.nt ~ s+u.headline.nt)]
@@ -7732,17 +8476,23 @@
     =/  nt-u=(unit note:noltbook)  (~(get by notes) nid)
     ?~  nt-u  ~
     =/  caps=(list [@t json])
-      (api-capabilities-pairs nid u.nt-u our.bowl note-admins note-muted host-status)
+      (api-capabilities-pairs nid u.nt-u our.bowl note-admins note-muted host-status note-members note-actor-owners notes)
     =/  all=(list [@t json])  [['noteId' s+(crip (trip nid))] caps]
     ``[%json !>((pairs:enjs:format all))]
   ::
       [%x %notes ~]
-    =/  note-list=(list note:noltbook)  ~(val by notes)
+    ::  1B.1: raw human note peek — only logically visible notes (system + members).
+    =/  note-list=(list note:noltbook)
+      %+  skim  ~(val by notes)
+      |=(n=note:noltbook (human-sees-note id.n our.bowl note-members note-actor-owners notes))
     =/  upd=update:noltbook  [%note-list note-list]
     ``[%noltbook-update !>(upd)]
   ::
       [%x %notes @ ~]
     =/  nid=@ta  i.t.t.path
+    ::  1B.1: raw human per-note peek — a hidden note returns an empty message-list.
+    ?.  (human-sees-note nid our.bowl note-members note-actor-owners notes)
+      ``[%noltbook-update !>(`update:noltbook`[%message-list nid ~ ~ ~ ~])]
     =/  msgs=(list message:noltbook)  (fall (~(get by messages) nid) ~)
     =/  arts=(list artifact:noltbook)
       %+  skim  ~(val by artifacts)
@@ -7756,10 +8506,13 @@
     ``[%noun !>([peer-list out-list])]
   ::
       [%x %note-ids ~]
+    ::  1B.1: raw human note-id peek — only logically visible notes.
     =/  ids=(list [@ta note-type:noltbook])
-      %+  turn  ~(tap by notes)
+      %+  murn  ~(tap by notes)
       |=  [k=@ta v=note:noltbook]
-      [k type.v]
+      ^-  (unit [@ta note-type:noltbook])
+      ?.  (human-sees-note k our.bowl note-members note-actor-owners notes)  ~
+      `[k type.v]
     ``[%noun !>(ids)]
   ::
       [%x %sponsors ~]
@@ -7855,17 +8608,26 @@
       =.  actor-registry  registry.p.r
       ::  deterministic nid (same formula as %create-note); root %notebook, no parent.
       =/  nid=@ta  (crip (weld "note-" (trip (scot %da now.bowl))))
+      ::  Phase 1B (leak-free): the re-entry creates the note in state but its cards are
+      ::  the ordinary %note-created/activity/unread/read facts on /notes. The actor note
+      ::  is hidden from the host human and has no remote transport peers yet (users =
+      ::  {our.bowl}), so we DROP those cards. The note still exists physically; ownership/
+      ::  roster/read-seed are written in the same transition; note-members stays empty
+      ::  (no host-human member). current-note is untouched (the create path never sets it).
       =^  cards  this
         $(mark %noltbook-action, vase (action-vase `action:noltbook`[%create-note name.aa ~]))
       =.  note-actor-owners  (~(put by note-actor-owners) nid [our.bowl desk.u.app.aa id.u.actor.aa])
-      ::  Phase G2: the owner is automatically a participant of its own note.
-      =.  actor-note-participation
-        (~(put by actor-note-participation) nid (sy ~[[desk.u.app.aa id.u.actor.aa]]))
+      ::  the owner actor is automatically a roster participant of its own note.
+      =.  actor-note-roster
+        (~(put by actor-note-roster) nid (sy ~[[our.bowl desk.u.app.aa id.u.actor.aa]]))
       ::  G6A: seed the owner's read cursor (new note has no messages => no row yet).
       =.  actor-note-read
         (actor-read-seed actor-note-read desk.u.app.aa id.u.actor.aa nid (fall (~(get by messages) nid) ~))
+      ::  Phase 1B: the re-entry seeded note-members[nid]={our.bowl}; an actor-owned note
+      ::  has NO host-human member, so drop the row (logical-members-of then falls back to
+      ::  users-minus-owner-host = empty => hidden from the host human).
+      =.  note-members  (set-logical-members nid ~ note-members)
       :_  this
-      %+  weld  cards
       (api-result-card request-id.aa %.y %actor-note-created 'actor note created' `nid ~ ~)
     ::
         %configure-actor-note
@@ -7898,11 +8660,18 @@
         :_  this
         (api-result-card request-id.aa %.n %actor-not-owner 'actor does not own this note' `note-id.aa ~ ~)
       ::  governance: attribute + configure-note.
+      ::  A1.2: a muted owner cannot configure its note (parity with the moderation gate).
+      ?:  (actor-muted note-id.aa [our.bowl desk.u.app.aa id.u.actor.aa] note-actor-muted)
+        :_  this
+        (api-result-card request-id.aa %.n %note-actor-muted 'acting actor is muted in this note' `note-id.aa ~ ~)
       =/  r  (gate-actor-cap our.bowl now.bowl desk.u.app.aa id.u.actor.aa name.u.actor.aa kind.u.actor.aa (sy ~[%attribute %configure-note]) app-grants actor-registry)
       ?:  ?=(%.n -.r)
         :_  this
         (api-result-card request-id.aa %.n code.p.r msg.p.r `note-id.aa ~ ~)
-      =.  actor-registry  registry.p.r
+      ::  A1.3a: HOLD the candidate registry — committing it (last-seen/TOFU) is deferred
+      ::  until AFTER write-block + every field validation, so an invalid name/visibility
+      ::  cannot bump registry/last-seen on a rejected configure.
+      =/  cand-registry  registry.p.r
       ?:  (is-write-blocked note-id.aa host-status notes our.bowl)
         :_  this
         (api-result-card request-id.aa %.n %rejected 'write blocked' `note-id.aa ~ ~)
@@ -7922,6 +8691,9 @@
       ?.  vis-ok
         :_  this
         (api-result-card request-id.aa %.n %invalid-visibility 'visibility must be public/private/secret' `note-id.aa ~ ~)
+      ::  A1.3a: all validation passed — commit the held candidate registry now, immediately
+      ::  before the first note mutation (the rename re-entry below).
+      =.  actor-registry  cand-registry
       =^  c1  this
         ?~  name.aa  `this
         $(mark %noltbook-action, vase (action-vase `action:noltbook`[%rename-note note-id.aa u.name.aa]))
@@ -7940,8 +8712,11 @@
       =^  c3  this
         ?~  headline.aa  `this
         $(mark %noltbook-action, vase (action-vase `action:noltbook`[%set-headline note-id.aa u.headline.aa]))
+      ::  1B.3: rename/meta/headline re-entries emit global /notes facts; drop them for a
+      ::  hidden owner host (keep /notes/[nid] transport, remote %pass, and the API result).
       :_  this
-      %+  weld  (weld c1 (weld c2 c3))
+      %+  weld
+        (human-note-cards note-id.aa our.bowl note-members note-actor-owners notes (weld c1 (weld c2 c3)))
       (api-result-card request-id.aa %.y %actor-note-configured 'actor note configured' `note-id.aa ~ ~)
     ::
     ::  ---- Actor Notes (Phase G1): an actor deletes a note IT owns. Authority is the
@@ -7973,6 +8748,10 @@
         :_  this
         (api-result-card request-id.aa %.n %actor-not-owner 'actor does not own this note' `note-id.aa ~ ~)
       ::  governance: attribute + delete-own-note (app ceiling, per-actor narrow, status).
+      ::  A1.2: a muted owner cannot delete its note via the actor API.
+      ?:  (actor-muted note-id.aa [our.bowl desk.u.app.aa id.u.actor.aa] note-actor-muted)
+        :_  this
+        (api-result-card request-id.aa %.n %note-actor-muted 'acting actor is muted in this note' `note-id.aa ~ ~)
       =/  r  (gate-actor-cap our.bowl now.bowl desk.u.app.aa id.u.actor.aa name.u.actor.aa kind.u.actor.aa (sy ~[%attribute %delete-own-note]) app-grants actor-registry)
       ?:  ?=(%.n -.r)
         :_  this
@@ -7984,17 +8763,22 @@
         :_  this
         (api-result-card request-id.aa %.n %rejected 'write blocked' `note-id.aa ~ ~)
       =.  actor-registry  cand-registry
+      ::  1B.3: visibility BEFORE the delete (the note vanishes after). For a hidden owner
+      ::  host, drop the re-entry's global /notes facts (note-deleted etc.) while keeping
+      ::  the remote %pass kicks/deletes to real participants and the API result.
+      =/  human-vis=?
+        (human-sees-note note-id.aa our.bowl note-members note-actor-owners notes)
       ::  reuse the internal %delete-note (creator=our.bowl passes its host gate); it
       ::  deletes the subtree and drops note-actor-owners for every deleted id.
       =^  cards  this
         $(mark %noltbook-action, vase (action-vase `action:noltbook`[%delete-note note-id.aa]))
       :_  this
-      %+  weld  cards
+      %+  weld  ?:(human-vis cards (drop-local-notes-facts cards))
       (api-result-card request-id.aa %.y %actor-note-deleted 'actor note deleted' `note-id.aa ~ ~)
     ::
     ::  ---- Actor Notes (Phase G2): durable actor participation. The host @p stays
     ::  the real note.users member; these only manage the [app-desk, actor-id] rows in
-    ::  actor-note-participation. All require %attribute + %participate-note. ----
+    ::  actor-note-roster. All require %attribute + %participate-note. ----
         %actor-join-note
       ?~  app.aa
         :_  this
@@ -8025,22 +8809,43 @@
       ?:  (~(has by actor-dm-notes) note-id.aa)
         :_  this
         (api-result-card request-id.aa %.n %unsupported 'actor-DM note: use actor-adopt-dm' `note-id.aa ~ ~)
-      ::  the host @p must actually hold this note (real note.users member).
-      ?.  (~(has in users.nt) our.bowl)
+      ::  Phase A1: the note must be authoritatively LOCAL (we host it). Remote-hosted
+      ::  actor join is deferred to A3 — no local cache is mutated here.
+      ?.  =(our.bowl creator.nt)
         :_  this
-        (api-result-card request-id.aa %.n %rejected 'host does not hold this note' `note-id.aa ~ ~)
+        (api-result-card request-id.aa %.n %unsupported 'remote-hosted note: actor join deferred to A3' `note-id.aa ~ ~)
+      =/  ref=actor-ref:noltbook  [our.bowl desk.u.app.aa id.u.actor.aa]
+      =/  cur=(set actor-ref:noltbook)  (fall (~(get by actor-note-roster) note-id.aa) ~)
+      =/  owner  (~(get by note-actor-owners) note-id.aa)
+      =/  is-owner=?
+        ?&(?=(^ owner) =(host.u.owner our.bowl) =(desk.u.owner desk.u.app.aa) =(id.u.owner id.u.actor.aa))
+      ::  already the owner or a roster participant -> idempotent actor-joined.
+      ?:  |(is-owner (~(has in cur) ref))
+        =.  actor-registry  cand-registry
+        ::  A1.2: clear any stale pending request for an already-participating actor.
+        =.  actor-join-requests  (del-actor-row note-id.aa ref actor-join-requests)
+        :_  this
+        (api-result-card request-id.aa %.y %actor-joined 'actor already participates' `note-id.aa ~ ~)
+      ::  PUBLIC -> direct join: roster add, seed cursor, convert %notebook->%group.
+      ?:  =(%public visibility.nt)
+        =.  actor-registry  cand-registry
+        =.  actor-note-roster  (~(put by actor-note-roster) note-id.aa (~(put in cur) ref))
+        ::  A1.2: a direct public join clears any matching pending request.
+        =.  actor-join-requests  (del-actor-row note-id.aa ref actor-join-requests)
+        =.  actor-note-read
+          (actor-read-seed actor-note-read desk.u.app.aa id.u.actor.aa note-id.aa (fall (~(get by messages) note-id.aa) ~))
+        =/  conv  (actor-convert-cards our.bowl note-id.aa nt notes note-members note-actor-owners)
+        =.  notes  notes.conv
+        :_  this
+        %+  weld  cards.conv
+        (api-result-card request-id.aa %.y %actor-joined 'actor joined note' `note-id.aa ~ ~)
+      ::  PRIVATE / SECRET -> durable request (idempotent). Secret stays undiscoverable;
+      ::  a known-ID request never changes discovery.
+      =/  pend=(set actor-ref:noltbook)  (fall (~(get by actor-join-requests) note-id.aa) ~)
       =.  actor-registry  cand-registry
-      =/  cur=(set [desk=@tas id=@t])  (fall (~(get by actor-note-participation) note-id.aa) ~)
-      ::  duplicate join is idempotent (set put no-ops if present).
-      =.  actor-note-participation
-        (~(put by actor-note-participation) note-id.aa (~(put in cur) [desk.u.app.aa id.u.actor.aa]))
-      ::  G6A: seed the joiner to current ONLY on a NEW row, so a duplicate join
-      ::  never advances an existing actor's cursor (idempotent join must not
-      ::  silently clear unread state).
-      =?  actor-note-read  !(~(has in cur) [desk.u.app.aa id.u.actor.aa])
-        (actor-read-seed actor-note-read desk.u.app.aa id.u.actor.aa note-id.aa (fall (~(get by messages) note-id.aa) ~))
+      =.  actor-join-requests  (~(put by actor-join-requests) note-id.aa (~(put in pend) ref))
       :_  this
-      (api-result-card request-id.aa %.y %actor-note-joined 'actor joined note' `note-id.aa ~ ~)
+      (api-result-card request-id.aa %.y %actor-join-requested 'actor join request created' `note-id.aa ~ ~)
     ::
         %actor-add-participant
       ?~  app.aa
@@ -8049,60 +8854,43 @@
       ?~  actor.aa
         :_  this
         (api-result-card request-id.aa %.n %actor-invalid 'actor required' `note-id.aa ~ ~)
-      ?.  ?=(?(%user %bot %app) kind.u.actor.aa)
-        :_  this
-        (api-result-card request-id.aa %.n %actor-invalid 'bad actor kind' `note-id.aa ~ ~)
       ?:  =(0 (met 3 target-id.aa))
         :_  this
         (api-result-card request-id.aa %.n %actor-invalid 'target id empty' `note-id.aa ~ ~)
-      =/  nt-u  (~(get by notes) note-id.aa)
-      ?~  nt-u
+      ::  A1.3a: owner authority (%manage-members), local-host, acting-not-muted, eligible
+      ::  type, not-actor-DM — all via the shared precheck (holds candidate registry).
+      =/  pre  (actor-owner-pre our.bowl now.bowl app.aa actor.aa note-id.aa note-actor-owners notes host-status app-grants actor-registry actor-dm-notes note-actor-muted)
+      ?:  ?=(%.n -.pre)
         :_  this
-        (api-result-card request-id.aa %.n %missing-note 'no such note' `note-id.aa ~ ~)
-      ::  eligible regular-note types only — a converted/ineligible note (dm/gossip/
-      ::  cover) cannot hold actor participation even if an ownership row lingers.
-      ?.  ?|(=(%notebook type.u.nt-u) =(%group type.u.nt-u))
+        (api-result-card request-id.aa %.n code.p.pre msg.p.pre `note-id.aa ~ ~)
+      ::  full LOCAL target ref; omitted targetDesk (%$) defaults to the owner app desk.
+      =/  td-u=(unit @tas)  (tdesk-resolve target-desk.aa desk.u.app.aa &)
+      ?~  td-u
         :_  this
-        (api-result-card request-id.aa %.n %unsupported 'note type not eligible for actor participation' `note-id.aa ~ ~)
-      ::  Phase G5A: generic participant management never touches actor-DM isolation.
-      ?:  (~(has by actor-dm-notes) note-id.aa)
-        :_  this
-        (api-result-card request-id.aa %.n %unsupported 'actor-DM note: participation is managed via actor DM actions only' `note-id.aa ~ ~)
-      ::  exact ownership FIRST (before the gate) so a non-owner never TOFU-registers.
-      =/  owner  (~(get by note-actor-owners) note-id.aa)
-      ?.  ?&  ?=(^ owner)
-              =(host.u.owner our.bowl)
-              =(desk.u.owner desk.u.app.aa)
-              =(id.u.owner id.u.actor.aa)
-          ==
-        :_  this
-        (api-result-card request-id.aa %.n %actor-not-owner 'actor does not own this note' `note-id.aa ~ ~)
-      =/  r  (gate-actor-cap our.bowl now.bowl desk.u.app.aa id.u.actor.aa name.u.actor.aa kind.u.actor.aa (sy ~[%attribute %participate-note]) app-grants actor-registry)
-      ?:  ?=(%.n -.r)
-        :_  this
-        (api-result-card request-id.aa %.n code.p.r msg.p.r `note-id.aa ~ ~)
-      =/  cand-registry  registry.p.r
-      ::  target must ALREADY be registered under the SAME app desk (the key is
-      ::  [app.desk, targetId], so cross-desk targets are structurally impossible). A
-      ::  revoked target is rejected; a suspended target may be recorded (but stays
-      ::  unable to act until reactivated).
-      =/  trec  (~(get by actor-registry) [desk.u.app.aa target-id.aa])
+        (api-result-card request-id.aa %.n %actor-invalid 'malformed target desk' `note-id.aa ~ ~)
+      =/  tdesk=@tas  u.td-u
+      =/  tref=actor-ref:noltbook  [our.bowl tdesk target-id.aa]
+      ::  target must be registered under [targetDesk targetId]; revoked => reject;
+      ::  suspended may be added (but cannot act until reactivated).
+      =/  trec  (~(get by actor-registry) [tdesk target-id.aa])
       ?~  trec
         :_  this
-        (api-result-card request-id.aa %.n %actor-invalid 'target actor not registered under this app' `note-id.aa ~ ~)
+        (api-result-card request-id.aa %.n %actor-invalid 'target actor not registered' `note-id.aa ~ ~)
       ?:  ?=(%revoked status.u.trec)
         :_  this
         (api-result-card request-id.aa %.n %actor-revoked 'target actor revoked' `note-id.aa ~ ~)
-      =.  actor-registry  cand-registry
-      =/  cur=(set [desk=@tas id=@t])  (fall (~(get by actor-note-participation) note-id.aa) ~)
-      ::  duplicate add is idempotent.
-      =.  actor-note-participation
-        (~(put by actor-note-participation) note-id.aa (~(put in cur) [desk.u.app.aa target-id.aa]))
-      ::  G6A: seed the TARGET actor to current ONLY on a NEW row — the owner must
-      ::  not be able to clear another actor's unread state by re-adding them.
-      =?  actor-note-read  !(~(has in cur) [desk.u.app.aa target-id.aa])
-        (actor-read-seed actor-note-read desk.u.app.aa target-id.aa note-id.aa (fall (~(get by messages) note-id.aa) ~))
+      =.  actor-registry  registry.p.pre
+      =/  cur=(set actor-ref:noltbook)  (fall (~(get by actor-note-roster) note-id.aa) ~)
+      =.  actor-note-roster  (~(put by actor-note-roster) note-id.aa (~(put in cur) tref))
+      ::  seed the read cursor ONLY for a genuinely-new roster row.
+      =?  actor-note-read  !(~(has in cur) tref)
+        (actor-read-seed actor-note-read tdesk target-id.aa note-id.aa (fall (~(get by messages) note-id.aa) ~))
+      ::  a direct add clears any matching pending request and converts %notebook->%group.
+      =.  actor-join-requests  (del-actor-row note-id.aa tref actor-join-requests)
+      =/  conv  (actor-convert-cards our.bowl note-id.aa nt.p.pre notes note-members note-actor-owners)
+      =.  notes  notes.conv
       :_  this
+      %+  weld  cards.conv
       (api-result-card request-id.aa %.y %actor-participant-added 'actor participant added' `note-id.aa ~ ~)
     ::
         %actor-remove-participant
@@ -8112,65 +8900,234 @@
       ?~  actor.aa
         :_  this
         (api-result-card request-id.aa %.n %actor-invalid 'actor required' `note-id.aa ~ ~)
-      ?.  ?=(?(%user %bot %app) kind.u.actor.aa)
-        :_  this
-        (api-result-card request-id.aa %.n %actor-invalid 'bad actor kind' `note-id.aa ~ ~)
       ?:  =(0 (met 3 target-id.aa))
         :_  this
         (api-result-card request-id.aa %.n %actor-invalid 'target id empty' `note-id.aa ~ ~)
-      =/  nt-u  (~(get by notes) note-id.aa)
-      ?~  nt-u
+      =/  pre  (actor-owner-pre our.bowl now.bowl app.aa actor.aa note-id.aa note-actor-owners notes host-status app-grants actor-registry actor-dm-notes note-actor-muted)
+      ?:  ?=(%.n -.pre)
         :_  this
-        (api-result-card request-id.aa %.n %missing-note 'no such note' `note-id.aa ~ ~)
-      ::  eligible regular-note types only (parity with add-participant + reads).
-      ?.  ?|(=(%notebook type.u.nt-u) =(%group type.u.nt-u))
+        (api-result-card request-id.aa %.n code.p.pre msg.p.pre `note-id.aa ~ ~)
+      =/  td-u=(unit @tas)  (tdesk-resolve target-desk.aa desk.u.app.aa &)
+      ?~  td-u
         :_  this
-        (api-result-card request-id.aa %.n %unsupported 'note type not eligible for actor participation' `note-id.aa ~ ~)
-      ::  Phase G5A: generic participant management never touches actor-DM isolation.
-      ?:  (~(has by actor-dm-notes) note-id.aa)
+        (api-result-card request-id.aa %.n %actor-invalid 'malformed target desk' `note-id.aa ~ ~)
+      =/  tdesk=@tas  u.td-u
+      =/  tref=actor-ref:noltbook  [our.bowl tdesk target-id.aa]
+      ::  A1.3a: removal rejects the EXACT owner ref (not merely a matching actor id).
+      =/  ow  (~(get by note-actor-owners) note-id.aa)
+      ?:  ?&(?=(^ ow) =(host.u.ow our.bowl) =(desk.u.ow tdesk) =(id.u.ow target-id.aa))
         :_  this
-        (api-result-card request-id.aa %.n %unsupported 'actor-DM note: participation is managed via actor DM actions only' `note-id.aa ~ ~)
-      =/  owner  (~(get by note-actor-owners) note-id.aa)
-      ?.  ?&  ?=(^ owner)
-              =(host.u.owner our.bowl)
-              =(desk.u.owner desk.u.app.aa)
-              =(id.u.owner id.u.actor.aa)
-          ==
-        :_  this
-        (api-result-card request-id.aa %.n %actor-not-owner 'actor does not own this note' `note-id.aa ~ ~)
-      ::  the owner cannot remove its OWN required participation row (use delete-note
-      ::  to drop the note entirely; self-leave arrives in G3). Checked before the gate.
-      ?:  =(target-id.aa id.u.actor.aa)
-        :_  this
-        (api-result-card request-id.aa %.n %rejected 'owner cannot remove its own participation' `note-id.aa ~ ~)
-      =/  r  (gate-actor-cap our.bowl now.bowl desk.u.app.aa id.u.actor.aa name.u.actor.aa kind.u.actor.aa (sy ~[%attribute %participate-note]) app-grants actor-registry)
-      ?:  ?=(%.n -.r)
-        :_  this
-        (api-result-card request-id.aa %.n code.p.r msg.p.r `note-id.aa ~ ~)
-      =/  cand-registry  registry.p.r
-      =/  cur=(set [desk=@tas id=@t])  (fall (~(get by actor-note-participation) note-id.aa) ~)
-      ::  target need not be active (revoked/suspended rows are cleanable). Absent
-      ::  participation => missing-target (no commit, so no last-seen bump).
-      ?.  (~(has in cur) [desk.u.app.aa target-id.aa])
+        (api-result-card request-id.aa %.n %rejected 'owner cannot be removed; delete the note instead' `note-id.aa ~ ~)
+      =/  cur=(set actor-ref:noltbook)  (fall (~(get by actor-note-roster) note-id.aa) ~)
+      ?.  (~(has in cur) tref)
         :_  this
         (api-result-card request-id.aa %.n %missing-target 'target is not a participant' `note-id.aa ~ ~)
-      =.  actor-registry  cand-registry
-      =/  new-set=(set [desk=@tas id=@t])  (~(del in cur) [desk.u.app.aa target-id.aa])
-      ::  drop the map row when the set becomes empty (keeps reads/storage clean).
-      =.  actor-note-participation
-        ?:  =(~ new-set)  (~(del by actor-note-participation) note-id.aa)
-        (~(put by actor-note-participation) note-id.aa new-set)
-      ::  G6A: drop the removed actor's read cursor for this note.
-      =.  actor-note-read
-        (actor-read-del actor-note-read desk.u.app.aa target-id.aa note-id.aa)
-      ::  G6B: drop the removed actor's directed notifications for this note + emit its
-      ::  authoritative remaining list (full=%.y).
+      =.  actor-registry  registry.p.pre
+      ::  complete cleanup: roster, note-level mute, pending request, read cursor,
+      ::  directed notifications. Historical messages + actor attribution are preserved.
+      =.  actor-note-roster  (del-actor-row note-id.aa tref actor-note-roster)
+      =.  note-actor-muted  (del-actor-row note-id.aa tref note-actor-muted)
+      =.  actor-join-requests  (del-actor-row note-id.aa tref actor-join-requests)
+      =.  actor-note-read  (actor-read-del actor-note-read tdesk target-id.aa note-id.aa)
       =.  actor-notifications
-        (actor-notif-del-actor-note actor-notifications desk.u.app.aa target-id.aa note-id.aa)
+        (actor-notif-del-actor-note actor-notifications tdesk target-id.aa note-id.aa)
       :_  this
       %+  weld
-        (actor-notif-full-cards actor-notifications desk.u.app.aa target-id.aa messages actor-by-eid)
+        (actor-notif-full-cards actor-notifications tdesk target-id.aa messages actor-by-eid)
       (api-result-card request-id.aa %.y %actor-participant-removed 'actor participant removed' `note-id.aa ~ ~)
+    ::
+    ::  ---- Phase A1: owner-actor request management + note-level actor mute. Authority
+    ::  is the EXACT owner actor via its app (%attribute + %manage-members), local-host
+    ::  only (actor-owner-pre rejects remote-hosted notes => deferred to A3). No host
+    ::  fallback; actor-DM notes excluded; actors never become admins. ----
+        %actor-approve-request
+      ?:  =(0 (met 3 target-id.aa))
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'target id empty' `note-id.aa ~ ~)
+      =/  pre  (actor-owner-pre our.bowl now.bowl app.aa actor.aa note-id.aa note-actor-owners notes host-status app-grants actor-registry actor-dm-notes note-actor-muted)
+      ?:  ?=(%.n -.pre)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.pre msg.p.pre `note-id.aa ~ ~)
+      =/  td-u=(unit @tas)  (tdesk-resolve target-desk.aa %$ |)
+      ?~  td-u
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'target desk required' `note-id.aa ~ ~)
+      =/  tdesk=@tas  u.td-u
+      =/  tref=actor-ref:noltbook  [our.bowl tdesk target-id.aa]
+      ?.  (~(has in (fall (~(get by actor-join-requests) note-id.aa) ~)) tref)
+        :_  this
+        (api-result-card request-id.aa %.n %missing-target 'no pending actor request' `note-id.aa ~ ~)
+      ::  target registry must exist + not revoked (suspended may still be added).
+      =/  trec  (~(get by actor-registry) [tdesk target-id.aa])
+      ?~  trec
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'target actor not registered' `note-id.aa ~ ~)
+      ?:  ?=(%revoked status.u.trec)
+        :_  this
+        (api-result-card request-id.aa %.n %actor-revoked 'target actor revoked' `note-id.aa ~ ~)
+      =.  actor-registry  registry.p.pre
+      =/  cur=(set actor-ref:noltbook)  (fall (~(get by actor-note-roster) note-id.aa) ~)
+      =.  actor-join-requests  (del-actor-row note-id.aa tref actor-join-requests)
+      =.  actor-note-roster  (~(put by actor-note-roster) note-id.aa (~(put in cur) tref))
+      =?  actor-note-read  !(~(has in cur) tref)
+        (actor-read-seed actor-note-read tdesk target-id.aa note-id.aa (fall (~(get by messages) note-id.aa) ~))
+      =/  conv  (actor-convert-cards our.bowl note-id.aa nt.p.pre notes note-members note-actor-owners)
+      =.  notes  notes.conv
+      :_  this
+      %+  weld  cards.conv
+      (api-result-card request-id.aa %.y %actor-request-approved 'actor request approved' `note-id.aa ~ ~)
+    ::
+        %actor-deny-request
+      =/  pre  (actor-owner-pre our.bowl now.bowl app.aa actor.aa note-id.aa note-actor-owners notes host-status app-grants actor-registry actor-dm-notes note-actor-muted)
+      ?:  ?=(%.n -.pre)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.pre msg.p.pre `note-id.aa ~ ~)
+      =/  td-u=(unit @tas)  (tdesk-resolve target-desk.aa %$ |)
+      ?~  td-u
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'target desk required' `note-id.aa ~ ~)
+      =/  tdesk=@tas  u.td-u
+      =/  tref=actor-ref:noltbook  [our.bowl tdesk target-id.aa]
+      ?.  (~(has in (fall (~(get by actor-join-requests) note-id.aa) ~)) tref)
+        :_  this
+        (api-result-card request-id.aa %.n %missing-target 'no pending actor request' `note-id.aa ~ ~)
+      =.  actor-registry  registry.p.pre
+      =.  actor-join-requests  (del-actor-row note-id.aa tref actor-join-requests)
+      :_  this
+      (api-result-card request-id.aa %.y %actor-request-denied 'actor request denied' `note-id.aa ~ ~)
+    ::
+        %actor-mute-participant
+      =/  pre  (actor-owner-pre our.bowl now.bowl app.aa actor.aa note-id.aa note-actor-owners notes host-status app-grants actor-registry actor-dm-notes note-actor-muted)
+      ?:  ?=(%.n -.pre)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.pre msg.p.pre `note-id.aa ~ ~)
+      =/  td-u=(unit @tas)  (tdesk-resolve target-desk.aa %$ |)
+      ?~  td-u
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'target desk required' `note-id.aa ~ ~)
+      =/  tdesk=@tas  u.td-u
+      =/  tref=actor-ref:noltbook  [our.bowl tdesk target-id.aa]
+      ::  A1.2: target must be a roster participant — never mute a pending/unknown/removed
+      ::  actor. The owner cannot mute itself via the normal action (emergency mute only).
+      ?.  (~(has in (fall (~(get by actor-note-roster) note-id.aa) ~)) tref)
+        :_  this
+        (api-result-card request-id.aa %.n %actor-not-participant 'target actor is not a participant' `note-id.aa ~ ~)
+      =/  ow  (~(get by note-actor-owners) note-id.aa)
+      ?:  ?&(?=(^ ow) =(host.u.ow our.bowl) =(desk.u.ow target-desk.aa) =(id.u.ow target-id.aa))
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'cannot mute the owner via owner action; use emergency mute' `note-id.aa ~ ~)
+      =.  actor-registry  registry.p.pre
+      =.  note-actor-muted  (put-actor-row note-id.aa tref note-actor-muted)
+      :_  this
+      (api-result-card request-id.aa %.y %note-actor-mute-set 'actor muted in note' `note-id.aa ~ ~)
+    ::
+        %actor-unmute-participant
+      =/  pre  (actor-owner-pre our.bowl now.bowl app.aa actor.aa note-id.aa note-actor-owners notes host-status app-grants actor-registry actor-dm-notes note-actor-muted)
+      ?:  ?=(%.n -.pre)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.pre msg.p.pre `note-id.aa ~ ~)
+      =/  td-u=(unit @tas)  (tdesk-resolve target-desk.aa %$ |)
+      ?~  td-u
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'target desk required' `note-id.aa ~ ~)
+      =/  tdesk=@tas  u.td-u
+      =/  tref=actor-ref:noltbook  [our.bowl tdesk target-id.aa]
+      ::  A1.2: unmute requires an EXISTING mute row.
+      ?.  (~(has in (fall (~(get by note-actor-muted) note-id.aa) ~)) tref)
+        :_  this
+        (api-result-card request-id.aa %.n %missing-target 'actor is not muted in this note' `note-id.aa ~ ~)
+      =.  actor-registry  registry.p.pre
+      =.  note-actor-muted  (del-actor-row note-id.aa tref note-actor-muted)
+      :_  this
+      (api-result-card request-id.aa %.y %note-actor-mute-cleared 'actor unmuted in note' `note-id.aa ~ ~)
+    ::
+    ::  ---- A1.3b: compact ORDINARY-HOST actor management (ordinary, non-actor-owned
+    ::  notes). host/admin authority via host-actor-pre; mutation via the shared
+    ::  actor-manage-apply. Remote target host or remote-admin => unsupported (A3). ----
+        %manage-note-actor
+      =/  th=(unit @p)  (slaw %p target-host.aa)
+      ?~  th
+        :_  this
+        (api-result-card request-id.aa %.n %invalid-ship 'target host did not parse' `note-id.aa ~ ~)
+      ?.  =(our.bowl u.th)
+        :_  this
+        (api-result-card request-id.aa %.n %unsupported 'remote target host: deferred to A3' `note-id.aa ~ ~)
+      =/  td-u=(unit @tas)  (tdesk-resolve target-desk.aa %$ |)
+      ?~  td-u
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'target desk required/malformed' `note-id.aa ~ ~)
+      ?:  =(0 (met 3 target-id.aa))
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'target id empty' `note-id.aa ~ ~)
+      =/  opa=@tas  (fall (rush op.aa sym) %$)
+      ?.  ?=(?(%approve %deny %invite %remove %mute %unmute) opa)
+        :_  this
+        (api-result-card request-id.aa %.n %unsupported 'unknown host actor op' `note-id.aa ~ ~)
+      =/  tref=actor-ref:noltbook  [our.bowl u.td-u target-id.aa]
+      =/  pre  (host-actor-pre our.bowl note-id.aa note-actor-owners notes host-status note-admins actor-dm-notes)
+      ?:  ?=(%.n -.pre)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.pre msg.p.pre `note-id.aa ~ ~)
+      =/  res  (actor-manage-apply our.bowl note-id.aa opa tref p.pre actor-note-roster actor-join-requests note-actor-muted actor-note-read actor-notifications notes messages actor-registry note-members note-actor-owners actor-by-eid)
+      ?.  ok.res
+        :_  this
+        (api-result-card request-id.aa %.n code.res msg.res `note-id.aa ~ ~)
+      =/  scode=@tas
+        ?-  opa
+          %approve  %actor-request-approved
+          %deny     %actor-request-denied
+          %invite   %actor-invited
+          %remove   %actor-participant-removed
+          %mute     %note-actor-mute-set
+          %unmute   %note-actor-mute-cleared
+        ==
+      :_  this(actor-note-roster roster.res, actor-join-requests requests.res, note-actor-muted muted.res, actor-note-read read.res, actor-notifications notifs.res, notes notes.res)
+      %+  weld  cards.res
+      (api-result-card request-id.aa %.y scode 'host actor management applied' `note-id.aa ~ ~)
+    ::
+    ::  ---- A1.3b: EXPLICIT host emergency controls on ACTOR-OWNED notes (never a silent
+    ::  fallback from owner-actor failure). emergency-actor-pre + shared mutation; remove
+    ::  rejects the exact owner ref; mute may target the owner. Distinct success codes. ----
+        %emergency-manage-note-actor
+      =/  th=(unit @p)  (slaw %p target-host.aa)
+      ?~  th
+        :_  this
+        (api-result-card request-id.aa %.n %invalid-ship 'target host did not parse' `note-id.aa ~ ~)
+      ?.  =(our.bowl u.th)
+        :_  this
+        (api-result-card request-id.aa %.n %unsupported 'remote target host: deferred to A3' `note-id.aa ~ ~)
+      =/  td-u=(unit @tas)  (tdesk-resolve target-desk.aa %$ |)
+      ?~  td-u
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'target desk required/malformed' `note-id.aa ~ ~)
+      ?:  =(0 (met 3 target-id.aa))
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'target id empty' `note-id.aa ~ ~)
+      =/  opa=@tas  (fall (rush op.aa sym) %$)
+      ?.  ?=(?(%remove %mute %unmute) opa)
+        :_  this
+        (api-result-card request-id.aa %.n %unsupported 'emergency supports only remove/mute/unmute' `note-id.aa ~ ~)
+      =/  tref=actor-ref:noltbook  [our.bowl u.td-u target-id.aa]
+      =/  pre  (emergency-actor-pre our.bowl note-id.aa note-actor-owners notes host-status actor-dm-notes)
+      ?:  ?=(%.n -.pre)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.pre msg.p.pre `note-id.aa ~ ~)
+      ?:  &(=(%remove opa) =(tref owner.p.pre))
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'cannot remove the owner actor' `note-id.aa ~ ~)
+      =/  res  (actor-manage-apply our.bowl note-id.aa opa tref nt.p.pre actor-note-roster actor-join-requests note-actor-muted actor-note-read actor-notifications notes messages actor-registry note-members note-actor-owners actor-by-eid)
+      ?.  ok.res
+        :_  this
+        (api-result-card request-id.aa %.n code.res msg.res `note-id.aa ~ ~)
+      =/  scode=@tas
+        ?-  opa
+          %remove  %emergency-actor-removed
+          %mute    %emergency-actor-muted
+          %unmute  %emergency-actor-unmuted
+        ==
+      :_  this(actor-note-roster roster.res, actor-join-requests requests.res, note-actor-muted muted.res, actor-note-read read.res, actor-notifications notifs.res, notes notes.res)
+      %+  weld  cards.res
+      (api-result-card request-id.aa %.y scode 'emergency actor control applied' `note-id.aa ~ ~)
     ::
     ::  ---- Actor Notes (Phase G3): an actor leaves a note it PARTICIPATES in. This
     ::  removes ONLY the actor's own [app.desk, actor.id] row. It NEVER calls the
@@ -8207,8 +9164,8 @@
       ::  must currently participate. Absent (incl. a repeated leave) => not a
       ::  participant. Checked BEFORE the gate so a non-participant is never
       ::  TOFU-registered and gets no last-seen update.
-      =/  cur=(set [desk=@tas id=@t])  (fall (~(get by actor-note-participation) note-id.aa) ~)
-      ?.  (~(has in cur) [desk.u.app.aa id.u.actor.aa])
+      =/  cur=(set actor-ref:noltbook)  (fall (~(get by actor-note-roster) note-id.aa) ~)
+      ?.  (~(has in cur) [our.bowl desk.u.app.aa id.u.actor.aa])
         :_  this
         (api-result-card request-id.aa %.n %actor-not-participant 'actor does not participate in this note' `note-id.aa ~ ~)
       ::  governance LAST (app ceiling + per-actor narrow + status); HOLD the candidate
@@ -8219,10 +9176,14 @@
         (api-result-card request-id.aa %.n code.p.r msg.p.r `note-id.aa ~ ~)
       =.  actor-registry  registry.p.r
       ::  remove ONLY this actor's row; drop the map entry if the set becomes empty.
-      =/  new-set=(set [desk=@tas id=@t])  (~(del in cur) [desk.u.app.aa id.u.actor.aa])
-      =.  actor-note-participation
-        ?:  =(~ new-set)  (~(del by actor-note-participation) note-id.aa)
-        (~(put by actor-note-participation) note-id.aa new-set)
+      =/  new-set=(set actor-ref:noltbook)  (~(del in cur) [our.bowl desk.u.app.aa id.u.actor.aa])
+      =.  actor-note-roster
+        ?:  =(~ new-set)  (~(del by actor-note-roster) note-id.aa)
+        (~(put by actor-note-roster) note-id.aa new-set)
+      ::  Phase A1: leaving also clears this actor's note-level mute + any pending request.
+      =/  lref=actor-ref:noltbook  [our.bowl desk.u.app.aa id.u.actor.aa]
+      =.  note-actor-muted  (del-actor-row note-id.aa lref note-actor-muted)
+      =.  actor-join-requests  (del-actor-row note-id.aa lref actor-join-requests)
       ::  G6A: drop this actor's read cursor (a later rejoin re-seeds to current).
       =.  actor-note-read
         (actor-read-del actor-note-read desk.u.app.aa id.u.actor.aa note-id.aa)
@@ -8317,8 +9278,12 @@
       =^  c1  this
         $(mark %noltbook-action, vase (action-vase `action:noltbook`[%create-note dm-name ~]))
       =.  note-actor-owners  (~(put by note-actor-owners) nid [our.bowl desk.u.app.aa id.u.actor.aa])
-      =.  actor-note-participation
-        (~(put by actor-note-participation) nid (sy ~[[desk.u.app.aa id.u.actor.aa]]))
+      =.  actor-note-roster
+        (~(put by actor-note-roster) nid (sy ~[[our.bowl desk.u.app.aa id.u.actor.aa]]))
+      ::  Phase 1B: this actor-DM is actor-owned; the owner's transport host is NOT a
+      ::  human member (G5 target presentation is preserved via the users-minus-owner-host
+      ::  fallback). Drop the {our.bowl} row the %create-note re-entry seeded.
+      =.  note-members  (set-logical-members nid ~ note-members)
       ::  G6A: seed the owner's read cursor (fresh DM note has no messages => no row).
       =.  actor-note-read
         (actor-read-seed actor-note-read desk.u.app.aa id.u.actor.aa nid (fall (~(get by messages) nid) ~))
@@ -8329,11 +9294,16 @@
       ::  G5A: after the invite, tell the target this group is a direct actor DM.
       =/  meta-card=card
         (rpoke /actor-dm-meta/(scot %p u.who)/[nid] u.who `remote:noltbook`[%remote-actor-dm-meta nid meta])
-      =/  dm-fact=card
-        (gf-notes `update:noltbook`[%actor-dm-updated nid `meta])
+      ::  1B.1: the owner host is NOT a logical member of this DM, so strip every local
+      ::  /notes fact: c1 (note-created), c2's gf-notes (keep its remote invite %pass),
+      ::  the stale-clear gf-notes facts, and the owner-host actor-dm-updated fact.
+      ::  Remote transport (meta-card to the target, c2's invite pokes) is preserved.
       :_  this
       %-  zing
-      :~  stale-clear-cards  c1  c2  ~[meta-card dm-fact]
+      :~  (drop-local-notes-facts stale-clear-cards)
+          (drop-local-notes-facts c1)
+          (drop-local-notes-facts c2)
+          ~[meta-card]
           (api-result-card request-id.aa %.y %actor-dm-created 'actor dm created' `nid ~ ~)
       ==
     ::
@@ -8385,8 +9355,8 @@
         (api-result-card request-id.aa %.n %rejected 'owner cannot adopt its own actor DM' `note-id.aa ~ ~)
       ::  occupancy: at most ONE local actor participation row. This actor => idempotent
       ::  success; a different actor already present => occupied/rejected.
-      =/  cur=(set [desk=@tas id=@t])  (fall (~(get by actor-note-participation) note-id.aa) ~)
-      ?:  (~(has in cur) [desk.u.app.aa id.u.actor.aa])
+      =/  cur=(set actor-ref:noltbook)  (fall (~(get by actor-note-roster) note-id.aa) ~)
+      ?:  (~(has in cur) [our.bowl desk.u.app.aa id.u.actor.aa])
         =.  actor-registry  cand-registry
         :_  this
         (api-result-card request-id.aa %.y %actor-dm-adopted 'actor dm adopted' `note-id.aa ~ ~)
@@ -8394,8 +9364,8 @@
         :_  this
         (api-result-card request-id.aa %.n %rejected 'actor DM already adopted by another local actor' `note-id.aa ~ ~)
       =.  actor-registry  cand-registry
-      =.  actor-note-participation
-        (~(put by actor-note-participation) note-id.aa (sy ~[[desk.u.app.aa id.u.actor.aa]]))
+      =.  actor-note-roster
+        (~(put by actor-note-roster) note-id.aa (sy ~[[our.bowl desk.u.app.aa id.u.actor.aa]]))
       ::  G6A: seed the adopter's read cursor to current so adoption isn't all-unread.
       =.  actor-note-read
         (actor-read-seed actor-note-read desk.u.app.aa id.u.actor.aa note-id.aa (fall (~(get by messages) note-id.aa) ~))
@@ -8422,7 +9392,7 @@
       =/  cand-registry  registry.p.r
       ::  own-or-participate (inherits actor-DM host-role rules + invariant + honest
       ::  missing-note/unsupported/actor-not-participant codes from actor-note-access).
-      =/  acc  (actor-note-access our.bowl note-id.aa desk.u.app.aa id.u.actor.aa notes note-actor-owners actor-note-participation actor-dm-notes)
+      =/  acc  (actor-note-access our.bowl note-id.aa desk.u.app.aa id.u.actor.aa notes note-actor-owners actor-note-roster actor-dm-notes)
       ?:  ?=(%.n -.acc)
         :_  this
         (api-result-card request-id.aa %.n code.p.acc msg.p.acc `note-id.aa ~ ~)
@@ -8610,11 +9580,25 @@
       ::  no-actor host post (a.p.ar == ~) skips this entirely — host behavior unchanged.
       =/  access-fail=(unit [code=@tas msg=@t])
         ?~  a.p.ar  ~
-        =/  acc  (actor-note-access our.bowl note-id.aa desk.u.a.p.ar id.u.a.p.ar notes note-actor-owners actor-note-participation actor-dm-notes)
+        =/  acc  (actor-note-access our.bowl note-id.aa desk.u.a.p.ar id.u.a.p.ar notes note-actor-owners actor-note-roster actor-dm-notes)
         ?:(?=(%.y -.acc) ~ `p.acc)
       ?^  access-fail
         :_  this
         (api-result-card request-id.aa %.n code.u.access-fail msg.u.access-fail `note-id.aa ~ ~)
+      ::  1B.1: a no-actor (host human) post into ANY regular note the human is NOT a
+      ::  logical member of returns honestly instead of claiming posted (system notes
+      ::  exempt). Attributed actor posts (a.p.ar=^) already passed actor-note-access.
+      ?:  ?&  ?=(~ a.p.ar)
+              !(human-sees-note note-id.aa our.bowl note-members note-actor-owners notes)
+          ==
+        :_  this
+        (api-result-card request-id.aa %.n %not-participant 'host user is not a logical participant of this note' `note-id.aa ~ ~)
+      ::  Phase A1: an attributed actor muted in this note cannot post (note-level mute).
+      ?:  ?&  ?=(^ a.p.ar)
+              (actor-muted note-id.aa [our.bowl desk.u.a.p.ar id.u.a.p.ar] note-actor-muted)
+          ==
+        :_  this
+        (api-result-card request-id.aa %.n %note-actor-muted 'actor is muted in this note' `note-id.aa ~ ~)
       =.  actor-registry  reg.p.ar
       =+  conf=(api-send-confirm note-id.aa nt our.bowl now.bowl seq-counters)
       ::  G6A: the posting actor's OWN message must not make it unread. Advance its
@@ -8672,11 +9656,25 @@
       ::  Phase G2: same own-or-participate gate as %post-message (held registry).
       =/  access-fail=(unit [code=@tas msg=@t])
         ?~  a.p.ar  ~
-        =/  acc  (actor-note-access our.bowl note-id.aa desk.u.a.p.ar id.u.a.p.ar notes note-actor-owners actor-note-participation actor-dm-notes)
+        =/  acc  (actor-note-access our.bowl note-id.aa desk.u.a.p.ar id.u.a.p.ar notes note-actor-owners actor-note-roster actor-dm-notes)
         ?:(?=(%.y -.acc) ~ `p.acc)
       ?^  access-fail
         :_  this
         (api-result-card request-id.aa %.n code.u.access-fail msg.u.access-fail `note-id.aa ~ ~)
+      ::  1B.1: a no-actor (host human) post into ANY regular note the human is NOT a
+      ::  logical member of returns honestly instead of claiming posted (system notes
+      ::  exempt). Attributed actor posts (a.p.ar=^) already passed actor-note-access.
+      ?:  ?&  ?=(~ a.p.ar)
+              !(human-sees-note note-id.aa our.bowl note-members note-actor-owners notes)
+          ==
+        :_  this
+        (api-result-card request-id.aa %.n %not-participant 'host user is not a logical participant of this note' `note-id.aa ~ ~)
+      ::  Phase A1: an attributed actor muted in this note cannot post (note-level mute).
+      ?:  ?&  ?=(^ a.p.ar)
+              (actor-muted note-id.aa [our.bowl desk.u.a.p.ar id.u.a.p.ar] note-actor-muted)
+          ==
+        :_  this
+        (api-result-card request-id.aa %.n %note-actor-muted 'actor is muted in this note' `note-id.aa ~ ~)
       =.  actor-registry  reg.p.ar
       =+  conf=(api-send-confirm note-id.aa nt our.bowl now.bowl seq-counters)
       ::  G6A: advance the posting actor's own cursor (see %post-message).
@@ -8745,6 +9743,10 @@
           revoked-at  ?:(?=(%revoked u.st) `now.bowl revoked-at.u.rec)
         ==
       =.  actor-registry  (~(put by actor-registry) key nr)
+      ::  A1.3a: revoking a local actor sweeps its ref out of every pending request set
+      ::  (roster membership, note-level mute, messages, profile, attribution are kept).
+      =?  actor-join-requests  ?=(%revoked u.st)
+        (sweep-actor-requests [our.bowl u.dterm id.aa] actor-join-requests)
       =/  code=@tas
         ?-(u.st %active %actor-active, %suspended %actor-suspended, %revoked %actor-revoked)
       :_  this
@@ -9229,10 +10231,14 @@
       ::  ownership/participation — an actor that no longer participates cannot edit
       ::  its earlier messages via the actor API. The gate's candidate registry is
       ::  held; we commit only after this passes (no TOFU/last-seen on failure).
-      =/  acc  (actor-note-access our.bowl note-id.aa desk.u.app.aa id.u.actor.aa notes note-actor-owners actor-note-participation actor-dm-notes)
+      =/  acc  (actor-note-access our.bowl note-id.aa desk.u.app.aa id.u.actor.aa notes note-actor-owners actor-note-roster actor-dm-notes)
       ?:  ?=(%.n -.acc)
         :_  this
         (api-result-card request-id.aa %.n code.p.acc msg.p.acc `note-id.aa ~ ~)
+      ::  Phase A1: a note-level actor mute blocks this write (reads/profile/leave stay open).
+      ?:  (actor-muted note-id.aa [our.bowl desk.u.app.aa id.u.actor.aa] note-actor-muted)
+        :_  this
+        (api-result-card request-id.aa %.n %note-actor-muted 'actor is muted in this note' `note-id.aa ~ ~)
       =.  actor-registry  registry.p.g
       =/  tgt=message:noltbook  target.p.g
       =/  teid=@uv  eid.p.g
@@ -9274,10 +10280,14 @@
         :_  this
         (api-result-card request-id.aa %.n code.p.g msg.p.g `note-id.aa ~ ~)
       ::  Phase G2: also require CURRENT note ownership/participation (held registry).
-      =/  acc  (actor-note-access our.bowl note-id.aa desk.u.app.aa id.u.actor.aa notes note-actor-owners actor-note-participation actor-dm-notes)
+      =/  acc  (actor-note-access our.bowl note-id.aa desk.u.app.aa id.u.actor.aa notes note-actor-owners actor-note-roster actor-dm-notes)
       ?:  ?=(%.n -.acc)
         :_  this
         (api-result-card request-id.aa %.n code.p.acc msg.p.acc `note-id.aa ~ ~)
+      ::  Phase A1: a note-level actor mute blocks this write (reads/profile/leave stay open).
+      ?:  (actor-muted note-id.aa [our.bowl desk.u.app.aa id.u.actor.aa] note-actor-muted)
+        :_  this
+        (api-result-card request-id.aa %.n %note-actor-muted 'actor is muted in this note' `note-id.aa ~ ~)
       =.  actor-registry  registry.p.g
       =/  tgt=message:noltbook  target.p.g
       =/  teid=@uv  eid.p.g
@@ -9403,7 +10413,7 @@
     ::  host-protection; each branch adds its target-state check and reuses the
     ::  existing internal handler (durable host-local; the host sends remote pokes). ----
         %actor-add-member
-      =/  pre  (actor-member-pre our.bowl now.bowl app.aa actor.aa note-id.aa ship.aa note-actor-owners notes host-status app-grants actor-registry actor-dm-notes)
+      =/  pre  (actor-member-pre our.bowl now.bowl app.aa actor.aa note-id.aa ship.aa note-actor-owners notes host-status app-grants actor-registry actor-dm-notes note-actor-muted)
       ?:  ?=(%.n -.pre)
         :_  this
         (api-result-card request-id.aa %.n code.p.pre msg.p.pre `note-id.aa ~ ~)
@@ -9419,7 +10429,7 @@
       (api-result-card request-id.aa %.y %actor-member-added 'actor added member' `note-id.aa ~ ~)
     ::
         %actor-remove-member
-      =/  pre  (actor-member-pre our.bowl now.bowl app.aa actor.aa note-id.aa ship.aa note-actor-owners notes host-status app-grants actor-registry actor-dm-notes)
+      =/  pre  (actor-member-pre our.bowl now.bowl app.aa actor.aa note-id.aa ship.aa note-actor-owners notes host-status app-grants actor-registry actor-dm-notes note-actor-muted)
       ?:  ?=(%.n -.pre)
         :_  this
         (api-result-card request-id.aa %.n code.p.pre msg.p.pre `note-id.aa ~ ~)
@@ -9438,7 +10448,7 @@
       (api-result-card request-id.aa %.y %actor-member-removed 'actor removed member' `note-id.aa ~ ~)
     ::
         %actor-approve-join
-      =/  pre  (actor-member-pre our.bowl now.bowl app.aa actor.aa note-id.aa ship.aa note-actor-owners notes host-status app-grants actor-registry actor-dm-notes)
+      =/  pre  (actor-member-pre our.bowl now.bowl app.aa actor.aa note-id.aa ship.aa note-actor-owners notes host-status app-grants actor-registry actor-dm-notes note-actor-muted)
       ?:  ?=(%.n -.pre)
         :_  this
         (api-result-card request-id.aa %.n code.p.pre msg.p.pre `note-id.aa ~ ~)
@@ -9453,7 +10463,7 @@
       (api-result-card request-id.aa %.y %actor-approved 'actor approved join' `note-id.aa ~ ~)
     ::
         %actor-deny-join
-      =/  pre  (actor-member-pre our.bowl now.bowl app.aa actor.aa note-id.aa ship.aa note-actor-owners notes host-status app-grants actor-registry actor-dm-notes)
+      =/  pre  (actor-member-pre our.bowl now.bowl app.aa actor.aa note-id.aa ship.aa note-actor-owners notes host-status app-grants actor-registry actor-dm-notes note-actor-muted)
       ?:  ?=(%.n -.pre)
         :_  this
         (api-result-card request-id.aa %.n code.p.pre msg.p.pre `note-id.aa ~ ~)
@@ -9469,7 +10479,7 @@
       (api-result-card request-id.aa %.y %actor-denied 'actor denied join' `note-id.aa ~ ~)
     ::
         %actor-mute-member
-      =/  pre  (actor-member-pre our.bowl now.bowl app.aa actor.aa note-id.aa ship.aa note-actor-owners notes host-status app-grants actor-registry actor-dm-notes)
+      =/  pre  (actor-member-pre our.bowl now.bowl app.aa actor.aa note-id.aa ship.aa note-actor-owners notes host-status app-grants actor-registry actor-dm-notes note-actor-muted)
       ?:  ?=(%.n -.pre)
         :_  this
         (api-result-card request-id.aa %.n code.p.pre msg.p.pre `note-id.aa ~ ~)
@@ -9485,11 +10495,12 @@
       =^  cards  this
         $(mark %noltbook-action, vase (action-vase `action:noltbook`[%mute-member note-id.aa who.p.pre]))
       :_  this
-      %+  weld  cards
+      ::  1B.3: %muted-updated re-entry fact is gated for a hidden owner host.
+      %+  weld  (human-note-cards note-id.aa our.bowl note-members note-actor-owners notes cards)
       (api-result-card request-id.aa %.y %actor-muted 'actor muted member' `note-id.aa ~ ~)
     ::
         %actor-unmute-member
-      =/  pre  (actor-member-pre our.bowl now.bowl app.aa actor.aa note-id.aa ship.aa note-actor-owners notes host-status app-grants actor-registry actor-dm-notes)
+      =/  pre  (actor-member-pre our.bowl now.bowl app.aa actor.aa note-id.aa ship.aa note-actor-owners notes host-status app-grants actor-registry actor-dm-notes note-actor-muted)
       ?:  ?=(%.n -.pre)
         :_  this
         (api-result-card request-id.aa %.n code.p.pre msg.p.pre `note-id.aa ~ ~)
@@ -9500,7 +10511,7 @@
       =^  cards  this
         $(mark %noltbook-action, vase (action-vase `action:noltbook`[%unmute-member note-id.aa who.p.pre]))
       :_  this
-      %+  weld  cards
+      %+  weld  (human-note-cards note-id.aa our.bowl note-members note-actor-owners notes cards)
       (api-result-card request-id.aa %.y %actor-unmuted 'actor unmuted member' `note-id.aa ~ ~)
     ::
     ::  ---- Actor Social (Phase F1): an actor updates its OWN profile. displayName
@@ -9960,7 +10971,10 @@
       =/  active=note-active:noltbook
         [desk.u.app.aa title.u.app.aa publisher.u.app.aa lbl cnt our.bowl now.bowl exp]
       :_  this(note-active (~(put by note-active) note-id.aa active))
-      %+  weld  (active-cards note-id.aa `active)
+      ::  1B.2: active-cards emit a global /notes fact (+ transport); drop the global one
+      ::  when the host human is not a logical member. The /api/results result is unaffected.
+      %+  weld
+        (human-note-cards note-id.aa our.bowl note-members note-actor-owners notes (active-cards note-id.aa `active))
       (api-result-card request-id.aa %.y %active-set 'active set' `note-id.aa ~ ~)
     ::
         %clear-note-active
@@ -9981,7 +10995,9 @@
         (api-result-card request-id.aa %.n %rejected 'only the note creator can clear active status' `note-id.aa ~ ~)
       ::  idempotent: only broadcast a clear if there was an entry.
       =/  had=?  (~(has by note-active) note-id.aa)
-      =/  clear-cards=(list card)  ?:(had (active-cards note-id.aa ~) ~)
+      =/  clear-cards=(list card)
+        ?.  had  ~
+        (human-note-cards note-id.aa our.bowl note-members note-actor-owners notes (active-cards note-id.aa ~))
       :_  this(note-active (~(del by note-active) note-id.aa))
       %+  weld  clear-cards
       (api-result-card request-id.aa %.y %active-cleared 'active cleared' `note-id.aa ~ ~)
@@ -10507,6 +11523,28 @@
       :_  base(host-checks (~(put by host-checks) id.act deadline))
       (weld act-cards ~[watch-card wait-card refresh-card])
     ::
+    ::  A1.3b: internal host + emergency actor management (the main host UI pokes these
+    ::  directly; the API veneers in poke-api reuse the same shared helpers). No result
+    ::  card here — the mutation cards are returned. Local target host only (A3 remote).
+        %manage-note-actor
+      ?.  =(our.bowl host.target.act)  `this
+      =/  pre  (host-actor-pre our.bowl note-id.act note-actor-owners notes host-status note-admins actor-dm-notes)
+      ?:  ?=(%.n -.pre)  `this
+      =/  res  (actor-manage-apply our.bowl note-id.act op.act target.act p.pre actor-note-roster actor-join-requests note-actor-muted actor-note-read actor-notifications notes messages actor-registry note-members note-actor-owners actor-by-eid)
+      ?.  ok.res  `this
+      :_  this(actor-note-roster roster.res, actor-join-requests requests.res, note-actor-muted muted.res, actor-note-read read.res, actor-notifications notifs.res, notes notes.res)
+      cards.res
+    ::
+        %emergency-manage-note-actor
+      ?.  =(our.bowl host.target.act)  `this
+      =/  pre  (emergency-actor-pre our.bowl note-id.act note-actor-owners notes host-status actor-dm-notes)
+      ?:  ?=(%.n -.pre)  `this
+      ?:  &(=(%remove op.act) =(target.act owner.p.pre))  `this
+      =/  res  (actor-manage-apply our.bowl note-id.act op.act target.act nt.p.pre actor-note-roster actor-join-requests note-actor-muted actor-note-read actor-notifications notes messages actor-registry note-members note-actor-owners actor-by-eid)
+      ?.  ok.res  `this
+      :_  this(actor-note-roster roster.res, actor-join-requests requests.res, note-actor-muted muted.res, actor-note-read read.res, actor-notifications notifs.res, notes notes.res)
+      cards.res
+    ::
         %rename-note
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
@@ -10642,8 +11680,8 @@
         ?~  todo  acc
         $(todo t.todo, acc (~(del by acc) i.todo))
       ::  Phase G2: drop actor participation rows for every deleted note in the subtree.
-      =/  new-actor-note-participation=(map @ta (set [desk=@tas id=@t]))
-        =/  acc=(map @ta (set [desk=@tas id=@t]))  actor-note-participation
+      =/  new-actor-note-roster=(map @ta (set actor-ref:noltbook))
+        =/  acc=(map @ta (set actor-ref:noltbook))  actor-note-roster
         =/  todo=(list @ta)  subtree-ids
         |-
         ?~  todo  acc
@@ -10699,7 +11737,10 @@
             artifact-envelopes  new-artifact-envelopes
             artifacts  new-artifacts
             note-actor-owners  new-note-actor-owners
-            actor-note-participation  new-actor-note-participation
+            actor-note-roster  new-actor-note-roster
+            note-members  (prune-note-members subtree-ids note-members)
+            actor-join-requests  (prune-participation subtree-ids actor-join-requests)
+            note-actor-muted  (prune-participation subtree-ids note-actor-muted)
             actor-note-read  new-actor-note-read
             actor-notifications  new-actor-notifications
             actor-dm-notes  new-actor-dm-notes
@@ -10716,7 +11757,7 @@
           :*  nid  name.act  %notebook  our.bowl  self-set  ~  ~  ~  ~  %secret  ~  &  ~  ~
           ==
         =/  upd=update:noltbook  [%note-created new-note]
-        :_  this(notes (~(put by notes) nid new-note), messages (~(put by messages) nid *(list message:noltbook)), note-activity (put-activity note-activity nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity nid now.bowl), note-read (put-read note-read nid now.bowl))
+        :_  this(notes (~(put by notes) nid new-note), messages (~(put by messages) nid *(list message:noltbook)), note-members (~(put by note-members) nid self-set), note-activity (put-activity note-activity nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity nid now.bowl), note-read (put-read note-read nid now.bowl))
         ^-  (list card:agent:gall)
         ~[(gf-notes upd) (activity-fact nid now.bowl) (unread-activity-fact nid now.bowl) (note-read-fact nid now.bowl)]
       =/  pid=@ta  u.parent.act
@@ -10747,7 +11788,7 @@
         |=  p=@p
         ?:  =(p our.bowl)  ~
         `(rpoke /child-out/(scot %p p)/[nid] p `remote:noltbook`[%remote-child-note pid new-note])
-      :_  this(notes n2, messages (~(put by messages) nid *(list message:noltbook)), note-activity (put-activity note-activity nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity nid now.bowl), note-read (put-read note-read nid now.bowl))
+      :_  this(notes n2, messages (~(put by messages) nid *(list message:noltbook)), note-members (set-logical-members nid (logical-members-of pid note-members note-actor-owners notes) note-members), note-activity (put-activity note-activity nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity nid now.bowl), note-read (put-read note-read nid now.bowl))
       =/  head-cards=(list card:agent:gall)
         ~[(gf-notes upd) (activity-fact nid now.bowl) (unread-activity-fact nid now.bowl) (note-read-fact nid now.bowl)]
       (weld head-cards broadcast)
@@ -10763,8 +11804,9 @@
       =/  new-headlines=(map @ta @t)
         ?~  hl  headlines
         (~(put by headlines) nid u.hl)
-      ::  gossip note created locally only — distribute via share/invite
-      :_  this(notes (~(put by notes) nid new-note), messages (~(put by messages) nid *(list message:noltbook)), headlines new-headlines, note-activity (put-activity note-activity nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity nid now.bowl), note-read (put-read note-read nid now.bowl))
+      ::  gossip note created locally only — distribute via share/invite. 1B.3: seed the
+      ::  creator as the explicit logical member.
+      :_  this(notes (~(put by notes) nid new-note), messages (~(put by messages) nid *(list message:noltbook)), headlines new-headlines, note-members (~(put by note-members) nid self-set), note-activity (put-activity note-activity nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity nid now.bowl), note-read (put-read note-read nid now.bowl))
       ^-  (list card:agent:gall)
       ~[(gf-notes upd) (activity-fact nid now.bowl) (unread-activity-fact nid now.bowl) (note-read-fact nid now.bowl)]
     ::
@@ -10774,6 +11816,14 @@
       =?  notes  sys-note  notes.sys
       =?  messages  sys-note  messages.sys
       ?:  (is-write-blocked note-id.act host-status notes our.bowl)  `this
+      ::  1B.1: an ordinary (non-actor) post by the host human into ANY regular note it
+      ::  is not a logical member of is a no-op (system notes exempt via human-sees-note).
+      ::  Actor-attributed posts (actor.act=^) are exempt — gated by actor-note-access
+      ::  upstream. The API layer returns %not-participant honestly (see %post-message).
+      ?:  ?&  ?=(~ actor.act)
+              !(human-sees-note note-id.act our.bowl note-members note-actor-owners notes)
+          ==
+        `this
       =/  exists  (~(get by notes) note-id.act)
       ?~  exists  `this
       ::  entry-meta for hosted, cover, and gossip notes. Rumors use
@@ -10943,7 +11993,7 @@
       ::  record a directed reply notification for that actor (own host only). The
       ::  host's own post can still notify a different local actor (distinct identity).
       =^  notif-cards  actor-notifications
-        (actor-notif-add actor-notifications our.bowl now.bowl note-id.act msg actor.act actor-by-eid cur actor-registry note-actor-owners actor-note-participation actor-dm-notes notes actor-preferences)
+        (actor-notif-add actor-notifications our.bowl now.bowl note-id.act msg actor.act actor-by-eid cur actor-registry note-actor-owners actor-note-roster actor-dm-notes notes actor-preferences)
       ::  Phase A: a locally-posted ACTOR message is a DISTINCT behavioral sender for our
       ::  host. host-self is true only for a genuine host post (no actor) — that case
       ::  keeps the prior byte-for-byte behavior (advance + emit host note-read). An actor
@@ -10987,13 +12037,21 @@
       ::  unread-activity advances unless a muted/blocked actor (recency still advances).
       =/  new-unread-activity=(map @ta @da)
         ?:(u-suppressed note-unread-activity (put-unread-activity note-unread-activity note-id.act now.bowl))
+      ::  Phase 1B: the /notes/[nid] transport fact always goes out (real members /
+      ::  remote peers who opened the note). The LOCAL human global-/notes facts
+      ::  (gf-notes + activity/unread/read) are suppressed when the host human is not a
+      ::  logical member — i.e. an actor posting into a hidden actor-owned note never
+      ::  surfaces to the host human's sidebar/recency.
+      =/  human-vis=?
+        (human-sees-note note-id.act our.bowl note-members note-actor-owners notes)
       =/  base-cards=(list card)
+        ?.  human-vis  ~[(gf-paths ~[pax] upd)]
         :~  (gf-paths ~[pax] upd)
             (gf-notes upd)
             (activity-fact note-id.act now.bowl)
         ==
-      =?  base-cards  !u-suppressed  (snoc base-cards (unread-activity-fact note-id.act now.bowl))
-      =?  base-cards  is-host-self  (snoc base-cards (note-read-fact note-id.act now.bowl))
+      =?  base-cards  &(human-vis !u-suppressed)  (snoc base-cards (unread-activity-fact note-id.act now.bowl))
+      =?  base-cards  &(human-vis is-host-self)  (snoc base-cards (note-read-fact note-id.act now.bowl))
       :_  this(notes (~(put by notes) note-id.act upd-note), messages (~(put by messages) note-id.act (snoc cur msg)), seq-counters new-seq-counters, note-activity (put-activity note-activity note-id.act now.bowl), note-unread-activity new-unread-activity, note-read note-read, mentions new-mentions, attention na.ar)
       :(weld notif-cards mention-cards ac.ar base-cards)
     ::
@@ -11064,6 +12122,11 @@
       =/  upd=update:noltbook  [%message-edited note-id.act edited]
       =/  pax=path  ~[%notes note-id.act]
       :_  this(messages (~(put by messages) note-id.act new-msgs))
+      ::  1B.1: keep the /notes/[nid] transport fact; emit the local-human /notes fact
+      ::  only when the host human is a logical member (actor edits to a hidden note
+      ::  update durable state + transport peers but never surface to the host browser).
+      ?.  (human-sees-note note-id.act our.bowl note-members note-actor-owners notes)
+        ~[(gf-paths ~[pax] upd)]
       :~  (gf-paths ~[pax] upd)
           (gf-notes upd)
       ==
@@ -11137,7 +12200,7 @@
         `eid.u.meta.i.found
       =/  del-upd=update:noltbook  [%message-deleted note-id.act target-id del-eid]
       =/  pax=path  ~[%notes note-id.act]
-      =/  facts=(list card)
+      =/  raw-facts=(list card)
         ?~  sys-msg
           :~  (gf-paths ~[pax] del-upd)
               (gf-notes del-upd)
@@ -11147,6 +12210,12 @@
             (gf-paths ~[pax] `update:noltbook`[%new-message u.sys-msg ~ ~ ~])
             (gf-notes `update:noltbook`[%new-message u.sys-msg ~ ~ ~])
         ==
+      ::  1B.1: keep /notes/[nid] transport facts; drop the local-human /notes facts when
+      ::  the host human is not a logical member (actor delete stays invisible to it).
+      =/  facts=(list card)
+        ?:  (human-sees-note note-id.act our.bowl note-members note-actor-owners notes)
+          raw-facts
+        (drop-local-notes-facts raw-facts)
       ::  clear the pin if it targeted this message (host-authoritative).
       =/  pin-hit=?
         ?~  del-eid  %.n
@@ -11351,7 +12420,7 @@
         [%note-users-updated id.act type.new-note ~(tap in users.new-note) ~(tap in removed.new-note) (member-rev-of id.act new-revs)]
       =/  root-users-cards=(list card)
         ~[(gf-paths ~[/notes/[id.act]] root-users-upd)]
-      :_  this(notes (~(put by notes) id.act new-note), peers new-peers, note-muted (~(put by note-muted) id.act ro-muted), member-revs new-revs)
+      :_  this(notes (~(put by notes) id.act new-note), peers new-peers, note-muted (~(put by note-muted) id.act ro-muted), member-revs new-revs, note-members (add-member-to-ids ship.act [id.act share-descs] note-members note-actor-owners notes))
       :(weld type-updates [poke-card (gf-notes upd) ~] ars-cards ro-mute-cards desc-users-cards desc-child-pokes root-users-cards)
     ::
         %invite-to-note-batch
@@ -11486,7 +12555,7 @@
       =/  upd=update:noltbook  [%note-created new-note]
       =/  local-cards=(list card)
         ~[(gf-notes upd)]
-      :_  this(notes (~(put by notes) id.act new-note), peers new-peers, note-muted (~(put by note-muted) id.act new-muted), member-revs new-revs)
+      :_  this(notes (~(put by notes) id.act new-note), peers new-peers, note-muted (~(put by note-muted) id.act new-muted), member-revs new-revs, note-members (add-ships-to-ids cleaned [id.act share-descs] note-members note-actor-owners notes))
       :(weld type-updates poke-cards local-cards ars-cards ro-mute-cards desc-users-cards desc-child-pokes root-users-cards)
     ::
         %create-artifact
@@ -11507,11 +12576,15 @@
       =/  upd-note=note:noltbook  u.exists(last-author `our.bowl, last-preview `prev)
       :_  this(notes (~(put by notes) note-id.act upd-note), artifacts (~(put by artifacts) aid new-art), note-activity (put-activity note-activity note-id.act now.bowl), note-unread-activity (put-unread-activity note-unread-activity note-id.act now.bowl), note-read (put-read note-read note-id.act now.bowl))
       ^-  (list card:agent:gall)
-      :~  (gf-paths ~[pax] upd)
-          (activity-fact note-id.act now.bowl)
-          (unread-activity-fact note-id.act now.bowl)
-          (note-read-fact note-id.act now.bowl)
-          (sidebar-signal note-id.act our.bowl `prev %artifact now.bowl)
+      ::  1B.2: keep /notes/[nid] transport; drop the global host-human facts when hidden.
+      %:  human-note-cards  note-id.act  our.bowl
+          note-members  note-actor-owners  notes
+        :~  (gf-paths ~[pax] upd)
+            (activity-fact note-id.act now.bowl)
+            (unread-activity-fact note-id.act now.bowl)
+            (note-read-fact note-id.act now.bowl)
+            (sidebar-signal note-id.act our.bowl `prev %artifact now.bowl)
+        ==
       ==
     ::
         %edit-artifact
@@ -11545,7 +12618,11 @@
         ?:(pin-hit (~(del by note-pins) nid) note-pins)
       =/  pin-clear-cards=(list card)  ?:(pin-hit (pin-cards nid ~) ~)
       :_  this(artifacts (~(del by artifacts) id.act), note-pins new-pins)
-      (weld ~[(gf-paths ~[pax] upd)] pin-clear-cards)
+      ::  1B.2: /notes/[nid] transport kept; any global pin-clear /notes fact dropped if hidden.
+      %:  human-note-cards  nid  our.bowl
+          note-members  note-actor-owners  notes
+        (weld ~[(gf-paths ~[pax] upd)] pin-clear-cards)
+      ==
     ::
         %file-save
       =/  old  (~(get by artifacts) id.act)
@@ -11656,6 +12733,7 @@
           ?&  =(%group type.n)
               =(our.bowl creator.n)
               ?|(?=(%public visibility.n) ?=(%private visibility.n))
+              !(~(has by note-actor-owners) id.n)
           ==
         =/  upd=update:noltbook  [%remote-note-list our.bowl pub-notes]
         :_  this
@@ -11995,7 +13073,8 @@
       =/  res  (apply-set-pin our.bowl note-id.act target.act kind.act notes messages artifacts host-status now.bowl)
       ?:  ?=(%.n -.res)  `this
       :_  this(note-pins (~(put by note-pins) note-id.act p.res))
-      (pin-cards note-id.act `p.res)
+      ::  1B.2: pin-cards emits a global /notes fact (+ transport); drop the global one if hidden.
+      (human-note-cards note-id.act our.bowl note-members note-actor-owners notes (pin-cards note-id.act `p.res))
     ::
         %clear-note-pin
       =/  res  (apply-clear-pin our.bowl note-id.act notes host-status)
@@ -12003,7 +13082,7 @@
       ::  idempotent: if nothing was pinned, no state change and no broadcast.
       ?.  (~(has by note-pins) note-id.act)  `this
       :_  this(note-pins (~(del by note-pins) note-id.act))
-      (pin-cards note-id.act ~)
+      (human-note-cards note-id.act our.bowl note-members note-actor-owners notes (pin-cards note-id.act ~))
     ::
         %reparent-note
       =/  old  (~(get by notes) id.act)
@@ -12090,7 +13169,7 @@
       =/  desc-users-cards=(list card)
         ?:  =(~ group-descs)  ~
         (build-users-updated-cards group-descs notes-after new-revs)
-      :_  this(notes notes-after, messages (~(put by messages) id.act new-msgs), note-admins clean-admins, note-muted clean-muted, member-revs new-revs)
+      :_  this(notes notes-after, messages (~(put by messages) id.act new-msgs), note-admins clean-admins, note-muted clean-muted, member-revs new-revs, note-members (del-member-from-ids ship.act [id.act group-descs] note-members note-actor-owners notes))
       %+  weld
         ^-  (list card)
         :~  kick-card
@@ -12121,7 +13200,7 @@
         =/  notif-cards=(list card)
           (actor-notif-diff-cards actor-notifications new-notifs msgs-after actor-by-eid)
         =/  base-cards=(list card)  ~[(gf-notes upd)]
-        :_  this(notes (~(del by notes) id.act), messages msgs-after, artifacts cleaned-arts, cleared-mentions (~(del by cleared-mentions) id.act), actor-note-participation (prune-participation ~[id.act] actor-note-participation), actor-note-read (actor-read-prune actor-note-read ~[id.act]), actor-notifications new-notifs)
+        :_  this(notes (~(del by notes) id.act), messages msgs-after, artifacts cleaned-arts, cleared-mentions (~(del by cleared-mentions) id.act), actor-note-roster (prune-participation ~[id.act] actor-note-roster), note-members (~(del by note-members) id.act), actor-join-requests (~(del by actor-join-requests) id.act), note-actor-muted (~(del by note-actor-muted) id.act), actor-note-read (actor-read-prune actor-note-read ~[id.act]), actor-notifications new-notifs)
         (weld notif-cards base-cards)
       ::  sole user: act like delete
       ?:  (lte user-count 1)
@@ -12136,7 +13215,7 @@
         =/  notif-cards=(list card)
           (actor-notif-diff-cards actor-notifications new-notifs msgs-after actor-by-eid)
         =/  base-cards=(list card)  ~[(gf-notes upd)]
-        :_  this(notes (~(del by trimmed) id.act), messages msgs-after, artifacts cleaned-arts, cleared-mentions (~(del by cleared-mentions) id.act), actor-note-participation (prune-participation ~[id.act] actor-note-participation), actor-note-read (actor-read-prune actor-note-read ~[id.act]), actor-notifications new-notifs)
+        :_  this(notes (~(del by trimmed) id.act), messages msgs-after, artifacts cleaned-arts, cleared-mentions (~(del by cleared-mentions) id.act), actor-note-roster (prune-participation ~[id.act] actor-note-roster), note-members (~(del by note-members) id.act), actor-join-requests (~(del by actor-join-requests) id.act), note-actor-muted (~(del by note-actor-muted) id.act), actor-note-read (actor-read-prune actor-note-read ~[id.act]), actor-notifications new-notifs)
         (weld notif-cards base-cards)
       ::  Phase 3: collect %group descendants once for both host and non-host
       ::  branches (computed against pre-deletion notes map).
@@ -12183,7 +13262,7 @@
         =/  new-notifs  (actor-notif-prune-notes actor-notifications subtree-ids)
         =/  notif-cards=(list card)
           (actor-notif-diff-cards actor-notifications new-notifs msgs-after actor-by-eid)
-        :_  this(notes notes-after, messages msgs-after, artifacts arts-after, actor-note-participation (prune-participation subtree-ids actor-note-participation), actor-note-read (actor-read-prune actor-note-read subtree-ids), actor-notifications new-notifs)
+        :_  this(notes notes-after, messages msgs-after, artifacts arts-after, actor-note-roster (prune-participation subtree-ids actor-note-roster), note-members (prune-note-members subtree-ids note-members), actor-join-requests (prune-participation subtree-ids actor-join-requests), note-actor-muted (prune-participation subtree-ids note-actor-muted), actor-note-read (actor-read-prune actor-note-read subtree-ids), actor-notifications new-notifs)
         :(weld local-deletes ~[(gf-paths ~[pax] upd)] kick-cards notif-cards)
       ::  non-host leaving shared note: unsub root + descendants, poke host
       ::  about the root (host cascades to its own copy), drop local subtree.
@@ -12217,7 +13296,7 @@
       =/  new-notifs  (actor-notif-prune-notes actor-notifications subtree-ids)
       =/  notif-cards=(list card)
         (actor-notif-diff-cards actor-notifications new-notifs msgs-after actor-by-eid)
-      :_  this(notes notes-after, messages msgs-after, artifacts arts-after, actor-note-participation (prune-participation subtree-ids actor-note-participation), actor-note-read (actor-read-prune actor-note-read subtree-ids), actor-notifications new-notifs)
+      :_  this(notes notes-after, messages msgs-after, artifacts arts-after, actor-note-roster (prune-participation subtree-ids actor-note-roster), note-members (prune-note-members subtree-ids note-members), actor-join-requests (prune-participation subtree-ids actor-join-requests), note-actor-muted (prune-participation subtree-ids note-actor-muted), actor-note-read (actor-read-prune actor-note-read subtree-ids), actor-notifications new-notifs)
       :(weld unsub-cards ~[leave-card] local-deletes notif-cards)
     ::
         %fork-note
@@ -12458,6 +13537,15 @@
       ?.  =(our.bowl creator.u.old)  `this
       ?.  =(~(wyt in users.u.old) 1)  `this
       ?.  =(%secret visibility.u.old)  `this
+      ::  A1.3a: refuse to convert an actor-bearing note into a DM — it would orphan the
+      ::  actor owner/roster/requests/mute. Resolve actor participation first (no silent
+      ::  kick). actor-DM creation remains its own explicit invariant-bound path.
+      ?:  ?|  (~(has by note-actor-owners) id.act)
+              (~(has by actor-note-roster) id.act)
+              (~(has by actor-join-requests) id.act)
+              (~(has by note-actor-muted) id.act)
+          ==
+        `this
       ::  must not already have a DM for this pair
       =/  target-users=(set @p)  (sy ~[our.bowl ship.act])
       =/  dm-root  (find-dm-root notes target-users)
@@ -12774,7 +13862,7 @@
       =/  desc-child-pokes=(list card)
         ?:  =(~ group-descs)  ~
         (build-remote-child-notes-to-ship ship.act group-descs notes)
-      :_  this(notes (~(put by notes) note-id.act new-note), peers new-peers, note-muted (~(put by note-muted) note-id.act ro-muted), member-revs new-revs)
+      :_  this(notes (~(put by notes) note-id.act new-note), peers new-peers, note-muted (~(put by note-muted) note-id.act ro-muted), member-revs new-revs, note-members (put-logical-member note-id.act ship.act note-members note-actor-owners notes))
       :(weld [poke-card (gf-notes users-upd) (gf-paths ~[/notes/[note-id.act]] users-upd) (gf-notes jr-upd) ~] ars-cards ro-mute-cards desc-users-cards desc-child-pokes)
     ::
         %deny-join
@@ -13268,7 +14356,7 @@
       ::  Phase G6B: actor reply notification on the parent actor's host (this ship).
       =^  notif-cards  actor-notifications
         ?.  parent-is-actor  [~ actor-notifications]
-        (actor-notif-add actor-notifications our.bowl now.bowl note-id.rem stamped rem-actor actor-by-eid cur actor-registry note-actor-owners actor-note-participation actor-dm-notes notes actor-preferences)
+        (actor-notif-add actor-notifications our.bowl now.bowl note-id.rem stamped rem-actor actor-by-eid cur actor-registry note-actor-owners actor-note-roster actor-dm-notes notes actor-preferences)
       ::  Phase B: unread-activity advances unless a muted/blocked sender actor.
       =/  new-unread-activity=(map @ta @da)
         ?:(u-suppressed note-unread-activity (put-unread-activity note-unread-activity note-id.rem now.bowl))
@@ -13276,10 +14364,16 @@
         ?:(u-suppressed ~ ~[(unread-activity-fact note-id.rem now.bowl)])
       :_  this(notes (~(put by notes) note-id.rem upd-note), messages (~(put by messages) note-id.rem (snoc cur stamped)), mentions new-mentions, attention na.ar, seq-counters new-seq, note-activity (put-activity note-activity note-id.rem now.bowl), note-unread-activity new-unread-activity)
       ^-  (list card:agent:gall)
-      :*  (gf-paths ~[pax] upd)
-          (gf-notes upd)
-          (activity-fact note-id.rem now.bowl)
-          (weld unread-card (weld notif-cards (weld mention-cards ac.ar)))
+      ::  1B.2: durable state + /notes/[nid] transport delivery + actor notifications are
+      ::  unchanged; the global /notes host-human facts (gf-notes/activity/unread/mention)
+      ::  are stripped when the host human is not a logical member of the (hidden) note.
+      %:  human-note-cards  note-id.rem  our.bowl
+          note-members  note-actor-owners  notes
+        :*  (gf-paths ~[pax] upd)
+            (gf-notes upd)
+            (activity-fact note-id.rem now.bowl)
+            (weld unread-card (weld notif-cards (weld mention-cards ac.ar)))
+        ==
       ==
     ::
         %remote-ars
@@ -13700,6 +14794,7 @@
         ?&  =(%group type.n)
             =(our.bowl creator.n)
             ?|(?=(%public visibility.n) ?=(%private visibility.n))
+            !(~(has by note-actor-owners) id.n)
         ==
       =/  resp=remote:noltbook  [%remote-note-list pub-notes]
       :_  this
@@ -14166,7 +15261,7 @@
       =/  desc-users-cards=(list card)
         ?:  =(~ group-descs)  ~
         (build-users-updated-cards group-descs notes-after new-revs)
-      :_  this(notes notes-after, note-admins clean-admins, note-muted clean-muted, member-revs new-revs)
+      :_  this(notes notes-after, note-admins clean-admins, note-muted clean-muted, member-revs new-revs, note-members (del-member-from-ids src.bowl [note-id.rem group-descs] note-members note-actor-owners notes))
       :(weld base-cards admin-cards muted-cards desc-users-cards)
     ::
         %remote-root-exists
@@ -14223,7 +15318,8 @@
         =/  del-upd=update:noltbook  [%note-deleted note-id.rem]
         =/  unsub-card=card
           [%pass /remote-note/[note-id.rem] %agent [src.bowl %noltbook] %leave ~]
-        :_  this(notes (~(del by notes) note-id.rem), messages (~(del by messages) note-id.rem))
+        ::  1B.3: the note is gone — prune its logical-members row too (no stale row).
+        :_  this(notes (~(del by notes) note-id.rem), messages (~(del by messages) note-id.rem), note-members (~(del by note-members) note-id.rem))
         :~  unsub-card
             (gf-notes del-upd)
             (gf-notes kick-upd)
@@ -14251,7 +15347,9 @@
         [%pass /remote-note/[nid] %agent [src.bowl %noltbook] %leave ~]
       =/  users-updated-cards=(list card)
         (build-users-updated-cards subtree-ids notes-after member-revs)
-      :_  this(notes notes-after)
+      ::  1B.3: we were kicked — drop our.bowl from the subtree's logical members (the
+      ::  note is preserved read-only, but we are no longer a logical participant).
+      :_  this(notes notes-after, note-members (del-member-from-ids our.bowl subtree-ids note-members note-actor-owners notes))
       ^-  (list card)
       :(weld unsub-cards users-updated-cards ^-((list card) ~[(gf-notes kick-upd)]))
     ::
@@ -14784,7 +15882,7 @@
           ?.  !writable.u.old  ~
           =/  mute-upd=update:noltbook  [%muted-updated nid ~(tap in ro-muted)]
           ~[(gf-notes mute-upd) (gf-paths ~[/notes/[nid]] mute-upd)]
-        :_  this(notes notes-after, peers new-peers, note-muted (~(put by note-muted) nid ro-muted), member-revs new-revs)
+        :_  this(notes notes-after, peers new-peers, note-muted (~(put by note-muted) nid ro-muted), member-revs new-revs, note-members (add-member-to-ids src.bowl [nid group-descs] note-members note-actor-owners notes))
         :(weld [poke-card (gf-notes users-upd) (gf-paths ~[/notes/[note-id.rem]] users-upd) ~] ars-cards ro-mute-cards desc-users-cards desc-child-pokes)
       ::  private notes: queue pending request
       =/  pending=(set @p)  (fall (~(get by join-requests) note-id.rem) *(set @p))
@@ -15690,8 +16788,23 @@
           ?:  (lth rev.upd (member-rev-of id.upd member-revs))  `this
           =?  notes  ?=(^ note)
             (~(put by notes) id.upd u.note(users (sy users.upd), removed (sy removed.upd), type type.upd))
+          ::  A1.3a: an authoritative remote type change to an actor-INELIGIBLE type
+          ::  defensively prunes any stale local actor roster/request/mute rows + read
+          ::  cursors + directed notifications for this note (message attribution is kept).
+          =/  ineligible=?  ?!(?|(=(%notebook type.upd) =(%group type.upd)))
+          =?  actor-note-roster  ineligible  (~(del by actor-note-roster) id.upd)
+          =?  actor-join-requests  ineligible  (~(del by actor-join-requests) id.upd)
+          =?  note-actor-muted  ineligible  (~(del by note-actor-muted) id.upd)
+          =?  actor-note-read  ineligible  (actor-read-prune actor-note-read ~[id.upd])
+          =?  actor-notifications  ineligible  (actor-notif-prune-notes actor-notifications ~[id.upd])
+          ::  1B.3: %note-users-updated carries only TRANSPORT users, so it updates
+          ::  note.users/removed/type/rev only and PRESERVES note-members. Deriving logical
+          ::  membership from transport would wrongly resurrect a future actor carrier as a
+          ::  human. Real-human membership changes arrive through explicit invite/kick/join/
+          ::  leave/install paths (§3); the future authoritative logical-members payload
+          ::  will reconcile full remote state. (gf-notes upd is relay-gated below.)
           :_  this(member-revs (~(put by member-revs) id.upd rev.upd))
-          ~[(gf-notes upd)]
+          (human-relay-cards id.upd our.bowl note-members note-actor-owners notes ~[(gf-notes upd)])
         ==
       ::  === regular note: persist full messages ===
       ?+  -.upd  `this
@@ -15785,7 +16898,7 @@
         ::  Phase G6B: notification on the parent actor's host (this ship), if any.
         =^  notif-cards  actor-notifications
           ?.  parent-is-actor  [~ actor-notifications]
-          (actor-notif-add actor-notifications our.bowl now.bowl nid msg actor.upd actor-by-eid cur actor-registry note-actor-owners actor-note-participation actor-dm-notes notes actor-preferences)
+          (actor-notif-add actor-notifications our.bowl now.bowl nid msg actor.upd actor-by-eid cur actor-registry note-actor-owners actor-note-roster actor-dm-notes notes actor-preferences)
         ::  Phase B: emit the unread-activity fact only when not user-suppressed.
         =/  base-cards=(list card)
           :~  (gf-paths ~[/notes/[nid]] upd)
