@@ -1231,6 +1231,75 @@
 ::  note-actor-muted (per-note actor posting bans), user-actor-contacts (real-user
 ::  actor bookmarks). Migration converts each local participation row to [our desk id]
 ::  and seeds note-members from note.users (minus the actor owner's host).
+::  state-66: App Notifications. app-notifications keys [desk,id] -> durable
+::  high-level app/plugin notification rows for the Grimoire inbox. Additive; no
+::  retroactive rows.
++$  state-66
+  $:  %66
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      actor-by-eid=(map @uv actor:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      actor-registry=(map [@tas @t] actor-record:noltbook)
+      note-actor-owners=(map @ta actor-owner:noltbook)
+      actor-profiles=(map [@tas @t] actor-profile:noltbook)
+      actor-contacts=(map [@tas @t] (set identity-ref:noltbook))
+      actor-preferences=(map [@tas @t] actor-preferences:noltbook)
+      actor-note-roster=(map @ta (set actor-ref:noltbook))
+      remote-actor-profiles=(map [host=@p desk=@tas id=@t] [profile=actor-public-profile:noltbook fetched-at=@da])
+      actor-dm-notes=(map @ta actor-dm-meta:noltbook)
+      actor-note-read=(map [@tas @t] (map @ta @da))
+      actor-notifications=(map [@tas @t] (list actor-notification:noltbook))
+      note-unread-activity=(map @ta @da)
+      user-muted-actors=(set actor-ref:noltbook)
+      user-blocked-actors=(set actor-ref:noltbook)
+      note-members=(map @ta (set @p))
+      actor-join-requests=(map @ta (set actor-ref:noltbook))
+      note-actor-muted=(map @ta (set actor-ref:noltbook))
+      user-actor-contacts=(set actor-ref:noltbook)
+      app-notifications=(map [@tas @t] app-notification:noltbook)
+  ==
 +$  state-65
   $:  %65
       notes=(map @ta note:noltbook)
@@ -4008,7 +4077,8 @@
 ::  `our` because upgrade arms have no bowl and the roster ref needs the host @p.
 ++  upgrade-64-to-65
   |=  [our=@p s=state-64]
-  ^-  state-65
+  ^-  state-66
+  %-  upgrade-65-to-66
   :*  %65
       notes.s  messages.s  artifacts.s  profiles.s
       transactions.s  current-note.s  peers.s  has-avatar.s
@@ -4056,6 +4126,60 @@
       `(map @ta (set actor-ref:noltbook))`~
       `(map @ta (set actor-ref:noltbook))`~
       `(set actor-ref:noltbook)`~
+  ==
+::  upgrade-65-to-66: App Notifications. Pure additive; existing app/user/actor
+::  state is carried forward and no notifications are inferred retroactively.
+++  upgrade-65-to-66
+  |=  s=state-65
+  ^-  state-66
+  :*  %66
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      fork-parent-version.s
+      host-checks.s
+      notification-acks.s
+      note-activity.s
+      note-read.s
+      attention.s
+      cleared-mentions.s
+      via-by-eid.s
+      note-pins.s
+      note-apps.s
+      note-active.s
+      actor-by-eid.s
+      app-grants.s
+      actor-registry.s
+      note-actor-owners.s
+      actor-profiles.s
+      actor-contacts.s
+      actor-preferences.s
+      actor-note-roster.s
+      remote-actor-profiles.s
+      actor-dm-notes.s
+      actor-note-read.s
+      actor-notifications.s
+      note-unread-activity.s
+      user-muted-actors.s
+      user-blocked-actors.s
+      note-members.s
+      actor-join-requests.s
+      note-actor-muted.s
+      user-actor-contacts.s
+      `(map [@tas @t] app-notification:noltbook)`~
   ==
 ::  roster-from-participation: each local [desk,id] participation row -> a full actor-ref
 ::  [our,desk,id] roster row. Drops empty sets. Phase 1A migration only.
@@ -4921,6 +5045,58 @@
     %file  'shared a file'
     %code  'shared a file'
   ==
+::  valid-desk-str: a safe desk term for a plugin descriptor — lowercase/digits/hyphen,
+::  1..64 chars. Mirrors the frontend plugin-publish desk rule. Never run/installed here.
+++  valid-desk-str
+  |=  s=@t
+  ^-  ?
+  =/  t=tape  (trip s)
+  ?:  =(~ t)  %.n
+  ?:  (gth (lent t) 64)  %.n
+  %+  levy  t
+  |=  c=@tD
+  ?|  &((gte c 'a') (lte c 'z'))
+      &((gte c '0') (lte c '9'))
+      =('-' c)
+  ==
+::  valid-app-artifact-content: accept a member-posted %app artifact ONLY if its content is
+::  a small, well-formed Noltbook plugin DESCRIPTOR (a reference, not executable content).
+::  The host validates + records; it never runs the app or owns its compute. Shape:
+::    { "noltbookApp": 1, "app": { "desk": <safe-desk>, "publisher"?: null | "~ship" },
+::      "data": <any json within the total cap> }
+::  Conservative 64KB cap matching the frontend plugin-publish cap.
+++  valid-app-artifact-content
+  |=  content=@t
+  ^-  ?
+  ?:  (gth (met 3 content) 65.536)  %.n
+  =/  jon-u=(unit json)  (de:json:html content)
+  ?~  jon-u  %.n
+  ?.  ?=([%o *] u.jon-u)  %.n
+  =/  obj  p.u.jon-u
+  ::  noltbookApp: 1
+  ::  noltbookApp marker: accept numeric 1 or string "1"; reject anything else (or absence).
+  =/  flag-u  (~(get by obj) 'noltbookApp')
+  ?~  flag-u  %.n
+  ?.  ?|  ?&(?=([%n *] u.flag-u) =('1' p.u.flag-u))
+          ?&(?=([%s *] u.flag-u) =('1' p.u.flag-u))
+      ==
+    %.n
+  ::  app: { desk, publisher? }
+  =/  app-u  (~(get by obj) 'app')
+  ?~  app-u  %.n
+  ?.  ?=([%o *] u.app-u)  %.n
+  =/  ao  p.u.app-u
+  =/  desk-u  (~(get by ao) 'desk')
+  ?~  desk-u  %.n
+  ?.  ?=([%s *] u.desk-u)  %.n
+  ?.  (valid-desk-str p.u.desk-u)  %.n
+  ::  publisher optional: absent, JSON null, or a parseable ship string
+  =/  pub-u  (~(get by ao) 'publisher')
+  ?~  pub-u  %.y
+  =/  pv=json  u.pub-u
+  ?~  pv  %.y
+  ?.  ?=([%s *] pv)  %.n
+  !=(~ (slaw %p p.pv))
 ::  art-env-preview: same, for a propagated artifact envelope (always %file).
 ++  art-env-preview
   |=  env=artifact-envelope:noltbook
@@ -7064,9 +7240,45 @@
   ^-  ?
   ?:  (is-write-blocked nid hs nmap who)  %.n
   (human-sees-note nid who nm owners nmap)
+::  App Notifications: expired rows are hidden from reads/snapshots; no periodic job.
+++  app-notifications-live
+  |=  [m=(map [@tas @t] app-notification:noltbook) now=@da]
+  ^-  (map [@tas @t] app-notification:noltbook)
+  %-  ~(gas by *(map [@tas @t] app-notification:noltbook))
+  %+  murn  ~(tap by m)
+  |=  [k=[@tas @t] n=app-notification:noltbook]
+  ^-  (unit [[@tas @t] app-notification:noltbook])
+  ?:  ?&  ?=(^ expires-at.n)
+          (lte u.expires-at.n now)
+      ==
+    ~
+  `[k n]
+++  api-app-notification-json
+  |=  n=app-notification:noltbook
+  ^-  json
+  %-  pairs:enjs:format
+  :~  ['desk' s+(scot %tas desk.n)]
+      ['appTitle' ?~(app-title.n ~ s+u.app-title.n)]
+      ['publisher' ?~(publisher.n ~ s+(scot %p u.publisher.n))]
+      ['id' s+id.n]
+      ['title' s+title.n]
+      ['body' ?~(body.n ~ s+u.body.n)]
+      ['href' ?~(href.n ~ s+u.href.n)]
+      ['noteId' ?~(note-id.n ~ s+(crip (trip u.note-id.n)))]
+      ['artifactId' ?~(artifact-id.n ~ s+(crip (trip u.artifact-id.n)))]
+      ['level' s+(scot %tas level.n)]
+      ['createdAt' (numb:enjs:format (api-da-ms created-at.n))]
+      ['updatedAt' (numb:enjs:format (api-da-ms updated-at.n))]
+      ['expiresAt' ?~(expires-at.n ~ (numb:enjs:format (api-da-ms u.expires-at.n)))]
+  ==
+++  app-notifications-cards
+  |=  [paths=(list path) m=(map [@tas @t] app-notification:noltbook) now=@da]
+  ^-  (list card:agent:gall)
+  =/  live  (app-notifications-live m now)
+  ~[(gf-paths paths `update:noltbook`[%app-notifications-updated ~(val by live)])]
 --
 %-  agent:dbug
-=|  state-65
+=|  state-66
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -7150,6 +7362,21 @@
   ?:  ?=([%64 *] q.old)
     =/  s64  !<(state-64 old)
     $(old !>((upgrade-64-to-65 our.bowl s64)))
+  ?:  ?=([%66 *] q.old)
+    =/  loaded  !<(state-66 old)
+    =/  loaded=state-66
+      %=  loaded
+        active-calls       *(map @ta call-info:noltbook)
+        note-members       (ensure-note-members note-members.loaded notes.loaded note-actor-owners.loaded)
+        app-notifications  (app-notifications-live app-notifications.loaded now.bowl)
+      ==
+    =/  prof  (fall (~(get by profiles.loaded) our.bowl) *profile:noltbook)
+    =/  prof-cards=(list card)
+      %+  turn  ~(tap in peers.loaded)
+      |=  p=@p
+      ^-  card
+      (rpoke /prof-out/(scot %p p) p `remote:noltbook`[%remote-profile our.bowl prof])
+    [prof-cards this(state loaded)]
   ?:  ?=([%65 *] q.old)
     =/  loaded  !<(state-65 old)
     ::  fix: ensure cover note exists and is keyed as %cover
@@ -7268,7 +7495,7 @@
       $(todo t.todo)
     ::  1B.1: give every live note an EXPLICIT note-members row (incl. empty) so human
     ::  visibility never depends on the derive-fallback for an existing %65 note.
-    =/  loaded=state-65
+=/  loaded=state-65
       loaded(note-members (ensure-note-members note-members.loaded notes.loaded note-actor-owners.loaded))
     =/  prof  (fall (~(get by profiles.loaded) our.bowl) *profile:noltbook)
     =/  prof-cards=(list card)
@@ -7276,7 +7503,7 @@
       |=  p=@p
       ^-  card
       (rpoke /prof-out/(scot %p p) p `remote:noltbook`[%remote-profile our.bowl prof])
-    [prof-cards this(state loaded(active-calls *(map @ta call-info:noltbook)))]
+    [prof-cards this(state (upgrade-65-to-66 loaded(active-calls *(map @ta call-info:noltbook))))]
   ?:  ?=([%42 *] q.old)
     =/  s42  !<(state-42 old)
     $(old !>((upgrade-42-to-43 s42)))
@@ -7832,6 +8059,11 @@
     ::  even empty), so the frontend hides blocked content + sets button state on connect.
     =/  user-prefs-cards=(list card)
       ~[(user-actor-prefs-fact ~ user-muted-actors user-blocked-actors)]
+    ::  App Notifications: full authoritative Grimoire snapshot (expired rows omitted).
+    =/  pruned-app-notifications=(map [@tas @t] app-notification:noltbook)
+      (app-notifications-live app-notifications now.bowl)
+    =/  app-notification-cards=(list card)
+      (app-notifications-cards ~ pruned-app-notifications now.bowl)
     =/  init-cards=(list card)
       :~  (gf-paths ~ upd)
           (gf-paths ~ pupd)
@@ -7851,8 +8083,8 @@
       =/  live  (live-actor-dm nid notes-now actor-dm-notes)
       ?~  live  ~
       `(gf-paths ~ `update:noltbook`[%actor-dm-updated nid `u.live])
-    :_  this(notes notes-now, messages messages-now, notification-acks pruned-acks, note-activity pruned-activity, note-unread-activity pruned-unread-activity, note-read pruned-read)
-    :(weld init-cards mention-cards attention-cards call-cards active-cards jr-cards role-cards bb-cards hs-cards lineage-cards pfi-cards ack-cards activity-cards read-cards unread-activity-cards user-prefs-cards actor-dm-cards)
+    :_  this(notes notes-now, messages messages-now, notification-acks pruned-acks, note-activity pruned-activity, note-unread-activity pruned-unread-activity, note-read pruned-read, app-notifications pruned-app-notifications)
+    :(weld init-cards mention-cards attention-cards call-cards active-cards jr-cards role-cards bb-cards hs-cards lineage-cards pfi-cards ack-cards activity-cards read-cards unread-activity-cards user-prefs-cards app-notification-cards actor-dm-cards)
   ::
       [%notes @ ~]
     =/  nid=@ta  i.t.path
@@ -7995,6 +8227,15 @@
         %+  skim  ~(val by notes)
         |=(n=note:noltbook (human-sees-note id.n our.bowl note-members note-actor-owners notes))
       |=(n=note:noltbook (api-note-json n (~(get by note-apps) id.n) (~(get by note-active) id.n) now.bowl ~(wyt in (logical-members-of id.n note-members note-actor-owners notes))))
+    ``[%json !>(jon)]
+  ::  App Notifications: durable high-level plugin rows for the real user's Grimoire.
+  ::
+      [%x %api %app-notifications ~]
+    =/  live=(map [@tas @t] app-notification:noltbook)
+      (app-notifications-live app-notifications now.bowl)
+    =/  jon=json
+      %+  frond:enjs:format  'notifications'
+      a+(turn ~(val by live) api-app-notification-json)
     ``[%json !>(jon)]
   ::  Actor Control (Phase A) host/developer reads.
   ::
@@ -11001,6 +11242,75 @@
       :_  this(note-active (~(del by note-active) note-id.aa))
       %+  weld  clear-cards
       (api-result-card request-id.aa %.y %active-cleared 'active cleared' `note-id.aa ~ ~)
+    ::
+        %set-app-notification
+      ?~  app.aa
+        :_  this
+        (api-result-card request-id.aa %.n %missing-app 'set-app-notification requires top-level app attribution' ~ ~ ~)
+      =/  notif-id=@t  (crip (scag 96 (trip id.aa)))
+      ?:  =(0 (met 3 notif-id))
+        :_  this
+        (api-result-card request-id.aa %.n %invalid-id 'notification id cannot be empty' ~ ~ ~)
+      =/  notif-title=@t  (crip (scag 120 (trip title.aa)))
+      ?:  =(0 (met 3 notif-title))
+        :_  this
+        (api-result-card request-id.aa %.n %invalid-title 'notification title cannot be empty' ~ ~ ~)
+      =/  lvl-u=(unit app-notification-level:noltbook)
+        ?~  level.aa  `%info
+        =/  lv=(unit @tas)  (rush u.level.aa sym)
+        ?~  lv  ~
+        ?.  ?=(?(%info %success %warning %error) u.lv)  ~
+        `u.lv
+      ?~  lvl-u
+        :_  this
+        (api-result-card request-id.aa %.n %invalid-level 'level must be info/success/warning/error' ~ ~ ~)
+      =/  ttl-sec=(unit @ud)
+        ?~  ttl.aa  ~
+        `?:(=(0 u.ttl.aa) 1 (min 604.800 u.ttl.aa))
+      =/  exp=(unit @da)
+        ?~  ttl-sec  ~
+        `(add now.bowl (mul u.ttl-sec ~s1))
+      =/  bdy=(unit @t)  ?~(body.aa ~ `(crip (scag 600 (trip u.body.aa))))
+      =/  lnk=(unit @t)  ?~(href.aa ~ `(crip (scag 2.048 (trip u.href.aa))))
+      =/  clean=(map [@tas @t] app-notification:noltbook)
+        (app-notifications-live app-notifications now.bowl)
+      =/  key=[@tas @t]  [desk.u.app.aa notif-id]
+      =/  old=(unit app-notification:noltbook)  (~(get by clean) key)
+      =/  created=@da  ?~(old now.bowl created-at.u.old)
+      =/  notif=app-notification:noltbook
+        :*  desk.u.app.aa  title.u.app.aa  publisher.u.app.aa
+            notif-id  notif-title  bdy  lnk
+            note-id.aa  artifact-id.aa  u.lvl-u
+            created  now.bowl  exp
+        ==
+      =/  new-notifs=(map [@tas @t] app-notification:noltbook)
+        (~(put by clean) key notif)
+      :_  this(app-notifications new-notifs)
+      %+  weld
+        (app-notifications-cards ~[/notes] new-notifs now.bowl)
+      %+  weld
+        (app-notifications-cards ~[/api/results] new-notifs now.bowl)
+      (api-result-card request-id.aa %.y %app-notification-set 'app notification set' ~ ~ ~)
+    ::
+        %clear-app-notification
+      ?~  app.aa
+        :_  this
+        (api-result-card request-id.aa %.n %missing-app 'clear-app-notification requires top-level app attribution' ~ ~ ~)
+      =/  notif-id=@t  (crip (scag 96 (trip id.aa)))
+      ?:  =(0 (met 3 notif-id))
+        :_  this
+        (api-result-card request-id.aa %.n %invalid-id 'notification id cannot be empty' ~ ~ ~)
+      =/  clean=(map [@tas @t] app-notification:noltbook)
+        (app-notifications-live app-notifications now.bowl)
+      =/  key=[@tas @t]  [desk.u.app.aa notif-id]
+      =/  new-notifs=(map [@tas @t] app-notification:noltbook)
+        (~(del by clean) key)
+      :_  this(app-notifications new-notifs)
+      %+  weld
+        (app-notifications-cards ~[/notes] new-notifs now.bowl)
+      %+  weld
+        (app-notifications-cards ~[/api/results] new-notifs now.bowl)
+      (api-result-card request-id.aa %.y %app-notification-cleared 'app notification cleared' ~ ~ ~)
     ==
       %handle-http-request
     =+  !<([eyre-id=@ta =inbound-request:eyre] vase)
@@ -12570,6 +12880,17 @@
             ~[[1 content.act our.bowl now.bowl]]
             `(artifact-meta our.bowl aid now.bowl reply-to-eid.act)
         ==
+      ::  non-host on a remote-hosted notebook/group: ship the artifact metadata to the host,
+      ::  which validates + broadcasts %artifact-created back to all members (it reaches us via
+      ::  our remote-note subscription). The host is the authority for shared history, so we do
+      ::  NOT store/broadcast locally. This is the path member-posted %app (and inline %file)
+      ::  artifacts take — mirroring the %file upload-artifact non-host path. DMs fall through to
+      ::  the local path below (DM sync uses %remote-dm-artifact; the host path rejects DMs).
+      ?:  ?&  !=(our.bowl creator.u.exists)
+              ?|(?=(%notebook type.u.exists) ?=(%group type.u.exists))
+          ==
+        :_  this
+        ~[(rpoke /art-create-out/[aid] creator.u.exists `remote:noltbook`[%remote-artifact-create new-art])]
       =/  upd=update:noltbook  [%artifact-created new-art]
       =/  pax=path  ~[%notes note-id.act]
       =/  prev=@t  (artifact-preview new-art)
@@ -12597,6 +12918,7 @@
       =/  upd-art=artifact:noltbook  u.old(versions (snoc versions.u.old new-ver))
       =/  upd=update:noltbook  [%artifact-updated upd-art]
       =/  pax=path  ~[%notes note-id.upd-art]
+      ~&  [%nb-art-trace-edit-emit our=our.bowl note=note-id.upd-art artifact=id.upd-art versions=(lent versions.upd-art)]
       :_  this(artifacts (~(put by artifacts) id.act upd-art))
       ~[(gf-paths ~[pax] upd)]
     ::
@@ -16271,16 +16593,25 @@
       ?:  (~(has in removed.u.nt) src.bowl)  `this
       ::  artifact creator must equal sender
       ?.  =(src.bowl creator.art)  `this
-      ::  only %file artifacts in this phase
-      ?.  ?=(%file type.art)  `this
-      ::  versions: phase-2 uploads emit exactly one version
+      ::  versions: artifact uploads emit exactly one version
       ?.  ?=([^ ~] versions.art)  `this
       =/  ver  i.versions.art
-      ::  content must be clay-backed metadata; reject inline base64 payloads
       =/  ctnt=tape  (trip content.ver)
-      ?~  (find (trip '"storage":"clay"') ctnt)  `this
-      ?^  (find (trip 'dataUrl') ctnt)  `this
-      ?^  (find (trip 'mimeType') ctnt)  `this
+      ::  type-specific content validation. %file is UNCHANGED (clay-backed metadata; reject
+      ::  inline dataUrl/mimeType blobs). %app must be a small valid plugin descriptor — a
+      ::  reference the host records but never runs. %code is not accepted via this path.
+      =/  content-ok=?
+        ?-  type.art
+            %file
+          ?&  ?=(^ (find (trip '"storage":"clay"') ctnt))
+              ?=(~ (find (trip 'dataUrl') ctnt))
+              ?=(~ (find (trip 'mimeType') ctnt))
+          ==
+        ::
+            %app   (valid-app-artifact-content content.ver)
+            %code  %.n
+        ==
+      ?.  content-ok  `this
       ::  read-only: only host/admin can post; host already self
       =/  admins  (fall (~(get by note-admins) nid) ~)
       =/  is-admin=?  (~(has in admins) src.bowl)
@@ -16562,6 +16893,7 @@
         ==
       =/  result=(quip card _this)
         =/  upd  !<(update:noltbook q.cage.sign)
+      ~&  [%nb-art-trace-rn-fact our=our.bowl from=src.bowl note=nid tag=-.upd]
       ::  cover is handled by [%ars @ ~], not here — skip to avoid gossip loops
       ?:  =(nid %cover)  `this
       ::  check if this is a gossip-type note (envelope model)
@@ -17103,6 +17435,7 @@
       ::
           %artifact-updated
         ::  host updated an artifact; store locally and relay to frontend
+        ~&  [%nb-art-trace-art-upd our=our.bowl from=src.bowl note=nid artifact=id.artifact.upd versions=(lent versions.artifact.upd)]
         =.  artifacts  (~(put by artifacts) id.artifact.upd artifact.upd)
         :_  this
         ~[(gf-paths ~[/notes/[nid]] upd)]

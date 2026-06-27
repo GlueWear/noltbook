@@ -171,6 +171,13 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .reply-label{background:rgba(255,255,255,.06);padding:.2rem .5rem;border-radius:2px;font-size:.8rem;color:var(--text-dim)}
 .reply-close{background:none;border:1px solid #333;color:var(--text-dim);cursor:pointer;font-family:var(--font);font-size:.7rem;padding:.1rem .25rem;line-height:1;width:1.4rem;height:1.4rem;display:flex;align-items:center;justify-content:center}
 .reply-close:hover{border-color:var(--text-dim);color:var(--text)}
+.paste-app-bar{display:none;align-items:center;gap:.5rem;margin:0 0 .45rem 0;padding:.45rem .65rem;border:1px solid rgba(255,170,0,.35);background:rgba(255,170,0,.06);font-size:.78rem;color:var(--text)}
+.paste-app-bar.visible{display:flex}
+.paste-app-main{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.paste-app-k{color:#ffaa00;font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;margin-right:.35rem}
+.paste-app-btn{font-family:var(--font);font-size:.68rem;padding:.25rem .55rem;border:1px solid var(--border2);background:transparent;color:var(--text-dim);cursor:pointer;white-space:nowrap}
+.paste-app-btn.primary{border-color:#ffaa00;color:#ffaa00}
+.paste-app-btn:hover{border-color:#ffaa00;color:#ffaa00}
 .chat-input-area{border-top:1px solid var(--border);padding:1rem 1rem 1.5rem;flex-shrink:0;background:var(--bg)}
 .chat-input-row{display:flex;align-items:stretch;gap:.5rem}
 .attach-wrap{position:relative;flex-shrink:0;display:flex}
@@ -628,10 +635,16 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
           <span class="reply-label" id="replyLabel">↩ replying to</span>
           <button class="reply-close" onclick="cancelReply()">✕</button>
         </div>
+        <div class="paste-app-bar" id="pasteAppBar">
+          <div class="paste-app-main" id="pasteAppMain"></div>
+          <button class="paste-app-btn primary" id="pasteAppCreateBtn" onclick="createPastedAppArtifact()">Create Artifact</button>
+          <button class="paste-app-btn" id="pasteAppTextBtn" onclick="pasteAppArtifactAsText()">Paste as Text</button>
+          <button class="paste-app-btn" onclick="clearPastedAppArtifact()">✕</button>
+        </div>
         <div class="chat-input-row">
           <div class="chat-input-wrap">
           <textarea class="chat-input" id="chatInput" placeholder="message..." rows="1"
-            onkeydown="handleInputKey(event)" oninput="autoResize(this)" onscroll="syncMirrorScroll()"></textarea>
+            onkeydown="handleInputKey(event)" oninput="handleComposerInput(this)" onpaste="handleComposerPaste(event)" onscroll="syncMirrorScroll()"></textarea>
           <div class="chat-input-mirror" id="chatInputMirror"></div>
           <div id="gossipLoadingBar" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:2;display:none;padding:.4rem .6rem;font-size:.85rem;color:var(--text-dim);letter-spacing:.03em;box-sizing:border-box">loading messages<span id="gossipLoadingDots">...</span></div>
           </div>
@@ -815,7 +828,7 @@ const api = {
     this.reconnecting=false;
   }
 };
-const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,lastMsgActorSig:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteUnreadActivity:{},noteRead:{},userMutedActors:new Set(),userBlockedActors:new Set(),actorRevealed:new Set(),coverPreview:null,notePins:{},pinArtId:null,noteActive:{},actorProfiles:{},actorProfileInFlight:{},actorProfileTimers:{},actorProfileStatus:{},actorProfileReqCounter:0,actorProfileFetchedAt:{},actorProfileRetryAt:{},viewingActorKey:null,_actorModalArgs:null,actorDms:{}};
+const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,lastMsgActorSig:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteUnreadActivity:{},noteRead:{},userMutedActors:new Set(),userBlockedActors:new Set(),actorRevealed:new Set(),coverPreview:null,notePins:{},pinArtId:null,noteActive:{},actorProfiles:{},actorProfileInFlight:{},actorProfileTimers:{},actorProfileStatus:{},actorProfileReqCounter:0,actorProfileFetchedAt:{},actorProfileRetryAt:{},viewingActorKey:null,_actorModalArgs:null,actorDms:{},appNotifications:{}};
 // Phase G4 freshness: resolved profiles are fresh for 10 min; negative results
 // (missing/invalid) cool down 5 min; unreachable cools down 2 min. Render cycles
 // poke only when fresh-expired AND past the cooldown (and not in flight).
@@ -1394,7 +1407,10 @@ function handleUpdate(upd){
   else if(upd['artifact-created']){const a=upd['artifact-created'];state.artifacts[a.id]=a;if((a.type==='app'||a.type==='file')&&a.noteId===state.currentNoteId){scheduleRender(a.noteId);renderPinSurface(a.noteId)}}
   else if(upd['artifact-updated']){
     const a=upd['artifact-updated'];state.artifacts[a.id]=a;
-    if(pluginArtifactDescriptor(a)){destroyPluginArtifactFrames(a.id);if(a.noteId===state.currentNoteId){scheduleRender(a.noteId);renderPinSurface(a.noteId)}}
+    if(pluginArtifactDescriptor(a)){
+      const pendingPluginUpdate=pluginArtifactHasPendingUpdate(a.id);
+      if(!pendingPluginUpdate){destroyPluginArtifactFrames(a.id);if(a.noteId===state.currentNoteId){scheduleRender(a.noteId);renderPinSurface(a.noteId)}}
+    }
     else if(state.activeAppBridge&&state.activeAppBridge.artifactId===a.id){const lastVer=a.versions[a.versions.length-1];if(lastVer){try{const meta=JSON.parse(lastVer.content);const iframe=document.getElementById(state.activeAppBridge.iframeId);if(iframe&&iframe.contentWindow){iframe.contentWindow.postMessage({source:'noltbook-host',type:'nb:state',payload:meta.state||{}},'*')}}catch(e){}}}
     else if(document.getElementById('artifactPanel').classList.contains('open')&&document.getElementById('artifactPanelTitle').textContent===a.name)openArtifactPanel(a.id);
     if(a.noteId===state.currentNoteId)renderPinSurface(a.noteId);
@@ -1497,6 +1513,7 @@ function handleUpdate(upd){
   else if(upd['join-request-list']){const list=upd['join-request-list'];state.joinRequests=list.map(r=>({noteId:r.noteId,ship:r.ship,noteName:r.noteName,time:Date.now()}));updateLogoBadge();refreshGrimoireIfOpen();console.log('[join-request-list]',list.length,'requests')}
   else if(upd['note-deleted-notification']){const{noteId,noteName}=upd['note-deleted-notification'];state.blockNotifications.push({noteId,noteName,from:null,time:Date.now(),type:'deleted'});updateLogoBadge()}
   else if(upd['notification-acks']){const acks=upd['notification-acks']||[];state.notificationAcks=new Set(acks.map(a=>notifAckKey(a.kind,a.noteId)));console.log('[notification-acks]',state.notificationAcks.size,'acked');rebuildDurableNotifications();updateLogoBadge()}
+  else if(upd['app-notifications-updated']){state.appNotifications={};for(const n of(upd['app-notifications-updated']||[])){state.appNotifications[appNotifKey(n)]=n}updateLogoBadge();refreshGrimoireIfOpen()}
   else if(upd['admins-updated']){const{id,admins}=upd['admins-updated'];state.noteAdmins[id]=admins;console.log('[admins-updated]',id,admins);refreshNoteInfoMembers(id)}
   else if(upd['muted-updated']){const{id,muted}=upd['muted-updated'];state.noteMuted[id]=muted;console.log('[muted-updated]',id,muted);if(state.currentNoteId===id)updateMuteUI();refreshNoteInfoMembers(id)}
   else if(upd['note-pin-updated']){const{noteId,pin}=upd['note-pin-updated'];if(pin)state.notePins[noteId]=pin;else delete state.notePins[noteId];if(noteId===state.currentNoteId){renderPinSurface(noteId);scheduleRender(noteId)}}
@@ -1546,6 +1563,7 @@ async function openNote(id){
     // whether a fresh marker is needed when the note is opened again.
     clearUnreadDividerDom(prevNoteId);
     closePluginTool();
+    clearPastedAppArtifact();
   }
   if(state.currentNoteSub!==null){await api.unsubscribe(state.currentNoteSub);state.currentNoteSub=null}
   // tear down previous mention observer
@@ -3830,6 +3848,7 @@ async function sendMessage(){
   // which fact path renders it (new-message, message-list, generic scheduleRender).
   ScrollCo.beginOwnAction(_nid);
   const ok=await api.poke('noltbook','noltbook-action',{action:'send-message',data});if(!ok){ScrollCo.cancelOwnAction(_nid);console.error('[sendMessage] poke failed, retrying after reconnect');if(!api.reconnecting)api.reconnect();return}input.value='';resetChatInputHeight();cancelReply();updateInputMirror()
+  clearPastedAppArtifact();
 }
 let mentionState={active:false,startPos:0,idx:-1};
 function getMentionQuery(){
@@ -4333,12 +4352,45 @@ let pluginFrameSeq=0,pluginPublishSeq=0,_pluginManifestLoad=null;
 let pluginFrameObserver=null;
 function pluginDeskOk(desk){return typeof desk==='string'&&/^[a-z0-9-]{1,64}$/.test(desk)}
 function pluginText(v,max,fallback){const s=(''+(v==null?(fallback||''):v)).trim();return s.slice(0,max)}
+function pluginByteText(v,max,fallback){
+  const s=(''+(v==null?(fallback||''):v)).trim(),enc=new TextEncoder();let out='';
+  for(const ch of Array.from(s)){if(enc.encode(out+ch).length>max)break;out+=ch}
+  return out;
+}
 function pluginSession(){
   const b=new Uint8Array(16);if(window.crypto&&crypto.getRandomValues)crypto.getRandomValues(b);else for(let i=0;i<b.length;i++)b[i]=Math.floor(Math.random()*256);
   return Array.from(b,x=>x.toString(16).padStart(2,'0')).join('');
 }
 function pluginRequestId(){pluginPublishSeq=(pluginPublishSeq+1)%1000;return (Date.now()%8_000_000_000_000)*1000+pluginPublishSeq}
 function pluginContentBytes(s){return new TextEncoder().encode(s).length}
+function pluginPlainObject(v){return !!v&&typeof v==='object'&&!Array.isArray(v)}
+function pluginHasOwn(o,k){return !!o&&Object.prototype.hasOwnProperty.call(o,k)}
+function pluginDescriptorFromParts(desk,publisher,input,base){
+  const desc={noltbookApp:1,app:{desk:desk,publisher:publisher||null}};
+  desc.data=pluginHasOwn(input,'data')?input.data:(base&&pluginHasOwn(base,'data')?base.data:null);
+  if(base&&pluginHasOwn(base,'ref'))desc.ref=base.ref;
+  if(pluginHasOwn(input,'ref'))desc.ref=input.ref;
+  return desc;
+}
+function pluginDescriptorInput(payload){
+  const input={};
+  if(pluginPlainObject(payload&&payload.descriptor)){
+    if(pluginHasOwn(payload.descriptor,'data'))input.data=payload.descriptor.data;
+    if(pluginHasOwn(payload.descriptor,'ref'))input.ref=payload.descriptor.ref;
+  }
+  if(pluginPlainObject(payload)){
+    if(pluginHasOwn(payload,'data'))input.data=payload.data;
+    if(pluginHasOwn(payload,'ref'))input.ref=payload.ref;
+  }
+  return input;
+}
+function pluginDescriptorContent(desc){
+  try{
+    const content=JSON.stringify(desc);
+    if(pluginContentBytes(content)>NB_PLUGIN_MAX_PUBLISH_BYTES)return{ok:false,error:'artifact descriptor exceeds 64 KB'};
+    return{ok:true,content:content};
+  }catch(e){return{ok:false,error:'artifact descriptor must be JSON'}}
+}
 function pluginArtifactDescriptor(art){
   if(!art||art.type!=='app'||!art.versions||!art.versions.length)return null;
   try{
@@ -4346,7 +4398,9 @@ function pluginArtifactDescriptor(art){
     const d=JSON.parse(content);
     if(!d||d.noltbookApp!==1||!d.app||!pluginDeskOk(d.app.desk))return null;
     const pub=(typeof d.app.publisher==='string'&&/^~[a-z0-9-]+$/.test(d.app.publisher))?d.app.publisher:null;
-    return{noltbookApp:1,app:{desk:d.app.desk,publisher:pub},data:(d.data===undefined?null:d.data)};
+    const desc={noltbookApp:1,app:{desk:d.app.desk,publisher:pub},data:(d.data===undefined?null:d.data)};
+    if(pluginHasOwn(d,'ref'))desc.ref=d.ref;
+    return desc;
   }catch(e){return null}
 }
 function legacyAppPackage(meta){return meta&&typeof meta.packageId==='string'&&/^[a-z0-9-]+$/.test(meta.packageId)?meta.packageId:null}
@@ -4369,11 +4423,20 @@ function ensurePluginManifests(){
   });
   return _pluginManifestLoad;
 }
-function pluginFallback(host,text,canOpen){
+function pluginFallback(host,text,canOpen,spec){
   host.innerHTML='';
   const box=document.createElement('div');box.className='plugin-frame-fallback';
   const label=document.createElement('div');label.textContent=text;box.appendChild(label);
   if(canOpen){const btn=document.createElement('button');btn.className='plugin-frame-open';btn.textContent='OPEN';btn.addEventListener('click',function(){mountPluginHost(host.id,true)});box.appendChild(btn)}
+  if(spec&&spec.publisher&&appRefValidPub(spec.publisher)&&pluginDeskOk(spec.desk)){
+    const btn=document.createElement('button');btn.className='plugin-frame-open';btn.textContent='VIEW APP';
+    btn.addEventListener('click',function(e){
+      const art=spec.artifactId?state.artifacts[spec.artifactId]:null;
+      const name=(art&&art.name)||spec.desk;
+      clickAppRef(spec.publisher,spec.desk,encodeURIComponent(name),e);
+    });
+    box.appendChild(btn);
+  }
   host.appendChild(box);
 }
 function sendPluginFrame(rec,type,payload){
@@ -4389,8 +4452,10 @@ function pluginInitPayload(rec){
     noteId:spec.noteId||null,
     replyToEid:spec.replyToEid||null,
     app:{desk:spec.desk,title:(rec.manifest.title||spec.desk),publisher:appPublisher(spec.desk)||null},
-    artifact:art&&desc?{id:art.id,eid:(art.meta&&art.meta.eid)||null,name:art.name,creator:art.creator,data:(desc.data===undefined?null:desc.data)}:null,
-    capabilities:{publish:spec.mode==='private-tool',request:true,resize:spec.mode!=='embedded-app',close:true}
+    artifact:art&&desc?{id:art.id,eid:(art.meta&&art.meta.eid)||null,name:art.name,creator:art.creator,data:(desc.data===undefined?null:desc.data),ref:(pluginHasOwn(desc,'ref')?desc.ref:null),descriptor:desc}:null,
+    context:spec.context||null,
+    sourceArtifact:spec.sourceArtifactId?{artifactId:spec.sourceArtifactId,noteId:spec.sourceNoteId||null,desk:spec.sourceDesk||null}:null,
+    capabilities:{publish:spec.mode==='private-tool',update:spec.mode==='note-artifact',request:true,resize:spec.mode!=='embedded-app',close:true,openApp:true,copyText:true,listNoteArtifacts:!!spec.noteId,updateSourceArtifact:spec.mode==='embedded-app'&&!!spec.sourceArtifactId}
   };
 }
 function destroyPluginFrame(frameId,keepHost){
@@ -4398,6 +4463,7 @@ function destroyPluginFrame(frameId,keepHost){
   if(rec.unloadTimer)clearTimeout(rec.unloadTimer);
   if(rec.readyTimer)clearTimeout(rec.readyTimer);
   if(rec.publishTimeout)clearTimeout(rec.publishTimeout);
+  if(rec.updateTimeout)clearTimeout(rec.updateTimeout);
   try{rec.iframe.src='about:blank'}catch(e){}
   if(rec.iframe.parentNode)rec.iframe.remove();
   pluginFrames.delete(frameId);
@@ -4418,20 +4484,29 @@ function destroyPluginArtifactFrames(artifactId){
   const ids=[];for(const [hostId,spec] of pluginHosts)if(spec.artifactId===artifactId)ids.push(hostId);
   ids.forEach(unregisterPluginHost);
 }
+function pluginArtifactHasPendingUpdate(artifactId){
+  for(const rec of pluginFrames.values())if(rec.spec&&rec.spec.artifactId===artifactId&&rec.pendingUpdate)return true;
+  return false;
+}
 function mountPluginHost(hostId,force){
   const host=document.getElementById(hostId),spec=pluginHosts.get(hostId);if(!host||!spec)return;
   for(const rec of pluginFrames.values())if(rec.hostId===hostId){rec.lastSeen=Date.now();return}
   const manifest=pluginManifestFor(spec.desk,spec.publisher,spec.mode);
   if(!manifest){
     if(_grimoireApps.state!=='loaded'){pluginFallback(host,'Loading app…',false);ensurePluginManifests().then(function(){mountPluginHost(hostId,force)});return}
-    pluginFallback(host,'%'+spec.desk+' is not installed or does not provide this '+(spec.mode==='embedded-app'?'launch':'artifact'),false);return;
+    pluginFallback(host,'%'+spec.desk+' is not installed or does not provide this '+(spec.mode==='embedded-app'?'launch':'artifact'),false,spec);return;
   }
   const frameHref=spec.href||(spec.mode==='embedded-app'?manifest.launch.href:manifest.artifact.href);
   if(!frameHref){pluginFallback(host,'App launch unavailable',false);return}
   const iframe=document.createElement('iframe');
   const frameId='nb-plugin-frame-'+(++pluginFrameSeq),session=pluginSession();
   iframe.id=frameId;iframe.src=frameHref;iframe.setAttribute('sandbox','allow-scripts allow-forms allow-popups allow-downloads');iframe.setAttribute('loading','lazy');iframe.setAttribute('referrerpolicy','same-origin');
-  iframe.style.height=(spec.mode==='private-tool'||spec.mode==='embedded-app')?'100%':((spec.height||320)+'px');
+  const size=spec.mode==='note-artifact'
+    ?(pluginSurfaceSize(manifest.artifact,'artifact')||pluginSurfaceSize(spec,'artifact'))
+    :(pluginSurfaceSize(spec,spec.mode==='embedded-app'?'embedded':'tool')||pluginSurfaceSize(spec.mode==='embedded-app'?manifest.launch:manifest.artifact,spec.mode==='embedded-app'?'embedded':'tool'));
+  const artifactHeight=(size&&size.height)||spec.height||320;
+  if(spec.mode==='note-artifact')applyPluginArtifactHostSize(host,Object.assign({},size||{},{height:artifactHeight}));
+  iframe.style.height=(spec.mode==='private-tool'||spec.mode==='embedded-app')?'100%':(artifactHeight+'px');
   host.innerHTML='';host.appendChild(iframe);
   const rec={id:frameId,hostId:hostId,iframe:iframe,session:session,spec:spec,manifest:manifest,lastSeen:Date.now(),pendingPublish:false,unloadTimer:null,ready:false,readyTimer:null,publishTimeout:null};
   pluginFrames.set(frameId,rec);
@@ -4458,9 +4533,10 @@ async function publishPluginArtifact(rec,payload){
   if(rec.spec.mode!=='private-tool'||rec.pendingPublish)return;
   const name=(''+((payload&&payload.name)||rec.manifest.artifact.label||rec.manifest.title||rec.spec.desk)).trim().slice(0,128);
   if(!name){sendPluginFrame(rec,'nb:publish-result',{ok:false,error:'name required'});return}
-  const descriptor={noltbookApp:1,app:{desk:rec.spec.desk,publisher:appPublisher(rec.spec.desk)||null},data:(payload&&payload.data!==undefined)?payload.data:null};
-  let content='';try{content=JSON.stringify(descriptor)}catch(e){sendPluginFrame(rec,'nb:publish-result',{ok:false,error:'artifact data must be JSON'});return}
-  if(pluginContentBytes(content)>NB_PLUGIN_MAX_PUBLISH_BYTES){sendPluginFrame(rec,'nb:publish-result',{ok:false,error:'artifact data exceeds 64 KB'});return}
+  const descriptor=pluginDescriptorFromParts(rec.spec.desk,appPublisher(rec.spec.desk)||null,pluginDescriptorInput(payload),null);
+  const packed=pluginDescriptorContent(descriptor);
+  if(!packed.ok){sendPluginFrame(rec,'nb:publish-result',{ok:false,error:packed.error});return}
+  const content=packed.content;
   rec.pendingPublish=true;
   const requestId=pluginRequestId();let subId=null,done=false;
   const finish=async function(ok,result){
@@ -4476,6 +4552,79 @@ async function publishPluginArtifact(rec,payload){
   const sent=await api.poke('noltbook','noltbook-api',{action:'create-artifact',requestId:requestId,app:app,data:data});
   if(!sent){finish(false,{message:'publish transport failed'});return}
   rec.publishTimeout=setTimeout(function(){finish(false,{message:'publish result timed out'})},12_000);
+}
+// Shared bridge update core: replace ONLY app-owned descriptor fields of a SPECIFIC artifact id after
+// validating it is a real app artifact for THIS frame's desk. The artifact id is supplied by the
+// caller (frame spec), never taken from plugin payload — so no arbitrary/cross-app updates.
+// noltbookApp:1, app.desk and app.publisher are always preserved. The generic app-owned `ref`
+// field is preserved by default; a plugin may replace it explicitly by sending descriptor.ref.
+async function pluginEditArtifactById(rec,opts){
+  const fail=function(message){sendPluginFrame(rec,opts.resultType,{requestId:opts.clientRequestId,ok:false,result:{message:message}})};
+  if(rec.pendingUpdate){fail('artifact update already pending');return}
+  const art=state.artifacts[opts.artifactId],desc=art?pluginArtifactDescriptor(art):null;
+  if(!art||!desc||desc.app.desk!==opts.desk){fail('artifact descriptor unavailable');return}
+  const descriptor=pluginDescriptorFromParts(desc.app.desk,desc.app.publisher||null,opts.nextDescriptor||{},desc);
+  const packed=pluginDescriptorContent(descriptor);
+  if(!packed.ok){fail(packed.error);return}
+  const content=packed.content;
+  rec.pendingUpdate=true;
+  const requestId=pluginRequestId();let subId=null,done=false;
+  const finish=async function(ok,result){
+    if(done)return;done=true;rec.pendingUpdate=false;if(rec.updateTimeout){clearTimeout(rec.updateTimeout);rec.updateTimeout=null}if(subId)await api.unsubscribe(subId);
+    sendPluginFrame(rec,opts.resultType,{requestId:opts.clientRequestId,ok:ok,result:result||null});
+  };
+  try{subId=await api.subscribe('noltbook','/api/results',function(upd){const r=upd&&upd['api-result'];if(!r||r.requestId!==requestId)return;finish(!!r.ok,r)})}
+  catch(e){finish(false,{message:'result stream unavailable'});return}
+  if(!subId){finish(false,{message:'result stream unavailable'});return}
+  const app={desk:rec.spec.desk,title:(rec.manifest&&rec.manifest.title)||rec.spec.desk,publisher:appPublisher(rec.spec.desk)||null};
+  const sent=await api.poke('noltbook','noltbook-api',{action:'edit-artifact',requestId:requestId,app:app,data:{id:opts.artifactId,content:content}});
+  if(!sent){finish(false,{message:'update transport failed'});return}
+  rec.updateTimeout=setTimeout(function(){finish(false,{message:'update result timed out'})},12_000);
+}
+async function updatePluginArtifact(rec,payload){
+  const clientRequestId=pluginText(payload&&payload.requestId,128,'');
+  const fail=function(message){sendPluginFrame(rec,'nb:update-artifact-result',{requestId:clientRequestId,ok:false,result:{message:message}})};
+  if(rec.spec.mode!=='note-artifact'||!rec.spec.artifactId){fail('updates are only available from artifact frames');return}
+  const input=pluginDescriptorInput(payload);
+  if(!pluginHasOwn(input,'data')&&!pluginHasOwn(input,'ref')){fail('data or ref required');return}
+  pluginEditArtifactById(rec,{artifactId:rec.spec.artifactId,desk:rec.spec.desk,nextDescriptor:input,resultType:'nb:update-artifact-result',clientRequestId:clientRequestId});
+}
+// nb:update-source-artifact: an embedded app updates ONLY the artifact that opened it. The source
+// artifact id comes from the frame spec (recorded at nb:open-app), never from payload.
+async function updateSourceArtifact(rec,payload){
+  const clientRequestId=pluginText(payload&&payload.requestId,128,'');
+  const fail=function(message){sendPluginFrame(rec,'nb:update-source-artifact-result',{requestId:clientRequestId,ok:false,result:{message:message}})};
+  if(rec.spec.mode!=='embedded-app'||!rec.spec.sourceArtifactId){fail('this app was not opened from an artifact');return}
+  const input=pluginDescriptorInput(payload);
+  if(!pluginHasOwn(input,'data')&&!pluginHasOwn(input,'ref')){fail('data or ref required');return}
+  pluginEditArtifactById(rec,{artifactId:rec.spec.sourceArtifactId,desk:rec.spec.desk,nextDescriptor:input,resultType:'nb:update-source-artifact-result',clientRequestId:clientRequestId});
+}
+// nb:list-note-artifacts: list the requesting app's OWN app artifacts in the frame's current note.
+// Generic — `kind` filters descriptor.data.kind or descriptor.ref.kind. No arbitrary note ids, no other
+// apps' artifacts, no raw versions/content exposed.
+function listNoteArtifacts(rec,payload){
+  const fail=function(error){sendPluginFrame(rec,'nb:list-note-artifacts-result',{ok:false,error:error});};
+  payload=(payload&&typeof payload==='object')?payload:{};
+  const nid=rec.spec.noteId;
+  if(!nid)return fail('no note context');
+  const kind=(typeof payload.kind==='string'&&payload.kind)?payload.kind.slice(0,128):'';
+  let limit=50;const ln=Number(payload.limit);
+  if(Number.isFinite(ln)&&ln>0)limit=Math.min(100,Math.floor(ln));
+  const out=[],arts=state.artifacts||{};
+  for(const id in arts){
+    if(!Object.prototype.hasOwnProperty.call(arts,id))continue;
+    const art=arts[id];
+    if(!art||art.type!=='app'||art.noteId!==nid)continue;
+    const desc=pluginArtifactDescriptor(art);
+    if(!desc||desc.app.desk!==rec.spec.desk)continue;
+    if(kind&&!((desc.data&&desc.data.kind===kind)||(desc.ref&&desc.ref.kind===kind)))continue;
+    const vers=Array.isArray(art.versions)?art.versions:[];
+    const createdAt=vers.length?vers[0].timestamp:(art.created!=null?art.created:null);
+    const updatedAt=vers.length?vers[vers.length-1].timestamp:(art.updated!=null?art.updated:null);
+    out.push({artifactId:art.id,eid:(art.meta&&art.meta.eid)||null,name:art.name,creator:art.creator,createdAt:createdAt,updatedAt:updatedAt,data:(desc.data===undefined?null:desc.data),ref:(pluginHasOwn(desc,'ref')?desc.ref:null),descriptor:desc});
+    if(out.length>=limit)break;
+  }
+  sendPluginFrame(rec,'nb:list-note-artifacts-result',{ok:true,artifacts:out});
 }
 async function proxyPluginRequest(rec,payload){
   const requestId=pluginText(payload&&payload.requestId,128,'');
@@ -4493,6 +4642,41 @@ async function proxyPluginRequest(rec,payload){
     sendPluginFrame(rec,'nb:response',{requestId:requestId,ok:r.ok,status:r.status,contentType:r.headers.get('content-type')||'',body:text});
   }catch(e){if(timer)clearTimeout(timer);sendPluginFrame(rec,'nb:response',{requestId:requestId,ok:false,status:0,error:e.message||String(e)})}
 }
+// ---- Noltbook plugin bridge: host message router ----
+// A registered plugin iframe posts {source:'noltbook-plugin',protocol:NB_PLUGIN_PROTOCOL,
+// session,type,payload}. The host validates frame/session before dispatch and replies with a
+// {source:'noltbook-host',...,type:'<type>-result',payload} message via sendPluginFrame.
+//
+// nb:copy-text — host-mediated clipboard copy (works from sandboxed iframes without clipboard
+//   permission, because the COPY is performed by the Noltbook host page, not the iframe).
+//   message: { type:'nb:copy-text', payload:{ text:'<string>' } }
+//   result:  { type:'nb:copy-text-result', payload:{ ok:true } }
+//         or { type:'nb:copy-text-result', payload:{ ok:false, error:'<reason>' } }
+//   payload.text must be a string ≤ 64KB (NB_PLUGIN_MAX_PUBLISH_BYTES; non-strings rejected,
+//   never coerced). Failure is possible if the browser's Clipboard API is unavailable or the
+//   user/browser denies clipboard access — callers must handle ok:false. Capability flag:
+//   pluginInitPayload(rec).capabilities.copyText === true.
+//
+// nb:list-note-artifacts — list THIS app's own app artifacts in the frame's CURRENT note only.
+//   Generic: kind is just a filter against descriptor.data.kind or descriptor.ref.kind; no app-specific logic, no
+//   arbitrary note ids, no other apps' artifacts. Requires the frame to have a note context.
+//   message: { type:'nb:list-note-artifacts', payload:{ kind?:'<string>', limit?:<1..100> } }
+//   result:  { type:'nb:list-note-artifacts-result', payload:{ ok:true, artifacts:[
+//              { artifactId, eid, name, creator, createdAt, updatedAt, data, ref, descriptor } ] } }
+//         or { ok:false, error:'<reason>' }. limit defaults 50, max 100. data is the descriptor
+//   data already parsed by pluginArtifactDescriptor; ref is an optional app-owned reference.
+//   Raw versions/content are NEVER exposed.
+//   Capability flag: capabilities.listNoteArtifacts === true (when the frame has a noteId).
+//
+// nb:update-source-artifact — for an embedded-app frame opened from a note artifact via
+//   nb:open-app: update ONLY that source artifact (its id is remembered on the frame spec, never
+//   taken from payload — no arbitrary/cross-app updates). Replaces app-owned descriptor fields
+//   only: data and optional ref. noltbookApp:1, app.desk, app.publisher are preserved. The
+//   embedded app also receives the source via nb:init as sourceArtifact:{artifactId,noteId,desk}.
+//   message: { type:'nb:update-source-artifact', payload:{ data?:{...}, ref?:{...}, descriptor?:{data?,ref?}, requestId?:'<id>' } }
+//   result:  { type:'nb:update-source-artifact-result', payload:{ requestId, ok:true, result } }
+//         or { requestId, ok:false, result:{ message:'<reason>' } }. descriptor capped at 64KB.
+//   Capability flag: capabilities.updateSourceArtifact === true (embedded-app + has source).
 window.addEventListener('message',function(event){
   let rec=null;for(const r of pluginFrames.values())if(r.iframe.contentWindow===event.source){rec=r;break}
   if(!rec)return;
@@ -4500,8 +4684,28 @@ window.addEventListener('message',function(event){
   if(d.type==='nb:ready'){rec.ready=true;if(rec.readyTimer){clearTimeout(rec.readyTimer);rec.readyTimer=null}sendPluginFrame(rec,'nb:init',pluginInitPayload(rec));return}
   if(d.session!==rec.session)return;
   if(d.type==='nb:publish')publishPluginArtifact(rec,d.payload||{});
+  else if(d.type==='nb:update-artifact')updatePluginArtifact(rec,d.payload||{});
   else if(d.type==='nb:request')proxyPluginRequest(rec,d.payload||{});
-  else if(d.type==='nb:resize'&&rec.spec.mode==='note-artifact')rec.iframe.style.height=Math.max(180,Math.min(720,Number(d.payload&&d.payload.height)||320))+'px';
+  else if(d.type==='nb:resize'){
+    if(rec.spec.mode==='note-artifact'){
+      const sz=pluginSurfaceSize(d.payload||{},'artifact');
+      if(sz){
+        if(sz.height!=null){rec.spec.height=sz.height;rec.iframe.style.height=sz.height+'px'}
+        if(sz.width!=null){rec.spec.width=sz.width;rec.iframe.style.width='100%'}
+        applyPluginArtifactHostSize(document.getElementById(rec.hostId),{width:rec.spec.width,height:rec.spec.height});
+      }
+    }else if(rec.spec.mode==='private-tool'){
+      const sz=pluginSurfaceSize(d.payload||{},'tool');
+      if(sz){
+        if(sz.width!=null)rec.spec.width=sz.width;if(sz.height!=null)rec.spec.height=sz.height;
+        applyPluginShellSize(document.querySelector('#pluginToolOverlay .plugin-tool-shell'),'tool',{width:rec.spec.width,height:rec.spec.height});
+      }
+    }
+  }
+  else if(d.type==='nb:open-app')openPluginAppFromFrame(rec,d.payload||{});
+  else if(d.type==='nb:copy-text')copyPluginText(rec,d.payload||{});
+  else if(d.type==='nb:list-note-artifacts')listNoteArtifacts(rec,d.payload||{});
+  else if(d.type==='nb:update-source-artifact')updateSourceArtifact(rec,d.payload||{});
   else if(d.type==='nb:close'){if(rec.spec.mode==='private-tool')closePluginTool();else if(rec.spec.mode==='embedded-app')closeEmbeddedApp();else destroyPluginFrame(rec.id,true)}
 });
 function canUsePluginArtifacts(){
@@ -4509,6 +4713,104 @@ function canUsePluginArtifacts(){
   if(note.type!=='notebook'&&note.type!=='group'&&note.type!=='dm')return false;
   if(!(note.users||[]).includes(me)||(note.removed||[]).includes(me))return false;
   const admins=state.noteAdmins[nid]||[];return note.type==='dm'||note.writable!==false||note.creator===me||admins.includes(me);
+}
+let _pendingPastedAppArtifact=null,_pastedAppCreatePending=false;
+function resetPastedAppCreateButton(){
+  const btn=document.getElementById('pasteAppCreateBtn');if(!btn)return;
+  btn.disabled=false;btn.textContent='Create Artifact';btn.style.display='';
+}
+function pastedAppDesk(v){
+  if(typeof v!=='string')return null;
+  const desk=v.trim().replace(/^%/,'');
+  return pluginDeskOk(desk)?desk:null;
+}
+function pastedAppPublisher(v){
+  if(v==null)return null;
+  if(typeof v!=='string')return undefined;
+  const pub=v.trim();
+  return /^~[a-z0-9-]+$/.test(pub)?pub:undefined;
+}
+function parsePastedAppEnvelope(text){
+  if(typeof text!=='string')return null;
+  const raw=text.trim();
+  if(!raw||raw[0]!=='{'||pluginContentBytes(raw)>NB_PLUGIN_MAX_PUBLISH_BYTES)return null;
+  let d=null;try{d=JSON.parse(raw)}catch(e){return null}
+  if(!d||typeof d!=='object'||Array.isArray(d)||d.noltbookApp!==1||!d.app||typeof d.app!=='object'||Array.isArray(d.app))return null;
+  const desk=pastedAppDesk(d.app.desk),publisher=pastedAppPublisher(d.app.publisher);
+  if(!desk||publisher===undefined)return null;
+  const draft={raw:raw,desk:desk,publisher:publisher,data:(d.data===undefined?null:d.data),name:pluginByteText(d.name,128,'')};
+  if(pluginHasOwn(d,'ref'))draft.ref=d.ref;
+  return draft;
+}
+function validatePastedAppArtifact(draft){
+  if(!draft)return null;
+  const manifest=pluginManifestFor(draft.desk,draft.publisher,'note-artifact');
+  if(!manifest)return null;
+  const name=pluginByteText(draft.name||((manifest.artifact&&manifest.artifact.label)||manifest.title||draft.desk),128,draft.desk);
+  if(!name)return null;
+  const descriptor=pluginDescriptorFromParts(draft.desk,draft.publisher||null,draft,null);
+  const packed=pluginDescriptorContent(descriptor);
+  if(!packed.ok)return null;
+  const content=packed.content;
+  return{desk:draft.desk,publisher:draft.publisher||null,name:name,content:content,descriptor:descriptor,raw:draft.raw,manifest:manifest};
+}
+function showPastedAppArtifact(rec,message){
+  _pendingPastedAppArtifact=rec;
+  const bar=document.getElementById('pasteAppBar'),main=document.getElementById('pasteAppMain'),btn=document.getElementById('pasteAppCreateBtn');
+  if(!bar||!main)return;
+  if(rec&&rec.error){main.innerHTML='<span class="paste-app-k">APP ARTIFACT</span>'+escHtml(message||rec.error);if(btn){btn.disabled=true;btn.style.display='none'}}
+  else{const title=(rec.manifest&&rec.manifest.title)||rec.desk;main.innerHTML='<span class="paste-app-k">APP ARTIFACT</span>Create '+escHtml(rec.name)+' with '+escHtml(title);resetPastedAppCreateButton()}
+  bar.classList.add('visible');
+}
+function clearPastedAppArtifact(){
+  _pendingPastedAppArtifact=null;_pastedAppCreatePending=false;resetPastedAppCreateButton();
+  const bar=document.getElementById('pasteAppBar');if(bar)bar.classList.remove('visible');
+}
+function handleComposerInput(el){
+  autoResize(el);
+  if(_pendingPastedAppArtifact&&el&&el.value.trim())clearPastedAppArtifact();
+}
+function insertComposerText(text){
+  const input=document.getElementById('chatInput');if(!input)return;
+  const start=input.selectionStart==null?input.value.length:input.selectionStart;
+  const end=input.selectionEnd==null?start:input.selectionEnd;
+  input.value=input.value.slice(0,start)+text+input.value.slice(end);
+  const pos=start+text.length;input.selectionStart=pos;input.selectionEnd=pos;
+  autoResize(input);updateInputMirror();input.focus();
+}
+function pasteAppArtifactAsText(){
+  const rec=_pendingPastedAppArtifact;if(!rec)return;
+  clearPastedAppArtifact();insertComposerText(rec.raw);
+}
+async function handleComposerPaste(event){
+  const text=event.clipboardData&&event.clipboardData.getData('text/plain');
+  const draft=parsePastedAppEnvelope(text||'');if(!draft)return;
+  event.preventDefault();
+  if(!canUsePluginArtifacts()){showPastedAppArtifact({raw:draft.raw,error:'App artifacts cannot be created in this note'},'App artifacts cannot be created in this note');return}
+  await ensurePluginManifests();
+  const rec=validatePastedAppArtifact(draft);
+  if(!rec){showPastedAppArtifact({raw:draft.raw,error:'%'+draft.desk+' is not installed or does not provide an artifact surface'},'%'+draft.desk+' is not installed or does not provide an artifact surface');return}
+  rec.noteId=state.currentNoteId;
+  showPastedAppArtifact(rec);
+}
+async function createPastedAppArtifact(){
+  const rec=_pendingPastedAppArtifact,nid=state.currentNoteId;if(!rec||!nid)return;
+  if(rec.error||_pastedAppCreatePending)return;
+  if(rec.noteId&&rec.noteId!==nid){clearPastedAppArtifact();return}
+  if(!canUsePluginArtifacts())return;
+  await ensurePluginManifests();
+  const fresh=validatePastedAppArtifact(parsePastedAppEnvelope(rec.raw));
+  if(!fresh){showPastedAppArtifact({raw:rec.raw,error:'App is no longer available for this artifact'},'App is no longer available for this artifact');return}
+  fresh.noteId=nid;_pendingPastedAppArtifact=fresh;_pastedAppCreatePending=true;
+  const btn=document.getElementById('pasteAppCreateBtn');if(btn){btn.disabled=true;btn.textContent='Creating...'}
+  const data={noteId:nid,name:fresh.name,type:'app',content:fresh.content};if(state.replyingToEid)data.replyToEid=state.replyingToEid;
+  ScrollCo.beginOwnAction(nid);
+  try{
+    const ok=await api.poke('noltbook','noltbook-action',{action:'create-artifact',data:data});
+    if(!ok){ScrollCo.cancelOwnAction(nid);return}
+    clearPastedAppArtifact();cancelReply();
+  }catch(e){ScrollCo.cancelOwnAction(nid);console.warn('[plugins] pasted artifact create failed',e)}
+  finally{_pastedAppCreatePending=false;if(_pendingPastedAppArtifact&&btn){btn.disabled=false;btn.textContent='Create Artifact'}}
 }
 function renderArtifactAppItems(){
   const box=document.getElementById('attachAppItems');if(!box)return;box.innerHTML='';if(!canUsePluginArtifacts())return;
@@ -4520,9 +4822,11 @@ function openPluginTool(desk){
   document.getElementById('attachMenu').classList.remove('open');closePluginTool();
   const overlay=document.getElementById('pluginToolOverlay'),body=document.getElementById('pluginToolBody'),host=document.createElement('div');
   const hostId='plugin-tool-host-'+(++pluginFrameSeq);host.id=hostId;host.className='plugin-frame-host';body.appendChild(host);
+  const size=pluginSurfaceSize(manifest.artifact,'tool');
+  applyPluginShellSize(overlay&&overlay.querySelector('.plugin-tool-shell'),'tool',size);
   document.getElementById('pluginToolTitle').textContent=manifest.artifact.label||manifest.title||desk;
   overlay.classList.add('open');overlay.setAttribute('aria-hidden','false');
-  pluginHosts.set(hostId,{mode:'private-tool',desk:desk,publisher:appPublisher(desk)||null,noteId:state.currentNoteId,replyToEid:state.replyingToEid||null,persistent:true});mountPluginHost(hostId,true);
+  pluginHosts.set(hostId,{mode:'private-tool',desk:desk,publisher:appPublisher(desk)||null,noteId:state.currentNoteId,replyToEid:state.replyingToEid||null,persistent:true,width:size&&size.width,height:size&&size.height});mountPluginHost(hostId,true);
 }
 function closePluginTool(){
   const overlay=document.getElementById('pluginToolOverlay'),body=document.getElementById('pluginToolBody');if(!overlay||!body)return;
@@ -4532,17 +4836,69 @@ let embeddedAppHref='';
 function deskFromAppHref(href){
   try{const u=new URL(href,location.origin),m=u.pathname.match(/^\/apps\/([a-z0-9-]+)(?:\/|$)/);return(u.origin===location.origin&&m)?m[1]:''}catch(e){return''}
 }
-function openEmbeddedApp(href,desk,title){
+function openEmbeddedApp(href,desk,title,sizeHint,context,source){
   desk=pluginDeskOk(desk)?desk:deskFromAppHref(href);
   const safe=localPluginHref(desk,href);
   if(!safe){window.open(href,'_blank','noopener');closeGrimoire();return}
   closeGrimoire();closeEmbeddedApp();
   const overlay=document.getElementById('embeddedAppOverlay'),body=document.getElementById('embeddedAppBody'),host=document.createElement('div');
   const hostId='embedded-app-host-'+(++pluginFrameSeq);host.id=hostId;host.className='plugin-frame-host';body.appendChild(host);
+  const manifest=noltbookAppManifest(desk),size=pluginSurfaceSize(sizeHint,'embedded')||pluginSurfaceSize(manifest&&manifest.launch,'embedded');
+  applyPluginShellSize(overlay&&overlay.querySelector('.embedded-app-shell'),'embedded',size);
   embeddedAppHref=safe;document.getElementById('embeddedAppTitle').textContent=title||('%'+desk);
   overlay.classList.add('open');overlay.setAttribute('aria-hidden','false');
-  pluginHosts.set(hostId,{mode:'embedded-app',desk:desk,publisher:appPublisher(desk)||null,noteId:state.currentNoteId,replyToEid:null,persistent:true,href:safe});
+  pluginHosts.set(hostId,{mode:'embedded-app',desk:desk,publisher:appPublisher(desk)||null,noteId:state.currentNoteId,replyToEid:null,persistent:true,href:safe,width:size&&size.width,height:size&&size.height,context:context||null,sourceArtifactId:(source&&source.artifactId)||null,sourceNoteId:(source&&source.noteId)||null,sourceDesk:(source&&source.desk)||null});
   mountPluginHost(hostId,true);
+}
+// nb:open-app bridge: a registered plugin iframe asks the host to open the normal embedded
+// app overlay (same surface as a manual app launch). Generic: same-origin local app hrefs only,
+// no external URLs, no app-specific checks. Opening a NEW embedded host never touches the
+// originating iframe. Optional context is sanitized (JSON round-trip), capped at 8KB, and passed
+// to the new app via pluginInitPayload; it is never persisted to artifacts/state.
+function openPluginAppFromFrame(rec,payload){
+  const fail=function(error){sendPluginFrame(rec,'nb:open-app-result',{ok:false,error:error});};
+  payload=(payload&&typeof payload==='object')?payload:{};
+  // resolve target desk: prefer payload.desk, else derive from the href
+  let desk=pluginDeskOk(payload.desk)?payload.desk:deskFromAppHref(payload.href||'');
+  if(!pluginDeskOk(desk))return fail('invalid desk');
+  // same-origin local /apps/<desk>/ href only — reject external/non-local
+  const href=(typeof payload.href==='string'&&payload.href)?payload.href:('/apps/'+desk+'/');
+  const safe=localPluginHref(desk,href);
+  if(!safe)return fail('invalid or non-local app href');
+  // optional context: must be JSON-serializable, sanitized via round-trip, <=8KB
+  let context=null;
+  if(payload.context!==undefined&&payload.context!==null){
+    let json;try{json=JSON.stringify(payload.context)}catch(e){return fail('context must be JSON-serializable')}
+    if(typeof json!=='string')return fail('context must be JSON-serializable');
+    if(pluginContentBytes(json)>8192)return fail('context exceeds 8 KB');
+    try{context=JSON.parse(json)}catch(e){return fail('context must be JSON-serializable')}
+  }
+  const title=(typeof payload.title==='string'&&payload.title)?payload.title:'';
+  // when launched from a note-artifact frame, remember the source artifact so the embedded app
+  // can later update ONLY that artifact via nb:update-source-artifact.
+  const source=(rec.spec.mode==='note-artifact'&&rec.spec.artifactId)
+    ?{artifactId:rec.spec.artifactId,noteId:rec.spec.noteId||null,desk:rec.spec.desk}:null;
+  try{openEmbeddedApp(safe,desk,title,{width:payload.width,height:payload.height},context,source)}
+  catch(e){return fail((e&&e.message)?e.message:'failed to open app')}
+  sendPluginFrame(rec,'nb:open-app-result',{ok:true});
+}
+// nb:copy-text bridge: a registered plugin iframe asks the host page to copy text to the
+// clipboard. Host-mediated so sandboxed iframes need no clipboard permission. Generic — no
+// app-specific checks, no state. text must be a string within the 64KB cap; arbitrary objects
+// are NOT coerced. Failure (denied/unavailable) returns {ok:false} cleanly, never throws.
+function copyPluginText(rec,payload){
+  const fail=function(error){sendPluginFrame(rec,'nb:copy-text-result',{ok:false,error:error});};
+  payload=(payload&&typeof payload==='object')?payload:{};
+  const text=payload.text;
+  if(typeof text!=='string')return fail('text must be a string');
+  if(pluginContentBytes(text)>NB_PLUGIN_MAX_PUBLISH_BYTES)return fail('text exceeds 64 KB');
+  if(!navigator.clipboard||!navigator.clipboard.writeText)return fail('clipboard unavailable');
+  try{
+    navigator.clipboard.writeText(text).then(
+      function(){sendPluginFrame(rec,'nb:copy-text-result',{ok:true});},
+      function(e){fail((e&&e.message)?e.message:'clipboard denied');}
+    );
+  }catch(e){fail((e&&e.message)?e.message:'clipboard denied');}
 }
 function closeEmbeddedApp(){
   const overlay=document.getElementById('embeddedAppOverlay'),body=document.getElementById('embeddedAppBody');if(!overlay||!body)return;
@@ -5332,7 +5688,9 @@ function rebuildDurableNotifications(){
     }
   }
 }
-function updateLogoBadge(){const el=document.getElementById('noltbookLogo');if(el)el.classList.toggle('has-notif',state.blockNotifications.some(bn=>!bn.seen)||state.joinRequests.length>0)}
+function appNotifKey(n){return (n&&n.desk||'')+'|'+(n&&n.id||'')}
+function appNotifList(){return Object.values(state.appNotifications||{}).sort((a,b)=>(b.updatedAt||b.createdAt||0)-(a.updatedAt||a.createdAt||0))}
+function updateLogoBadge(){const el=document.getElementById('noltbookLogo');if(el)el.classList.toggle('has-notif',state.blockNotifications.some(bn=>!bn.seen)||state.joinRequests.length>0||appNotifList().length>0)}
 // Durably ack passive condition rows (removed-status / host-deleted-status)
 // so the red dot stays clear across hard refresh. Optimistically marks the
 // ack locally and pokes the backend once per key. Fork-invite / join-request
@@ -5525,6 +5883,41 @@ function localPluginHref(desk,raw){
     return u.pathname+u.search+u.hash;
   }catch(e){return''}
 }
+const NB_PLUGIN_SIZE_LIMITS={
+  embedded:{minW:280,minH:180,maxW:1120,maxH:860,vh:'92vh'},
+  tool:{minW:280,minH:180,maxW:680,maxH:720,vh:'90vh'},
+  artifact:{minW:280,minH:180,maxW:680,maxH:720,vh:'90vh'}
+};
+function pluginSizePx(v,min,max){
+  if(v==null||v==='')return null;
+  const n=Number(v);if(!Number.isFinite(n)||n<=0)return null;
+  return Math.max(min,Math.min(max,Math.round(n)));
+}
+function pluginSurfaceSize(src,kind){
+  const lim=NB_PLUGIN_SIZE_LIMITS[kind]||NB_PLUGIN_SIZE_LIMITS.tool;
+  const out={},w=pluginSizePx(src&&src.width,lim.minW,lim.maxW),h=pluginSizePx(src&&src.height,lim.minH,lim.maxH);
+  if(w!=null)out.width=w;if(h!=null)out.height=h;
+  return Object.keys(out).length?out:null;
+}
+function pluginCopySize(target,size){
+  if(size&&size.width!=null)target.width=size.width;
+  if(size&&size.height!=null)target.height=size.height;
+  return target;
+}
+function pluginSizeAttrs(size){
+  return (size&&size.width!=null?' data-grimoire-open-width="'+size.width+'"':'')+(size&&size.height!=null?' data-grimoire-open-height="'+size.height+'"':'');
+}
+function applyPluginShellSize(shell,kind,size){
+  if(!shell)return;
+  const lim=NB_PLUGIN_SIZE_LIMITS[kind]||NB_PLUGIN_SIZE_LIMITS.tool;
+  shell.style.width=size&&size.width!=null?'min('+size.width+'px, 100%)':'';
+  shell.style.height=size&&size.height!=null?'min('+size.height+'px, '+lim.vh+')':'';
+}
+function applyPluginArtifactHostSize(host,size){
+  if(!host||!size)return;
+  if(size.height!=null)host.style.minHeight=size.height+'px';
+  if(size.width!=null){host.style.width='min('+size.width+'px, 100%)';host.style.maxWidth='100%'}
+}
 function normalizeNoltbookAppManifest(desk,m){
   if(!pluginDeskOk(desk)||!m||typeof m!=='object')return null;
   const version=pluginText(m.noltbook||m.noltbookVersion||m.version||1,32,'1');
@@ -5541,18 +5934,18 @@ function normalizeNoltbookAppManifest(desk,m){
     if(typeof a.href==='string')href=a.href.trim();
     else if(a.href&&typeof a.href==='object'&&typeof a.href.site==='string')href=a.href.site.trim();
     href=localPluginHref(desk,href);
-    return{id:id,label:label,description:desc,kind:kind,href:href,target:target};
+    return pluginCopySize({id:id,label:label,description:desc,kind:kind,href:href,target:target},pluginSurfaceSize(a,target==='embedded'?'embedded':'tool'));
   }).filter(Boolean).slice(0,6);
   const rawArtifact=(m.artifact&&typeof m.artifact==='object')?m.artifact:null;
-  const artifact=rawArtifact?{
+  const artifact=rawArtifact?pluginCopySize({
     label:pluginText(rawArtifact.label||rawArtifact.title||m.title||desk,64,desk),
     href:localPluginHref(desk,rawArtifact.href||'')
-  }:null;
+  },pluginSurfaceSize(rawArtifact,'artifact')):null;
   const rawLaunch=(m.launch&&typeof m.launch==='object')?m.launch:null;
-  const launch=rawLaunch?{
+  const launch=rawLaunch?pluginCopySize({
     href:localPluginHref(desk,rawLaunch.href||''),
     target:rawLaunch.target==='embedded'?'embedded':(rawLaunch.target==='same-tab'?'same-tab':'new-tab')
-  }:null;
+  },pluginSurfaceSize(rawLaunch,'embedded')):null;
   return{
     desk:desk,
     version:version,
@@ -5662,8 +6055,9 @@ function renderGrimoireAppDetail(desk,c){
       for(const a of manifest.actions){
         const isOpen=a.kind==='open'||a.kind==='tool';
         const actHref=a.href||fallbackHref;
+        const sizeAttrs=pluginSizeAttrs(a);
         const btn=isOpen
-          ?'<button class="grimoire-cap-btn" data-grimoire-open-href="'+escAttr(actHref)+'" data-grimoire-open-target="'+escAttr(a.target||launchTarget)+'" data-grimoire-open-desk="'+escAttr(desk)+'" data-grimoire-open-title="'+escAttr(a.label||title)+'">OPEN</button>'
+          ?'<button class="grimoire-cap-btn" data-grimoire-open-href="'+escAttr(actHref)+'" data-grimoire-open-target="'+escAttr(a.target||launchTarget)+'" data-grimoire-open-desk="'+escAttr(desk)+'" data-grimoire-open-title="'+escAttr(a.label||title)+'"'+sizeAttrs+'>OPEN</button>'
           :'<button class="grimoire-cap-btn" disabled title="not available yet">COMING SOON</button>';
         h+='<div class="grimoire-app-cap-row"><div class="grimoire-cap-act"><div class="grimoire-cap-act-main">'
           +'<span>'+escHtml(a.label)+'</span>'
@@ -5678,16 +6072,17 @@ function renderGrimoireAppDetail(desk,c){
   const copyBtn=pub
     ?'<button class="grimoire-btn" id="grimoireCopyRef" style="background:var(--bg3,#222);color:var(--text,#ddd)" onclick="grimoireCopyAppRef(\''+escAttr(desk)+'\')">COPY REF</button>'
     :'<button class="grimoire-btn" style="background:var(--bg3,#222);color:var(--text-dim,#888)" disabled title="no publisher / local desk">LOCAL ONLY</button>';
+  const launchSizeAttrs=pluginSizeAttrs(manifest&&manifest.launch);
   h+='<div class="grimoire-app-actions">'
-    +'<button class="grimoire-btn" style="background:#ffaa00;color:#000;font-weight:bold" data-grimoire-open-href="'+escAttr(href)+'" data-grimoire-open-target="'+launchTarget+'" data-grimoire-open-desk="'+escAttr(desk)+'" data-grimoire-open-title="'+escAttr(title)+'">OPEN</button>'
+    +'<button class="grimoire-btn" style="background:#ffaa00;color:#000;font-weight:bold" data-grimoire-open-href="'+escAttr(href)+'" data-grimoire-open-target="'+launchTarget+'" data-grimoire-open-desk="'+escAttr(desk)+'" data-grimoire-open-title="'+escAttr(title)+'"'+launchSizeAttrs+'>OPEN</button>'
     +copyBtn
     +'</div>';
   return h;
 }
 function grimoireSelectApp(desk){_grimoireApps.selectedDesk=desk||null;refreshGrimoireIfOpen()}
-function grimoireOpenApp(href,target,desk,title){
+function grimoireOpenApp(href,target,desk,title,size){
   if(!href)return;
-  if(target==='embedded'){openEmbeddedApp(href,desk||'',title||'');return}
+  if(target==='embedded'){openEmbeddedApp(href,desk||'',title||'',size);return}
   if(target==='same-tab'){
     try{
       const u=new URL(href,location.origin);
@@ -5697,7 +6092,7 @@ function grimoireOpenApp(href,target,desk,title){
   }
   window.open(href,'_blank','noopener');closeGrimoire();
 }
-document.addEventListener('click',function(e){const b=e.target.closest('[data-grimoire-open-href]');if(b)grimoireOpenApp(b.dataset.grimoireOpenHref,b.dataset.grimoireOpenTarget||'new-tab',b.dataset.grimoireOpenDesk||'',b.dataset.grimoireOpenTitle||'')});
+document.addEventListener('click',function(e){const b=e.target.closest('[data-grimoire-open-href]');if(b)grimoireOpenApp(b.dataset.grimoireOpenHref,b.dataset.grimoireOpenTarget||'new-tab',b.dataset.grimoireOpenDesk||'',b.dataset.grimoireOpenTitle||'',{width:b.dataset.grimoireOpenWidth,height:b.dataset.grimoireOpenHeight})});
 function grimoireCopyAppRef(desk){
   const c=_grimoireApps.charges[desk];if(!c)return;
   const ref=appRefValue(desk,c);if(!ref)return;
@@ -5850,6 +6245,24 @@ function openGrimoireMenu(){
   document.addEventListener('keydown',_grimoireEsc);
 }
 function grimoireClear(){ackDurableNotifications(state.blockNotifications);state.blockNotifications=[];updateLogoBadge();refreshGrimoireIfOpen()}
+function appNotifAppPayload(n){const app={desk:n.desk};if(n.appTitle)app.title=n.appTitle;if(n.publisher)app.publisher=n.publisher;return app}
+function appNotifOpenByKey(key){
+  const n=state.appNotifications[key];if(!n)return;
+  if(n.noteId&&state.notes[n.noteId]){closeGrimoire();openNote(n.noteId);return}
+  if(n.href){
+    const href=localPluginHref(n.desk,n.href);
+    if(href){grimoireOpenApp(href,'embedded',n.desk,n.appTitle||n.desk,{});return}
+  }
+}
+function appNotifClearByKey(key){
+  const n=state.appNotifications[key];if(!n)return;
+  delete state.appNotifications[key];updateLogoBadge();refreshGrimoireIfOpen();
+  api.poke('noltbook','noltbook-api',{action:'clear-app-notification',requestId:pluginRequestId(),app:appNotifAppPayload(n),data:{id:n.id}});
+}
+document.addEventListener('click',function(e){
+  const o=e.target.closest('[data-app-notif-open]');if(o){e.stopPropagation();appNotifOpenByKey(o.dataset.appNotifOpen);return}
+  const c=e.target.closest('[data-app-notif-clear]');if(c){e.stopPropagation();appNotifClearByKey(c.dataset.appNotifClear)}
+});
 function renderGrimoireInbox(){
   // mentions/replies/sends are intentionally NOT shown here — the sidebar orange
   // directed-attention dots/previews own that affordance. Grimoire = high-level
@@ -5870,8 +6283,27 @@ function renderGrimoireInboxRows(){
   const rows=[];
   for(const bn of state.blockNotifications)rows.push({time:bn.time||0,html:renderGrimoireBnRow(bn)});
   for(const jr of state.joinRequests)rows.push({time:jr.time||0,html:renderGrimoireJrRow(jr)});
+  for(const an of appNotifList())rows.push({time:an.updatedAt||an.createdAt||0,html:renderGrimoireAppNotifRow(an)});
   rows.sort((a,b)=>b.time-a.time);
   return rows.map(r=>r.html).join('');
+}
+function appNotifColor(level){
+  if(level==='error')return'#ff5555';
+  if(level==='warning')return'#ffaa00';
+  if(level==='success')return'#00ff88';
+  return'#65a9e8';
+}
+function renderGrimoireAppNotifRow(n){
+  const key=appNotifKey(n),color=appNotifColor(n.level),desk='%'+(n.desk||'app');
+  const hasOpen=(n.noteId&&state.notes[n.noteId])||(n.href&&localPluginHref(n.desk,n.href));
+  let msg='<span style="color:'+color+'">'+escHtml(n.title||'App notification')+'</span>';
+  if(n.body)msg+='<span class="grimoire-row-sub" style="white-space:normal;color:var(--text,#ddd)">'+escHtml(n.body)+'</span>';
+  msg+='<span class="grimoire-row-sub">'+escHtml(desk)+(n.appTitle?' &middot; '+escHtml(n.appTitle):'')+'</span>';
+  const buttons='<div class="gn-actions">'
+    +(hasOpen?'<button class="grimoire-btn" style="background:#ffaa00;color:#000;font-weight:bold" data-app-notif-open="'+escAttr(key)+'">OPEN</button>':'')
+    +'<button class="grimoire-btn" style="background:var(--bg3,#222);color:var(--text,#ddd)" data-app-notif-clear="'+escAttr(key)+'">CLEAR</button>'
+    +'</div>';
+  return '<div class="grimoire-row grimoire-notif">'+gchip('APP',color)+'<div class="grimoire-notif-body">'+msg+buttons+'</div></div>';
 }
 function renderGrimoireBnRow(bn){
   const simple=(chipL,chipC,color,inner)=>'<div class="grimoire-row">'+gchip(chipL,chipC)+'<span class="grimoire-row-text" style="color:'+color+'">'+inner+'</span></div>';

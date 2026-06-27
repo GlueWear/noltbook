@@ -679,6 +679,25 @@
       preview=@t
       timestamp=@da
   ==
+::  app-notification (state-66): durable high-level Grimoire notification owned by
+::  a local app desk. The app supplies id/title/body/link hints; Noltbook stamps the
+::  desk/title/publisher from top-level app attribution and owns storage/clearing.
++$  app-notification-level  ?(%info %success %warning %error)
++$  app-notification
+  $:  desk=@tas
+      app-title=(unit @t)
+      publisher=(unit @p)
+      id=@t
+      title=@t
+      body=(unit @t)
+      href=(unit @t)
+      note-id=(unit @ta)
+      artifact-id=(unit @ta)
+      level=app-notification-level
+      created-at=@da
+      updated-at=@da
+      expires-at=(unit @da)
+  ==
 +$  api-action
   $%  [%create-note request-id=(unit @ud) name=@t parent=(unit @ta)]
       [%find-or-create-note request-id=(unit @ud) name=@t parent=(unit @ta)]
@@ -741,6 +760,11 @@
       ::  marks the note read and never touches host mentions/attention/note-read.
       [%actor-clear-notification request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta eid=@uv]
       [%actor-clear-notifications request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor)]
+      ::  App Notifications: app-owned high-level Grimoire rows for plugins.
+      ::  Requires top-level app attribution (desk stamped by Noltbook). id/title are
+      ::  validated/capped in the handler; ttl seconds is optional.
+      [%set-app-notification request-id=(unit @ud) app=(unit api-app) id=@t title=@t body=(unit @t) href=(unit @t) note-id=(unit @ta) artifact-id=(unit @ta) level=(unit @t) ttl=(unit @ud)]
+      [%clear-app-notification request-id=(unit @ud) app=(unit api-app) id=@t]
       ::  Phase B: REAL ship-user actor mute/block by full [host,desk,id]. Raw strings
       ::  validated server-side (host=@p, desk=@tas, id<=128B). Not app/actor actions —
       ::  no grant/caps/status; targets need NOT exist locally (remote actors valid).
@@ -992,6 +1016,9 @@
       ::  clear or lifecycle prune). Live-only on /api/results; the read route is the
       ::  durable recovery surface after reconnect.
       [%actor-notifications-updated desk=@tas id=@t notifications=(list actor-notification-view) full=?]
+      ::  App Notifications: authoritative high-level plugin notification snapshot.
+      ::  Replayed on /notes watch and emitted after set/clear; expired rows are omitted.
+      [%app-notifications-updated notifications=(list app-notification)]
       ::  Phase B: durable UNREAD activity is a separate signal from recency. note-activity
       ::  still drives sidebar ordering; note-unread-activity drives the green-unread dot
       ::  (durable unread = unread-activity > note-read). Muted/blocked actor messages

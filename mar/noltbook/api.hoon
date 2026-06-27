@@ -77,6 +77,11 @@
       ?~  v  ~
       ?.  ?=([%s *] u.v)  ~
       `p.u.v
+    =/  get-num
+      |=  k=@t  ^-  (unit @ud)
+      =/  v  (~(get by d) k)
+      ?~  v  ~
+      ?.(?=([%n *] u.v) ~ `(rash p.u.v dem))
     ::  A1.3b: STRICT three-state target desk — absent => %default; present-but-empty or
     ::  non-term => %invalid; valid term => [%set desk]. Never silently defaults.
     =/  parse-tdesk
@@ -316,6 +321,27 @@
     ::  must parse ABOVE the mandatory noteId extraction below.
     ?:  =('actor-clear-notifications' tag)
       [%actor-clear-notifications rid app actor]
+    ::  App Notifications: high-level plugin rows carry no mandatory noteId; keep
+    ::  them above the noteId extraction below.
+    ?:  =('set-app-notification' tag)
+      =/  nref=(unit @ta)
+        =/  v  (get-str 'noteId')
+        ?~(v ~ ``@ta`u.v)
+      =/  aref=(unit @ta)
+        =/  v  (get-str 'artifactId')
+        ?~(v ~ ``@ta`u.v)
+      :*  %set-app-notification  rid  app
+          (fall (get-str 'id') '')
+          (fall (get-str 'title') '')
+          (get-str 'body')
+          (get-str 'href')
+          nref
+          aref
+          (get-str 'level')
+          (get-num 'ttl')
+      ==
+    ?:  =('clear-app-notification' tag)
+      [%clear-app-notification rid app (fall (get-str 'id') '')]
     ::  Phase B: real-user actor mute/block by raw [host,desk,id] (validated server-side).
     ?:  |(=('mute-actor' tag) =('unmute-actor' tag) =('block-actor' tag) =('unblock-actor' tag))
       =/  ahost=@t  (fall (get-str 'host') '')
@@ -409,11 +435,6 @@
       [%clear-note-pin rid nid]
     ?:  =('set-note-active' tag)
       ::  label/count/ttl from data; `app` is the poke's top-level attribution.
-      =/  get-num
-        |=  k=@t  ^-  (unit @ud)
-        =/  v  (~(get by d) k)
-        ?~  v  ~
-        ?.(?=([%n *] u.v) ~ `(rash p.u.v dem))
       [%set-note-active rid app nid (get-str 'label') (get-num 'count') (get-num 'ttl')]
     ?:  =('clear-note-active' tag)
       [%clear-note-active rid nid]

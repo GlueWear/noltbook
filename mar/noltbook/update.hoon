@@ -459,6 +459,11 @@
           ['noteId' s+(crip (trip note-id.ack))]
       ==
     ::
+        %app-notifications-updated
+      %+  frond  'app-notifications-updated'
+      :-  %a
+      (turn notifications.upd app-notif-json)
+    ::
         %note-activity
       %+  frond  'note-activity'
       %-  pairs
@@ -597,6 +602,24 @@
           ['actor' ?~(actor.v ~ (actor-msg-ref-json u.actor.v))]
           ['preview' s+preview.v]
           ['timestamp' (numb (da-to-ms timestamp.v))]
+      ==
+    ++  app-notif-json
+      |=  n=app-notification:noltbook
+      ^-  ^json
+      %-  pairs
+      :~  ['desk' s+(scot %tas desk.n)]
+          ['appTitle' ?~(app-title.n ~ s+u.app-title.n)]
+          ['publisher' ?~(publisher.n ~ s+(scot %p u.publisher.n))]
+          ['id' s+id.n]
+          ['title' s+title.n]
+          ['body' ?~(body.n ~ s+u.body.n)]
+          ['href' ?~(href.n ~ s+u.href.n)]
+          ['noteId' ?~(note-id.n ~ s+(crip (trip u.note-id.n)))]
+          ['artifactId' ?~(artifact-id.n ~ s+(crip (trip u.artifact-id.n)))]
+          ['level' s+(scot %tas level.n)]
+          ['createdAt' (numb (da-to-ms created-at.n))]
+          ['updatedAt' (numb (da-to-ms updated-at.n))]
+          ['expiresAt' ?~(expires-at.n ~ (numb (da-to-ms u.expires-at.n)))]
       ==
     ::  Phase G5A: actor-dm-meta encoder (mirrors api-actor-dm-json in app).
     ++  actor-dm-meta-json
