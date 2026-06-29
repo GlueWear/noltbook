@@ -6698,7 +6698,7 @@
     ?-  class
       %admin   is-creator
       %mod     ?|(is-creator is-admin)
-      %invite  ?|(is-creator &(=(%gossip type.nt) (~(has in users.nt) our)) &(=(%group type.nt) is-admin))
+      %invite  ?|(is-creator &(?|(=(%group type.nt) =(%gossip type.nt)) ?:(=(%public visibility.nt) (~(has in users.nt) our) is-admin)))
     ==
   ?:  ?|(wb =(%dm type.nt) !gate)
     [%.n (api-result-card rid %.n %rejected 'not allowed for this note/user' `nid ~ ~)]
@@ -7054,6 +7054,2474 @@
   |=  [=wire who=@p rem=remote:noltbook]
   ^-  card
   [%pass wire %agent [who %noltbook] %poke %noltbook-remote !>(rem)]
+++  rem-handle
+  ::  Option-1: the whole %noltbook-remote dispatch moved OUT of the on-poke battery.
+  ::  =| / =* / =. re-expose state-66 faces exactly like the door, so handler bodies are
+  ::  unchanged except this->state. on-poke delegates: =^ cards state (rem-handle bowl rem state).
+  |=  [=bowl:gall rem=remote:noltbook sin=state-66]
+  =|  state-66
+  =*  state  -
+  =.  state  sin
+  ^-  (quip card state-66)
+    ?-  -.rem
+    ::
+        %remote-invite
+      ::  someone invited us to their note
+      ::  reject invites from blocked ships; for DMs notify sender so they clean up
+      ?:  (~(has in pal-blocked) src.bowl)
+        ?.  =(%dm type.rem)  `state
+        :_  state
+        ~[(rpoke /dm-block-rej/(scot %p src.bowl)/[note-id.rem] src.bowl `remote:noltbook`[%remote-dm-blocked note-id.rem])]
+      =/  raw-note=note:noltbook
+        [note-id.rem name.rem type.rem creator.rem users.rem ~ ~ ~ ~ visibility.rem ~ writable.rem ~ ~]
+      ::  for DMs, overlay saved local prefs (name/icon) — these never travel
+      =/  new-note=note:noltbook  (apply-dm-pref raw-note dm-prefs our.bowl)
+      ::  repair children: if orphan child notes for this id already exist
+      ::  locally (delivered before the root invite), merge their ids into
+      ::  new-note.children so the subtree renders on install.
+      =/  orphan-children=(list @ta)  (find-orphan-children note-id.rem notes)
+      =/  new-note=note:noltbook
+        new-note(children (merge-children children.new-note orphan-children))
+      ::  root-uniqueness: dedup dm roots (one root per exact user pair)
+      =/  dup
+        ?.  =(%dm type.rem)  ~
+        (find-root notes users.rem type.rem)
+      ?^  dup
+        ?:  =(id.u.dup note-id.rem)  `state  :: same note, no-op
+        =/  local-wins=?
+          %+  root-wins
+            [creator.u.dup id.u.dup]
+          [creator.rem note-id.rem]
+        ?:  local-wins
+          ::  keep local; tell sender to drop theirs + adopt ours
+          :_  state
+          :~  :*  %pass  /root-exists/(scot %p src.bowl)/[note-id.rem]
+                  %agent  [src.bowl %noltbook]  %poke
+                  %noltbook-remote
+                  !>(`remote:noltbook`[%remote-root-exists note-id.rem u.dup])
+              ==
+          ==
+        ::  remote wins; drop local root, adopt incoming
+        =/  old-id=@ta  id.u.dup
+        =/  trimmed=(map @ta note:noltbook)  (~(del by notes) old-id)
+        =/  trimmed-msgs=(map @ta (list message:noltbook))  (~(del by messages) old-id)
+        =/  redir=update:noltbook  [%note-redirect old-id note-id.rem]
+        =/  new-peers=(set @p)  (~(put in peers) creator.rem)
+        =/  is-new-peer=?  !(~(has in peers) creator.rem)
+        =/  ars-cards=(list card)
+          ?.  is-new-peer  ~
+          ~[[%pass /ars/(scot %p creator.rem) %agent [creator.rem %noltbook] %watch /notes/cover]]
+        =/  upd=update:noltbook  [%note-created new-note]
+        =/  sub-card=card
+          [%pass /remote-note/[note-id.rem] %agent [creator.rem %noltbook] %watch /notes/[note-id.rem]]
+        =/  head-cards=(list card)
+          :~  (gf-notes redir)
+              sub-card
+              (gf-notes upd)
+              (activity-fact note-id.rem now.bowl)
+              (unread-activity-fact note-id.rem now.bowl)
+          ==
+        :_  %=  state
+              notes  (~(put by trimmed) note-id.rem new-note)
+              messages  (~(put by trimmed-msgs) note-id.rem ~)
+              peers  new-peers
+              note-activity  (put-activity note-activity note-id.rem now.bowl)
+              note-unread-activity  (put-unread-activity note-unread-activity note-id.rem now.bowl)
+            ==
+        :(weld head-cards ars-cards)
+      ::  no collision: original path
+      ::  add creator to peers, subscribe to their ars notoria
+      =/  new-peers=(set @p)  (~(put in peers) creator.rem)
+      =/  is-new-peer=?  !(~(has in peers) creator.rem)
+      =/  ars-cards=(list card)
+        ?.  is-new-peer
+          ~
+        ~[[%pass /ars/(scot %p creator.rem) %agent [creator.rem %noltbook] %watch /notes/cover]]
+      ::  notify local frontend (peers only, no pal intent on receive)
+      =/  upd=update:noltbook  [%note-created new-note]
+      ::  subscribe to creator for live updates (skip cover — ars handles it)
+      ?:  =(note-id.rem %cover)
+        :_  state(notes (~(put by notes) note-id.rem new-note), messages (~(put by messages) note-id.rem ~), peers new-peers)
+        :(weld [(gf-notes upd) ~] ars-cards)
+      =/  sub-card=card
+        [%pass /remote-note/[note-id.rem] %agent [creator.rem %noltbook] %watch /notes/[note-id.rem]]
+      :_  state(notes (~(put by notes) note-id.rem new-note), messages (~(put by messages) note-id.rem ~), peers new-peers, note-activity (put-activity note-activity note-id.rem now.bowl), note-unread-activity (put-unread-activity note-unread-activity note-id.rem now.bowl))
+      :(weld [sub-card (gf-notes upd) (activity-fact note-id.rem now.bowl) (unread-activity-fact note-id.rem now.bowl) ~] ars-cards)
+    ::
+        %remote-gossip-invite
+      ::  someone invited us to their gossip note (with headline)
+      ?:  (~(has in pal-blocked) src.bowl)  `state
+      =/  hl  headline.rem
+      =/  new-note=note:noltbook
+        [note-id.rem name.rem %gossip creator.rem users.rem ~ ~ ~ ~ %secret ~ & ~ hl]
+      =/  new-peers=(set @p)  (~(put in peers) creator.rem)
+      =/  is-new-peer=?  !(~(has in peers) creator.rem)
+      =/  ars-cards=(list card)
+        ?.  is-new-peer  ~
+        ~[[%pass /ars/(scot %p creator.rem) %agent [creator.rem %noltbook] %watch /notes/cover]]
+      =/  upd=update:noltbook  [%note-created new-note]
+      =/  sub-card=card
+        [%pass /remote-note/[note-id.rem] %agent [creator.rem %noltbook] %watch /notes/[note-id.rem]]
+      =/  new-headlines=(map @ta @t)
+        ?~  hl  headlines
+        (~(put by headlines) note-id.rem u.hl)
+      :_  %=  state
+            notes  (~(put by notes) note-id.rem new-note)
+            messages  (~(put by messages) note-id.rem ~)
+            peers  new-peers
+            headlines  new-headlines
+            note-activity  (put-activity note-activity note-id.rem now.bowl)
+            note-unread-activity  (put-unread-activity note-unread-activity note-id.rem now.bowl)
+          ==
+      :(weld [sub-card (gf-notes upd) (activity-fact note-id.rem now.bowl) (unread-activity-fact note-id.rem now.bowl) ~] ars-cards)
+    ::
+        %remote-dm-message
+      ::  atomic DM delivery: payload carries DM note metadata, so the
+      ::  receiver can recreate the DM if they previously left it. No
+      ::  subscription, no echo poke — avoids ames loops.
+      ?:  (~(has in pal-blocked) src.bowl)  `state
+      ?.  =(%dm type.note.rem)  `state
+      ?.  =(2 ~(wyt in users.note.rem))  `state
+      ?.  (~(has in users.note.rem) our.bowl)  `state
+      ?.  (~(has in users.note.rem) src.bowl)  `state
+      ?.  =(src.bowl author.msg.rem)  `state
+      ::  resolve canonical local nid for this pair (handles re-creation
+      ::  after leave, and possible nid collision via root-wins).
+      =/  existing=(unit note:noltbook)  (find-dm-root notes users.note.rem)
+      =/  install-fresh=note:noltbook  (apply-dm-pref note.rem dm-prefs our.bowl)
+      =/  target-nid=@ta
+        ?~  existing  id.note.rem
+        ?:  =(id.u.existing id.note.rem)  id.u.existing
+        ?:  (root-wins [creator.u.existing id.u.existing] [creator.note.rem id.note.rem])
+          id.u.existing
+        id.note.rem
+      =/  staged-notes=(map @ta note:noltbook)
+        ?~  existing
+          (~(put by notes) target-nid install-fresh)
+        ?:  =(id.u.existing target-nid)  notes
+        ::  remote wins: drop local, install incoming
+        (~(put by (~(del by notes) id.u.existing)) target-nid install-fresh)
+      =/  staged-msgs=(map @ta (list message:noltbook))
+        ?~  existing
+          (~(put by messages) target-nid ~)
+        ?:  =(id.u.existing target-nid)  messages
+        (~(put by (~(del by messages) id.u.existing)) target-nid ~)
+      =/  note-cards=(list card)
+        ?~  existing
+          ~[(gf-notes `update:noltbook`[%note-created install-fresh])]
+        ?:  =(id.u.existing target-nid)  ~
+        :~  (gf-notes `update:noltbook`[%note-redirect id.u.existing target-nid])
+            (gf-notes `update:noltbook`[%note-created install-fresh])
+        ==
+      ::  dedup message on target nid
+      =/  cur=(list message:noltbook)  (fall (~(get by staged-msgs) target-nid) ~)
+      =/  msg-eid=(unit @uv)  ?~(meta.msg.rem ~ `eid.u.meta.msg.rem)
+      =/  dup=?
+        ?|  (lien cur |=(m=message:noltbook =(id.m id.msg.rem)))
+            ?&  ?=(^ msg-eid)
+                (lien cur |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.msg-eid))))
+            ==
+        ==
+      ?:  dup
+        :_  state(notes staged-notes, messages staged-msgs)
+        note-cards
+      ::  The remote ship may know this DM under a different root id. Store
+      ::  and emit the message under our resolved local DM id so the frontend
+      ::  does not route it to the stale/remote id.
+      =/  local-msg=message:noltbook  msg.rem(note-id target-nid)
+      =/  new-cur=(list message:noltbook)  (snoc cur local-msg)
+      =/  target-note=note:noltbook  (~(got by staged-notes) target-nid)
+      =/  upd-note=note:noltbook
+        target-note(last-author `src.bowl, last-preview `text.local-msg)
+      ::  Phase ACTOR-1: trust the incoming actor only if its host == the
+      ::  Ames-authenticated source; otherwise drop it. host is never trusted
+      ::  from the wire field.
+      ::  Phase ACTOR-1 hardening: a remote actor is app-scoped and must arrive
+      ::  tied to valid via attribution FROM THE SAME SOURCE. Keep actor only when
+      ::  actor+via both exist, actor.host == via.ship == src.bowl, and actor.desk
+      ::  == via.desk. Any mismatch (or detached actor) drops the actor entirely.
+      =/  dm-actor=(unit actor:noltbook)
+        ?~  actor.rem  ~
+        ?~  via.rem  ~
+        ?.  =(host.u.actor.rem src.bowl)  ~
+        ?.  =(ship.u.via.rem src.bowl)  ~
+        ?.  =(desk.u.actor.rem desk.u.via.rem)  ~
+        actor.rem
+      ::  Phase 11B: DM recipient records the sender's via against the message eid.
+      =/  new-msg-upd=update:noltbook  [%new-message local-msg ~ via.rem dm-actor]
+      =/  msg-cards=(list card)
+        :~  (gf-paths ~[/notes/[target-nid]] new-msg-upd)
+            (gf-notes new-msg-upd)
+        ==
+      =.  via-by-eid  (api-via-put via-by-eid via.rem local-msg)
+      =.  actor-by-eid  (api-actor-put actor-by-eid dm-actor local-msg)
+      :_  state(notes (~(put by staged-notes) target-nid upd-note), messages (~(put by staged-msgs) target-nid new-cur), note-activity (put-activity note-activity target-nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity target-nid now.bowl))
+      :(weld note-cards msg-cards ~[(activity-fact target-nid now.bowl) (unread-activity-fact target-nid now.bowl)])
+    ::
+        %remote-message
+      ::  a remote user sent a message to a note we host
+      ::  reject if sender is blocked
+      ?:  (~(has in pal-blocked) src.bowl)  `state
+      =/  old  (~(get by notes) note-id.rem)
+      ?~  old  `state
+      ::  reject if sender was removed from note
+      ?:  (~(has in removed.u.old) src.bowl)  `state
+      ::  reject if sender is muted in this note
+      ?:  (~(has in (fall (~(get by note-muted) note-id.rem) ~)) src.bowl)  `state
+      ::  verify: we must be creator (or DM peer), sender must be in users
+      ?.  ?|  =(our.bowl creator.u.old)
+              =(%dm type.u.old)
+          ==
+        `state
+      ?.  (~(has in users.u.old) src.bowl)  `state
+      ::  DM validation: message author must match sender
+      ?:  &(=(%dm type.u.old) !=(src.bowl author.msg.rem))  `state
+      ::  host assigns authoritative entry-meta for regular notes
+      =/  is-regular=?
+        ?&  !=(%cover type.u.old)
+            !=(%gossip type.u.old)
+            !=(note-id.rem %ars-rumors)
+        ==
+      =/  cur-seq=@ud  (fall (~(get by seq-counters) note-id.rem) 0)
+      =/  nxt-seq=@ud  ?:(is-regular +(cur-seq) 0)
+      ::  resolve reply-to-eid: look up parent message's eid
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
+      ::  DM dedup: poke may race with subscription delivery
+      =/  rm-eid=(unit @uv)  ?~(meta.msg.rem ~ `eid.u.meta.msg.rem)
+      ?:  ?&  =(%dm type.u.old)
+              ?|  (lien cur |=(m=message:noltbook =(id.m id.msg.rem)))
+                  ?&  ?=(^ rm-eid)
+                      (lien cur |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.rm-eid))))
+                  ==
+              ==
+          ==
+        `state
+      =/  reply-eid=(unit @uv)
+        ?.  is-regular  ~
+        ::  sender-supplied reply-to-eid wins first — this is the ONLY signal for
+        ::  replies to artifacts (which have no legacy @da reply-to). Must be
+        ::  checked before the legacy reply-to short-circuit.
+        =/  sender-eid=(unit @uv)
+          ?~(meta.msg.rem ~ reply-to-eid.u.meta.msg.rem)
+        ?^  sender-eid  sender-eid
+        ::  legacy text-to-text fallback: resolve parent message by @da id
+        ?~  reply-to.msg.rem  ~
+        =/  parent=(list message:noltbook)  (skim cur |=(m=message:noltbook =(id.m u.reply-to.msg.rem)))
+        ?~  parent  ~
+        ?~  meta.i.parent  ~
+        `eid.u.meta.i.parent
+      =/  host-meta=(unit entry-meta:noltbook)
+        ?.  is-regular  ~
+        `[(sham [src.bowl now.bowl nxt-seq]) nxt-seq 0 timestamp.msg.rem now.bowl reply-eid]
+      ::  DM: preserve sender-authored meta; hosted: override with host meta
+      =/  stamped=message:noltbook
+        ?:  =(%dm type.u.old)  msg.rem
+        msg.rem(meta host-meta)
+      ::  host rebroadcast of a member's message: carry the member's NOTE SEND
+      ::  marker (directed-kind.rem) so a member-recipient classifies as %send.
+      ::  Phase ACTOR-1: trust the incoming actor only if its host == the
+      ::  Ames-authenticated source; otherwise drop it (never trust wire host).
+      ::  Phase ACTOR-1 hardening: same app-scoped invariant as the DM receiver —
+      ::  actor kept only when tied to valid via from src (host==via.ship==src.bowl
+      ::  and actor.desk==via.desk). Detached/mismatched actor is dropped.
+      =/  rem-actor=(unit actor:noltbook)
+        ?~  actor.rem  ~
+        ?~  via.rem  ~
+        ?.  =(host.u.actor.rem src.bowl)  ~
+        ?.  =(ship.u.via.rem src.bowl)  ~
+        ?.  =(desk.u.actor.rem desk.u.via.rem)  ~
+        actor.rem
+      ::  Phase 11B: carry the sender's via on the host rebroadcast so members
+      ::  record it against the host-assigned eid (stamped), keeping ship=sender.
+      =/  upd=update:noltbook  [%new-message stamped directed-kind.rem via.rem rem-actor]
+      =/  pax=path  ~[%notes note-id.rem]
+      =/  upd-note=note:noltbook  u.old(last-author `author.msg.rem, last-preview `text.msg.rem)
+      ::  Phase B: real-user mute/block of the (guarded) sender actor suppresses host
+      ::  unread + @~host mention + reply attention; the message still stores/delivers.
+      =/  u-suppressed=?  (actor-user-suppressed rem-actor user-muted-actors user-blocked-actors)
+      ::  mention detection: check if @~our appears in message text
+      =/  mentioned=?  &(!u-suppressed (has-our-mention text.msg.rem our.bowl))
+      =/  stamped-eid=(unit @uv)
+        ?~  meta.stamped  ~
+        `eid.u.meta.stamped
+      =/  active-mentioned=?
+        ?&(mentioned !(mention-cleared (fall (~(get by cleared-mentions) note-id.rem) ~) id.stamped stamped-eid))
+      =/  mention-cards=(list card)
+        ?.  active-mentioned  ~
+        (attn-mention-cards note-id.rem id.stamped stamped-eid author.msg.rem)
+      =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+        ?.  active-mentioned  mentions
+        =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) note-id.rem) ~)
+        (~(put by mentions) note-id.rem (snoc cur-m [id.stamped stamped-eid author.msg.rem]))
+      =/  new-seq=(map @ta @ud)
+        ?:  =(%dm type.u.old)  seq-counters
+        ?:(is-regular (~(put by seq-counters) note-id.rem nxt-seq) seq-counters)
+      ::  reply attention: notify the immediate parent owner if it is us. Target
+      ::  is the NEW reply (a message). Uses sender reply-to-eid then legacy @da.
+      =/  note-arts=(list artifact:noltbook)
+        (skim ~(val by artifacts) |=(a=artifact:noltbook =(note-id.a note-id.rem)))
+      =/  note-aenvs=(list artifact-envelope:noltbook)
+        ~(val by (fall (~(get by artifact-envelopes) note-id.rem) *(map @ta artifact-envelope:noltbook)))
+      =/  rte=(unit @uv)  ?~(meta.msg.rem ~ reply-to-eid.u.meta.msg.rem)
+      =/  par-owner=(unit @p)  (attn-parent-owner rte reply-to.msg.rem cur note-arts note-aenvs)
+      ::  Phase G6B: if the immediate parent is attributed to an actor, route to actor
+      ::  notification logic and SUPPRESS host reply attention for that parent (even if
+      ::  the actor is remote or the notification is later filtered).
+      =/  par-eid=(unit @uv)  (reply-parent-eid msg.rem cur)
+      =/  parent-is-actor=?  ?&(?=(^ par-eid) (~(has by actor-by-eid) u.par-eid))
+      ::  NOTE SEND payment posts get kind=%send via the explicit marker carried
+      ::  on the %remote-message poke (no longer text-prefix based).
+      =/  rkind=attention-kind:noltbook  ?:(=(`%send directed-kind.rem) %send %reply)
+      =/  rtarget=attention-item:noltbook  [rkind %message stamped-eid `id.stamped ~ author.msg.rem id.stamped]
+      =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
+        ?:  |(parent-is-actor u-suppressed)  [attention ~]
+        (add-reply-attn attention note-id.rem our.bowl (host-self author.msg.rem rem-actor our.bowl) par-owner rtarget)
+      ::  Phase 11B: host records attribution against its own stamped eid.
+      =.  via-by-eid  (api-via-put via-by-eid via.rem stamped)
+      ::  Phase ACTOR-1: host records the guarded actor against the stamped eid.
+      =.  actor-by-eid  (api-actor-put actor-by-eid rem-actor stamped)
+      ::  Phase G6B: actor reply notification on the parent actor's host (this ship).
+      =^  notif-cards  actor-notifications
+        ?.  parent-is-actor  [~ actor-notifications]
+        (actor-notif-add actor-notifications our.bowl now.bowl note-id.rem stamped rem-actor actor-by-eid cur actor-registry note-actor-owners actor-note-roster actor-dm-notes notes actor-preferences)
+      ::  Phase B: unread-activity advances unless a muted/blocked sender actor.
+      =/  new-unread-activity=(map @ta @da)
+        ?:(u-suppressed note-unread-activity (put-unread-activity note-unread-activity note-id.rem now.bowl))
+      =/  unread-card=(list card)
+        ?:(u-suppressed ~ ~[(unread-activity-fact note-id.rem now.bowl)])
+      :_  state(notes (~(put by notes) note-id.rem upd-note), messages (~(put by messages) note-id.rem (snoc cur stamped)), mentions new-mentions, attention na.ar, seq-counters new-seq, note-activity (put-activity note-activity note-id.rem now.bowl), note-unread-activity new-unread-activity)
+      ^-  (list card:agent:gall)
+      ::  1B.2: durable state + /notes/[nid] transport delivery + actor notifications are
+      ::  unchanged; the global /notes host-human facts (gf-notes/activity/unread/mention)
+      ::  are stripped when the host human is not a logical member of the (hidden) note.
+      %:  human-note-cards  note-id.rem  our.bowl
+          note-members  note-actor-owners  notes
+        :*  (gf-paths ~[pax] upd)
+            (gf-notes upd)
+            (activity-fact note-id.rem now.bowl)
+            (weld unread-card (weld notif-cards (weld mention-cards ac.ar)))
+        ==
+      ==
+    ::
+        %remote-ars
+      ::  ARS NOTORIA gossip from a peer (legacy full-message path)
+      =/  cenv=(map @da envelope:noltbook)
+        (fall (~(get by gossip-envelopes) %cover) *(map @da envelope:noltbook))
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) %cover) ~)
+      =/  meid=(unit @uv)  ?~(meta.msg.rem ~ `eid.u.meta.msg.rem)
+      ::  dedup: eid-first (stable identity), fall back to msg-id (compat)
+      ?:  ?|  (lien cur |=(m=message:noltbook =(id.m id.msg.rem)))
+              ?&  ?=(^ meid)
+                  (lien cur |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.meid))))
+              ==
+          ==
+        `state
+      ?:  ?|  (~(has by cenv) id.msg.rem)
+              ?&  ?=(^ meid)
+                  (lien ~(val by cenv) |=(e=envelope:noltbook ?~(meta.e %.n =(eid.u.meta.e u.meid))))
+              ==
+          ==
+        `state
+      =/  my-hops=@ud  (add hops.rem 1)
+      =/  mentioned=?  &(!=(author.msg.rem our.bowl) (has-our-mention text.msg.rem our.bowl))
+      =/  active-mentioned=?
+        ?&(mentioned !(mention-cleared (fall (~(get by cleared-mentions) %cover) ~) id.msg.rem meid))
+      =/  mention-cards=(list card)
+        ?.  active-mentioned  ~
+        (attn-mention-cards %cover id.msg.rem meid author.msg.rem)
+      =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+        ?.  active-mentioned  mentions
+        =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) %cover) ~)
+        (~(put by mentions) %cover (snoc cur-m [id.msg.rem meid author.msg.rem]))
+      =/  env=envelope:noltbook  (api-env-of msg.rem via-by-eid)
+      ::  relay to our FOLLOWERS (pal-incoming) — content flows to who follows us, which is
+      ::  who displays it (coverMsgVisible shows posts whose author you follow).
+      =/  relay=(list card)
+        %+  murn  ~(tap in pal-incoming)
+        |=  p=@p
+        ?:  =(p src.bowl)  ~
+        ?:  =(p author.msg.rem)  ~
+        `(rpoke /ars-out/(scot %p p) p `remote:noltbook`[%remote-ars-ref env my-hops])
+      ?:  =(author.msg.rem our.bowl)
+        =/  upd=update:noltbook  [%gossip-message msg.rem my-hops]
+        :_  state(messages (~(put by messages) %cover (cap-msgs (snoc cur msg.rem) %.y)), gossip-hops (~(put by gossip-hops) id.msg.rem my-hops), mentions new-mentions)
+        :(weld ~[(gf-paths ~[/notes/cover] upd)] relay mention-cards)
+      =/  env-upd=update:noltbook  [%gossip-envelope %cover env my-hops]
+      =/  content-upd=update:noltbook  [%cover-msg-content %cover msg.rem]
+      :_  state(gossip-envelopes (~(put by gossip-envelopes) %cover (cap-envs (~(put by cenv) id.msg.rem env))), gossip-hops (~(put by gossip-hops) id.msg.rem my-hops), mentions new-mentions)
+      :(weld ~[(gf-paths ~[/notes/cover] env-upd)] ~[(gf-notes content-upd)] relay mention-cards)
+    ::
+        %remote-ars-ref
+      ::  ARS NOTORIA envelope gossip from a peer
+      =/  env  env.rem
+      =/  cenv=(map @da envelope:noltbook)
+        (fall (~(get by gossip-envelopes) %cover) *(map @da envelope:noltbook))
+      ::  dedup: eid-first (stable identity), fall back to msg-id (compat)
+      =/  env-eid=(unit @uv)  ?~(meta.env ~ `eid.u.meta.env)
+      ?:  ?|  (~(has by cenv) msg-id.env)
+              ?&  ?=(^ env-eid)
+                  (lien ~(val by cenv) |=(e=envelope:noltbook ?~(meta.e %.n =(eid.u.meta.e u.env-eid))))
+              ==
+          ==
+        `state
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) %cover) ~)
+      ?:  ?|  (lien cur |=(m=message:noltbook =(id.m msg-id.env)))
+              ?&  ?=(^ env-eid)
+                  (lien cur |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.env-eid))))
+              ==
+          ==
+        `state
+      =/  my-hops=@ud  (add hops.rem 1)
+      =/  upd=update:noltbook  [%gossip-envelope %cover env my-hops]
+      ::  relay to our FOLLOWERS (pal-incoming), not who we follow — see coverMsgVisible.
+      =/  relay=(list card)
+        %+  murn  ~(tap in pal-incoming)
+        |=  p=@p
+        ?:  =(p src.bowl)  ~
+        ?:  =(p author.env)  ~
+        `(rpoke /ars-out/(scot %p p) p `remote:noltbook`[%remote-ars-ref env my-hops])
+      ::  reply attention: cover text reply → notify the immediate parent owner if us
+      =/  note-arts=(list artifact:noltbook)
+        (skim ~(val by artifacts) |=(a=artifact:noltbook =(note-id.a %cover)))
+      =/  note-aenvs=(list artifact-envelope:noltbook)
+        ~(val by (fall (~(get by artifact-envelopes) %cover) *(map @ta artifact-envelope:noltbook)))
+      =/  env-rte=(unit @uv)  ?~(meta.env ~ reply-to-eid.u.meta.env)
+      =/  par-owner=(unit @p)  (attn-parent-owner env-rte reply-to.env cur note-arts note-aenvs)
+      =/  rtarget=attention-item:noltbook  [%reply %message env-eid `msg-id.env ~ author.env timestamp.env]
+      =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
+        (add-reply-attn attention %cover our.bowl (host-self author.env ~ our.bowl) par-owner rtarget)
+      ::  Phase 11C: record the cover envelope's app attribution by eid.
+      =.  via-by-eid  (api-via-put-env via-by-eid env)
+      :_  state(gossip-envelopes (~(put by gossip-envelopes) %cover (cap-envs (~(put by cenv) msg-id.env env))), gossip-hops (~(put by gossip-hops) msg-id.env my-hops), attention na.ar)
+      ::  emit the envelope on global /notes too (like user-gossip) so a CLOSED
+      ::  cover still triggers fetchGossipContent → %cover-msg-content → preview.
+      ::  No activity-fact / sidebar-signal: cover must not get a green/red dot;
+      ::  the preview is set frontend-side from the fetched message.
+      :*  (gf-paths ~[/notes/cover] upd)
+          (gf-notes upd)
+          (weld relay ac.ar)
+      ==
+    ::
+        %remote-fetch-cover-msg
+      ::  someone is requesting a cover message we authored
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) %cover) ~)
+      ::  eid-first lookup, fall back to msg-id
+      =/  found=(list message:noltbook)
+        ?^  eid.rem
+          =/  by-eid  (skim cur |=(m=message:noltbook ?&(=(author.m our.bowl) ?~(meta.m %.n =(eid.u.meta.m u.eid.rem)))))
+          ?^  by-eid  by-eid
+          (skim cur |=(m=message:noltbook &(=(id.m msg-id.rem) =(author.m our.bowl))))
+        (skim cur |=(m=message:noltbook &(=(id.m msg-id.rem) =(author.m our.bowl))))
+      ?~  found  `state
+      :_  state
+      :~  (rpoke /msg-reply/(scot %p requester.rem)/(scot %da msg-id.rem) requester.rem `remote:noltbook`[%remote-cover-msg-reply requester.rem i.found])
+      ==
+    ::
+        %remote-cover-msg-reply
+      ::  author replied with full message content — ephemeral forward only
+      ?.  =(requester.rem our.bowl)  `state
+      =/  msg  msg.rem
+      =/  cenv=(map @da envelope:noltbook)
+        (fall (~(get by gossip-envelopes) %cover) *(map @da envelope:noltbook))
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) %cover) ~)
+      =/  reply-eid=(unit @uv)  ?~(meta.msg ~ `eid.u.meta.msg)
+      ::  dedup: eid-first, fall back to msg-id
+      ?:  ?|  (lien cur |=(m=message:noltbook =(id.m id.msg)))
+              ?&  ?=(^ reply-eid)
+                  (lien cur |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.reply-eid))))
+              ==
+          ==
+        `state
+      ::  envelope lookup: eid-first, fall back to msg-id
+      =/  env=(unit envelope:noltbook)
+        ?:  ?=(^ reply-eid)
+          =/  by-eid  (skim ~(val by cenv) |=(e=envelope:noltbook ?~(meta.e %.n =(eid.u.meta.e u.reply-eid))))
+          ?^  by-eid  `i.by-eid
+          (~(get by cenv) id.msg)
+        (~(get by cenv) id.msg)
+      ?~  env
+        ~&  [%cover-msg-reply-no-envelope id=id.msg]
+        `state
+      ?.  |(=(content-hash.u.env *@uv) =(content-hash.u.env (sham text.msg)))
+        ~&  [%cover-msg-hash-mismatch id=id.msg expected=content-hash.u.env got=(sham text.msg)]
+        `state
+      =/  new-envs=(map @ta (map @da envelope:noltbook))
+        ?:  =(content-hash.u.env *@uv)
+          (~(put by gossip-envelopes) %cover (cap-envs (~(put by cenv) id.msg u.env(content-hash (sham text.msg)))))
+        gossip-envelopes
+      =/  meid=(unit @uv)  ?~(meta.msg ~ `eid.u.meta.msg)
+      =/  mentioned=?  &(!=(author.msg our.bowl) (has-our-mention text.msg our.bowl))
+      =/  active-mentioned=?
+        ?&(mentioned !(mention-cleared (fall (~(get by cleared-mentions) %cover) ~) id.msg meid))
+      =/  mention-cards=(list card)
+        ?.  active-mentioned  ~
+        (attn-mention-cards %cover id.msg meid author.msg)
+      =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+        ?.  active-mentioned  mentions
+        =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) %cover) ~)
+        (~(put by mentions) %cover (snoc cur-m [id.msg meid author.msg]))
+      =/  upd=update:noltbook  [%cover-msg-content %cover msg]
+      :_  state(gossip-envelopes new-envs, mentions new-mentions)
+      (weld ~[(gf-notes upd)] mention-cards)
+    ::
+        %remote-gossip-ref
+      ::  gossip envelope from a note user
+      =/  nid=@ta  note-id.rem
+      =/  note  (~(get by notes) nid)
+      ?~  note  `state
+      ?.  =(%gossip type.u.note)  `state
+      ::  mesh model: accept a gossip ref for a note we HOLD from any pal — no member list.
+      ::  Dedup below prevents loops; the envelope content-hash prevents relay tampering.
+      =/  env  env.rem
+      =/  nenv=(map @da envelope:noltbook)
+        (fall (~(get by gossip-envelopes) nid) *(map @da envelope:noltbook))
+      ::  dedup: eid-first (stable identity), fall back to msg-id (compat)
+      =/  env-eid=(unit @uv)  ?~(meta.env ~ `eid.u.meta.env)
+      ?:  ?|  (~(has by nenv) msg-id.env)
+              ?&  ?=(^ env-eid)
+                  (lien ~(val by nenv) |=(e=envelope:noltbook ?~(meta.e %.n =(eid.u.meta.e u.env-eid))))
+              ==
+          ==
+        `state
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) nid) ~)
+      ?:  ?|  (lien cur |=(m=message:noltbook =(id.m msg-id.env)))
+              ?&  ?=(^ env-eid)
+                  (lien cur |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.env-eid))))
+              ==
+          ==
+        `state
+      =/  my-hops=@ud  (add hops.rem 1)
+      =/  upd=update:noltbook  [%gossip-envelope nid env my-hops]
+      ::  mesh model: re-relay onward to our FOLLOWERS (pal-incoming) — content flows to who
+      ::  follows us (who displays it). Dedup above means each holder relays once, so it terminates.
+      =/  relay=(list card)
+        %+  murn  ~(tap in pal-incoming)
+        |=  p=@p
+        ?:  =(p our.bowl)  ~
+        ?:  =(p src.bowl)  ~
+        ?:  =(p author.env)  ~
+        `(rpoke /gossip-out/(scot %p p)/[nid] p `remote:noltbook`[%remote-gossip-ref nid env my-hops])
+      =/  head-cards=(list card:agent:gall)
+        :~  (gf-paths ~[/notes/[nid]] upd)
+            ::  also emit the envelope on global /notes so a closed gossip note
+            ::  triggers fetchGossipContent → %cover-msg-content → preview.
+            (gf-notes upd)
+            (activity-fact nid now.bowl)
+            (unread-activity-fact nid now.bowl)
+            (sidebar-signal nid author.env ~ %gossip now.bowl)
+        ==
+      ::  reply attention: user-gossip text reply → notify the parent owner if us
+      =/  note-arts=(list artifact:noltbook)
+        (skim ~(val by artifacts) |=(a=artifact:noltbook =(note-id.a nid)))
+      =/  note-aenvs=(list artifact-envelope:noltbook)
+        ~(val by (fall (~(get by artifact-envelopes) nid) *(map @ta artifact-envelope:noltbook)))
+      =/  env-rte=(unit @uv)  ?~(meta.env ~ reply-to-eid.u.meta.env)
+      =/  par-owner=(unit @p)  (attn-parent-owner env-rte reply-to.env cur note-arts note-aenvs)
+      =/  rtarget=attention-item:noltbook  [%reply %message env-eid `msg-id.env ~ author.env timestamp.env]
+      =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
+        (add-reply-attn attention nid our.bowl (host-self author.env ~ our.bowl) par-owner rtarget)
+      ::  Phase 11C: record the gossip envelope's app attribution by eid.
+      =.  via-by-eid  (api-via-put-env via-by-eid env)
+      :_  state(gossip-envelopes (~(put by gossip-envelopes) nid (cap-envs (~(put by nenv) msg-id.env env))), gossip-hops (~(put by gossip-hops) msg-id.env my-hops), attention na.ar, note-activity (put-activity note-activity nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity nid now.bowl))
+      (weld (weld head-cards relay) ac.ar)
+    ::
+        %remote-fetch-gossip-msg
+      ::  someone requests a gossip message we authored
+      =/  nid=@ta  note-id.rem
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) nid) ~)
+      ::  eid-first lookup, fall back to msg-id
+      =/  found=(list message:noltbook)
+        ?^  eid.rem
+          =/  by-eid  (skim cur |=(m=message:noltbook ?&(=(author.m our.bowl) ?~(meta.m %.n =(eid.u.meta.m u.eid.rem)))))
+          ?^  by-eid  by-eid
+          (skim cur |=(m=message:noltbook &(=(id.m msg-id.rem) =(author.m our.bowl))))
+        (skim cur |=(m=message:noltbook &(=(id.m msg-id.rem) =(author.m our.bowl))))
+      ?~  found  `state
+      :_  state
+      :~  (rpoke /msg-reply/(scot %p requester.rem)/(scot %da msg-id.rem) requester.rem `remote:noltbook`[%remote-gossip-msg-reply nid requester.rem i.found])
+      ==
+    ::
+        %remote-gossip-msg-reply
+      ::  author replied with gossip message content — ephemeral forward only
+      ?.  =(requester.rem our.bowl)  `state
+      =/  nid=@ta  note-id.rem
+      =/  msg  msg.rem
+      =/  nenv=(map @da envelope:noltbook)
+        (fall (~(get by gossip-envelopes) nid) *(map @da envelope:noltbook))
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) nid) ~)
+      =/  reply-eid=(unit @uv)  ?~(meta.msg ~ `eid.u.meta.msg)
+      ::  dedup: eid-first, fall back to msg-id
+      ?:  ?|  (lien cur |=(m=message:noltbook =(id.m id.msg)))
+              ?&  ?=(^ reply-eid)
+                  (lien cur |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.reply-eid))))
+              ==
+          ==
+        `state
+      ::  envelope lookup: eid-first, fall back to msg-id
+      =/  env=(unit envelope:noltbook)
+        ?:  ?=(^ reply-eid)
+          =/  by-eid  (skim ~(val by nenv) |=(e=envelope:noltbook ?~(meta.e %.n =(eid.u.meta.e u.reply-eid))))
+          ?^  by-eid  `i.by-eid
+          (~(get by nenv) id.msg)
+        (~(get by nenv) id.msg)
+      ?~  env
+        ~&  [%gossip-msg-reply-no-envelope id=id.msg note=nid]
+        `state
+      ?.  |(=(content-hash.u.env *@uv) =(content-hash.u.env (sham text.msg)))
+        ~&  [%gossip-msg-hash-mismatch id=id.msg note=nid]
+        `state
+      =/  new-envs=(map @ta (map @da envelope:noltbook))
+        ?:  =(content-hash.u.env *@uv)
+          (~(put by gossip-envelopes) nid (cap-envs (~(put by nenv) id.msg u.env(content-hash (sham text.msg)))))
+        gossip-envelopes
+      =/  meid=(unit @uv)  ?~(meta.msg ~ `eid.u.meta.msg)
+      =/  mentioned=?  &(!=(author.msg our.bowl) (has-our-mention text.msg our.bowl))
+      =/  active-mentioned=?
+        ?&(mentioned !(mention-cleared (fall (~(get by cleared-mentions) nid) ~) id.msg meid))
+      =/  mention-cards=(list card)
+        ?.  active-mentioned  ~
+        (attn-mention-cards nid id.msg meid author.msg)
+      =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+        ?.  active-mentioned  mentions
+        =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) nid) ~)
+        (~(put by mentions) nid (snoc cur-m [id.msg meid author.msg]))
+      ::  do NOT persist full message — ephemeral forward only
+      =/  upd=update:noltbook  [%cover-msg-content nid msg]
+      ::  sidebar signal + preview persistence for user gossip notes only
+      ::  (this path also serves %cover content fetches — never signal cover).
+      =/  note-u  (~(get by notes) nid)
+      =/  is-user-gossip=?  &(?=(^ note-u) =(%gossip type.u.note-u))
+      =/  new-notes2=(map @ta note:noltbook)
+        ?.  ?=(^ note-u)  notes
+        ?.  =(%gossip type.u.note-u)  notes
+        (~(put by notes) nid u.note-u(last-author `author.msg, last-preview `text.msg))
+      =/  sig-cards=(list card)
+        ?.  is-user-gossip  ~
+        ~[(sidebar-signal nid author.msg `text.msg %gossip now.bowl)]
+      :_  state(gossip-envelopes new-envs, mentions new-mentions, notes new-notes2)
+      :(weld ~[(gf-notes upd)] mention-cards sig-cards)
+    ::
+        %remote-rumor
+      ::  RUMORS: anonymous gossip from a peer. Identity model is
+      ::  content-hash (not entry-meta) — see %send-message %ars-rumors.
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) %ars-rumors) ~)
+      ::  content-hash identity: dedup by (sham text)
+      =/  chash=@uv  (sham text.msg.rem)
+      ?:  (~(has by gossip-hops) `@da`chash)
+        `state
+      ::  force author anonymous (don't trust sender)
+      =/  anon-msg=message:noltbook  msg.rem(author ~hosted)
+      =/  upd=update:noltbook  [%rumor-message anon-msg]
+      ::  proxy relay: 50% broadcast, 50% proxy through one random peer
+      =/  targets=(list @p)
+        %+  skim  ~(tap in pal-outgoing)
+        |=(p=@p !=(p src.bowl))
+      =/  relay=(list card)
+        ?:  =(0 (lent targets))  ~
+        ?.  =(0 (~(rad og eny.bowl) 2))
+          ::  broadcast to all (except sender)
+          %+  turn  targets
+          |=  p=@p
+          ^-  card
+          (rpoke /rum-out/(scot %p p) p `remote:noltbook`[%remote-rumor anon-msg (add hops.rem 1)])
+        ::  proxy through one random peer
+        =/  proxy=@p  (snag (~(rad og +(eny.bowl)) (lent targets)) targets)
+        ~[(rpoke /rum-out/(scot %p proxy) proxy `remote:noltbook`[%remote-rumor anon-msg (add hops.rem 1)])]
+      :_  state(messages (~(put by messages) %ars-rumors (snoc cur anon-msg)), gossip-hops (~(put by gossip-hops) `@da`chash 0))
+      [(gf-paths ~[/notes/ars-rumors] upd) relay]
+    ::
+        %remote-profile
+      ::  a peer sent us their profile
+      =/  upd=update:noltbook  [%profile-updated ship.rem profile.rem]
+      :_  state(profiles (~(put by profiles) ship.rem profile.rem))
+      ~[(gf-notes upd)]
+    ::
+        %remote-profile-request
+      ::  Phase 3: a peer is asking us for our profile. Silently drop if they
+      ::  are blocked — they get an unreachable timeout on their end.
+      ?:  (~(has in pal-blocked) src.bowl)  `state
+      =/  prof  (fall (~(get by profiles) our.bowl) *profile:noltbook)
+      =/  resp=remote:noltbook  [%remote-profile-response req-id.rem prof]
+      :_  state
+      ~[(rpoke /profile-resp/(scot %p src.bowl)/(scot %ud req-id.rem) src.bowl resp)]
+    ::
+        %remote-profile-response
+      ::  Phase 3: peer replied to our lookup. Hydrate profile, then emit a
+      ::  %profile-lookup-result %ok so the sidebar can open the modal.
+      =/  pupd=update:noltbook  [%profile-updated src.bowl profile.rem]
+      =/  rupd=update:noltbook  [%profile-lookup-result req-id.rem src.bowl %ok]
+      :_  state(profiles (~(put by profiles) src.bowl profile.rem))
+      :~  (gf-notes pupd)
+          (gf-notes rupd)
+      ==
+    ::
+        %remote-actor-profile-request
+      ::  Phase G4: a peer asks for one of OUR actors' public profile. Blocked peers
+      ::  are silently dropped (same privacy as %remote-profile-request — they time
+      ::  out on their end). Validate the actor id (non-empty, <=128 bytes); desk is
+      ::  already a term. Suspended/revoked actors are STILL returned so historical
+      ::  attributed messages remain inspectable; no actor => profile=~. Never include
+      ::  caps/grants/contacts/preferences — only the public profile.
+      ?:  (~(has in pal-blocked) src.bowl)  `state
+      =/  prof=(unit actor-public-profile:noltbook)
+        ?:  =(0 (met 3 actor-id.rem))  ~
+        ?:  (gth (met 3 actor-id.rem) 128)  ~
+        =/  rec  (~(get by actor-registry) [desk.rem actor-id.rem])
+        ?~  rec  ~
+        `(build-actor-public-profile desk.rem u.rec (~(get by actor-profiles) [desk.rem actor-id.rem]))
+      =/  resp=remote:noltbook  [%remote-actor-profile-response req-id.rem desk.rem actor-id.rem prof]
+      :_  state
+      ~[(rpoke /actor-prof-resp/(scot %p src.bowl)/(scot %ud req-id.rem) src.bowl resp)]
+    ::
+        %remote-actor-profile-response
+      ::  Phase G4: a host replied to our actor-profile lookup. The host is src.bowl
+      ::  (NOT trusted from payload); the response echoes desk/actor-id. profile=~ =>
+      ::  %missing (no such actor there) — cache nothing. profile=^ but its desk/id do
+      ::  NOT match the request => %invalid-response, cache NOTHING (a host can only
+      ::  assert profiles under its own authenticated src.bowl namespace; this stops a
+      ::  mismatched Alice payload from being normalized into a Rick cache key). Match =>
+      ::  cache under [src.bowl desk actor-id] with now as fetched-at and emit %ok.
+      ?~  profile.rem
+        :_  state
+        (actor-prof-result-cards req-id.rem src.bowl desk.rem actor-id.rem %missing ~ ~)
+      ?.  ?&(=(desk.u.profile.rem desk.rem) =(id.u.profile.rem actor-id.rem))
+        :_  state
+        (actor-prof-result-cards req-id.rem src.bowl desk.rem actor-id.rem %invalid-response ~ ~)
+      =/  key=[@p @tas @t]  [src.bowl desk.rem actor-id.rem]
+      :_  state(remote-actor-profiles (~(put by remote-actor-profiles) key [u.profile.rem now.bowl]))
+      (actor-prof-result-cards req-id.rem src.bowl desk.rem actor-id.rem %ok `now.bowl `u.profile.rem)
+    ::
+        %remote-actor-dm-meta
+      ::  Phase G5A: the host of an actor DM tells us this group note is a direct actor
+      ::  conversation. The host is src.bowl (NOT trusted from payload): require
+      ::  meta.owner.host == src.bowl and meta.target == our.bowl. Reject a marker
+      ::  claiming another host. Validate the actor id cap. If the note already exists
+      ::  it must be src.bowl's secret %group containing both ships; if metadata arrives
+      ::  before the invite it is stored provisionally (reads/access re-verify against
+      ::  the live note via actor-dm-valid). Store + emit a frontend fact.
+      ?.  =(host.owner.meta.rem src.bowl)  `state
+      ?.  =(target.meta.rem our.bowl)  `state
+      ?:  =(0 (met 3 id.owner.meta.rem))  `state
+      ?:  (gth (met 3 id.owner.meta.rem) 128)  `state
+      ::  G5A hardening: if the note already exists it must pass the FULL invariant
+      ::  (secret, exactly two users == {src.bowl, our.bowl}, creator == src.bowl) via
+      ::  the shared actor-dm-valid — not just creator/type/membership. If the note has
+      ::  not arrived yet, the marker is stored provisionally (reads/access re-verify).
+      =/  nt-u  (~(get by notes) note-id.rem)
+      ?:  ?&(?=(^ nt-u) !(actor-dm-valid u.nt-u meta.rem))
+        `state
+      =.  actor-dm-notes  (~(put by actor-dm-notes) note-id.rem meta.rem)
+      :_  state
+      ~[(gf-notes `update:noltbook`[%actor-dm-updated note-id.rem `meta.rem])]
+    ::
+        %remote-note-request
+      ::  someone is asking for our joinable notes
+      ::  blocked ships cannot browse our hosted notes
+      ?:  (~(has in pal-blocked) src.bowl)  `state
+      ::  only %group/%gossip notes we host with public/private visibility
+      =/  pub-notes=(list note:noltbook)
+        %+  skim  ~(val by notes)
+        |=  n=note:noltbook
+        ?&  ?|(=(%group type.n) =(%gossip type.n))
+            =(our.bowl creator.n)
+            ?|(?=(%public visibility.n) ?=(%private visibility.n))
+            !(~(has by note-actor-owners) id.n)
+        ==
+      =/  resp=remote:noltbook  [%remote-note-list pub-notes]
+      :_  state
+      ~[(rpoke /note-resp/(scot %p requester.rem) requester.rem resp)]
+    ::
+        %remote-note-list
+      ::  received a remote ship's public/private notes
+      =/  upd=update:noltbook  [%remote-note-list src.bowl notes.rem]
+      :_  state
+      ~[(gf-notes upd)]
+    ::
+        %remote-note-state-request
+      ::  requester asked for an authoritative snapshot of the group tree
+      ::  containing this id. We resolve the topmost same-host group root,
+      ::  verify the requester still belongs to it, and reply.
+      ?:  (~(has in pal-blocked) src.bowl)  `state
+      =/  start  (~(get by notes) note-id.rem)
+      ?~  start
+        :_  state
+        ~[(rpoke /state-deny/(scot %p src.bowl)/[note-id.rem] src.bowl `remote:noltbook`[%remote-note-state-denied note-id.rem])]
+      ?.  =(our.bowl creator.u.start)
+        :_  state
+        ~[(rpoke /state-deny/(scot %p src.bowl)/[note-id.rem] src.bowl `remote:noltbook`[%remote-note-state-denied note-id.rem])]
+      ?.  =(%group type.u.start)
+        :_  state
+        ~[(rpoke /state-deny/(scot %p src.bowl)/[note-id.rem] src.bowl `remote:noltbook`[%remote-note-state-denied note-id.rem])]
+      ::  walk parents up while parent exists, we host it, and it's %group
+      =/  root-id=@ta
+        =/  cur=note:noltbook  u.start
+        |-  ^-  @ta
+        ?~  parent.cur  id.cur
+        =/  par  (~(get by notes) u.parent.cur)
+        ?~  par  id.cur
+        ?.  =(our.bowl creator.u.par)  id.cur
+        ?.  =(%group type.u.par)  id.cur
+        $(cur u.par)
+      =/  root-note  (~(get by notes) root-id)
+      ?~  root-note  `state
+      ?.  ?&  (~(has in users.u.root-note) src.bowl)
+              !(~(has in removed.u.root-note) src.bowl)
+          ==
+        :_  state
+        ~[(rpoke /state-deny/(scot %p src.bowl)/[note-id.rem] src.bowl `remote:noltbook`[%remote-note-state-denied note-id.rem])]
+      =/  desc-ids=(list @ta)  (collect-group-descendants root-id notes)
+      =/  all-ids=(list @ta)  [root-id desc-ids]
+      =/  snap-notes=(list note:noltbook)
+        %+  murn  all-ids
+        |=  nid=@ta
+        ^-  (unit note:noltbook)
+        =/  n  (~(get by notes) nid)
+        ?~  n  ~
+        `u.n
+      =/  snap-revs=(list [@ta @ud])
+        %+  turn  all-ids
+        |=  nid=@ta
+        [nid (member-rev-of nid member-revs)]
+      =/  resp=remote:noltbook
+        [%remote-note-state root-id snap-notes snap-revs]
+      :_  state
+      ~[(rpoke /state-out/(scot %p src.bowl)/[root-id] src.bowl resp)]
+    ::
+        %remote-note-state
+      ::  host replied with an authoritative snapshot. Validate strictly,
+      ::  then conservatively merge metadata. Do not touch messages,
+      ::  artifacts, mentions, calls, envelopes. Emit a single dedicated
+      ::  %note-state-refreshed update — never %note-created — so the FE
+      ::  doesn't fire spurious notifications for repaired notes.
+      ?:  (~(has in pal-blocked) src.bowl)  `state
+      ?~  notes.rem  `state
+      =/  root=note:noltbook  i.notes.rem
+      ?.  =(id.root root-id.rem)  `state
+      ?.  =(src.bowl creator.root)  `state
+      ?.  =(%group type.root)  `state
+      ?.  ?&  (~(has in users.root) our.bowl)
+              !(~(has in removed.root) our.bowl)
+          ==
+        `state
+      ::  every payload note must be hosted by src.bowl and be %group;
+      ::  parent must be in payload or already-local with src.bowl.
+      =/  payload-ids=(set @ta)
+        %-  ~(gas in *(set @ta))
+        (turn notes.rem |=(n=note:noltbook id.n))
+      =/  desc-valid=?
+        =/  todo=(list note:noltbook)  notes.rem
+        |-  ^-  ?
+        ?~  todo  %.y
+        ?.  =(src.bowl creator.i.todo)  %.n
+        ?.  =(%group type.i.todo)  %.n
+        ?:  =(id.i.todo root-id.rem)  $(todo t.todo)
+        ?~  parent.i.todo  %.n
+        =/  in-payload=?  (~(has in payload-ids) u.parent.i.todo)
+        =/  local-par  (~(get by notes) u.parent.i.todo)
+        =/  local-ok=?
+          ?~  local-par  %.n
+          =(src.bowl creator.u.local-par)
+        ?.  ?|(in-payload local-ok)  %.n
+        $(todo t.todo)
+      ?.  desc-valid  `state
+      ::  pre-index revs by id for fast lookup during merge.
+      =/  revs-map=(map @ta @ud)
+        %-  ~(gas by *(map @ta @ud))
+        revs.rem
+      ::  merge fold: thread notes-map + messages-map + new-subs list.
+      =/  merged
+        =/  todo=(list note:noltbook)  notes.rem
+        =/  nm=(map @ta note:noltbook)  notes
+        =/  mm=(map @ta (list message:noltbook))  messages
+        =/  new-subs=(list @ta)  ~
+        |-
+        ^-  [(map @ta note:noltbook) (map @ta (list message:noltbook)) (list @ta)]
+        ?~  todo  [nm mm (flop new-subs)]
+        =/  inc=note:noltbook  i.todo
+        =/  loc  (~(get by nm) id.inc)
+        ?~  loc
+          =/  nm2=(map @ta note:noltbook)  (~(put by nm) id.inc inc)
+          =/  mm2=(map @ta (list message:noltbook))
+            ?:  (~(has by mm) id.inc)  mm
+            (~(put by mm) id.inc ~)
+          $(todo t.todo, nm nm2, mm mm2, new-subs [id.inc new-subs])
+        ::  present: rev-gated user/removed merge; always repair tree.
+        =/  inc-rev=@ud  (fall (~(get by revs-map) id.inc) 0)
+        =/  loc-rev=@ud  (member-rev-of id.inc member-revs)
+        =/  accept-users=?  (gte inc-rev loc-rev)
+        =/  new-users=(set @p)
+          ?:  accept-users  users.inc
+          users.u.loc
+        =/  new-removed=(set @p)
+          ?:  accept-users  removed.inc
+          removed.u.loc
+        =/  old-parent  parent.u.loc
+        =/  new-parent  parent.inc
+        =/  nm-detached=(map @ta note:noltbook)
+          ?:  =(old-parent new-parent)  nm
+          ?~  old-parent  nm
+          ?:  =(`u.old-parent new-parent)  nm
+          =/  op  (~(get by nm) u.old-parent)
+          ?~  op  nm
+          ?.  =(src.bowl creator.u.op)  nm
+          (~(put by nm) u.old-parent u.op(children (skim children.u.op |=(c=@ta !=(c id.inc)))))
+        =/  new-children=(list @ta)
+          %-  flop
+          %+  roll  children.inc
+          |=  [c=@ta acc=(list @ta)]
+          ?:  (lien acc |=(x=@ta =(x c)))  acc
+          [c acc]
+        =/  repaired=note:noltbook
+          %=  u.loc
+            parent       new-parent
+            children     new-children
+            users        new-users
+            removed      new-removed
+            type         type.inc
+            visibility   visibility.inc
+            writable     writable.inc
+            name         name.inc
+            icon-url     icon-url.inc
+            headline     headline.inc
+          ==
+        =/  nm3=(map @ta note:noltbook)  (~(put by nm-detached) id.inc repaired)
+        =/  mm3=(map @ta (list message:noltbook))
+          ?:  (~(has by mm) id.inc)  mm
+          (~(put by mm) id.inc ~)
+        $(todo t.todo, nm nm3, mm mm3)
+      ::  update member-revs, max(local, incoming) per payload id. Seed
+      ::  the accumulator with the full existing member-revs map so a
+      ::  refresh for one subtree doesn't erase revs for unrelated notes.
+      =/  new-revs=(map @ta @ud)
+        =/  ids=(list @ta)  ~(tap in payload-ids)
+        =/  acc=(map @ta @ud)  member-revs
+        |-
+        ^-  (map @ta @ud)
+        ?~  ids  acc
+        =/  nid=@ta  i.ids
+        =/  inc-rev=@ud  (fall (~(get by revs-map) nid) 0)
+        =/  cur-rev=@ud  (member-rev-of nid acc)
+        =/  next-acc=(map @ta @ud)
+          ?:  (gth inc-rev cur-rev)  (~(put by acc) nid inc-rev)
+          acc
+        $(ids t.ids, acc next-acc)
+      =/  merged-notes=(map @ta note:noltbook)  -.merged
+      =/  merged-msgs=(map @ta (list message:noltbook))  +<.merged
+      =/  merged-subs=(list @ta)  +>.merged
+      =/  sub-cards=(list card)
+        %+  turn  merged-subs
+        |=  nid=@ta
+        ^-  card
+        [%pass /remote-note/[nid] %agent [src.bowl %noltbook] %watch /notes/[nid]]
+      =/  refreshed=update:noltbook
+        [%note-state-refreshed root-id.rem notes.rem revs.rem]
+      =/  fact-card=card
+        (gf-notes refreshed)
+      ::  recency: only freshly-installed shared notes (merged-subs) count;
+      ::  a refresh of already-local notes does not bump ordering.
+      =/  na2=(map @ta @da)
+        =/  subs=(list @ta)  merged-subs
+        =/  acc=(map @ta @da)  note-activity
+        |-  ^-  (map @ta @da)
+        ?~  subs  acc
+        $(subs t.subs, acc (put-activity acc i.subs now.bowl))
+      ::  Phase B: mirror unread-activity for freshly-installed shared notes.
+      =/  nua2=(map @ta @da)
+        =/  subs=(list @ta)  merged-subs
+        =/  acc=(map @ta @da)  note-unread-activity
+        |-  ^-  (map @ta @da)
+        ?~  subs  acc
+        $(subs t.subs, acc (put-unread-activity acc i.subs now.bowl))
+      =/  act-cards=(list card)
+        %-  zing
+        %+  turn  merged-subs
+        |=(nid=@ta ~[(activity-fact nid now.bowl) (unread-activity-fact nid now.bowl)])
+      :_  state(notes merged-notes, messages merged-msgs, member-revs new-revs, note-activity na2, note-unread-activity nua2)
+      :(weld (snoc sub-cards fact-card) act-cards)
+    ::
+        %remote-note-state-denied
+      ::  silent no-op for now; user-facing error deferred.
+      `state
+    ::
+        %remote-hey
+      ::  a ship wants to be pals with us
+      ::  ignore if blocked
+      ?:  (~(has in pal-blocked) src.bowl)  `state
+      ::  add to incoming + peers bookkeeping, compute status, notify frontend
+      =/  new-incoming=(set @p)  (~(put in pal-incoming) src.bowl)
+      =/  new-peers=(set @p)  (~(put in peers) src.bowl)
+      =/  status=pal-status:noltbook
+        ?:  (~(has in pal-outgoing) src.bowl)  %mutual
+        %requested
+      =/  upd=update:noltbook  [%pal-update src.bowl status]
+      ::  send our profile back so they have our display name + avatar
+      =/  prof  (fall (~(get by profiles) our.bowl) *profile:noltbook)
+      =/  prof-card=card
+        (rpoke /prof-out/(scot %p src.bowl) src.bowl `remote:noltbook`[%remote-profile our.bowl prof])
+      ::  if we already have them in outgoing and this is a fresh hey
+      ::  (not already in incoming), echo hey back so they see mutual
+      =/  hey-back=(list card)
+        ?:  (~(has in pal-incoming) src.bowl)  ~
+        ?.  (~(has in pal-outgoing) src.bowl)  ~
+        ~[(rpoke /pal-hey/(scot %p src.bowl) src.bowl `remote:noltbook`[%remote-hey ~])]
+      :_  state(pal-incoming new-incoming, peers new-peers)
+      :(weld [prof-card (gf-notes upd) ~] hey-back)
+    ::
+        %remote-bye
+      ::  a ship no longer wants to be pals
+      =/  new-incoming=(set @p)  (~(del in pal-incoming) src.bowl)
+      =/  still-visible=?
+        ?|  (~(has in contacts) src.bowl)
+            (~(has in pal-outgoing) src.bowl)
+            (~(has in pal-blocked) src.bowl)
+        ==
+      =/  status=pal-status:noltbook
+        ?:  (~(has in pal-outgoing) src.bowl)  %requesting
+        %none
+      =/  upd=update:noltbook
+        ?:  still-visible  [%pal-update src.bowl status]
+        [%pal-removed src.bowl]
+      :_  state(pal-incoming new-incoming)
+      ~[(gf-notes upd)]
+    ::
+        %remote-introduce
+      ::  no-op: auto peer-introduce removed; variant retained for future
+      ::  contact design. Do not auto-add peer / watch cover / send profile.
+      `state
+    ::
+        %remote-edit-msg
+      ::  remote user editing their own message in a note we host (or DM peer)
+      ?:  (~(has in pal-blocked) src.bowl)  `state
+      =/  old  (~(get by notes) note-id.rem)
+      ?~  old  `state
+      ?.  ?|  =(our.bowl creator.u.old)
+              =(%dm type.u.old)
+          ==
+        `state
+      ?.  (~(has in users.u.old) src.bowl)  `state
+      ::  reject if muted
+      ?:  (~(has in (fall (~(get by note-muted) note-id.rem) ~)) src.bowl)  `state
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
+      ::  eid-first lookup, fall back to msg-id
+      =/  found=(list message:noltbook)
+        ?^  eid.rem
+          =/  by-eid  (skim cur |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.eid.rem))))
+          ?^  by-eid  by-eid
+          (skim cur |=(m=message:noltbook =(id.m msg-id.rem)))
+        (skim cur |=(m=message:noltbook =(id.m msg-id.rem)))
+      ?~  found  `state
+      ::  only the author can edit their own msg
+      ?.  =(src.bowl author.i.found)  `state
+      ::  host updates meta: increment rev, set updated timestamp
+      =/  new-meta=(unit entry-meta:noltbook)
+        ?~  meta.i.found  ~
+        `u.meta.i.found(rev +(rev.u.meta.i.found), updated now.bowl)
+      =/  target-id=@da  id.i.found
+      =/  new-msgs=(list message:noltbook)
+        %+  turn  cur
+        |=  m=message:noltbook
+        ?.  =(id.m target-id)  m
+        m(text text.rem, edited &, meta new-meta)
+      =/  edited=message:noltbook  i.found(text text.rem, edited &, meta new-meta)
+      =/  upd=update:noltbook  [%message-edited note-id.rem edited]
+      =/  pax=path  ~[%notes note-id.rem]
+      :_  state(messages (~(put by messages) note-id.rem new-msgs))
+      :~  (gf-paths ~[pax] upd)
+          (gf-notes upd)
+      ==
+    ::
+        %remote-create-child
+      ::  host-only child creation: members may no longer ask us to create a
+      ::  child in our shared note. Reject all such requests.
+      `state
+    ::
+        %remote-child-note
+      ::  receive a child note from the host. Tolerate orphan delivery
+      ::  (root invite races behind child poke) by storing the child even
+      ::  if its parent is not yet present; root install repairs children.
+      ?.  =(parent.note.rem `parent-id.rem)  `state
+      ?.  =(creator.note.rem src.bowl)  `state
+      ?.  (~(has in users.note.rem) our.bowl)  `state
+      ?:  (~(has in removed.note.rem) our.bowl)  `state
+      ?.  ?|(=(%group type.note.rem) =(%notebook type.note.rem))  `state
+      =/  have-child=?  (~(has by notes) id.note.rem)
+      =/  old-par  (~(get by notes) parent-id.rem)
+      ?~  old-par
+        ::  parent missing — store as orphan, subscribe, emit %note-created
+        ?:  have-child  `state
+        =/  sub-card=card
+          [%pass /remote-note/[id.note.rem] %agent [creator.note.rem %noltbook] %watch /notes/[id.note.rem]]
+        =/  upd=update:noltbook  [%note-created note.rem]
+        :_  state(notes (~(put by notes) id.note.rem note.rem), messages (~(put by messages) id.note.rem *(list message:noltbook)), note-activity (put-activity note-activity id.note.rem now.bowl), note-unread-activity (put-unread-activity note-unread-activity id.note.rem now.bowl))
+        :~  sub-card
+            (gf-notes upd)
+            (activity-fact id.note.rem now.bowl)
+            (unread-activity-fact id.note.rem now.bowl)
+        ==
+      ::  parent present — host must match parent creator
+      ?.  =(src.bowl creator.u.old-par)  `state
+      =/  new-children=(list @ta)  (append-child-if-missing id.note.rem children.u.old-par)
+      =/  attach-changed=?  !=(new-children children.u.old-par)
+      =/  new-par=note:noltbook  u.old-par(children new-children)
+      ?:  have-child
+        ::  already stored — only ensure parent is attached
+        ?.  attach-changed  `state
+        :_  state(notes (~(put by notes) parent-id.rem new-par))
+        ~
+      =/  new-notes=(map @ta note:noltbook)
+        (~(put by (~(put by notes) id.note.rem note.rem)) parent-id.rem new-par)
+      =/  sub-card=card
+        [%pass /remote-note/[id.note.rem] %agent [creator.note.rem %noltbook] %watch /notes/[id.note.rem]]
+      =/  upd=update:noltbook  [%note-created note.rem]
+      :_  state(notes new-notes, messages (~(put by messages) id.note.rem *(list message:noltbook)), note-activity (put-activity note-activity id.note.rem now.bowl), note-unread-activity (put-unread-activity note-unread-activity id.note.rem now.bowl))
+      :~  sub-card
+          (gf-notes upd)
+          (activity-fact id.note.rem now.bowl)
+          (unread-activity-fact id.note.rem now.bowl)
+      ==
+    ::
+        %remote-delete-msg
+      ::  remote user deleting their own message in a note we host (or DM peer)
+      =/  old  (~(get by notes) note-id.rem)
+      ?~  old  `state
+      ?.  ?|  =(our.bowl creator.u.old)
+              =(%dm type.u.old)
+          ==
+        `state
+      ?.  (~(has in users.u.old) src.bowl)  `state
+      ::  reject if muted
+      ?:  (~(has in (fall (~(get by note-muted) note-id.rem) ~)) src.bowl)  `state
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
+      ::  eid-first lookup, fall back to msg-id
+      =/  found=(list message:noltbook)
+        ?^  eid.rem
+          =/  by-eid  (skim cur |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.eid.rem))))
+          ?^  by-eid  by-eid
+          (skim cur |=(m=message:noltbook =(id.m msg-id.rem)))
+        (skim cur |=(m=message:noltbook =(id.m msg-id.rem)))
+      ?~  found  `state
+      ::  only the author can delete their own msg via remote
+      ?.  =(src.bowl author.i.found)  `state
+      =/  target-id=@da  id.i.found
+      =/  new-msgs=(list message:noltbook)
+        (skim cur |=(m=message:noltbook !=(id.m target-id)))
+      =/  del-eid=(unit @uv)
+        ?~  meta.i.found  ~
+        `eid.u.meta.i.found
+      =/  upd=update:noltbook  [%message-deleted note-id.rem target-id del-eid]
+      =/  pax=path  ~[%notes note-id.rem]
+      ::  clear the pin if it (kind=%message) targeted this message (host-auth).
+      =/  pin-hit=?
+        ?~  del-eid  %.n
+        =/  pn  (~(get by note-pins) note-id.rem)
+        ?~  pn  %.n
+        &(=(%message kind.u.pn) =(u.del-eid target.u.pn))
+      =/  new-pins=(map @ta note-pin:noltbook)
+        ?:(pin-hit (~(del by note-pins) note-id.rem) note-pins)
+      =/  pin-clear-cards=(list card)  ?:(pin-hit (pin-cards note-id.rem ~) ~)
+      ::  G3B hygiene: the host owns this delete authoritatively — prune the deleted
+      ::  message's via/actor attribution rows when an eid resolved.
+      =?  via-by-eid    ?=(^ del-eid)  (~(del by via-by-eid) u.del-eid)
+      =?  actor-by-eid  ?=(^ del-eid)  (~(del by actor-by-eid) u.del-eid)
+      ::  Phase G6B: prune actor notifications targeting the deleted message's eid +
+      ::  emit authoritative full=%.y updates to affected actors (resolved post-mutation).
+      =/  old-notifs  actor-notifications
+      =?  actor-notifications  ?=(^ del-eid)
+        (actor-notif-del-eid actor-notifications u.del-eid)
+      =/  msgs-after  (~(put by messages) note-id.rem new-msgs)
+      ::  actor-by-eid is already post-deletion here (the =? above ran).
+      =/  notif-cards=(list card)
+        (actor-notif-diff-cards old-notifs actor-notifications msgs-after actor-by-eid)
+      :_  state(messages msgs-after, note-pins new-pins)
+      %+  weld  notif-cards
+      %+  weld
+        ^-  (list card)
+        :~  (gf-paths ~[pax] upd)
+            (gf-notes upd)
+        ==
+      pin-clear-cards
+    ::
+        %remote-leave
+      ::  a user left a note we host
+      =/  old  (~(get by notes) note-id.rem)
+      ?~  old  `state
+      ::  DMs use local-only leave; ignore remote-leave for DMs
+      ?:  =(%dm type.u.old)  `state
+      ::  only host processes group/other leaves
+      ?.  =(our.bowl creator.u.old)  `state
+      ?.  (~(has in users.u.old) src.bowl)  `state
+      =/  new-users=(set @p)  (~(del in users.u.old) src.bowl)
+      =/  pax=path  ~[%notes note-id.rem]
+      ::  keep note for remaining user — just remove the leaver
+      =/  new-note=note:noltbook  u.old(users new-users)
+      ::  strip leaver from admin/muted sets
+      =/  was-admin=?  (~(has in (fall (~(get by note-admins) note-id.rem) ~)) src.bowl)
+      =/  clean-admins=(map @ta (set @p))
+        ?.  was-admin  note-admins
+        (~(put by note-admins) note-id.rem (~(del in (fall (~(get by note-admins) note-id.rem) ~)) src.bowl))
+      =/  was-muted=?  (~(has in (fall (~(get by note-muted) note-id.rem) ~)) src.bowl)
+      =/  clean-muted=(map @ta (set @p))
+        ?.  was-muted  note-muted
+        (~(put by note-muted) note-id.rem (~(del in (fall (~(get by note-muted) note-id.rem) ~)) src.bowl))
+      =/  admin-cards=(list card)
+        ?.  was-admin  ~
+        =/  adm-upd=update:noltbook  [%admins-updated note-id.rem ~(tap in (fall (~(get by clean-admins) note-id.rem) ~))]
+        [(gf-notes adm-upd) (gf-paths ~[/notes/[note-id.rem]] adm-upd) ~]
+      =/  muted-cards=(list card)
+        ?.  was-muted  ~
+        =/  mut-upd=update:noltbook  [%muted-updated note-id.rem ~(tap in (fall (~(get by clean-muted) note-id.rem) ~))]
+        [(gf-notes mut-upd) (gf-paths ~[/notes/[note-id.rem]] mut-upd) ~]
+      ::  Phase 3: cascade leaver removal to %group descendants. Use clear
+      ::  (not remove) — leaver wasn't kicked, they left.
+      =/  group-descs=(list @ta)
+        ?.  =(%group type.u.old)  ~
+        (collect-group-descendants note-id.rem notes)
+      =/  notes-after=(map @ta note:noltbook)
+        (~(put by notes) note-id.rem new-note)
+      =.  notes-after
+        ?:  =(~ group-descs)  notes-after
+        (clear-ship-from-ids src.bowl group-descs notes-after)
+      =/  new-revs=(map @ta @ud)
+        (bump-member-revs [note-id.rem group-descs] member-revs)
+      =/  users-upd=update:noltbook
+        [%note-users-updated note-id.rem type.u.old ~(tap in new-users) ~(tap in removed.u.old) (member-rev-of note-id.rem new-revs)]
+      =/  base-cards=(list card)
+        :~  (gf-notes users-upd)
+            (gf-paths ~[/notes/[note-id.rem]] users-upd)
+        ==
+      =/  desc-users-cards=(list card)
+        ?:  =(~ group-descs)  ~
+        (build-users-updated-cards group-descs notes-after new-revs)
+      :_  state(notes notes-after, note-admins clean-admins, note-muted clean-muted, member-revs new-revs, note-members (del-member-from-ids src.bowl [note-id.rem group-descs] note-members note-actor-owners notes))
+      :(weld base-cards admin-cards muted-cards desc-users-cards)
+    ::
+        %remote-root-exists
+      ::  we lost a root-uniqueness race; drop loser, adopt canonical
+      ::  protect system notes from root-exists manipulation
+      ?:  |(=(losing-id.rem %cover) =(losing-id.rem %ars-rumors))  `state
+      ::  sender must be the canonical's creator (authority on winner)
+      ?.  =(src.bowl creator.canonical.rem)  `state
+      =/  loser  (~(get by notes) losing-id.rem)
+      ::  only drop if we actually created it and it's root
+      =?  notes  ?=(^ loser)
+        ?:  &(=(our.bowl creator.u.loser) ?=(~ parent.u.loser))
+          (~(del by notes) losing-id.rem)
+        notes
+      =?  messages  ?=(^ loser)
+        ?:  &(=(our.bowl creator.u.loser) ?=(~ parent.u.loser))
+          (~(del by messages) losing-id.rem)
+        messages
+      ::  install canonical if we don't have it (apply DM prefs locally)
+      =/  have-canonical=?  (~(has by notes) id.canonical.rem)
+      =/  canon-local=note:noltbook  (apply-dm-pref canonical.rem dm-prefs our.bowl)
+      =.  notes
+        ?:  have-canonical  notes
+        (~(put by notes) id.canonical.rem canon-local)
+      =.  messages
+        ?:  have-canonical  messages
+        (~(put by messages) id.canonical.rem ~)
+      ::  subscribe to canonical creator for updates (skip if already or cover)
+      =/  sub-cards=(list card)
+        ?:  have-canonical  ~
+        ?:  =(id.canonical.rem %cover)  ~
+        ~[[%pass /remote-note/[id.canonical.rem] %agent [creator.canonical.rem %noltbook] %watch /notes/[id.canonical.rem]]]
+      =/  redir=update:noltbook  [%note-redirect losing-id.rem id.canonical.rem]
+      =/  adopt=update:noltbook  [%note-created canon-local]
+      =/  tail-cards=(list card)
+        :~  (gf-notes adopt)
+            (gf-notes redir)
+        ==
+      :_  state
+      (weld sub-cards tail-cards)
+    ::
+        %remote-kick
+      ::  host removed us from a note. For %group notes we PRESERVE the
+      ::  local subtree so the user can keep reading and fork from it; we
+      ::  mark our.bowl as removed in each preserved note's users/removed
+      ::  set (write-guards block mutation while in removed). For non-group
+      ::  notes the legacy delete behavior is retained.
+      =/  old  (~(get by notes) note-id.rem)
+      ?~  old  `state
+      ?.  =(src.bowl creator.u.old)  `state
+      =/  kick-upd=update:noltbook  [%kick-notification note-id.rem note-name.rem src.bowl]
+      ?.  =(%group type.u.old)
+        ::  legacy delete path (DMs, gossip, cover, notebook)
+        =/  del-upd=update:noltbook  [%note-deleted note-id.rem]
+        =/  unsub-card=card
+          [%pass /remote-note/[note-id.rem] %agent [src.bowl %noltbook] %leave ~]
+        ::  1B.3: the note is gone — prune its logical-members row too (no stale row).
+        :_  state(notes (~(del by notes) note-id.rem), messages (~(del by messages) note-id.rem), note-members (~(del by note-members) note-id.rem))
+        :~  unsub-card
+            (gf-notes del-upd)
+            (gf-notes kick-upd)
+        ==
+      ::  %group preservation: collect subtree (same creator) and for each
+      ::  node strip our.bowl from users + add to removed. Unsubscribe from
+      ::  each subscription. Emit %note-users-updated so the FE refreshes
+      ::  membership rows and the input bar locks via note.removed.
+      =/  desc-ids=(list @ta)  (collect-group-descendants note-id.rem notes)
+      =/  subtree-ids=(list @ta)  [note-id.rem desc-ids]
+      =/  notes-after=(map @ta note:noltbook)
+        =/  acc=(map @ta note:noltbook)  notes
+        =/  todo=(list @ta)  subtree-ids
+        |-
+        ?~  todo  acc
+        =/  cur=(unit note:noltbook)  (~(get by acc) i.todo)
+        ?~  cur  $(todo t.todo)
+        =/  nu=(set @p)  (~(del in users.u.cur) our.bowl)
+        =/  nr=(set @p)  (~(put in removed.u.cur) our.bowl)
+        $(todo t.todo, acc (~(put by acc) i.todo u.cur(users nu, removed nr)))
+      =/  unsub-cards=(list card)
+        %+  turn  subtree-ids
+        |=  nid=@ta
+        ^-  card
+        [%pass /remote-note/[nid] %agent [src.bowl %noltbook] %leave ~]
+      =/  users-updated-cards=(list card)
+        (build-users-updated-cards subtree-ids notes-after member-revs)
+      ::  1B.3: we were kicked — drop our.bowl from the subtree's logical members (the
+      ::  note is preserved read-only, but we are no longer a logical participant).
+      :_  state(notes notes-after, note-members (del-member-from-ids our.bowl subtree-ids note-members note-actor-owners notes))
+      ^-  (list card)
+      :(weld unsub-cards users-updated-cards ^-((list card) ~[(gf-notes kick-upd)]))
+    ::
+        %remote-blocked
+      ::  someone blocked us — persist in blocked-by and notify frontend
+      =/  upd=update:noltbook  [%blocked-notification src.bowl]
+      :_  state(blocked-by (~(put in blocked-by) src.bowl))
+      ~[(gf-notes upd)]
+    ::
+        %remote-unblocked
+      ::  someone unblocked us — remove from blocked-by and notify frontend
+      =/  upd=update:noltbook  [%unblocked-notification src.bowl]
+      :_  state(blocked-by (~(del in blocked-by) src.bowl))
+      ~[(gf-notes upd)]
+    ::
+        %remote-dm-blocked
+      ::  our DM invite was rejected because we are blocked — clean up ghost DM
+      ::  only delete if this is clearly our just-created shell (we created it,
+      ::  sender is a member, and no messages have been exchanged yet)
+      =/  old  (~(get by notes) note-id.rem)
+      ?~  old  `state
+      ?.  =(%dm type.u.old)  `state
+      ?.  =(our.bowl creator.u.old)  `state
+      ?.  (~(has in users.u.old) src.bowl)  `state
+      =/  msgs=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
+      ?.  =(~ msgs)  `state
+      =/  del-upd=update:noltbook  [%note-deleted note-id.rem]
+      :_  state(notes (~(del by notes) note-id.rem), messages (~(del by messages) note-id.rem))
+      ~[(gf-notes del-upd)]
+    ::
+        %remote-note-deleted
+      ::  host deleted a note we were in. Phase 5: preserve local subtree as
+      ::  a host-deleted archive. Unsubscribe from host paths so we stop
+      ::  receiving live updates; mark every preserved id host-deleted so
+      ::  the write-guard blocks mutations. Emit %note-host-status per id
+      ::  and a single %note-deleted-notification banner for the root.
+      =/  old  (~(get by notes) note-id.rem)
+      ?~  old  `state
+      ?.  =(src.bowl creator.u.old)  `state
+      =/  descendants=(list @ta)  (collect-all-descendants note-id.rem notes)
+      =/  subtree-ids=(list @ta)  [note-id.rem descendants]
+      =/  notif-upd=update:noltbook  [%note-deleted-notification note-id.rem note-name.rem]
+      =/  unsub-cards=(list card)
+        %+  turn  subtree-ids
+        |=  nid=@ta
+        ^-  card
+        [%pass /remote-note/[nid] %agent [src.bowl %noltbook] %leave ~]
+      ::  mark each id as %host-deleted (preserving anything already set)
+      =/  new-host-status=(map @ta ?(%host-deleted %host-unreachable))
+        =/  acc=(map @ta ?(%host-deleted %host-unreachable))  host-status
+        =/  todo=(list @ta)  subtree-ids
+        |-
+        ?~  todo  acc
+        $(todo t.todo, acc (~(put by acc) i.todo %host-deleted))
+      =/  status-cards=(list card)
+        (build-host-status-cards subtree-ids `%host-deleted)
+      :_  state(host-status new-host-status)
+      ^-  (list card)
+      :(weld unsub-cards status-cards ^-((list card) ~[(gf-notes notif-upd)]))
+    ::
+        %remote-fork-invite
+      ::  Phase 6.2: metadata-only notification. No notes, descendants, or
+      ::  messages stored. Blocked senders dropped silently. Duplicate
+      ::  invites no-op. Collision check on root id only — payload-time
+      ::  validation happens on %remote-fork-payload after explicit accept.
+      ?:  (~(has in pal-blocked) src.bowl)  `state
+      ?:  (~(has by notes) root-id.rem)  `state
+      ?:  (~(has by pending-fork-invites) root-id.rem)  `state
+      =/  rec=pending-fork-invite:noltbook
+        :*  src.bowl  root-id.rem  source-root-id.rem
+            source-name.rem  source-version.rem  fork-origin.rem
+            now.bowl  %.n
+        ==
+      =/  notif=update:noltbook
+        [%fork-invite-received root-id.rem source-name.rem source-version.rem forker.rem]
+      :_  state(pending-fork-invites (~(put by pending-fork-invites) root-id.rem rec))
+      ~[(gf-notes notif)]
+    ::
+        %remote-fork-fetch
+      ::  Phase 6.2: receiver requested the full fork payload. Authorize:
+      ::  we must host the fork (root in our notes, creator==our.bowl),
+      ::  requester must be in fork-invitees for this root OR already in
+      ::  users (re-fetch OK), requester not blocked.
+      ?:  (~(has in pal-blocked) src.bowl)  `state
+      =/  root  (~(get by notes) root-id.rem)
+      =/  invs  (fall (~(get by fork-invitees) root-id.rem) *(set @p))
+      =/  authorized=?
+        ?~  root  %.n
+        ?.  =(our.bowl creator.u.root)  %.n
+        ?:  (~(has in invs) src.bowl)  %.y
+        (~(has in users.u.root) src.bowl)
+      ?.  authorized
+        :_  state
+        ~[(rpoke /fork-deny/(scot %p src.bowl)/[root-id.rem] src.bowl `remote:noltbook`[%remote-fork-denied root-id.rem])]
+      ::  an authorized fetch IS the acceptance: add the requester as a member of
+      ::  the fork (root + descendants), drop them from the pending invitee set,
+      ::  bump member revs, and emit note-users-updated. A re-fetch by an existing
+      ::  member (not in invitees) skips the membership churn.
+      =/  desc-ids=(list @ta)  (collect-group-descendants root-id.rem notes)
+      =/  subtree-ids=(list @ta)  [root-id.rem desc-ids]
+      =/  is-acceptance=?  (~(has in invs) src.bowl)
+      =/  notes  ?.(is-acceptance notes (add-ship-to-ids src.bowl subtree-ids notes))
+      =/  new-invitees=(set @p)  (~(del in invs) src.bowl)
+      =/  fork-invitees-after=(map @ta (set @p))
+        ?.  is-acceptance  fork-invitees
+        ?:  =(~ new-invitees)  (~(del by fork-invitees) root-id.rem)
+        (~(put by fork-invitees) root-id.rem new-invitees)
+      =/  new-revs=(map @ta @ud)
+        ?.(is-acceptance member-revs (bump-member-revs subtree-ids member-revs))
+      ::  re-read the (possibly updated) root for the payload below.
+      =/  root  (~(get by notes) root-id.rem)
+      =/  member-cards=(list card)
+        ?.  is-acceptance  ~
+        (build-users-updated-cards subtree-ids notes new-revs)
+      ::  build payload from current (post-add) state
+      =/  src-root-id=@ta
+        =/  fo  (~(get by fork-of) root-id.rem)
+        ?~  fo  root-id.rem
+        nid.u.fo
+      =/  src-origin=@uv
+        ?~  root  *@uv
+        (lineage-origin-of u.root fork-origin)
+      =/  fork-ver=@ud
+        (lineage-version-of root-id.rem fork-version)
+      ::  carry our stored parent-version (the source version we forked
+      ::  from); fall back to fork-ver-1 for older state.
+      =/  parent-ver=@ud
+        =/  stored  (~(get by fork-parent-version) root-id.rem)
+        ?^  stored  u.stored
+        ?:  (gth fork-ver 1)  (sub fork-ver 1)
+        0
+      =/  desc-pairs=(list [n=note:noltbook source-id=@ta])
+        %+  murn  desc-ids
+        |=  did=@ta
+        ^-  (unit [note:noltbook @ta])
+        =/  n  (~(get by notes) did)
+        ?~  n  ~
+        =/  fo  (~(get by fork-of) did)
+        =/  sid=@ta  ?~(fo did nid.u.fo)
+        `[u.n sid]
+      =/  payload-ids=(list @ta)  [root-id.rem desc-ids]
+      =/  fork-art-envs=(list [note-id=@ta envs=(list artifact-envelope:noltbook)])
+        %+  murn  payload-ids
+        |=  nid=@ta
+        ^-  (unit [@ta (list artifact-envelope:noltbook)])
+        =/  m  (~(get by artifact-envelopes) nid)
+        ?~  m  ~
+        =/  envs=(list artifact-envelope:noltbook)  ~(val by u.m)
+        ?~  envs  ~
+        `[nid envs]
+      ?~  root  `state
+      ::  payload carries the updated root (acceptor is now in root-note.users),
+      ::  so the acceptor's %remote-fork-payload membership check passes.
+      =/  pload=remote:noltbook
+        :*  %remote-fork-payload
+            root-id.rem  src-root-id  u.root  desc-pairs
+            src-origin  fork-ver  parent-ver  fork-art-envs
+        ==
+      :_  state(notes notes, fork-invitees fork-invitees-after, member-revs new-revs)
+      %+  weld  member-cards
+      ^-  (list card)
+      ~[(rpoke /fork-pay/(scot %p src.bowl)/[root-id.rem] src.bowl pload)]
+    ::
+        %remote-fork-payload
+      ::  Phase 6.2: forker delivered the subtree after accept. Validate
+      ::  against pending invite, install only if everything checks out.
+      ?:  (~(has in pal-blocked) src.bowl)  `state
+      =/  inv  (~(get by pending-fork-invites) root-id.rem)
+      ?~  inv  `state
+      =/  pi  u.inv
+      ?.  =(sender.pi src.bowl)  `state
+      ?.  =(root-id.pi root-id.rem)  `state
+      ?.  =(fork-origin.pi fork-origin.rem)  `state
+      ?.  =(id.root-note.rem root-id.rem)  `state
+      ?.  =(src.bowl creator.root-note.rem)  `state
+      ::  only install a fork we are actually a member of (guards against an
+      ::  acceptor installing a fork whose users set doesn't include them).
+      ?.  (~(has in users.root-note.rem) our.bowl)  `state
+      ::  flatten subtree (root first then descendants)
+      =/  all-incoming=(list note:noltbook)
+        [root-note.rem (turn descendants.rem |=([n=note:noltbook source-id=@ta] n))]
+      =/  incoming-ids=(set @ta)
+        %-  ~(gas in *(set @ta))
+        (turn all-incoming |=(n=note:noltbook id.n))
+      ::  re-check id collisions
+      =/  collides=?
+        =/  todo  all-incoming
+        |-  ^-  ?
+        ?~  todo  %.n
+        ?:  (~(has by notes) id.i.todo)  %.y
+        $(todo t.todo)
+      ?:  collides
+        ::  drop the invite without installing
+        =/  cleared=update:noltbook  [%fork-invite-cleared root-id.rem]
+        :_  state(pending-fork-invites (~(del by pending-fork-invites) root-id.rem))
+        ~[(gf-notes cleared)]
+      =/  new-version=@ud  fork-version.rem
+      =/  notes-after=(map @ta note:noltbook)
+        =/  todo  all-incoming
+        |-
+        ?~  todo  notes
+        $(todo t.todo, notes (~(put by notes) id.i.todo i.todo))
+      =/  messages-after=(map @ta (list message:noltbook))
+        =/  todo  all-incoming
+        |-
+        ?~  todo  messages
+        ?:  (~(has by messages) id.i.todo)  $(todo t.todo)
+        $(todo t.todo, messages (~(put by messages) id.i.todo ~))
+      =/  fork-origin-after=(map @ta @uv)
+        =/  todo  all-incoming
+        |-
+        ?~  todo  fork-origin
+        $(todo t.todo, fork-origin (~(put by fork-origin) id.i.todo fork-origin.rem))
+      =/  fork-version-after=(map @ta @ud)
+        =/  todo  all-incoming
+        |-
+        ?~  todo  fork-version
+        $(todo t.todo, fork-version (~(put by fork-version) id.i.todo new-version))
+      ::  fork-of: root points at the true source [sender, source-root-id];
+      ::  descendants use their carried source-id when available.
+      =/  fork-of-after=(map @ta [host=@p nid=@ta])
+        =.  fork-of  (~(put by fork-of) root-id.rem [src.bowl source-root-id.rem])
+        =/  todo=(list [n=note:noltbook source-id=@ta])  descendants.rem
+        |-
+        ?~  todo  fork-of
+        $(todo t.todo, fork-of (~(put by fork-of) id.n.i.todo [src.bowl source-id.i.todo]))
+      ::  every incoming node was forked from parent-version.rem on the
+      ::  forker's source — record it for root + descendants.
+      =/  fork-parent-version-after=(map @ta @ud)
+        =/  todo  all-incoming
+        |-
+        ?~  todo  fork-parent-version
+        $(todo t.todo, fork-parent-version (~(put by fork-parent-version) id.i.todo parent-version.rem))
+      ::  install fork artifact envelopes carried by the forker. These are
+      ::  metadata references only; bytes stay on the original artifact author.
+      =/  artifact-envelopes-after=(map @ta (map @ta artifact-envelope:noltbook))
+        =/  todo=(list [note-id=@ta envs=(list artifact-envelope:noltbook)])  artifact-envs.rem
+        =/  ae=(map @ta (map @ta artifact-envelope:noltbook))  artifact-envelopes
+        |-
+        ^-  (map @ta (map @ta artifact-envelope:noltbook))
+        ?~  todo  ae
+        =/  nid=@ta  note-id.i.todo
+        ?.  (~(has in incoming-ids) nid)  $(todo t.todo)
+        =/  cur=(map @ta artifact-envelope:noltbook)
+          (fall (~(get by ae) nid) *(map @ta artifact-envelope:noltbook))
+        =/  merged=(map @ta artifact-envelope:noltbook)
+          =/  env-todo=(list artifact-envelope:noltbook)  envs.i.todo
+          |-  ^-  (map @ta artifact-envelope:noltbook)
+          ?~  env-todo  cur
+          =/  e=artifact-envelope:noltbook  i.env-todo
+          ?.  =(note-id.e nid)  $(env-todo t.env-todo)
+          $(env-todo t.env-todo, cur (~(put by cur) aid.e e))
+        =/  ae2=(map @ta (map @ta artifact-envelope:noltbook))
+          ?:  =(~ merged)  ae
+          (~(put by ae) nid (cap-art-envs merged))
+        $(todo t.todo, ae ae2)
+      =/  sub-cards=(list card)
+        %+  turn  all-incoming
+        |=  n=note:noltbook
+        ^-  card
+        [%pass /remote-note/[id.n] %agent [src.bowl %noltbook] %watch /notes/[id.n]]
+      =/  created-cards=(list card)
+        %+  turn  all-incoming
+        |=  n=note:noltbook
+        ^-  card
+        (gf-notes `update:noltbook`[%note-created n])
+      =/  all-ids=(list @ta)
+        %+  turn  all-incoming
+        |=  n=note:noltbook  id.n
+      =/  lineage-cards=(list card)
+        (build-lineage-set-cards all-ids notes-after fork-origin-after fork-version-after fork-of-after fork-parent-version-after)
+      =/  art-env-cards=(list card)
+        %+  murn  artifact-envs.rem
+        |=  row=[note-id=@ta envs=(list artifact-envelope:noltbook)]
+        ^-  (unit card)
+        ?.  (~(has in incoming-ids) note-id.row)  ~
+        =/  m  (~(get by artifact-envelopes-after) note-id.row)
+        ?~  m  ~
+        =/  envs=(list artifact-envelope:noltbook)  ~(val by u.m)
+        ?~  envs  ~
+        `(gf-notes `update:noltbook`[%artifact-envelope-list note-id.row envs])
+      =/  cleared=update:noltbook  [%fork-invite-cleared root-id.rem]
+      =/  accepted=update:noltbook  [%fork-invite-accepted root-id.rem]
+      :_  %=  state
+            notes  notes-after
+            messages  messages-after
+            fork-origin  fork-origin-after
+            fork-version  fork-version-after
+            fork-of  fork-of-after
+            fork-parent-version  fork-parent-version-after
+            artifact-envelopes  artifact-envelopes-after
+            peers  (~(put in peers) src.bowl)
+            pending-fork-invites  (~(del by pending-fork-invites) root-id.rem)
+          ==
+      ^-  (list card)
+      %-  zing
+      :~  sub-cards
+          created-cards
+          lineage-cards
+          art-env-cards
+          ^-((list card) ~[(gf-notes cleared)])
+          ^-((list card) ~[(gf-notes accepted)])
+      ==
+    ::
+        %remote-fork-denied
+      ::  Phase 6.2: forker rejected our fetch. Clear the pending invite.
+      =/  inv  (~(get by pending-fork-invites) root-id.rem)
+      ?~  inv  `state
+      ?.  =(sender.u.inv src.bowl)  `state
+      =/  cleared=update:noltbook  [%fork-invite-cleared root-id.rem]
+      :_  state(pending-fork-invites (~(del by pending-fork-invites) root-id.rem))
+      ~[(gf-notes cleared)]
+    ::
+        %remote-fork-decline
+      ::  an invitee declined our fork. We must host it (root present, creator==us),
+      ::  and src must be a current invitee or (legacy-bad) already a user. Drop them
+      ::  from the invitee set; if they were wrongly a user, clear them from users
+      ::  (NOT removed) and bump revs + emit note-users-updated.
+      =/  root  (~(get by notes) root-id.rem)
+      ?~  root  `state
+      ?.  =(our.bowl creator.u.root)  `state
+      =/  invs  (fall (~(get by fork-invitees) root-id.rem) *(set @p))
+      =/  was-member=?  (~(has in users.u.root) src.bowl)
+      ?.  |((~(has in invs) src.bowl) was-member)  `state
+      =/  new-invitees=(set @p)  (~(del in invs) src.bowl)
+      =/  fork-invitees-after=(map @ta (set @p))
+        ?:  =(~ new-invitees)  (~(del by fork-invitees) root-id.rem)
+        (~(put by fork-invitees) root-id.rem new-invitees)
+      ?.  was-member
+        ::  normal case: never a member, just forget the pending invitee.
+        `state(fork-invitees fork-invitees-after)
+      ::  backward-compat: a bad fork listed them as a user — clear from users only.
+      =/  subtree-ids=(list @ta)  [root-id.rem (collect-group-descendants root-id.rem notes)]
+      =/  notes-after=(map @ta note:noltbook)  (clear-ship-from-ids src.bowl subtree-ids notes)
+      =/  new-revs=(map @ta @ud)  (bump-member-revs subtree-ids member-revs)
+      :_  state(notes notes-after, fork-invitees fork-invitees-after, member-revs new-revs)
+      (build-users-updated-cards subtree-ids notes-after new-revs)
+    ::
+    ::  ===== REMOTE CALL HANDLERS =====
+    ::
+        %remote-call-start
+      =/  exists  (~(get by notes) note-id.rem)
+      ?~  exists  `state
+      ?.  (~(has in users.u.exists) src.bowl)  `state
+      ::  if stale call (0 participants), allow replacement; if active, no-op
+      =/  old-call  (~(get by active-calls) note-id.rem)
+      ?:  ?&  ?=(^ old-call)
+              (gth ~(wyt in participants.u.old-call) 0)
+          ==
+        `state
+      ::  case 1: we are the creator and a member asked us to start
+      ?:  =(our.bowl creator.u.exists)
+        =/  cid=@ta  (crip (weld "call-" (trip (scot %da now.bowl))))
+        =/  ci=call-info:noltbook
+          [cid note-id.rem src.bowl now.bowl (sy ~[src.bowl]) %active]
+        =/  sys-msg=message:noltbook
+          [now.bowl note-id.rem src.bowl (crip (weld "\01SYS:call-started:" (trip (scot %p src.bowl)))) now.bowl ~ %.n ~]
+        =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
+        =/  upd=update:noltbook  [%call-started note-id.rem cid src.bowl ~[src.bowl]]
+        =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
+        =/  pax=path  ~[%notes note-id.rem]
+        ::  broadcast to all members including the requester
+        =/  broadcast=(list card)
+          %+  murn  ~(tap in users.u.exists)
+          |=  p=@p
+          ?:  =(p our.bowl)  ~
+          `(rpoke /call-start/(scot %p p)/[note-id.rem] p `remote:noltbook`[%remote-call-start note-id.rem cid src.bowl])
+        :_  state(active-calls (~(put by active-calls) note-id.rem ci), messages (~(put by messages) note-id.rem (snoc cur sys-msg)))
+        :(weld ~[(gf-paths ~[pax] upd)] ~[(gf-notes upd)] ~[(gf-paths ~[pax] msg-upd)] broadcast)
+      ::  case 2: we are NOT creator; accept notification from creator only
+      ?.  =(src.bowl creator.u.exists)  `state
+      =/  ci=call-info:noltbook
+        [call-id.rem note-id.rem started-by.rem now.bowl (sy ~[started-by.rem]) %active]
+      =/  sys-msg=message:noltbook
+        [now.bowl note-id.rem started-by.rem (crip (weld "\01SYS:call-started:" (trip (scot %p started-by.rem)))) now.bowl ~ %.n ~]
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
+      =/  upd=update:noltbook  [%call-started note-id.rem call-id.rem started-by.rem ~[started-by.rem]]
+      =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
+      =/  pax=path  ~[%notes note-id.rem]
+      :_  state(active-calls (~(put by active-calls) note-id.rem ci), messages (~(put by messages) note-id.rem (snoc cur sys-msg)))
+      :(weld ~[(gf-paths ~[pax] upd)] ~[(gf-notes upd)] ~[(gf-paths ~[pax] msg-upd)])
+    ::
+        %remote-call-join
+      =/  exists  (~(get by notes) note-id.rem)
+      ?~  exists  `state
+      =/  ci  (~(get by active-calls) note-id.rem)
+      ?~  ci  `state
+      ?.  (~(has in users.u.exists) ship.rem)  `state
+      ?:  (~(has in participants.u.ci) ship.rem)  `state
+      =/  new-ci=call-info:noltbook  u.ci(participants (~(put in participants.u.ci) ship.rem))
+      =/  sys-msg=message:noltbook
+        [now.bowl note-id.rem ship.rem (crip (weld "\01SYS:call-joined:" (trip (scot %p ship.rem)))) now.bowl ~ %.n ~]
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
+      =/  upd=update:noltbook  [%call-joined note-id.rem ship.rem]
+      =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
+      =/  pax=path  ~[%notes note-id.rem]
+      ::  case 1: we are creator — process + relay to other participants
+      ::  case 2: we are NOT creator — just process locally (notification from creator)
+      =/  broadcast=(list card)
+        ?.  =(our.bowl creator.u.exists)  ~
+        %+  murn  ~(tap in participants.u.ci)
+        |=  p=@p
+        ?:  =(p ship.rem)  ~
+        ?:  =(p our.bowl)  ~
+        `(rpoke /call-join-relay/(scot %p p)/[note-id.rem] p `remote:noltbook`[%remote-call-join note-id.rem ship.rem])
+      :_  state(active-calls (~(put by active-calls) note-id.rem new-ci), messages (~(put by messages) note-id.rem (snoc cur sys-msg)))
+      :(weld ~[(gf-paths ~[pax] upd)] ~[(gf-notes upd)] ~[(gf-paths ~[pax] msg-upd)] broadcast)
+    ::
+        %remote-call-leave
+      =/  exists  (~(get by notes) note-id.rem)
+      ?~  exists  `state
+      =/  ci  (~(get by active-calls) note-id.rem)
+      ?~  ci  `state
+      ?.  (~(has in participants.u.ci) ship.rem)  `state
+      =/  new-parts=(set @p)  (~(del in participants.u.ci) ship.rem)
+      =/  sys-msg=message:noltbook
+        [now.bowl note-id.rem ship.rem (crip (weld "\01SYS:call-left:" (trip (scot %p ship.rem)))) now.bowl ~ %.n ~]
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
+      =/  pax=path  ~[%notes note-id.rem]
+      ::  if no participants left, end the call
+      ?:  =(0 ~(wyt in new-parts))
+        =/  end-upd=update:noltbook  [%call-ended note-id.rem call-id.u.ci]
+        =/  end-msg=message:noltbook
+          [now.bowl note-id.rem ship.rem '\01SYS:call-ended' now.bowl ~ %.n ~]
+        ::  broadcast call-ended to all note members
+        =/  broadcast=(list card)
+          %+  murn  ~(tap in users.u.exists)
+          |=  p=@p
+          ?:  =(p our.bowl)  ~
+          `(rpoke /call-end/(scot %p p)/[note-id.rem] p `remote:noltbook`[%remote-call-ended note-id.rem])
+        :_  state(active-calls (~(del by active-calls) note-id.rem), messages (~(put by messages) note-id.rem (snoc (snoc cur sys-msg) end-msg)))
+        :(weld ~[(gf-paths ~[pax] end-upd)] ~[(gf-notes end-upd)] broadcast)
+      ::  still has participants: update and broadcast leave
+      =/  new-ci=call-info:noltbook  u.ci(participants new-parts)
+      =/  upd=update:noltbook  [%call-left note-id.rem ship.rem]
+      ::  only creator relays to other participants
+      =/  broadcast=(list card)
+        ?.  =(our.bowl creator.u.exists)  ~
+        %+  murn  ~(tap in new-parts)
+        |=  p=@p
+        ?:  =(p our.bowl)  ~
+        `(rpoke /call-leave-relay/(scot %p p)/[note-id.rem] p `remote:noltbook`[%remote-call-leave note-id.rem ship.rem])
+      :_  state(active-calls (~(put by active-calls) note-id.rem new-ci), messages (~(put by messages) note-id.rem (snoc cur sys-msg)))
+      :(weld ~[(gf-paths ~[pax] upd)] ~[(gf-notes upd)] broadcast)
+    ::
+        %remote-call-ended
+      ::  host says call is over
+      =/  ci  (~(get by active-calls) note-id.rem)
+      ?~  ci  `state
+      ::  must come from a note member
+      =/  exists  (~(get by notes) note-id.rem)
+      ?~  exists  `state
+      ?.  (~(has in users.u.exists) src.bowl)  `state
+      =/  end-msg=message:noltbook
+        [now.bowl note-id.rem src.bowl '\01SYS:call-ended' now.bowl ~ %.n ~]
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
+      =/  upd=update:noltbook  [%call-ended note-id.rem call-id.u.ci]
+      =/  pax=path  ~[%notes note-id.rem]
+      :_  state(active-calls (~(del by active-calls) note-id.rem), messages (~(put by messages) note-id.rem (snoc cur end-msg)))
+      ~[(gf-paths ~[pax] upd) (gf-notes upd)]
+    ::
+        %remote-call-signal
+      ::  incoming WebRTC signal from a peer; relay to local frontend
+      ::  find which note this call belongs to
+      =/  entries=(list [@ta call-info:noltbook])  ~(tap by active-calls)
+      =/  match=(list [@ta call-info:noltbook])
+        (skim entries |=([nid=@ta ci=call-info:noltbook] =(call-id.ci call-id.rem)))
+      ?~  match  `state
+      =/  note-id=@ta  -.i.match
+      =/  upd=update:noltbook  [%call-signal note-id from.rem sig-type.rem payload.rem]
+      =/  pax=path  ~[%notes note-id]
+      :_  state
+      ~[(gf-paths ~[pax] upd)]
+    ::
+        %remote-join-request
+      ::  someone wants to join one of our notes
+      ::  reject from blocked ships
+      ?:  (~(has in pal-blocked) src.bowl)  `state
+      =/  old  (~(get by notes) note-id.rem)
+      ?~  old  `state
+      ::  must be our note
+      ?.  =(our.bowl creator.u.old)  `state
+      ::  already a member? no-op
+      ?:  (~(has in users.u.old) src.bowl)  `state
+      ::  only %group/%gossip notes are joinable
+      ?.  ?|(=(%group type.u.old) =(%gossip type.u.old))  `state
+      ::  secret notes: deny silently
+      ?:  =(%secret visibility.u.old)  `state
+      ::  removed users cannot rejoin — tell them explicitly
+      ?:  (~(has in removed.u.old) src.bowl)
+        :_  state
+        ~[(rpoke /join-removed/(scot %p src.bowl)/[note-id.rem] src.bowl `remote:noltbook`[%remote-join-removed note-id.rem])]
+      ::  public notes: auto-approve (immediate invite)
+      ?:  =(%public visibility.u.old)
+        =/  new-users=(set @p)  (~(put in users.u.old) src.bowl)
+        =/  new-removed=(set @p)  (~(del in removed.u.old) src.bowl)
+        =/  nid=@ta  note-id.rem
+        =/  new-note=note:noltbook  u.old(users new-users, removed new-removed)
+        =/  inv=remote:noltbook  [%remote-invite nid name.u.old type.u.old our.bowl users.new-note visibility.u.old writable.u.old]
+        =/  poke-card=card
+          (rpoke /invite/(scot %p src.bowl)/[nid] src.bowl inv)
+        =/  new-peers=(set @p)  (~(put in peers) src.bowl)
+        =/  is-new-peer=?  !(~(has in peers) src.bowl)
+        =/  ars-cards=(list card)
+          ?.  is-new-peer  ~
+          ~[[%pass /ars/(scot %p src.bowl) %agent [src.bowl %noltbook] %watch /notes/cover]]
+        ::  Phase 3: cascade auto-approved joiner to %group descendants
+        =/  group-descs=(list @ta)
+          ?.  =(%group type.u.old)  ~
+          (collect-group-descendants note-id.rem notes)
+        =/  notes-after=(map @ta note:noltbook)
+          (~(put by notes) note-id.rem new-note)
+        =.  notes-after
+          ?:  =(~ group-descs)  notes-after
+          (add-ship-to-ids src.bowl group-descs notes-after)
+        =/  new-revs=(map @ta @ud)
+          (bump-member-revs [note-id.rem group-descs] member-revs)
+        =/  users-upd=update:noltbook  [%note-users-updated note-id.rem type.u.old ~(tap in new-users) ~(tap in new-removed) (member-rev-of note-id.rem new-revs)]
+        =/  desc-users-cards=(list card)
+          ?:  =(~ group-descs)  ~
+          (build-users-updated-cards group-descs notes-after new-revs)
+        =/  desc-child-pokes=(list card)
+          ?:  =(~ group-descs)  ~
+          (build-remote-child-notes-to-ship src.bowl group-descs notes-after)
+        ::  auto-mute joiner if note is read-only
+        =/  ro-muted=(set @p)
+          ?.  !writable.u.old  (fall (~(get by note-muted) nid) ~)
+          (~(put in (fall (~(get by note-muted) nid) ~)) src.bowl)
+        =/  ro-mute-cards=(list card)
+          ?.  !writable.u.old  ~
+          =/  mute-upd=update:noltbook  [%muted-updated nid ~(tap in ro-muted)]
+          ~[(gf-notes mute-upd) (gf-paths ~[/notes/[nid]] mute-upd)]
+        :_  state(notes notes-after, peers new-peers, note-muted (~(put by note-muted) nid ro-muted), member-revs new-revs, note-members (add-member-to-ids src.bowl [nid group-descs] note-members note-actor-owners notes))
+        :(weld [poke-card (gf-notes users-upd) (gf-paths ~[/notes/[note-id.rem]] users-upd) ~] ars-cards ro-mute-cards desc-users-cards desc-child-pokes)
+      ::  private notes: queue pending request
+      =/  pending=(set @p)  (fall (~(get by join-requests) note-id.rem) *(set @p))
+      ::  already pending? send pending confirmation, no duplicate
+      ?:  (~(has in pending) src.bowl)
+        :_  state
+        :~  (rpoke /join-pending/(scot %p src.bowl)/[note-id.rem] src.bowl `remote:noltbook`[%remote-join-pending note-id.rem])
+        ==
+      ::  add to pending set
+      =.  join-requests  (~(put by join-requests) note-id.rem (~(put in pending) src.bowl))
+      ::  notify host frontend + admins + confirm pending to requester
+      =/  jr-upd=update:noltbook  [%join-request-received note-id.rem src.bowl name.u.old]
+      :_  state
+      :~  (gf-notes jr-upd)
+          (gf-paths ~[/notes/[note-id.rem]] jr-upd)
+          (rpoke /join-pending/(scot %p src.bowl)/[note-id.rem] src.bowl `remote:noltbook`[%remote-join-pending note-id.rem])
+      ==
+    ::
+        %remote-join-pending
+      ::  host confirmed our request is pending
+      =/  upd=update:noltbook  [%join-requested note-id.rem src.bowl]
+      :_  state
+      ~[(gf-notes upd)]
+    ::
+        %remote-join-denied
+      ::  host denied our join request
+      =/  upd=update:noltbook  [%join-denied note-id.rem src.bowl]
+      :_  state
+      ~[(gf-notes upd)]
+    ::
+        %remote-join-removed
+      ::  host says we're removed from this note — cannot rejoin
+      =/  upd=update:noltbook  [%join-removed note-id.rem src.bowl]
+      :_  state
+      ~[(gf-notes upd)]
+    ::
+        %remote-mod
+      ::  remote admin forwarding moderation action to host
+      =/  old  (~(get by notes) note-id.rem)
+      ?~  old  `state
+      ::  must be our note
+      ?.  =(our.bowl creator.u.old)  `state
+      ::  src must be a current member; per-mod-type authority is enforced per arm below.
+      ?.  (~(has in users.u.old) src.bowl)  `state
+      =/  is-admin=?  (~(has in (fall (~(get by note-admins) note-id.rem) ~)) src.bowl)
+      =/  is-public=?  =(%public visibility.u.old)
+      ::  dispatch by mod-type — DEFAULT-DENY: every arm states its own authority. All
+      ::  mod-types remain admin-only EXCEPT %invite-member on a %public note (any member).
+      ?+  mod-type.rem  `state
+          %remove-member
+        ?.  is-admin  `state
+        ::  admin cannot remove host or other admins
+        ?:  =(target.rem our.bowl)  `state
+        ?:  (~(has in (fall (~(get by note-admins) note-id.rem) ~)) target.rem)  `state
+        ?.  (~(has in users.u.old) target.rem)  `state
+        =/  new-users=(set @p)  (~(del in users.u.old) target.rem)
+        =/  new-removed=(set @p)  (~(put in removed.u.old) target.rem)
+        =/  upd-note=note:noltbook  u.old(users new-users, removed new-removed)
+        =/  kick-card=card
+          (rpoke /kick/(scot %p target.rem)/[note-id.rem] target.rem `remote:noltbook`[%remote-kick note-id.rem name.u.old])
+        =/  sys-text=@t  (crip (weld (trip (scot %p target.rem)) " removed from note"))
+        =/  sys-msg=message:noltbook  [now.bowl note-id.rem our.bowl sys-text now.bowl ~ %.n ~]
+        =/  old-msgs=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
+        =/  new-msgs=(list message:noltbook)  (snoc old-msgs sys-msg)
+        =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
+        =/  clean-admins=(map @ta (set @p))
+          =/  cur=(set @p)  (fall (~(get by note-admins) note-id.rem) ~)
+          ?:  (~(has in cur) target.rem)
+            (~(put by note-admins) note-id.rem (~(del in cur) target.rem))
+          note-admins
+        =/  clean-muted=(map @ta (set @p))
+          =/  cur=(set @p)  (fall (~(get by note-muted) note-id.rem) ~)
+          ?:  (~(has in cur) target.rem)
+            (~(put by note-muted) note-id.rem (~(del in cur) target.rem))
+          note-muted
+        ::  Phase 3: cascade removal to %group descendants
+        =/  group-descs=(list @ta)
+          ?.  =(%group type.u.old)  ~
+          (collect-group-descendants note-id.rem notes)
+        =/  notes-after=(map @ta note:noltbook)
+          (~(put by notes) note-id.rem upd-note)
+        =.  notes-after
+          ?:  =(~ group-descs)  notes-after
+          (remove-ship-from-ids target.rem group-descs notes-after)
+        =/  new-revs=(map @ta @ud)
+          (bump-member-revs [note-id.rem group-descs] member-revs)
+        =/  users-upd=update:noltbook  [%note-users-updated note-id.rem type.u.old ~(tap in new-users) ~(tap in new-removed) (member-rev-of note-id.rem new-revs)]
+        =/  desc-users-cards=(list card)
+          ?:  =(~ group-descs)  ~
+          (build-users-updated-cards group-descs notes-after new-revs)
+        :_  state(notes notes-after, messages (~(put by messages) note-id.rem new-msgs), note-admins clean-admins, note-muted clean-muted, member-revs new-revs)
+        %+  weld
+          ^-  (list card)
+          :~  kick-card
+              (gf-notes users-upd)
+              (gf-paths ~[/notes/[note-id.rem]] users-upd)
+              (gf-notes msg-upd)
+              (gf-paths ~[/notes/[note-id.rem]] msg-upd)
+          ==
+        desc-users-cards
+      ::
+          %mute-member
+        ?.  is-admin  `state
+        ?.  (~(has in users.u.old) target.rem)  `state
+        ?:  =(target.rem creator.u.old)  `state
+        ?:  (~(has in (fall (~(get by note-admins) note-id.rem) ~)) target.rem)  `state
+        =/  cur-muted=(set @p)  (fall (~(get by note-muted) note-id.rem) ~)
+        =/  new-muted=(set @p)  (~(put in cur-muted) target.rem)
+        =/  upd=update:noltbook  [%muted-updated note-id.rem ~(tap in new-muted)]
+        :_  state(note-muted (~(put by note-muted) note-id.rem new-muted))
+        :~  (gf-notes upd)
+            (gf-paths ~[/notes/[note-id.rem]] upd)
+        ==
+      ::
+          %unmute-member
+        ?.  is-admin  `state
+        =/  cur-muted=(set @p)  (fall (~(get by note-muted) note-id.rem) ~)
+        ?.  (~(has in cur-muted) target.rem)  `state
+        =/  new-muted=(set @p)  (~(del in cur-muted) target.rem)
+        =/  upd=update:noltbook  [%muted-updated note-id.rem ~(tap in new-muted)]
+        :_  state(note-muted (~(put by note-muted) note-id.rem new-muted))
+        :~  (gf-notes upd)
+            (gf-paths ~[/notes/[note-id.rem]] upd)
+        ==
+      ::
+          %approve-join
+        ?.  is-admin  `state
+        ::  same logic as local %approve-join but triggered by remote admin
+        ?:  =(%dm type.u.old)  `state
+        =/  pending=(set @p)  (fall (~(get by join-requests) note-id.rem) *(set @p))
+        ?.  (~(has in pending) target.rem)  `state
+        =/  new-pending=(set @p)  (~(del in pending) target.rem)
+        =.  join-requests
+          ?:  =(~ new-pending)  (~(del by join-requests) note-id.rem)
+          (~(put by join-requests) note-id.rem new-pending)
+        =/  new-users=(set @p)  (~(put in users.u.old) target.rem)
+        =/  new-removed=(set @p)  (~(del in removed.u.old) target.rem)
+        =/  new-note=note:noltbook  u.old(users new-users, removed new-removed)
+        =/  inv=remote:noltbook  [%remote-invite note-id.rem name.u.old type.u.old our.bowl users.new-note visibility.u.old writable.u.old]
+        =/  poke-card=card
+          (rpoke /invite/(scot %p target.rem)/[note-id.rem] target.rem inv)
+        =/  new-peers=(set @p)  (~(put in peers) target.rem)
+        =/  is-new-peer=?  !(~(has in peers) target.rem)
+        =/  ars-cards=(list card)
+          ?.  is-new-peer  ~
+          ~[[%pass /ars/(scot %p target.rem) %agent [target.rem %noltbook] %watch /notes/cover]]
+        =/  jr-list=(list [note-id=@ta ship=@p note-name=@t])
+          %-  zing
+          %+  turn  ~(tap by join-requests)
+          |=  [nid=@ta ships=(set @p)]
+          =/  n  (~(get by notes) nid)
+          ?~  n  ~
+          (turn ~(tap in ships) |=(s=@p [nid s name.u.n]))
+        =/  jr-upd=update:noltbook  [%join-request-list jr-list]
+        ::  auto-mute approved user if note is read-only
+        =/  ro-muted=(set @p)
+          ?.  !writable.u.old  (fall (~(get by note-muted) note-id.rem) ~)
+          (~(put in (fall (~(get by note-muted) note-id.rem) ~)) target.rem)
+        =/  ro-mute-cards=(list card)
+          ?.  !writable.u.old  ~
+          =/  mute-upd=update:noltbook  [%muted-updated note-id.rem ~(tap in ro-muted)]
+          ~[(gf-notes mute-upd) (gf-paths ~[/notes/[note-id.rem]] mute-upd)]
+        ::  Phase 3: cascade approved member to %group descendants
+        =/  group-descs=(list @ta)
+          ?.  =(%group type.u.old)  ~
+          (collect-group-descendants note-id.rem notes)
+        =/  notes-after=(map @ta note:noltbook)
+          (~(put by notes) note-id.rem new-note)
+        =.  notes-after
+          ?:  =(~ group-descs)  notes-after
+          (add-ship-to-ids target.rem group-descs notes-after)
+        =/  new-revs=(map @ta @ud)
+          (bump-member-revs [note-id.rem group-descs] member-revs)
+        =/  users-upd=update:noltbook  [%note-users-updated note-id.rem type.u.old ~(tap in new-users) ~(tap in new-removed) (member-rev-of note-id.rem new-revs)]
+        =/  desc-users-cards=(list card)
+          ?:  =(~ group-descs)  ~
+          (build-users-updated-cards group-descs notes-after new-revs)
+        =/  desc-child-pokes=(list card)
+          ?:  =(~ group-descs)  ~
+          (build-remote-child-notes-to-ship target.rem group-descs notes-after)
+        :_  state(notes notes-after, peers new-peers, note-muted (~(put by note-muted) note-id.rem ro-muted), member-revs new-revs)
+        :(weld [poke-card (gf-notes users-upd) (gf-paths ~[/notes/[note-id.rem]] users-upd) (gf-notes jr-upd) ~] ars-cards ro-mute-cards desc-users-cards desc-child-pokes)
+      ::
+          %deny-join
+        ?.  is-admin  `state
+        =/  pending=(set @p)  (fall (~(get by join-requests) note-id.rem) *(set @p))
+        ?.  (~(has in pending) target.rem)  `state
+        =/  new-pending=(set @p)  (~(del in pending) target.rem)
+        =.  join-requests
+          ?:  =(~ new-pending)  (~(del by join-requests) note-id.rem)
+          (~(put by join-requests) note-id.rem new-pending)
+        =/  jr-list=(list [note-id=@ta ship=@p note-name=@t])
+          %-  zing
+          %+  turn  ~(tap by join-requests)
+          |=  [nid=@ta ships=(set @p)]
+          =/  n  (~(get by notes) nid)
+          ?~  n  ~
+          (turn ~(tap in ships) |=(s=@p [nid s name.u.n]))
+        =/  jr-upd=update:noltbook  [%join-request-list jr-list]
+        :_  state
+        :~  (rpoke /join-deny/(scot %p target.rem)/[note-id.rem] target.rem `remote:noltbook`[%remote-join-denied note-id.rem])
+            (gf-notes jr-upd)
+        ==
+      ::
+          %deny-block-join
+        ?.  is-admin  `state
+        ::  admin deny-block: note-scoped block (add to removed)
+        =/  pending=(set @p)  (fall (~(get by join-requests) note-id.rem) *(set @p))
+        ?.  (~(has in pending) target.rem)  `state
+        =/  new-pending=(set @p)  (~(del in pending) target.rem)
+        =.  join-requests
+          ?:  =(~ new-pending)  (~(del by join-requests) note-id.rem)
+          (~(put by join-requests) note-id.rem new-pending)
+        =/  new-removed=(set @p)  (~(put in removed.u.old) target.rem)
+        =/  upd-note=note:noltbook  u.old(removed new-removed)
+        =/  new-revs=(map @ta @ud)  (bump-member-rev note-id.rem member-revs)
+        =/  users-upd=update:noltbook  [%note-users-updated note-id.rem type.u.old ~(tap in users.u.old) ~(tap in new-removed) (member-rev-of note-id.rem new-revs)]
+        =/  jr-list=(list [note-id=@ta ship=@p note-name=@t])
+          %-  zing
+          %+  turn  ~(tap by join-requests)
+          |=  [nid=@ta ships=(set @p)]
+          =/  n  (~(get by notes) nid)
+          ?~  n  ~
+          (turn ~(tap in ships) |=(s=@p [nid s name.u.n]))
+        =/  jr-upd=update:noltbook  [%join-request-list jr-list]
+        :_  state(notes (~(put by notes) note-id.rem upd-note), member-revs new-revs)
+        :~  (rpoke /join-deny/(scot %p target.rem)/[note-id.rem] target.rem `remote:noltbook`[%remote-join-denied note-id.rem])
+            (gf-notes users-upd)
+            (gf-paths ~[/notes/[note-id.rem]] users-upd)
+            (gf-notes jr-upd)
+        ==
+      ::
+          %invite-member
+        ::  public note: any member may invite; private/secret: admin only
+        ?.  ?|(is-admin is-public)  `state
+        ::  admin-forwarded invite: host performs canonical invite
+        ?:  =(%dm type.u.old)  `state
+        ?:  (~(has in users.u.old) target.rem)  `state
+        =/  new-users=(set @p)  (~(put in users.u.old) target.rem)
+        =/  new-removed=(set @p)  (~(del in removed.u.old) target.rem)
+        =/  new-note=note:noltbook  u.old(users new-users, removed new-removed)
+        =/  inv=remote:noltbook  [%remote-invite note-id.rem name.u.old type.u.old our.bowl users.new-note visibility.u.old writable.u.old]
+        =/  poke-card=card
+          (rpoke /invite/(scot %p target.rem)/[note-id.rem] target.rem inv)
+        =/  new-peers=(set @p)  (~(put in peers) target.rem)
+        =/  is-new-peer=?  !(~(has in peers) target.rem)
+        =/  ars-cards=(list card)
+          ?.  is-new-peer  ~
+          ~[[%pass /ars/(scot %p target.rem) %agent [target.rem %noltbook] %watch /notes/cover]]
+        =/  pax=path  ~[%notes note-id.rem]
+        ::  auto-mute invitee if note is read-only
+        =/  ro-muted=(set @p)
+          ?.  !writable.u.old  (fall (~(get by note-muted) note-id.rem) ~)
+          (~(put in (fall (~(get by note-muted) note-id.rem) ~)) target.rem)
+        =/  ro-mute-cards=(list card)
+          ?.  !writable.u.old  ~
+          =/  mute-upd=update:noltbook  [%muted-updated note-id.rem ~(tap in ro-muted)]
+          ~[(gf-notes mute-upd) (gf-paths ~[pax] mute-upd)]
+        ::  Phase 3: cascade invitee to %group descendants
+        =/  group-descs=(list @ta)
+          ?.  =(%group type.u.old)  ~
+          (collect-group-descendants note-id.rem notes)
+        =/  notes-after=(map @ta note:noltbook)
+          (~(put by notes) note-id.rem new-note)
+        =.  notes-after
+          ?:  =(~ group-descs)  notes-after
+          (add-ship-to-ids target.rem group-descs notes-after)
+        =/  new-revs=(map @ta @ud)
+          (bump-member-revs [note-id.rem group-descs] member-revs)
+        =/  users-upd=update:noltbook  [%note-users-updated note-id.rem type.u.old ~(tap in new-users) ~(tap in new-removed) (member-rev-of note-id.rem new-revs)]
+        =/  desc-users-cards=(list card)
+          ?:  =(~ group-descs)  ~
+          (build-users-updated-cards group-descs notes-after new-revs)
+        =/  desc-child-pokes=(list card)
+          ?:  =(~ group-descs)  ~
+          (build-remote-child-notes-to-ship target.rem group-descs notes-after)
+        :_  state(notes notes-after, peers new-peers, note-muted (~(put by note-muted) note-id.rem ro-muted), member-revs new-revs)
+        :(weld ~[poke-card] ~[(gf-notes users-upd)] ~[(gf-paths ~[pax] users-upd)] ars-cards ro-mute-cards desc-users-cards desc-child-pokes)
+      ==
+    ::
+        %remote-artifact-fetch
+      ::  requester asking us for artifact bytes
+      =/  art  (~(get by artifacts) art-id.rem)
+      ?~  art
+        :_  state
+        ~[(rpoke /art-deny/(scot %p src.bowl)/[art-id.rem] src.bowl `remote:noltbook`[%remote-artifact-denied art-id.rem eyre-id.rem])]
+      =/  nt  (~(get by notes) note-id.u.art)
+      ?~  nt
+        :_  state
+        ~[(rpoke /art-deny/(scot %p src.bowl)/[art-id.rem] src.bowl `remote:noltbook`[%remote-artifact-denied art-id.rem eyre-id.rem])]
+      ::  block guard
+      ?:  (~(has in pal-blocked) src.bowl)
+        :_  state
+        ~[(rpoke /art-deny/(scot %p src.bowl)/[art-id.rem] src.bowl `remote:noltbook`[%remote-artifact-denied art-id.rem eyre-id.rem])]
+      ::  per-type permission
+      ::  cover: NO direct-pal check; envelope mesh reaches further
+      ::  gossip note: explicit membership (in users, not removed)
+      ::  others: existing notebook/group/dm membership
+      ?:  ?&  !?=(%cover type.u.nt)
+              ?|  !(~(has in users.u.nt) src.bowl)
+                  (~(has in removed.u.nt) src.bowl)
+              ==
+          ==
+        :_  state
+        ~[(rpoke /art-deny/(scot %p src.bowl)/[art-id.rem] src.bowl `remote:noltbook`[%remote-artifact-denied art-id.rem eyre-id.rem])]
+      ::  scry bytes from our clay
+      =/  art-clay=path
+        :*  (scot %p our.bowl)
+            q.byk.bowl
+            (scot %da now.bowl)
+            /lib/noltbook/artifacts/[art-id.rem]/mime
+        ==
+      =/  scry-res  (mule |.(.^(mime %cx art-clay)))
+      ?:  ?=(%| -.scry-res)
+        :_  state
+        ~[(rpoke /art-deny/(scot %p src.bowl)/[art-id.rem] src.bowl `remote:noltbook`[%remote-artifact-denied art-id.rem eyre-id.rem])]
+      =/  mim=mime  p.scry-res
+      ::  if requester sent expected-hash, validate before serving.
+      ::  q.mim is octs [p=@ud q=@]; hash content == hash of byte atom (q.q.mim)
+      ?:  ?&  ?=(^ expected-hash.rem)
+              !=(u.expected-hash.rem (sham q.q.mim))
+          ==
+        :_  state
+        ~[(rpoke /art-deny/(scot %p src.bowl)/[art-id.rem] src.bowl `remote:noltbook`[%remote-artifact-denied art-id.rem eyre-id.rem])]
+      =/  mtype=@t  (rap 3 (join '/' p.mim))
+      :_  state
+      :~  :*  %pass
+              /art-content/(scot %p src.bowl)/[art-id.rem]
+              %agent  [src.bowl %noltbook]
+              %poke   %noltbook-remote
+              !>(`remote:noltbook`[%remote-artifact-content art-id.rem eyre-id.rem mtype q.mim])
+          ==
+      ==
+    ::
+        %remote-artifact-content
+      ::  byte host replied with bytes; complete pending HTTP for this response
+      ::  only. Do NOT persist bytes locally — member ships hold metadata only.
+      =/  art  (~(get by artifacts) art-id.rem)
+      ?^  art
+        ::  artifact-map path: only creator may serve us bytes
+        ?.  =(src.bowl creator.u.art)  `state
+        =/  hdrs=(list [@t @t])
+          :~  ['content-type' mime.rem]
+              ['cache-control' 'no-store']
+          ==
+        =/  =simple-payload:http  [[200 hdrs] `bytes.rem]
+        :_  state
+        (give-simple-payload:app:server eyre-id.rem simple-payload)
+      ::  envelope path: require known envelope + matching author. Hash
+      ::  check is strict when envelope carries a non-zero hash, but
+      ::  *@uv (unknown — e.g. fork-copied envelopes) bypasses it.
+      =/  env  (find-aid-in-envelopes art-id.rem artifact-envelopes)
+      ?~  env  `state
+      ?.  =(src.bowl author.u.env)  `state
+      ?.  ?|  =(content-hash.u.env *@uv)
+              =(content-hash.u.env (sham q.bytes.rem))
+          ==
+        :_  state
+        %+  give-simple-payload:app:server  eyre-id.rem
+        [[404 ~] ~]
+      =/  hdrs=(list [@t @t])
+        :~  ['content-type' mime.rem]
+            ['cache-control' 'no-store']
+        ==
+      =/  =simple-payload:http  [[200 hdrs] `bytes.rem]
+      :_  state
+      (give-simple-payload:app:server eyre-id.rem simple-payload)
+    ::
+        %remote-artifact-denied
+      ::  byte host refused (not member, missing, removed); reply 404 to http
+      =/  art  (~(get by artifacts) art-id.rem)
+      ?^  art
+        ?.  =(src.bowl creator.u.art)  `state
+        :_  state
+        %+  give-simple-payload:app:server  eyre-id.rem
+        [[404 ~] ~]
+      =/  env  (find-aid-in-envelopes art-id.rem artifact-envelopes)
+      ?~  env  `state
+      ?.  =(src.bowl author.u.env)  `state
+      :_  state
+      %+  give-simple-payload:app:server  eyre-id.rem
+      [[404 ~] ~]
+    ::
+        %remote-artifact-create
+      ::  member registering metadata for an artifact whose bytes live on member
+      =/  art  artifact.rem
+      =/  nid=@ta  note-id.art
+      =/  nt  (~(get by notes) nid)
+      ?~  nt  `state
+      ::  must be host of this note
+      ?.  =(our.bowl creator.u.nt)  `state
+      ::  only normal/group notes accept artifact metadata
+      ?.  ?|(?=(%notebook type.u.nt) ?=(%group type.u.nt))  `state
+      ::  sender must be current member, not removed
+      ?.  (~(has in users.u.nt) src.bowl)  `state
+      ?:  (~(has in removed.u.nt) src.bowl)  `state
+      ::  artifact creator must equal sender
+      ?.  =(src.bowl creator.art)  `state
+      ::  versions: artifact uploads emit exactly one version
+      ?.  ?=([^ ~] versions.art)  `state
+      =/  ver  i.versions.art
+      =/  ctnt=tape  (trip content.ver)
+      ::  type-specific content validation. %file is UNCHANGED (clay-backed metadata; reject
+      ::  inline dataUrl/mimeType blobs). %app must be a small valid plugin descriptor — a
+      ::  reference the host records but never runs. %code is not accepted via this path.
+      =/  content-ok=?
+        ?-  type.art
+            %file
+          ?&  ?=(^ (find (trip '"storage":"clay"') ctnt))
+              ?=(~ (find (trip 'dataUrl') ctnt))
+              ?=(~ (find (trip 'mimeType') ctnt))
+          ==
+        ::
+            %app   (valid-app-artifact-content content.ver)
+            %code  %.n
+        ==
+      ?.  content-ok  `state
+      ::  read-only: only host/admin can post; host already self
+      =/  admins  (fall (~(get by note-admins) nid) ~)
+      =/  is-admin=?  (~(has in admins) src.bowl)
+      ?:  ?&  !writable.u.nt
+              !is-admin
+          ==
+        `state
+      ::  mute: muted members cannot post
+      =/  muted  (fall (~(get by note-muted) nid) ~)
+      ?:  ?&  (~(has in muted) src.bowl)
+              !is-admin
+          ==
+        `state
+      ::  reject id collision (don't overwrite local artifact)
+      ?:  (~(has by artifacts) id.art)  `state
+      ::  store ref + broadcast group history; bytes stay on src.bowl
+      =/  upd=update:noltbook  [%artifact-created art]
+      =/  pax=path  ~[%notes nid]
+      =/  prev=@t  (artifact-preview art)
+      =/  upd-note=note:noltbook  u.nt(last-author `creator.art, last-preview `prev)
+      ::  reply attention: artifact reply → notify the immediate parent owner if us
+      =/  art-eid=(unit @uv)  ?~(meta.art ~ `eid.u.meta.art)
+      =/  art-rte=(unit @uv)  ?~(meta.art ~ reply-to-eid.u.meta.art)
+      =/  art-when=@da  timestamp.i.versions.art
+      =/  cur-msgs=(list message:noltbook)  (fall (~(get by messages) nid) ~)
+      =/  note-arts=(list artifact:noltbook)
+        (skim ~(val by artifacts) |=(a=artifact:noltbook =(note-id.a nid)))
+      =/  note-aenvs=(list artifact-envelope:noltbook)
+        ~(val by (fall (~(get by artifact-envelopes) nid) *(map @ta artifact-envelope:noltbook)))
+      =/  par-owner=(unit @p)  (attn-parent-owner art-rte ~ cur-msgs note-arts note-aenvs)
+      =/  rtarget=attention-item:noltbook  [%reply %artifact art-eid ~ `id.art creator.art art-when]
+      =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
+        (add-reply-attn attention nid our.bowl (host-self creator.art ~ our.bowl) par-owner rtarget)
+      :_  state(notes (~(put by notes) nid upd-note), artifacts (~(put by artifacts) id.art art), attention na.ar, note-activity (put-activity note-activity nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity nid now.bowl))
+      ^-  (list card:agent:gall)
+      :*  (gf-paths ~[pax] upd)
+          (activity-fact nid now.bowl)
+          (unread-activity-fact nid now.bowl)
+          (sidebar-signal nid creator.art `prev %artifact now.bowl)
+          ac.ar
+      ==
+    ::
+        %remote-artifact-update
+      ::  member updating an existing %app artifact's shared interactive state. Mirrors
+      ::  %remote-artifact-create moderation: we host the note, sender is a current non-removed
+      ::  member, %app + valid descriptor, read-only => admin, muted => admin. creator (origin
+      ::  attribution) is unchanged; this version records editor=src.bowl. Member-writable.
+      =/  old  (~(get by artifacts) art-id.rem)
+      ?~  old  `state
+      =/  nid=@ta  note-id.u.old
+      =/  nt  (~(get by notes) nid)
+      ?~  nt  `state
+      ?.  =(our.bowl creator.u.nt)  `state
+      ?.  ?|(?=(%notebook type.u.nt) ?=(%group type.u.nt))  `state
+      ?.  (~(has in users.u.nt) src.bowl)  `state
+      ?:  (~(has in removed.u.nt) src.bowl)  `state
+      ?.  =(%app type.u.old)  `state
+      ?.  (valid-app-artifact-content content.rem)  `state
+      =/  admins  (fall (~(get by note-admins) nid) ~)
+      =/  is-admin=?  (~(has in admins) src.bowl)
+      ?:  ?&(!writable.u.nt !is-admin)  `state
+      =/  muted  (fall (~(get by note-muted) nid) ~)
+      ?:  ?&((~(has in muted) src.bowl) !is-admin)  `state
+      =/  new-ver=artifact-version:noltbook
+        :*  (add 1 (lent versions.u.old))  content.rem  src.bowl  now.bowl
+        ==
+      =/  upd-art=artifact:noltbook  u.old(versions (snoc versions.u.old new-ver))
+      =/  upd=update:noltbook  [%artifact-updated upd-art]
+      :_  state(artifacts (~(put by artifacts) art-id.rem upd-art))
+      ~[(gf-paths ~[/notes/[nid]] upd)]
+    ::
+        %remote-dm-artifact
+      ::  counterparty shipped a DM artifact (metadata + bytes). Store both.
+      =/  art  artifact.rem
+      =/  nid=@ta  note-id.art
+      =/  nt  (~(get by notes) nid)
+      ?~  nt  `state
+      ?.  ?=(%dm type.u.nt)  `state
+      ::  both parties must be current, non-removed members
+      ?.  (~(has in users.u.nt) src.bowl)  `state
+      ?.  (~(has in users.u.nt) our.bowl)  `state
+      ?:  (~(has in removed.u.nt) src.bowl)  `state
+      ?:  (~(has in removed.u.nt) our.bowl)  `state
+      ::  artifact must originate from sender
+      ?.  =(src.bowl creator.art)  `state
+      ?.  ?=(%file type.art)  `state
+      ::  versions: exactly one
+      ?.  ?=([^ ~] versions.art)  `state
+      =/  ver  i.versions.art
+      =/  ctnt=tape  (trip content.ver)
+      ?~  (find (trip '"storage":"clay"') ctnt)  `state
+      ?^  (find (trip 'dataUrl') ctnt)  `state
+      ?^  (find (trip 'mimeType') ctnt)  `state
+      ::  reject id collision
+      ?:  (~(has by artifacts) id.art)  `state
+      ::  write bytes to our Clay at the deterministic path
+      =/  mpath=(list @ta)  (parse-mime-path mime.rem)
+      =/  art-cage=cage  [%mime !>(`mime`[mpath bytes.rem])]
+      =/  nori  [%& ~[[/lib/noltbook/artifacts/[id.art]/mime [%ins art-cage]]]]
+      =/  clay-card=card  [%pass /art-dm-in/[id.art] %arvo %c %info q.byk.bowl nori]
+      =/  upd=update:noltbook  [%artifact-created art]
+      =/  pax=path  ~[%notes nid]
+      =/  prev=@t  (artifact-preview art)
+      =/  upd-note=note:noltbook  u.nt(last-author `creator.art, last-preview `prev)
+      ::  reply attention: DM artifact reply → notify the immediate parent owner if us
+      =/  art-eid=(unit @uv)  ?~(meta.art ~ `eid.u.meta.art)
+      =/  art-rte=(unit @uv)  ?~(meta.art ~ reply-to-eid.u.meta.art)
+      =/  art-when=@da  timestamp.i.versions.art
+      =/  cur-msgs=(list message:noltbook)  (fall (~(get by messages) nid) ~)
+      =/  note-arts=(list artifact:noltbook)
+        (skim ~(val by artifacts) |=(a=artifact:noltbook =(note-id.a nid)))
+      =/  note-aenvs=(list artifact-envelope:noltbook)
+        ~(val by (fall (~(get by artifact-envelopes) nid) *(map @ta artifact-envelope:noltbook)))
+      =/  par-owner=(unit @p)  (attn-parent-owner art-rte ~ cur-msgs note-arts note-aenvs)
+      =/  rtarget=attention-item:noltbook  [%reply %artifact art-eid ~ `id.art creator.art art-when]
+      =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
+        (add-reply-attn attention nid our.bowl (host-self creator.art ~ our.bowl) par-owner rtarget)
+      :_  state(notes (~(put by notes) nid upd-note), artifacts (~(put by artifacts) id.art art), attention na.ar, note-activity (put-activity note-activity nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity nid now.bowl))
+      :*  clay-card
+          (gf-paths ~[pax] upd)
+          (gf-notes upd)
+          (activity-fact nid now.bowl)
+          (unread-activity-fact nid now.bowl)
+          (sidebar-signal nid creator.art `prev %artifact now.bowl)
+          ac.ar
+      ==
+    ::
+        %remote-artifact-envelope-ref
+      ::  cover/gossip artifact envelope from a peer; never carries bytes
+      =/  nid=@ta  note-id.rem
+      =/  nt  (~(get by notes) nid)
+      ?~  nt  `state
+      ?.  ?|(?=(%cover type.u.nt) ?=(%gossip type.u.nt))  `state
+      ::  blocked sender or blocked author is rejected
+      ?:  (~(has in pal-blocked) src.bowl)  `state
+      ?:  (~(has in pal-blocked) author.env.rem)  `state
+      ::  gossip notes: src must be in users, not removed
+      ?:  ?&  ?=(%gossip type.u.nt)
+              ?|  !(~(has in users.u.nt) src.bowl)
+                  (~(has in removed.u.nt) src.bowl)
+              ==
+          ==
+        `state
+      =/  envs=(map @ta artifact-envelope:noltbook)
+        (fall (~(get by artifact-envelopes) nid) *(map @ta artifact-envelope:noltbook))
+      ::  dedup by aid; skip if we already have it as a full artifact (own)
+      ?:  (~(has by envs) aid.env.rem)  `state
+      ?:  (~(has by artifacts) aid.env.rem)  `state
+      =/  my-hops=@ud  (add hops.rem 1)
+      =/  recipients=(list @p)
+        ?:  ?=(%cover type.u.nt)
+          ~(tap in pal-outgoing)
+        ~(tap in users.u.nt)
+      =/  relay=(list card)
+        %+  murn  recipients
+        |=  p=@p
+        ?:  =(p our.bowl)  ~
+        ?:  =(p src.bowl)  ~
+        ?:  =(p author.env.rem)  ~
+        `(rpoke /art-env-out/(scot %p p)/[aid.env.rem] p `remote:noltbook`[%remote-artifact-envelope-ref nid env.rem my-hops])
+      =/  upd=update:noltbook  [%artifact-envelope nid env.rem my-hops]
+      =/  pax=path  ~[%notes nid]
+      ::  cover is pinned; only user gossip notes get recency/signal/preview.
+      ::  put-activity already skips cover; suppress fact + signal for cover too.
+      =/  is-user-gossip=?  ?=(%gossip type.u.nt)
+      =/  prev=@t  (art-env-preview env.rem)
+      =/  act-cards=(list card)
+        ?:  is-user-gossip  ~[(activity-fact nid now.bowl) (unread-activity-fact nid now.bowl)]
+        ~
+      ::  signal for user gossip (dots+preview) and cover (preview only; the
+      ::  frontend never dots cover). Recency/note-preview-persist stay gossip-only.
+      =/  sig-cards=(list card)
+        ?:  is-user-gossip  ~[(sidebar-signal nid author.env.rem `prev %artifact now.bowl)]
+        ?:  =(nid %cover)  ~[(sidebar-signal nid author.env.rem `prev %artifact now.bowl)]
+        ~
+      =/  new-notes=(map @ta note:noltbook)
+        ?.  is-user-gossip  notes
+        (~(put by notes) nid u.nt(last-author `author.env.rem, last-preview `prev))
+      ::  reply attention: cover/gossip artifact-envelope reply → parent owner if us
+      =/  env-eid=(unit @uv)  ?~(meta.env.rem ~ `eid.u.meta.env.rem)
+      =/  env-rte=(unit @uv)  ?~(meta.env.rem ~ reply-to-eid.u.meta.env.rem)
+      =/  cur-msgs=(list message:noltbook)  (fall (~(get by messages) nid) ~)
+      =/  note-arts=(list artifact:noltbook)
+        (skim ~(val by artifacts) |=(a=artifact:noltbook =(note-id.a nid)))
+      =/  par-owner=(unit @p)  (attn-parent-owner env-rte ~ cur-msgs note-arts ~(val by envs))
+      =/  rtarget=attention-item:noltbook  [%reply %artifact-envelope env-eid ~ `aid.env.rem author.env.rem timestamp.env.rem]
+      =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
+        (add-reply-attn attention nid our.bowl (host-self author.env.rem ~ our.bowl) par-owner rtarget)
+      :_  state(notes new-notes, artifact-envelopes (~(put by artifact-envelopes) nid (cap-art-envs (~(put by envs) aid.env.rem env.rem))), attention na.ar, note-activity (put-activity note-activity nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity nid now.bowl))
+      :(weld ~[(gf-paths ~[pax] upd)] relay act-cards sig-cards ac.ar)
+    ==
 ::  action-vase: action:noltbook -> vase. One !> of the action type-noun lives here
 ::  so the API->action re-entries recurse through vase without re-embedding the cast 59x.
 ++  action-vase
@@ -10090,11 +12558,20 @@
       ?:  (is-write-blocked note-id.art host-status notes our.bowl)
         :_  this
         (api-art-result-card request-id.aa %.n %rejected 'write blocked' `note-id.art r-eid `art-id.aa)
-      ::  API is conservative: the internal handler checks only write-blocked, so we
-      ::  require artifact creator == our before re-entering (creator-only edit).
-      ?.  =(our.bowl creator.art)
+      =/  nt=note:noltbook  (~(got by notes) note-id.art)
+      ::  authority: %app artifacts are shared interactive state — any current member may edit
+      ::  (the host re-validates + moderates); %code/%file stay creator-only. %app content is
+      ::  validated here too, since the internal action now also accepts member %app edits.
+      =/  gate-err=(unit [code=@tas msg=@t])
+        ?:  ?=(%app type.art)
+          ?.  (~(has in users.nt) our.bowl)  `[%rejected 'not a member of this note']
+          ?.  (valid-app-artifact-content content.aa)  `[%invalid 'invalid app descriptor']
+          ~
+        ?.  =(our.bowl creator.art)  `[%rejected 'only artifact creator can edit via API']
+        ~
+      ?^  gate-err
         :_  this
-        (api-art-result-card request-id.aa %.n %rejected 'only artifact creator can edit via API' `note-id.art r-eid `art-id.aa)
+        (api-art-result-card request-id.aa %.n code.u.gate-err msg.u.gate-err `note-id.art r-eid `art-id.aa)
       =^  cards  this
         $(mark %noltbook-action, vase (action-vase `action:noltbook`[%edit-artifact art-id.aa content.aa]))
       :_  this
@@ -11858,6 +14335,8 @@
         %rename-note
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
+      ::  gossip is an immutable snapshot — name is frozen at creation, no rename.
+      ?:  =(%gossip type.u.old)  `this
       ::  DM: local-only rename; either member can rename their copy.
       ::  Persist as dm-prefs[counterparty] so re-invited DM keeps the label.
       ?:  =(%dm type.u.old)
@@ -11901,6 +14380,9 @@
       ?~  old  `this
       ::  protect system notes from deletion
       ?:  |(=(id.act %cover) =(id.act %ars-rumors))  `this
+      ::  gossip is hostless: nobody deletes it (and a delete must never broadcast
+      ::  %remote-note-deleted to holders). The creator, like anyone, can only leave.
+      ?:  =(%gossip type.u.old)  `this
       ::  only creator (host) can delete
       ?.  =(our.bowl creator.u.old)  `this
       ::  Phase 4: collect entire subtree (root + descendants of any type)
@@ -12107,8 +14589,10 @@
       =/  self-set=(set @p)  (sy ~[our.bowl])
       =/  nid=@ta  (crip (weld "note-" (trip (scot %da now.bowl))))
       =/  hl=(unit @t)  ?:(=(%~ headline.act) ~ `headline.act)
+      ::  gossip is always-public + hostless; visibility is a dead field (set %public so it
+      ::  never reads as private). creator is attribution only, not an authority.
       =/  new-note=note:noltbook
-        :*  nid  name.act  %gossip  our.bowl  self-set  ~  ~  ~  ~  %secret  ~  &  ~  hl
+        :*  nid  name.act  %gossip  our.bowl  self-set  ~  ~  ~  ~  %public  ~  &  ~  hl
         ==
       =/  upd=update:noltbook  [%note-created new-note]
       =/  new-headlines=(map @ta @t)
@@ -12165,9 +14649,9 @@
         =/  upd=update:noltbook  [%gossip-message msg 0]
         ::  broadcast envelope (not full message) to peers
         =/  env=envelope:noltbook  [our.bowl id.msg now.bowl reply-to.act (sham text.act) em via.act]
-        ~&  [%cover-send-gossip our=our.bowl pal-count=~(wyt in pal-outgoing) targets=~(tap in pal-outgoing)]
+        ::  send our cover envelope to our FOLLOWERS (pal-incoming) — they display it.
         =/  gossip=(list card)
-          %+  turn  ~(tap in pal-outgoing)
+          %+  turn  ~(tap in pal-incoming)
           |=  p=@p
           ^-  card
           (rpoke /ars-out/(scot %p p) p `remote:noltbook`[%remote-ars-ref env 0])
@@ -12184,10 +14668,11 @@
         =/  cur=(list message:noltbook)  (fall (~(get by messages) nid) ~)
         =/  upd=update:noltbook  [%gossip-message msg 0]
         =/  env=envelope:noltbook  [our.bowl id.msg now.bowl reply-to.act (sham text.act) em via.act]
+        ::  mesh model: send the envelope (reference, content-hash) to our FOLLOWERS
+        ::  (pal-incoming) — like cover. Followers who hold the note display + re-relay it.
         =/  targets=(list @p)
-          %+  skim  ~(tap in users.u.exists)
+          %+  skim  ~(tap in pal-incoming)
           |=(p=@p !=(p our.bowl))
-        ~&  [%gossip-note-send our=our.bowl note=nid target-count=(lent targets)]
         =/  gossip=(list card)
           %+  turn  targets
           |=  p=@p
@@ -12551,6 +15036,8 @@
       ?:  (is-write-blocked id.act host-status notes our.bowl)  `this
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
+      ::  gossip is an immutable snapshot — visibility/icon/writable frozen at creation.
+      ?:  =(%gossip type.u.old)  `this
       ::  DM: local-only meta change (icon only); either member can set.
       ::  Persist icon-url as dm-prefs[counterparty] for re-invited DMs.
       ?:  =(%dm type.u.old)
@@ -12637,10 +15124,14 @@
       ?:  (is-write-blocked id.act host-status notes our.bowl)  `this
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
-      ::  gossip: any member can invite; group: host or admin; others: host only
+      ::  group + gossip share one rule: public → any member, private/secret → admin.
+      ::  creator always; all other types: host only.
       ?.  ?|  =(our.bowl creator.u.old)
-              &(=(%gossip type.u.old) (~(has in users.u.old) our.bowl))
-              &(=(%group type.u.old) (~(has in (fall (~(get by note-admins) id.act) ~)) our.bowl))
+              ?&  ?|(=(%group type.u.old) =(%gossip type.u.old))
+                  ?:  =(%public visibility.u.old)
+                    (~(has in users.u.old) our.bowl)
+                  (~(has in (fall (~(get by note-admins) id.act) ~)) our.bowl)
+              ==
           ==
         `this
       ::  %dm is strictly 2-user; cannot invite into DM
@@ -12737,10 +15228,13 @@
       ?:  (is-write-blocked id.act host-status notes our.bowl)  `this
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
-      ::  permission gate matches %invite-to-note
+      ::  permission gate matches %invite-to-note (group+gossip: public → any member, else admin)
       ?.  ?|  =(our.bowl creator.u.old)
-              &(=(%gossip type.u.old) (~(has in users.u.old) our.bowl))
-              &(=(%group type.u.old) (~(has in (fall (~(get by note-admins) id.act) ~)) our.bowl))
+              ?&  ?|(=(%group type.u.old) =(%gossip type.u.old))
+                  ?:  =(%public visibility.u.old)
+                    (~(has in users.u.old) our.bowl)
+                  (~(has in (fall (~(get by note-admins) id.act) ~)) our.bowl)
+              ==
           ==
         `this
       ?:  =(%dm type.u.old)  `this
@@ -12912,13 +15406,29 @@
       =/  old  (~(get by artifacts) id.act)
       ?~  old  `this
       ?:  (is-write-blocked note-id.u.old host-status notes our.bowl)  `this
+      ::  %app artifacts carry shared interactive state — validate the descriptor on EVERY edit
+      ::  path (not just remote receive), since %app edits are now member-writable.
+      ?:  ?&  =(%app type.u.old)
+              !(valid-app-artifact-content content.act)
+          ==
+        `this
+      ::  non-host on a remote-hosted %app artifact: forward to the host, which is the authority +
+      ::  serializer — it moderates, applies, and broadcasts %artifact-updated back to all members
+      ::  (reaching us via /remote-note). Do NOT store locally. Mirrors the create forward.
+      =/  nt  (~(get by notes) note-id.u.old)
+      ?:  ?&  =(%app type.u.old)
+              ?=(^ nt)
+              !=(our.bowl creator.u.nt)
+              ?|(?=(%notebook type.u.nt) ?=(%group type.u.nt))
+          ==
+        :_  this
+        ~[(rpoke /art-edit-out/[id.act] creator.u.nt `remote:noltbook`[%remote-artifact-update id.act content.act])]
       =/  new-ver=artifact-version:noltbook
         :*  (add 1 (lent versions.u.old))  content.act  our.bowl  now.bowl
         ==
       =/  upd-art=artifact:noltbook  u.old(versions (snoc versions.u.old new-ver))
       =/  upd=update:noltbook  [%artifact-updated upd-art]
       =/  pax=path  ~[%notes note-id.upd-art]
-      ~&  [%nb-art-trace-edit-emit our=our.bowl note=note-id.upd-art artifact=id.upd-art versions=(lent versions.upd-art)]
       :_  this(artifacts (~(put by artifacts) id.act upd-art))
       ~[(gf-paths ~[pax] upd)]
     ::
@@ -13052,7 +15562,7 @@
         =/  pub-notes=(list note:noltbook)
           %+  skim  ~(val by notes)
           |=  n=note:noltbook
-          ?&  =(%group type.n)
+          ?&  ?|(=(%group type.n) =(%gossip type.n))
               =(our.bowl creator.n)
               ?|(?=(%public visibility.n) ?=(%private visibility.n))
               !(~(has by note-actor-owners) id.n)
@@ -13523,6 +16033,17 @@
           (actor-notif-diff-cards actor-notifications new-notifs msgs-after actor-by-eid)
         =/  base-cards=(list card)  ~[(gf-notes upd)]
         :_  this(notes (~(del by notes) id.act), messages msgs-after, artifacts cleaned-arts, cleared-mentions (~(del by cleared-mentions) id.act), actor-note-roster (prune-participation ~[id.act] actor-note-roster), note-members (~(del by note-members) id.act), actor-join-requests (~(del by actor-join-requests) id.act), note-actor-muted (~(del by note-actor-muted) id.act), actor-note-read (actor-read-prune actor-note-read ~[id.act]), actor-notifications new-notifs)
+        (weld notif-cards base-cards)
+      ::  gossip: hostless container — leaving is a LOCAL-ONLY silent drop. Never kick
+      ::  members and never notify a host (there is none); just remove our own copy.
+      ?:  =(%gossip type.u.old)
+        =/  upd=update:noltbook  [%note-deleted id.act]
+        =/  new-notifs  (actor-notif-prune-notes actor-notifications ~[id.act])
+        =/  msgs-after  (~(del by messages) id.act)
+        =/  notif-cards=(list card)
+          (actor-notif-diff-cards actor-notifications new-notifs msgs-after actor-by-eid)
+        =/  base-cards=(list card)  ~[(gf-notes upd)]
+        :_  this(notes (~(del by notes) id.act), messages msgs-after, artifacts cleaned-arts, gossip-envelopes (~(del by gossip-envelopes) id.act), cleared-mentions (~(del by cleared-mentions) id.act), actor-note-roster (prune-participation ~[id.act] actor-note-roster), note-members (~(del by note-members) id.act), actor-join-requests (~(del by actor-join-requests) id.act), note-actor-muted (~(del by note-actor-muted) id.act), actor-note-read (actor-read-prune actor-note-read ~[id.act]), actor-notifications new-notifs)
         (weld notif-cards base-cards)
       ::  sole user: act like delete
       ?:  (lte user-count 1)
@@ -14358,2422 +16879,8 @@
     ==
       %noltbook-remote
     =/  rem  !<(remote:noltbook vase)
-    ?-  -.rem
-    ::
-        %remote-invite
-      ::  someone invited us to their note
-      ::  reject invites from blocked ships; for DMs notify sender so they clean up
-      ?:  (~(has in pal-blocked) src.bowl)
-        ?.  =(%dm type.rem)  `this
-        :_  this
-        ~[(rpoke /dm-block-rej/(scot %p src.bowl)/[note-id.rem] src.bowl `remote:noltbook`[%remote-dm-blocked note-id.rem])]
-      =/  raw-note=note:noltbook
-        [note-id.rem name.rem type.rem creator.rem users.rem ~ ~ ~ ~ visibility.rem ~ writable.rem ~ ~]
-      ::  for DMs, overlay saved local prefs (name/icon) — these never travel
-      =/  new-note=note:noltbook  (apply-dm-pref raw-note dm-prefs our.bowl)
-      ::  repair children: if orphan child notes for this id already exist
-      ::  locally (delivered before the root invite), merge their ids into
-      ::  new-note.children so the subtree renders on install.
-      =/  orphan-children=(list @ta)  (find-orphan-children note-id.rem notes)
-      =/  new-note=note:noltbook
-        new-note(children (merge-children children.new-note orphan-children))
-      ::  root-uniqueness: dedup dm roots (one root per exact user pair)
-      =/  dup
-        ?.  =(%dm type.rem)  ~
-        (find-root notes users.rem type.rem)
-      ?^  dup
-        ?:  =(id.u.dup note-id.rem)  `this  :: same note, no-op
-        =/  local-wins=?
-          %+  root-wins
-            [creator.u.dup id.u.dup]
-          [creator.rem note-id.rem]
-        ?:  local-wins
-          ::  keep local; tell sender to drop theirs + adopt ours
-          :_  this
-          :~  :*  %pass  /root-exists/(scot %p src.bowl)/[note-id.rem]
-                  %agent  [src.bowl %noltbook]  %poke
-                  %noltbook-remote
-                  !>(`remote:noltbook`[%remote-root-exists note-id.rem u.dup])
-              ==
-          ==
-        ::  remote wins; drop local root, adopt incoming
-        =/  old-id=@ta  id.u.dup
-        =/  trimmed=(map @ta note:noltbook)  (~(del by notes) old-id)
-        =/  trimmed-msgs=(map @ta (list message:noltbook))  (~(del by messages) old-id)
-        =/  redir=update:noltbook  [%note-redirect old-id note-id.rem]
-        =/  new-peers=(set @p)  (~(put in peers) creator.rem)
-        =/  is-new-peer=?  !(~(has in peers) creator.rem)
-        =/  ars-cards=(list card)
-          ?.  is-new-peer  ~
-          ~[[%pass /ars/(scot %p creator.rem) %agent [creator.rem %noltbook] %watch /notes/cover]]
-        =/  upd=update:noltbook  [%note-created new-note]
-        =/  sub-card=card
-          [%pass /remote-note/[note-id.rem] %agent [creator.rem %noltbook] %watch /notes/[note-id.rem]]
-        =/  head-cards=(list card)
-          :~  (gf-notes redir)
-              sub-card
-              (gf-notes upd)
-              (activity-fact note-id.rem now.bowl)
-              (unread-activity-fact note-id.rem now.bowl)
-          ==
-        :_  %=  this
-              notes  (~(put by trimmed) note-id.rem new-note)
-              messages  (~(put by trimmed-msgs) note-id.rem ~)
-              peers  new-peers
-              note-activity  (put-activity note-activity note-id.rem now.bowl)
-              note-unread-activity  (put-unread-activity note-unread-activity note-id.rem now.bowl)
-            ==
-        :(weld head-cards ars-cards)
-      ::  no collision: original path
-      ::  add creator to peers, subscribe to their ars notoria
-      =/  new-peers=(set @p)  (~(put in peers) creator.rem)
-      =/  is-new-peer=?  !(~(has in peers) creator.rem)
-      =/  ars-cards=(list card)
-        ?.  is-new-peer
-          ~
-        ~[[%pass /ars/(scot %p creator.rem) %agent [creator.rem %noltbook] %watch /notes/cover]]
-      ::  notify local frontend (peers only, no pal intent on receive)
-      =/  upd=update:noltbook  [%note-created new-note]
-      ::  subscribe to creator for live updates (skip cover — ars handles it)
-      ?:  =(note-id.rem %cover)
-        :_  this(notes (~(put by notes) note-id.rem new-note), messages (~(put by messages) note-id.rem ~), peers new-peers)
-        :(weld [(gf-notes upd) ~] ars-cards)
-      =/  sub-card=card
-        [%pass /remote-note/[note-id.rem] %agent [creator.rem %noltbook] %watch /notes/[note-id.rem]]
-      :_  this(notes (~(put by notes) note-id.rem new-note), messages (~(put by messages) note-id.rem ~), peers new-peers, note-activity (put-activity note-activity note-id.rem now.bowl), note-unread-activity (put-unread-activity note-unread-activity note-id.rem now.bowl))
-      :(weld [sub-card (gf-notes upd) (activity-fact note-id.rem now.bowl) (unread-activity-fact note-id.rem now.bowl) ~] ars-cards)
-    ::
-        %remote-gossip-invite
-      ::  someone invited us to their gossip note (with headline)
-      ?:  (~(has in pal-blocked) src.bowl)  `this
-      =/  hl  headline.rem
-      =/  new-note=note:noltbook
-        [note-id.rem name.rem %gossip creator.rem users.rem ~ ~ ~ ~ %secret ~ & ~ hl]
-      =/  new-peers=(set @p)  (~(put in peers) creator.rem)
-      =/  is-new-peer=?  !(~(has in peers) creator.rem)
-      =/  ars-cards=(list card)
-        ?.  is-new-peer  ~
-        ~[[%pass /ars/(scot %p creator.rem) %agent [creator.rem %noltbook] %watch /notes/cover]]
-      =/  upd=update:noltbook  [%note-created new-note]
-      =/  sub-card=card
-        [%pass /remote-note/[note-id.rem] %agent [creator.rem %noltbook] %watch /notes/[note-id.rem]]
-      =/  new-headlines=(map @ta @t)
-        ?~  hl  headlines
-        (~(put by headlines) note-id.rem u.hl)
-      :_  %=  this
-            notes  (~(put by notes) note-id.rem new-note)
-            messages  (~(put by messages) note-id.rem ~)
-            peers  new-peers
-            headlines  new-headlines
-            note-activity  (put-activity note-activity note-id.rem now.bowl)
-            note-unread-activity  (put-unread-activity note-unread-activity note-id.rem now.bowl)
-          ==
-      :(weld [sub-card (gf-notes upd) (activity-fact note-id.rem now.bowl) (unread-activity-fact note-id.rem now.bowl) ~] ars-cards)
-    ::
-        %remote-dm-message
-      ::  atomic DM delivery: payload carries DM note metadata, so the
-      ::  receiver can recreate the DM if they previously left it. No
-      ::  subscription, no echo poke — avoids ames loops.
-      ?:  (~(has in pal-blocked) src.bowl)  `this
-      ?.  =(%dm type.note.rem)  `this
-      ?.  =(2 ~(wyt in users.note.rem))  `this
-      ?.  (~(has in users.note.rem) our.bowl)  `this
-      ?.  (~(has in users.note.rem) src.bowl)  `this
-      ?.  =(src.bowl author.msg.rem)  `this
-      ::  resolve canonical local nid for this pair (handles re-creation
-      ::  after leave, and possible nid collision via root-wins).
-      =/  existing=(unit note:noltbook)  (find-dm-root notes users.note.rem)
-      =/  install-fresh=note:noltbook  (apply-dm-pref note.rem dm-prefs our.bowl)
-      =/  target-nid=@ta
-        ?~  existing  id.note.rem
-        ?:  =(id.u.existing id.note.rem)  id.u.existing
-        ?:  (root-wins [creator.u.existing id.u.existing] [creator.note.rem id.note.rem])
-          id.u.existing
-        id.note.rem
-      =/  staged-notes=(map @ta note:noltbook)
-        ?~  existing
-          (~(put by notes) target-nid install-fresh)
-        ?:  =(id.u.existing target-nid)  notes
-        ::  remote wins: drop local, install incoming
-        (~(put by (~(del by notes) id.u.existing)) target-nid install-fresh)
-      =/  staged-msgs=(map @ta (list message:noltbook))
-        ?~  existing
-          (~(put by messages) target-nid ~)
-        ?:  =(id.u.existing target-nid)  messages
-        (~(put by (~(del by messages) id.u.existing)) target-nid ~)
-      =/  note-cards=(list card)
-        ?~  existing
-          ~[(gf-notes `update:noltbook`[%note-created install-fresh])]
-        ?:  =(id.u.existing target-nid)  ~
-        :~  (gf-notes `update:noltbook`[%note-redirect id.u.existing target-nid])
-            (gf-notes `update:noltbook`[%note-created install-fresh])
-        ==
-      ::  dedup message on target nid
-      =/  cur=(list message:noltbook)  (fall (~(get by staged-msgs) target-nid) ~)
-      =/  msg-eid=(unit @uv)  ?~(meta.msg.rem ~ `eid.u.meta.msg.rem)
-      =/  dup=?
-        ?|  (lien cur |=(m=message:noltbook =(id.m id.msg.rem)))
-            ?&  ?=(^ msg-eid)
-                (lien cur |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.msg-eid))))
-            ==
-        ==
-      ?:  dup
-        :_  this(notes staged-notes, messages staged-msgs)
-        note-cards
-      ::  The remote ship may know this DM under a different root id. Store
-      ::  and emit the message under our resolved local DM id so the frontend
-      ::  does not route it to the stale/remote id.
-      =/  local-msg=message:noltbook  msg.rem(note-id target-nid)
-      =/  new-cur=(list message:noltbook)  (snoc cur local-msg)
-      =/  target-note=note:noltbook  (~(got by staged-notes) target-nid)
-      =/  upd-note=note:noltbook
-        target-note(last-author `src.bowl, last-preview `text.local-msg)
-      ::  Phase ACTOR-1: trust the incoming actor only if its host == the
-      ::  Ames-authenticated source; otherwise drop it. host is never trusted
-      ::  from the wire field.
-      ::  Phase ACTOR-1 hardening: a remote actor is app-scoped and must arrive
-      ::  tied to valid via attribution FROM THE SAME SOURCE. Keep actor only when
-      ::  actor+via both exist, actor.host == via.ship == src.bowl, and actor.desk
-      ::  == via.desk. Any mismatch (or detached actor) drops the actor entirely.
-      =/  dm-actor=(unit actor:noltbook)
-        ?~  actor.rem  ~
-        ?~  via.rem  ~
-        ?.  =(host.u.actor.rem src.bowl)  ~
-        ?.  =(ship.u.via.rem src.bowl)  ~
-        ?.  =(desk.u.actor.rem desk.u.via.rem)  ~
-        actor.rem
-      ::  Phase 11B: DM recipient records the sender's via against the message eid.
-      =/  new-msg-upd=update:noltbook  [%new-message local-msg ~ via.rem dm-actor]
-      =/  msg-cards=(list card)
-        :~  (gf-paths ~[/notes/[target-nid]] new-msg-upd)
-            (gf-notes new-msg-upd)
-        ==
-      =.  via-by-eid  (api-via-put via-by-eid via.rem local-msg)
-      =.  actor-by-eid  (api-actor-put actor-by-eid dm-actor local-msg)
-      :_  this(notes (~(put by staged-notes) target-nid upd-note), messages (~(put by staged-msgs) target-nid new-cur), note-activity (put-activity note-activity target-nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity target-nid now.bowl))
-      :(weld note-cards msg-cards ~[(activity-fact target-nid now.bowl) (unread-activity-fact target-nid now.bowl)])
-    ::
-        %remote-message
-      ::  a remote user sent a message to a note we host
-      ::  reject if sender is blocked
-      ?:  (~(has in pal-blocked) src.bowl)  `this
-      =/  old  (~(get by notes) note-id.rem)
-      ?~  old  `this
-      ::  reject if sender was removed from note
-      ?:  (~(has in removed.u.old) src.bowl)  `this
-      ::  reject if sender is muted in this note
-      ?:  (~(has in (fall (~(get by note-muted) note-id.rem) ~)) src.bowl)  `this
-      ::  verify: we must be creator (or DM peer), sender must be in users
-      ?.  ?|  =(our.bowl creator.u.old)
-              =(%dm type.u.old)
-          ==
-        `this
-      ?.  (~(has in users.u.old) src.bowl)  `this
-      ::  DM validation: message author must match sender
-      ?:  &(=(%dm type.u.old) !=(src.bowl author.msg.rem))  `this
-      ::  host assigns authoritative entry-meta for regular notes
-      =/  is-regular=?
-        ?&  !=(%cover type.u.old)
-            !=(%gossip type.u.old)
-            !=(note-id.rem %ars-rumors)
-        ==
-      =/  cur-seq=@ud  (fall (~(get by seq-counters) note-id.rem) 0)
-      =/  nxt-seq=@ud  ?:(is-regular +(cur-seq) 0)
-      ::  resolve reply-to-eid: look up parent message's eid
-      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
-      ::  DM dedup: poke may race with subscription delivery
-      =/  rm-eid=(unit @uv)  ?~(meta.msg.rem ~ `eid.u.meta.msg.rem)
-      ?:  ?&  =(%dm type.u.old)
-              ?|  (lien cur |=(m=message:noltbook =(id.m id.msg.rem)))
-                  ?&  ?=(^ rm-eid)
-                      (lien cur |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.rm-eid))))
-                  ==
-              ==
-          ==
-        `this
-      =/  reply-eid=(unit @uv)
-        ?.  is-regular  ~
-        ::  sender-supplied reply-to-eid wins first — this is the ONLY signal for
-        ::  replies to artifacts (which have no legacy @da reply-to). Must be
-        ::  checked before the legacy reply-to short-circuit.
-        =/  sender-eid=(unit @uv)
-          ?~(meta.msg.rem ~ reply-to-eid.u.meta.msg.rem)
-        ?^  sender-eid  sender-eid
-        ::  legacy text-to-text fallback: resolve parent message by @da id
-        ?~  reply-to.msg.rem  ~
-        =/  parent=(list message:noltbook)  (skim cur |=(m=message:noltbook =(id.m u.reply-to.msg.rem)))
-        ?~  parent  ~
-        ?~  meta.i.parent  ~
-        `eid.u.meta.i.parent
-      =/  host-meta=(unit entry-meta:noltbook)
-        ?.  is-regular  ~
-        `[(sham [src.bowl now.bowl nxt-seq]) nxt-seq 0 timestamp.msg.rem now.bowl reply-eid]
-      ::  DM: preserve sender-authored meta; hosted: override with host meta
-      =/  stamped=message:noltbook
-        ?:  =(%dm type.u.old)  msg.rem
-        msg.rem(meta host-meta)
-      ::  host rebroadcast of a member's message: carry the member's NOTE SEND
-      ::  marker (directed-kind.rem) so a member-recipient classifies as %send.
-      ::  Phase ACTOR-1: trust the incoming actor only if its host == the
-      ::  Ames-authenticated source; otherwise drop it (never trust wire host).
-      ::  Phase ACTOR-1 hardening: same app-scoped invariant as the DM receiver —
-      ::  actor kept only when tied to valid via from src (host==via.ship==src.bowl
-      ::  and actor.desk==via.desk). Detached/mismatched actor is dropped.
-      =/  rem-actor=(unit actor:noltbook)
-        ?~  actor.rem  ~
-        ?~  via.rem  ~
-        ?.  =(host.u.actor.rem src.bowl)  ~
-        ?.  =(ship.u.via.rem src.bowl)  ~
-        ?.  =(desk.u.actor.rem desk.u.via.rem)  ~
-        actor.rem
-      ::  Phase 11B: carry the sender's via on the host rebroadcast so members
-      ::  record it against the host-assigned eid (stamped), keeping ship=sender.
-      =/  upd=update:noltbook  [%new-message stamped directed-kind.rem via.rem rem-actor]
-      =/  pax=path  ~[%notes note-id.rem]
-      =/  upd-note=note:noltbook  u.old(last-author `author.msg.rem, last-preview `text.msg.rem)
-      ::  Phase B: real-user mute/block of the (guarded) sender actor suppresses host
-      ::  unread + @~host mention + reply attention; the message still stores/delivers.
-      =/  u-suppressed=?  (actor-user-suppressed rem-actor user-muted-actors user-blocked-actors)
-      ::  mention detection: check if @~our appears in message text
-      =/  mentioned=?  &(!u-suppressed (has-our-mention text.msg.rem our.bowl))
-      =/  stamped-eid=(unit @uv)
-        ?~  meta.stamped  ~
-        `eid.u.meta.stamped
-      =/  active-mentioned=?
-        ?&(mentioned !(mention-cleared (fall (~(get by cleared-mentions) note-id.rem) ~) id.stamped stamped-eid))
-      =/  mention-cards=(list card)
-        ?.  active-mentioned  ~
-        (attn-mention-cards note-id.rem id.stamped stamped-eid author.msg.rem)
-      =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
-        ?.  active-mentioned  mentions
-        =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) note-id.rem) ~)
-        (~(put by mentions) note-id.rem (snoc cur-m [id.stamped stamped-eid author.msg.rem]))
-      =/  new-seq=(map @ta @ud)
-        ?:  =(%dm type.u.old)  seq-counters
-        ?:(is-regular (~(put by seq-counters) note-id.rem nxt-seq) seq-counters)
-      ::  reply attention: notify the immediate parent owner if it is us. Target
-      ::  is the NEW reply (a message). Uses sender reply-to-eid then legacy @da.
-      =/  note-arts=(list artifact:noltbook)
-        (skim ~(val by artifacts) |=(a=artifact:noltbook =(note-id.a note-id.rem)))
-      =/  note-aenvs=(list artifact-envelope:noltbook)
-        ~(val by (fall (~(get by artifact-envelopes) note-id.rem) *(map @ta artifact-envelope:noltbook)))
-      =/  rte=(unit @uv)  ?~(meta.msg.rem ~ reply-to-eid.u.meta.msg.rem)
-      =/  par-owner=(unit @p)  (attn-parent-owner rte reply-to.msg.rem cur note-arts note-aenvs)
-      ::  Phase G6B: if the immediate parent is attributed to an actor, route to actor
-      ::  notification logic and SUPPRESS host reply attention for that parent (even if
-      ::  the actor is remote or the notification is later filtered).
-      =/  par-eid=(unit @uv)  (reply-parent-eid msg.rem cur)
-      =/  parent-is-actor=?  ?&(?=(^ par-eid) (~(has by actor-by-eid) u.par-eid))
-      ::  NOTE SEND payment posts get kind=%send via the explicit marker carried
-      ::  on the %remote-message poke (no longer text-prefix based).
-      =/  rkind=attention-kind:noltbook  ?:(=(`%send directed-kind.rem) %send %reply)
-      =/  rtarget=attention-item:noltbook  [rkind %message stamped-eid `id.stamped ~ author.msg.rem id.stamped]
-      =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
-        ?:  |(parent-is-actor u-suppressed)  [attention ~]
-        (add-reply-attn attention note-id.rem our.bowl (host-self author.msg.rem rem-actor our.bowl) par-owner rtarget)
-      ::  Phase 11B: host records attribution against its own stamped eid.
-      =.  via-by-eid  (api-via-put via-by-eid via.rem stamped)
-      ::  Phase ACTOR-1: host records the guarded actor against the stamped eid.
-      =.  actor-by-eid  (api-actor-put actor-by-eid rem-actor stamped)
-      ::  Phase G6B: actor reply notification on the parent actor's host (this ship).
-      =^  notif-cards  actor-notifications
-        ?.  parent-is-actor  [~ actor-notifications]
-        (actor-notif-add actor-notifications our.bowl now.bowl note-id.rem stamped rem-actor actor-by-eid cur actor-registry note-actor-owners actor-note-roster actor-dm-notes notes actor-preferences)
-      ::  Phase B: unread-activity advances unless a muted/blocked sender actor.
-      =/  new-unread-activity=(map @ta @da)
-        ?:(u-suppressed note-unread-activity (put-unread-activity note-unread-activity note-id.rem now.bowl))
-      =/  unread-card=(list card)
-        ?:(u-suppressed ~ ~[(unread-activity-fact note-id.rem now.bowl)])
-      :_  this(notes (~(put by notes) note-id.rem upd-note), messages (~(put by messages) note-id.rem (snoc cur stamped)), mentions new-mentions, attention na.ar, seq-counters new-seq, note-activity (put-activity note-activity note-id.rem now.bowl), note-unread-activity new-unread-activity)
-      ^-  (list card:agent:gall)
-      ::  1B.2: durable state + /notes/[nid] transport delivery + actor notifications are
-      ::  unchanged; the global /notes host-human facts (gf-notes/activity/unread/mention)
-      ::  are stripped when the host human is not a logical member of the (hidden) note.
-      %:  human-note-cards  note-id.rem  our.bowl
-          note-members  note-actor-owners  notes
-        :*  (gf-paths ~[pax] upd)
-            (gf-notes upd)
-            (activity-fact note-id.rem now.bowl)
-            (weld unread-card (weld notif-cards (weld mention-cards ac.ar)))
-        ==
-      ==
-    ::
-        %remote-ars
-      ::  ARS NOTORIA gossip from a peer (legacy full-message path)
-      =/  cenv=(map @da envelope:noltbook)
-        (fall (~(get by gossip-envelopes) %cover) *(map @da envelope:noltbook))
-      =/  cur=(list message:noltbook)  (fall (~(get by messages) %cover) ~)
-      =/  meid=(unit @uv)  ?~(meta.msg.rem ~ `eid.u.meta.msg.rem)
-      ::  dedup: eid-first (stable identity), fall back to msg-id (compat)
-      ?:  ?|  (lien cur |=(m=message:noltbook =(id.m id.msg.rem)))
-              ?&  ?=(^ meid)
-                  (lien cur |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.meid))))
-              ==
-          ==
-        `this
-      ?:  ?|  (~(has by cenv) id.msg.rem)
-              ?&  ?=(^ meid)
-                  (lien ~(val by cenv) |=(e=envelope:noltbook ?~(meta.e %.n =(eid.u.meta.e u.meid))))
-              ==
-          ==
-        `this
-      =/  my-hops=@ud  (add hops.rem 1)
-      =/  mentioned=?  &(!=(author.msg.rem our.bowl) (has-our-mention text.msg.rem our.bowl))
-      =/  active-mentioned=?
-        ?&(mentioned !(mention-cleared (fall (~(get by cleared-mentions) %cover) ~) id.msg.rem meid))
-      =/  mention-cards=(list card)
-        ?.  active-mentioned  ~
-        (attn-mention-cards %cover id.msg.rem meid author.msg.rem)
-      =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
-        ?.  active-mentioned  mentions
-        =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) %cover) ~)
-        (~(put by mentions) %cover (snoc cur-m [id.msg.rem meid author.msg.rem]))
-      =/  env=envelope:noltbook  (api-env-of msg.rem via-by-eid)
-      =/  relay=(list card)
-        %+  murn  ~(tap in pal-outgoing)
-        |=  p=@p
-        ?:  =(p src.bowl)  ~
-        ?:  =(p author.msg.rem)  ~
-        `(rpoke /ars-out/(scot %p p) p `remote:noltbook`[%remote-ars-ref env my-hops])
-      ?:  =(author.msg.rem our.bowl)
-        =/  upd=update:noltbook  [%gossip-message msg.rem my-hops]
-        :_  this(messages (~(put by messages) %cover (cap-msgs (snoc cur msg.rem) %.y)), gossip-hops (~(put by gossip-hops) id.msg.rem my-hops), mentions new-mentions)
-        :(weld ~[(gf-paths ~[/notes/cover] upd)] relay mention-cards)
-      =/  env-upd=update:noltbook  [%gossip-envelope %cover env my-hops]
-      =/  content-upd=update:noltbook  [%cover-msg-content %cover msg.rem]
-      :_  this(gossip-envelopes (~(put by gossip-envelopes) %cover (cap-envs (~(put by cenv) id.msg.rem env))), gossip-hops (~(put by gossip-hops) id.msg.rem my-hops), mentions new-mentions)
-      :(weld ~[(gf-paths ~[/notes/cover] env-upd)] ~[(gf-notes content-upd)] relay mention-cards)
-    ::
-        %remote-ars-ref
-      ::  ARS NOTORIA envelope gossip from a peer
-      =/  env  env.rem
-      ~&  [%ars-ref-received our=our.bowl from=src.bowl author=author.env]
-      =/  cenv=(map @da envelope:noltbook)
-        (fall (~(get by gossip-envelopes) %cover) *(map @da envelope:noltbook))
-      ::  dedup: eid-first (stable identity), fall back to msg-id (compat)
-      =/  env-eid=(unit @uv)  ?~(meta.env ~ `eid.u.meta.env)
-      ?:  ?|  (~(has by cenv) msg-id.env)
-              ?&  ?=(^ env-eid)
-                  (lien ~(val by cenv) |=(e=envelope:noltbook ?~(meta.e %.n =(eid.u.meta.e u.env-eid))))
-              ==
-          ==
-        `this
-      =/  cur=(list message:noltbook)  (fall (~(get by messages) %cover) ~)
-      ?:  ?|  (lien cur |=(m=message:noltbook =(id.m msg-id.env)))
-              ?&  ?=(^ env-eid)
-                  (lien cur |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.env-eid))))
-              ==
-          ==
-        `this
-      =/  my-hops=@ud  (add hops.rem 1)
-      =/  upd=update:noltbook  [%gossip-envelope %cover env my-hops]
-      =/  relay=(list card)
-        %+  murn  ~(tap in pal-outgoing)
-        |=  p=@p
-        ?:  =(p src.bowl)  ~
-        ?:  =(p author.env)  ~
-        `(rpoke /ars-out/(scot %p p) p `remote:noltbook`[%remote-ars-ref env my-hops])
-      ::  reply attention: cover text reply → notify the immediate parent owner if us
-      =/  note-arts=(list artifact:noltbook)
-        (skim ~(val by artifacts) |=(a=artifact:noltbook =(note-id.a %cover)))
-      =/  note-aenvs=(list artifact-envelope:noltbook)
-        ~(val by (fall (~(get by artifact-envelopes) %cover) *(map @ta artifact-envelope:noltbook)))
-      =/  env-rte=(unit @uv)  ?~(meta.env ~ reply-to-eid.u.meta.env)
-      =/  par-owner=(unit @p)  (attn-parent-owner env-rte reply-to.env cur note-arts note-aenvs)
-      =/  rtarget=attention-item:noltbook  [%reply %message env-eid `msg-id.env ~ author.env timestamp.env]
-      =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
-        (add-reply-attn attention %cover our.bowl (host-self author.env ~ our.bowl) par-owner rtarget)
-      ::  Phase 11C: record the cover envelope's app attribution by eid.
-      =.  via-by-eid  (api-via-put-env via-by-eid env)
-      :_  this(gossip-envelopes (~(put by gossip-envelopes) %cover (cap-envs (~(put by cenv) msg-id.env env))), gossip-hops (~(put by gossip-hops) msg-id.env my-hops), attention na.ar)
-      ::  emit the envelope on global /notes too (like user-gossip) so a CLOSED
-      ::  cover still triggers fetchGossipContent → %cover-msg-content → preview.
-      ::  No activity-fact / sidebar-signal: cover must not get a green/red dot;
-      ::  the preview is set frontend-side from the fetched message.
-      :*  (gf-paths ~[/notes/cover] upd)
-          (gf-notes upd)
-          (weld relay ac.ar)
-      ==
-    ::
-        %remote-fetch-cover-msg
-      ::  someone is requesting a cover message we authored
-      =/  cur=(list message:noltbook)  (fall (~(get by messages) %cover) ~)
-      ::  eid-first lookup, fall back to msg-id
-      =/  found=(list message:noltbook)
-        ?^  eid.rem
-          =/  by-eid  (skim cur |=(m=message:noltbook ?&(=(author.m our.bowl) ?~(meta.m %.n =(eid.u.meta.m u.eid.rem)))))
-          ?^  by-eid  by-eid
-          (skim cur |=(m=message:noltbook &(=(id.m msg-id.rem) =(author.m our.bowl))))
-        (skim cur |=(m=message:noltbook &(=(id.m msg-id.rem) =(author.m our.bowl))))
-      ?~  found  `this
-      :_  this
-      :~  (rpoke /msg-reply/(scot %p requester.rem)/(scot %da msg-id.rem) requester.rem `remote:noltbook`[%remote-cover-msg-reply requester.rem i.found])
-      ==
-    ::
-        %remote-cover-msg-reply
-      ::  author replied with full message content — ephemeral forward only
-      ?.  =(requester.rem our.bowl)  `this
-      =/  msg  msg.rem
-      =/  cenv=(map @da envelope:noltbook)
-        (fall (~(get by gossip-envelopes) %cover) *(map @da envelope:noltbook))
-      =/  cur=(list message:noltbook)  (fall (~(get by messages) %cover) ~)
-      =/  reply-eid=(unit @uv)  ?~(meta.msg ~ `eid.u.meta.msg)
-      ::  dedup: eid-first, fall back to msg-id
-      ?:  ?|  (lien cur |=(m=message:noltbook =(id.m id.msg)))
-              ?&  ?=(^ reply-eid)
-                  (lien cur |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.reply-eid))))
-              ==
-          ==
-        `this
-      ::  envelope lookup: eid-first, fall back to msg-id
-      =/  env=(unit envelope:noltbook)
-        ?:  ?=(^ reply-eid)
-          =/  by-eid  (skim ~(val by cenv) |=(e=envelope:noltbook ?~(meta.e %.n =(eid.u.meta.e u.reply-eid))))
-          ?^  by-eid  `i.by-eid
-          (~(get by cenv) id.msg)
-        (~(get by cenv) id.msg)
-      ?~  env
-        ~&  [%cover-msg-reply-no-envelope id=id.msg]
-        `this
-      ?.  |(=(content-hash.u.env *@uv) =(content-hash.u.env (sham text.msg)))
-        ~&  [%cover-msg-hash-mismatch id=id.msg expected=content-hash.u.env got=(sham text.msg)]
-        `this
-      =/  new-envs=(map @ta (map @da envelope:noltbook))
-        ?:  =(content-hash.u.env *@uv)
-          (~(put by gossip-envelopes) %cover (cap-envs (~(put by cenv) id.msg u.env(content-hash (sham text.msg)))))
-        gossip-envelopes
-      =/  meid=(unit @uv)  ?~(meta.msg ~ `eid.u.meta.msg)
-      =/  mentioned=?  &(!=(author.msg our.bowl) (has-our-mention text.msg our.bowl))
-      =/  active-mentioned=?
-        ?&(mentioned !(mention-cleared (fall (~(get by cleared-mentions) %cover) ~) id.msg meid))
-      =/  mention-cards=(list card)
-        ?.  active-mentioned  ~
-        (attn-mention-cards %cover id.msg meid author.msg)
-      =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
-        ?.  active-mentioned  mentions
-        =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) %cover) ~)
-        (~(put by mentions) %cover (snoc cur-m [id.msg meid author.msg]))
-      =/  upd=update:noltbook  [%cover-msg-content %cover msg]
-      :_  this(gossip-envelopes new-envs, mentions new-mentions)
-      (weld ~[(gf-notes upd)] mention-cards)
-    ::
-        %remote-gossip-ref
-      ::  gossip envelope from a note user
-      =/  nid=@ta  note-id.rem
-      =/  note  (~(get by notes) nid)
-      ?~  note  `this
-      ?.  =(%gossip type.u.note)  `this
-      ?.  (~(has in users.u.note) src.bowl)  `this
-      =/  env  env.rem
-      =/  nenv=(map @da envelope:noltbook)
-        (fall (~(get by gossip-envelopes) nid) *(map @da envelope:noltbook))
-      ::  dedup: eid-first (stable identity), fall back to msg-id (compat)
-      =/  env-eid=(unit @uv)  ?~(meta.env ~ `eid.u.meta.env)
-      ?:  ?|  (~(has by nenv) msg-id.env)
-              ?&  ?=(^ env-eid)
-                  (lien ~(val by nenv) |=(e=envelope:noltbook ?~(meta.e %.n =(eid.u.meta.e u.env-eid))))
-              ==
-          ==
-        `this
-      =/  cur=(list message:noltbook)  (fall (~(get by messages) nid) ~)
-      ?:  ?|  (lien cur |=(m=message:noltbook =(id.m msg-id.env)))
-              ?&  ?=(^ env-eid)
-                  (lien cur |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.env-eid))))
-              ==
-          ==
-        `this
-      =/  my-hops=@ud  (add hops.rem 1)
-      =/  upd=update:noltbook  [%gossip-envelope nid env my-hops]
-      ::  relay to other note users (excluding sender and author)
-      =/  relay=(list card)
-        %+  murn  ~(tap in users.u.note)
-        |=  p=@p
-        ?:  =(p our.bowl)  ~
-        ?:  =(p src.bowl)  ~
-        ?:  =(p author.env)  ~
-        `(rpoke /gossip-out/(scot %p p)/[nid] p `remote:noltbook`[%remote-gossip-ref nid env my-hops])
-      =/  head-cards=(list card:agent:gall)
-        :~  (gf-paths ~[/notes/[nid]] upd)
-            ::  also emit the envelope on global /notes so a closed gossip note
-            ::  triggers fetchGossipContent → %cover-msg-content → preview.
-            (gf-notes upd)
-            (activity-fact nid now.bowl)
-            (unread-activity-fact nid now.bowl)
-            (sidebar-signal nid author.env ~ %gossip now.bowl)
-        ==
-      ::  reply attention: user-gossip text reply → notify the parent owner if us
-      =/  note-arts=(list artifact:noltbook)
-        (skim ~(val by artifacts) |=(a=artifact:noltbook =(note-id.a nid)))
-      =/  note-aenvs=(list artifact-envelope:noltbook)
-        ~(val by (fall (~(get by artifact-envelopes) nid) *(map @ta artifact-envelope:noltbook)))
-      =/  env-rte=(unit @uv)  ?~(meta.env ~ reply-to-eid.u.meta.env)
-      =/  par-owner=(unit @p)  (attn-parent-owner env-rte reply-to.env cur note-arts note-aenvs)
-      =/  rtarget=attention-item:noltbook  [%reply %message env-eid `msg-id.env ~ author.env timestamp.env]
-      =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
-        (add-reply-attn attention nid our.bowl (host-self author.env ~ our.bowl) par-owner rtarget)
-      ::  Phase 11C: record the gossip envelope's app attribution by eid.
-      =.  via-by-eid  (api-via-put-env via-by-eid env)
-      :_  this(gossip-envelopes (~(put by gossip-envelopes) nid (cap-envs (~(put by nenv) msg-id.env env))), gossip-hops (~(put by gossip-hops) msg-id.env my-hops), attention na.ar, note-activity (put-activity note-activity nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity nid now.bowl))
-      (weld (weld head-cards relay) ac.ar)
-    ::
-        %remote-fetch-gossip-msg
-      ::  someone requests a gossip message we authored
-      =/  nid=@ta  note-id.rem
-      =/  cur=(list message:noltbook)  (fall (~(get by messages) nid) ~)
-      ::  eid-first lookup, fall back to msg-id
-      =/  found=(list message:noltbook)
-        ?^  eid.rem
-          =/  by-eid  (skim cur |=(m=message:noltbook ?&(=(author.m our.bowl) ?~(meta.m %.n =(eid.u.meta.m u.eid.rem)))))
-          ?^  by-eid  by-eid
-          (skim cur |=(m=message:noltbook &(=(id.m msg-id.rem) =(author.m our.bowl))))
-        (skim cur |=(m=message:noltbook &(=(id.m msg-id.rem) =(author.m our.bowl))))
-      ?~  found  `this
-      :_  this
-      :~  (rpoke /msg-reply/(scot %p requester.rem)/(scot %da msg-id.rem) requester.rem `remote:noltbook`[%remote-gossip-msg-reply nid requester.rem i.found])
-      ==
-    ::
-        %remote-gossip-msg-reply
-      ::  author replied with gossip message content — ephemeral forward only
-      ?.  =(requester.rem our.bowl)  `this
-      =/  nid=@ta  note-id.rem
-      =/  msg  msg.rem
-      =/  nenv=(map @da envelope:noltbook)
-        (fall (~(get by gossip-envelopes) nid) *(map @da envelope:noltbook))
-      =/  cur=(list message:noltbook)  (fall (~(get by messages) nid) ~)
-      =/  reply-eid=(unit @uv)  ?~(meta.msg ~ `eid.u.meta.msg)
-      ::  dedup: eid-first, fall back to msg-id
-      ?:  ?|  (lien cur |=(m=message:noltbook =(id.m id.msg)))
-              ?&  ?=(^ reply-eid)
-                  (lien cur |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.reply-eid))))
-              ==
-          ==
-        `this
-      ::  envelope lookup: eid-first, fall back to msg-id
-      =/  env=(unit envelope:noltbook)
-        ?:  ?=(^ reply-eid)
-          =/  by-eid  (skim ~(val by nenv) |=(e=envelope:noltbook ?~(meta.e %.n =(eid.u.meta.e u.reply-eid))))
-          ?^  by-eid  `i.by-eid
-          (~(get by nenv) id.msg)
-        (~(get by nenv) id.msg)
-      ?~  env
-        ~&  [%gossip-msg-reply-no-envelope id=id.msg note=nid]
-        `this
-      ?.  |(=(content-hash.u.env *@uv) =(content-hash.u.env (sham text.msg)))
-        ~&  [%gossip-msg-hash-mismatch id=id.msg note=nid]
-        `this
-      =/  new-envs=(map @ta (map @da envelope:noltbook))
-        ?:  =(content-hash.u.env *@uv)
-          (~(put by gossip-envelopes) nid (cap-envs (~(put by nenv) id.msg u.env(content-hash (sham text.msg)))))
-        gossip-envelopes
-      =/  meid=(unit @uv)  ?~(meta.msg ~ `eid.u.meta.msg)
-      =/  mentioned=?  &(!=(author.msg our.bowl) (has-our-mention text.msg our.bowl))
-      =/  active-mentioned=?
-        ?&(mentioned !(mention-cleared (fall (~(get by cleared-mentions) nid) ~) id.msg meid))
-      =/  mention-cards=(list card)
-        ?.  active-mentioned  ~
-        (attn-mention-cards nid id.msg meid author.msg)
-      =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
-        ?.  active-mentioned  mentions
-        =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) nid) ~)
-        (~(put by mentions) nid (snoc cur-m [id.msg meid author.msg]))
-      ::  do NOT persist full message — ephemeral forward only
-      =/  upd=update:noltbook  [%cover-msg-content nid msg]
-      ::  sidebar signal + preview persistence for user gossip notes only
-      ::  (this path also serves %cover content fetches — never signal cover).
-      =/  note-u  (~(get by notes) nid)
-      =/  is-user-gossip=?  &(?=(^ note-u) =(%gossip type.u.note-u))
-      =/  new-notes2=(map @ta note:noltbook)
-        ?.  ?=(^ note-u)  notes
-        ?.  =(%gossip type.u.note-u)  notes
-        (~(put by notes) nid u.note-u(last-author `author.msg, last-preview `text.msg))
-      =/  sig-cards=(list card)
-        ?.  is-user-gossip  ~
-        ~[(sidebar-signal nid author.msg `text.msg %gossip now.bowl)]
-      :_  this(gossip-envelopes new-envs, mentions new-mentions, notes new-notes2)
-      :(weld ~[(gf-notes upd)] mention-cards sig-cards)
-    ::
-        %remote-rumor
-      ::  RUMORS: anonymous gossip from a peer. Identity model is
-      ::  content-hash (not entry-meta) — see %send-message %ars-rumors.
-      =/  cur=(list message:noltbook)  (fall (~(get by messages) %ars-rumors) ~)
-      ::  content-hash identity: dedup by (sham text)
-      =/  chash=@uv  (sham text.msg.rem)
-      ?:  (~(has by gossip-hops) `@da`chash)
-        `this
-      ::  force author anonymous (don't trust sender)
-      =/  anon-msg=message:noltbook  msg.rem(author ~hosted)
-      =/  upd=update:noltbook  [%rumor-message anon-msg]
-      ::  proxy relay: 50% broadcast, 50% proxy through one random peer
-      =/  targets=(list @p)
-        %+  skim  ~(tap in pal-outgoing)
-        |=(p=@p !=(p src.bowl))
-      =/  relay=(list card)
-        ?:  =(0 (lent targets))  ~
-        ?.  =(0 (~(rad og eny.bowl) 2))
-          ::  broadcast to all (except sender)
-          %+  turn  targets
-          |=  p=@p
-          ^-  card
-          (rpoke /rum-out/(scot %p p) p `remote:noltbook`[%remote-rumor anon-msg (add hops.rem 1)])
-        ::  proxy through one random peer
-        =/  proxy=@p  (snag (~(rad og +(eny.bowl)) (lent targets)) targets)
-        ~[(rpoke /rum-out/(scot %p proxy) proxy `remote:noltbook`[%remote-rumor anon-msg (add hops.rem 1)])]
-      :_  this(messages (~(put by messages) %ars-rumors (snoc cur anon-msg)), gossip-hops (~(put by gossip-hops) `@da`chash 0))
-      [(gf-paths ~[/notes/ars-rumors] upd) relay]
-    ::
-        %remote-profile
-      ::  a peer sent us their profile
-      =/  upd=update:noltbook  [%profile-updated ship.rem profile.rem]
-      :_  this(profiles (~(put by profiles) ship.rem profile.rem))
-      ~[(gf-notes upd)]
-    ::
-        %remote-profile-request
-      ::  Phase 3: a peer is asking us for our profile. Silently drop if they
-      ::  are blocked — they get an unreachable timeout on their end.
-      ?:  (~(has in pal-blocked) src.bowl)  `this
-      =/  prof  (fall (~(get by profiles) our.bowl) *profile:noltbook)
-      =/  resp=remote:noltbook  [%remote-profile-response req-id.rem prof]
-      :_  this
-      ~[(rpoke /profile-resp/(scot %p src.bowl)/(scot %ud req-id.rem) src.bowl resp)]
-    ::
-        %remote-profile-response
-      ::  Phase 3: peer replied to our lookup. Hydrate profile, then emit a
-      ::  %profile-lookup-result %ok so the sidebar can open the modal.
-      =/  pupd=update:noltbook  [%profile-updated src.bowl profile.rem]
-      =/  rupd=update:noltbook  [%profile-lookup-result req-id.rem src.bowl %ok]
-      :_  this(profiles (~(put by profiles) src.bowl profile.rem))
-      :~  (gf-notes pupd)
-          (gf-notes rupd)
-      ==
-    ::
-        %remote-actor-profile-request
-      ::  Phase G4: a peer asks for one of OUR actors' public profile. Blocked peers
-      ::  are silently dropped (same privacy as %remote-profile-request — they time
-      ::  out on their end). Validate the actor id (non-empty, <=128 bytes); desk is
-      ::  already a term. Suspended/revoked actors are STILL returned so historical
-      ::  attributed messages remain inspectable; no actor => profile=~. Never include
-      ::  caps/grants/contacts/preferences — only the public profile.
-      ?:  (~(has in pal-blocked) src.bowl)  `this
-      =/  prof=(unit actor-public-profile:noltbook)
-        ?:  =(0 (met 3 actor-id.rem))  ~
-        ?:  (gth (met 3 actor-id.rem) 128)  ~
-        =/  rec  (~(get by actor-registry) [desk.rem actor-id.rem])
-        ?~  rec  ~
-        `(build-actor-public-profile desk.rem u.rec (~(get by actor-profiles) [desk.rem actor-id.rem]))
-      =/  resp=remote:noltbook  [%remote-actor-profile-response req-id.rem desk.rem actor-id.rem prof]
-      :_  this
-      ~[(rpoke /actor-prof-resp/(scot %p src.bowl)/(scot %ud req-id.rem) src.bowl resp)]
-    ::
-        %remote-actor-profile-response
-      ::  Phase G4: a host replied to our actor-profile lookup. The host is src.bowl
-      ::  (NOT trusted from payload); the response echoes desk/actor-id. profile=~ =>
-      ::  %missing (no such actor there) — cache nothing. profile=^ but its desk/id do
-      ::  NOT match the request => %invalid-response, cache NOTHING (a host can only
-      ::  assert profiles under its own authenticated src.bowl namespace; this stops a
-      ::  mismatched Alice payload from being normalized into a Rick cache key). Match =>
-      ::  cache under [src.bowl desk actor-id] with now as fetched-at and emit %ok.
-      ?~  profile.rem
-        :_  this
-        (actor-prof-result-cards req-id.rem src.bowl desk.rem actor-id.rem %missing ~ ~)
-      ?.  ?&(=(desk.u.profile.rem desk.rem) =(id.u.profile.rem actor-id.rem))
-        :_  this
-        (actor-prof-result-cards req-id.rem src.bowl desk.rem actor-id.rem %invalid-response ~ ~)
-      =/  key=[@p @tas @t]  [src.bowl desk.rem actor-id.rem]
-      :_  this(remote-actor-profiles (~(put by remote-actor-profiles) key [u.profile.rem now.bowl]))
-      (actor-prof-result-cards req-id.rem src.bowl desk.rem actor-id.rem %ok `now.bowl `u.profile.rem)
-    ::
-        %remote-actor-dm-meta
-      ::  Phase G5A: the host of an actor DM tells us this group note is a direct actor
-      ::  conversation. The host is src.bowl (NOT trusted from payload): require
-      ::  meta.owner.host == src.bowl and meta.target == our.bowl. Reject a marker
-      ::  claiming another host. Validate the actor id cap. If the note already exists
-      ::  it must be src.bowl's secret %group containing both ships; if metadata arrives
-      ::  before the invite it is stored provisionally (reads/access re-verify against
-      ::  the live note via actor-dm-valid). Store + emit a frontend fact.
-      ?.  =(host.owner.meta.rem src.bowl)  `this
-      ?.  =(target.meta.rem our.bowl)  `this
-      ?:  =(0 (met 3 id.owner.meta.rem))  `this
-      ?:  (gth (met 3 id.owner.meta.rem) 128)  `this
-      ::  G5A hardening: if the note already exists it must pass the FULL invariant
-      ::  (secret, exactly two users == {src.bowl, our.bowl}, creator == src.bowl) via
-      ::  the shared actor-dm-valid — not just creator/type/membership. If the note has
-      ::  not arrived yet, the marker is stored provisionally (reads/access re-verify).
-      =/  nt-u  (~(get by notes) note-id.rem)
-      ?:  ?&(?=(^ nt-u) !(actor-dm-valid u.nt-u meta.rem))
-        `this
-      =.  actor-dm-notes  (~(put by actor-dm-notes) note-id.rem meta.rem)
-      :_  this
-      ~[(gf-notes `update:noltbook`[%actor-dm-updated note-id.rem `meta.rem])]
-    ::
-        %remote-note-request
-      ::  someone is asking for our joinable notes
-      ::  blocked ships cannot browse our hosted notes
-      ?:  (~(has in pal-blocked) src.bowl)  `this
-      ::  only %group notes we host with public/private visibility
-      =/  pub-notes=(list note:noltbook)
-        %+  skim  ~(val by notes)
-        |=  n=note:noltbook
-        ?&  =(%group type.n)
-            =(our.bowl creator.n)
-            ?|(?=(%public visibility.n) ?=(%private visibility.n))
-            !(~(has by note-actor-owners) id.n)
-        ==
-      =/  resp=remote:noltbook  [%remote-note-list pub-notes]
-      :_  this
-      ~[(rpoke /note-resp/(scot %p requester.rem) requester.rem resp)]
-    ::
-        %remote-note-list
-      ::  received a remote ship's public/private notes
-      =/  upd=update:noltbook  [%remote-note-list src.bowl notes.rem]
-      :_  this
-      ~[(gf-notes upd)]
-    ::
-        %remote-note-state-request
-      ::  requester asked for an authoritative snapshot of the group tree
-      ::  containing this id. We resolve the topmost same-host group root,
-      ::  verify the requester still belongs to it, and reply.
-      ?:  (~(has in pal-blocked) src.bowl)  `this
-      =/  start  (~(get by notes) note-id.rem)
-      ?~  start
-        :_  this
-        ~[(rpoke /state-deny/(scot %p src.bowl)/[note-id.rem] src.bowl `remote:noltbook`[%remote-note-state-denied note-id.rem])]
-      ?.  =(our.bowl creator.u.start)
-        :_  this
-        ~[(rpoke /state-deny/(scot %p src.bowl)/[note-id.rem] src.bowl `remote:noltbook`[%remote-note-state-denied note-id.rem])]
-      ?.  =(%group type.u.start)
-        :_  this
-        ~[(rpoke /state-deny/(scot %p src.bowl)/[note-id.rem] src.bowl `remote:noltbook`[%remote-note-state-denied note-id.rem])]
-      ::  walk parents up while parent exists, we host it, and it's %group
-      =/  root-id=@ta
-        =/  cur=note:noltbook  u.start
-        |-  ^-  @ta
-        ?~  parent.cur  id.cur
-        =/  par  (~(get by notes) u.parent.cur)
-        ?~  par  id.cur
-        ?.  =(our.bowl creator.u.par)  id.cur
-        ?.  =(%group type.u.par)  id.cur
-        $(cur u.par)
-      =/  root-note  (~(get by notes) root-id)
-      ?~  root-note  `this
-      ?.  ?&  (~(has in users.u.root-note) src.bowl)
-              !(~(has in removed.u.root-note) src.bowl)
-          ==
-        :_  this
-        ~[(rpoke /state-deny/(scot %p src.bowl)/[note-id.rem] src.bowl `remote:noltbook`[%remote-note-state-denied note-id.rem])]
-      =/  desc-ids=(list @ta)  (collect-group-descendants root-id notes)
-      =/  all-ids=(list @ta)  [root-id desc-ids]
-      =/  snap-notes=(list note:noltbook)
-        %+  murn  all-ids
-        |=  nid=@ta
-        ^-  (unit note:noltbook)
-        =/  n  (~(get by notes) nid)
-        ?~  n  ~
-        `u.n
-      =/  snap-revs=(list [@ta @ud])
-        %+  turn  all-ids
-        |=  nid=@ta
-        [nid (member-rev-of nid member-revs)]
-      =/  resp=remote:noltbook
-        [%remote-note-state root-id snap-notes snap-revs]
-      :_  this
-      ~[(rpoke /state-out/(scot %p src.bowl)/[root-id] src.bowl resp)]
-    ::
-        %remote-note-state
-      ::  host replied with an authoritative snapshot. Validate strictly,
-      ::  then conservatively merge metadata. Do not touch messages,
-      ::  artifacts, mentions, calls, envelopes. Emit a single dedicated
-      ::  %note-state-refreshed update — never %note-created — so the FE
-      ::  doesn't fire spurious notifications for repaired notes.
-      ?:  (~(has in pal-blocked) src.bowl)  `this
-      ?~  notes.rem  `this
-      =/  root=note:noltbook  i.notes.rem
-      ?.  =(id.root root-id.rem)  `this
-      ?.  =(src.bowl creator.root)  `this
-      ?.  =(%group type.root)  `this
-      ?.  ?&  (~(has in users.root) our.bowl)
-              !(~(has in removed.root) our.bowl)
-          ==
-        `this
-      ::  every payload note must be hosted by src.bowl and be %group;
-      ::  parent must be in payload or already-local with src.bowl.
-      =/  payload-ids=(set @ta)
-        %-  ~(gas in *(set @ta))
-        (turn notes.rem |=(n=note:noltbook id.n))
-      =/  desc-valid=?
-        =/  todo=(list note:noltbook)  notes.rem
-        |-  ^-  ?
-        ?~  todo  %.y
-        ?.  =(src.bowl creator.i.todo)  %.n
-        ?.  =(%group type.i.todo)  %.n
-        ?:  =(id.i.todo root-id.rem)  $(todo t.todo)
-        ?~  parent.i.todo  %.n
-        =/  in-payload=?  (~(has in payload-ids) u.parent.i.todo)
-        =/  local-par  (~(get by notes) u.parent.i.todo)
-        =/  local-ok=?
-          ?~  local-par  %.n
-          =(src.bowl creator.u.local-par)
-        ?.  ?|(in-payload local-ok)  %.n
-        $(todo t.todo)
-      ?.  desc-valid  `this
-      ::  pre-index revs by id for fast lookup during merge.
-      =/  revs-map=(map @ta @ud)
-        %-  ~(gas by *(map @ta @ud))
-        revs.rem
-      ::  merge fold: thread notes-map + messages-map + new-subs list.
-      =/  merged
-        =/  todo=(list note:noltbook)  notes.rem
-        =/  nm=(map @ta note:noltbook)  notes
-        =/  mm=(map @ta (list message:noltbook))  messages
-        =/  new-subs=(list @ta)  ~
-        |-
-        ^-  [(map @ta note:noltbook) (map @ta (list message:noltbook)) (list @ta)]
-        ?~  todo  [nm mm (flop new-subs)]
-        =/  inc=note:noltbook  i.todo
-        =/  loc  (~(get by nm) id.inc)
-        ?~  loc
-          =/  nm2=(map @ta note:noltbook)  (~(put by nm) id.inc inc)
-          =/  mm2=(map @ta (list message:noltbook))
-            ?:  (~(has by mm) id.inc)  mm
-            (~(put by mm) id.inc ~)
-          $(todo t.todo, nm nm2, mm mm2, new-subs [id.inc new-subs])
-        ::  present: rev-gated user/removed merge; always repair tree.
-        =/  inc-rev=@ud  (fall (~(get by revs-map) id.inc) 0)
-        =/  loc-rev=@ud  (member-rev-of id.inc member-revs)
-        =/  accept-users=?  (gte inc-rev loc-rev)
-        =/  new-users=(set @p)
-          ?:  accept-users  users.inc
-          users.u.loc
-        =/  new-removed=(set @p)
-          ?:  accept-users  removed.inc
-          removed.u.loc
-        =/  old-parent  parent.u.loc
-        =/  new-parent  parent.inc
-        =/  nm-detached=(map @ta note:noltbook)
-          ?:  =(old-parent new-parent)  nm
-          ?~  old-parent  nm
-          ?:  =(`u.old-parent new-parent)  nm
-          =/  op  (~(get by nm) u.old-parent)
-          ?~  op  nm
-          ?.  =(src.bowl creator.u.op)  nm
-          (~(put by nm) u.old-parent u.op(children (skim children.u.op |=(c=@ta !=(c id.inc)))))
-        =/  new-children=(list @ta)
-          %-  flop
-          %+  roll  children.inc
-          |=  [c=@ta acc=(list @ta)]
-          ?:  (lien acc |=(x=@ta =(x c)))  acc
-          [c acc]
-        =/  repaired=note:noltbook
-          %=  u.loc
-            parent       new-parent
-            children     new-children
-            users        new-users
-            removed      new-removed
-            type         type.inc
-            visibility   visibility.inc
-            writable     writable.inc
-            name         name.inc
-            icon-url     icon-url.inc
-            headline     headline.inc
-          ==
-        =/  nm3=(map @ta note:noltbook)  (~(put by nm-detached) id.inc repaired)
-        =/  mm3=(map @ta (list message:noltbook))
-          ?:  (~(has by mm) id.inc)  mm
-          (~(put by mm) id.inc ~)
-        $(todo t.todo, nm nm3, mm mm3)
-      ::  update member-revs, max(local, incoming) per payload id. Seed
-      ::  the accumulator with the full existing member-revs map so a
-      ::  refresh for one subtree doesn't erase revs for unrelated notes.
-      =/  new-revs=(map @ta @ud)
-        =/  ids=(list @ta)  ~(tap in payload-ids)
-        =/  acc=(map @ta @ud)  member-revs
-        |-
-        ^-  (map @ta @ud)
-        ?~  ids  acc
-        =/  nid=@ta  i.ids
-        =/  inc-rev=@ud  (fall (~(get by revs-map) nid) 0)
-        =/  cur-rev=@ud  (member-rev-of nid acc)
-        =/  next-acc=(map @ta @ud)
-          ?:  (gth inc-rev cur-rev)  (~(put by acc) nid inc-rev)
-          acc
-        $(ids t.ids, acc next-acc)
-      =/  merged-notes=(map @ta note:noltbook)  -.merged
-      =/  merged-msgs=(map @ta (list message:noltbook))  +<.merged
-      =/  merged-subs=(list @ta)  +>.merged
-      =/  sub-cards=(list card)
-        %+  turn  merged-subs
-        |=  nid=@ta
-        ^-  card
-        [%pass /remote-note/[nid] %agent [src.bowl %noltbook] %watch /notes/[nid]]
-      =/  refreshed=update:noltbook
-        [%note-state-refreshed root-id.rem notes.rem revs.rem]
-      =/  fact-card=card
-        (gf-notes refreshed)
-      ::  recency: only freshly-installed shared notes (merged-subs) count;
-      ::  a refresh of already-local notes does not bump ordering.
-      =/  na2=(map @ta @da)
-        =/  subs=(list @ta)  merged-subs
-        =/  acc=(map @ta @da)  note-activity
-        |-  ^-  (map @ta @da)
-        ?~  subs  acc
-        $(subs t.subs, acc (put-activity acc i.subs now.bowl))
-      ::  Phase B: mirror unread-activity for freshly-installed shared notes.
-      =/  nua2=(map @ta @da)
-        =/  subs=(list @ta)  merged-subs
-        =/  acc=(map @ta @da)  note-unread-activity
-        |-  ^-  (map @ta @da)
-        ?~  subs  acc
-        $(subs t.subs, acc (put-unread-activity acc i.subs now.bowl))
-      =/  act-cards=(list card)
-        %-  zing
-        %+  turn  merged-subs
-        |=(nid=@ta ~[(activity-fact nid now.bowl) (unread-activity-fact nid now.bowl)])
-      :_  this(notes merged-notes, messages merged-msgs, member-revs new-revs, note-activity na2, note-unread-activity nua2)
-      :(weld (snoc sub-cards fact-card) act-cards)
-    ::
-        %remote-note-state-denied
-      ::  silent no-op for now; user-facing error deferred.
-      `this
-    ::
-        %remote-hey
-      ::  a ship wants to be pals with us
-      ::  ignore if blocked
-      ?:  (~(has in pal-blocked) src.bowl)  `this
-      ::  add to incoming + peers bookkeeping, compute status, notify frontend
-      =/  new-incoming=(set @p)  (~(put in pal-incoming) src.bowl)
-      =/  new-peers=(set @p)  (~(put in peers) src.bowl)
-      =/  status=pal-status:noltbook
-        ?:  (~(has in pal-outgoing) src.bowl)  %mutual
-        %requested
-      =/  upd=update:noltbook  [%pal-update src.bowl status]
-      ::  send our profile back so they have our display name + avatar
-      =/  prof  (fall (~(get by profiles) our.bowl) *profile:noltbook)
-      =/  prof-card=card
-        (rpoke /prof-out/(scot %p src.bowl) src.bowl `remote:noltbook`[%remote-profile our.bowl prof])
-      ::  if we already have them in outgoing and this is a fresh hey
-      ::  (not already in incoming), echo hey back so they see mutual
-      =/  hey-back=(list card)
-        ?:  (~(has in pal-incoming) src.bowl)  ~
-        ?.  (~(has in pal-outgoing) src.bowl)  ~
-        ~[(rpoke /pal-hey/(scot %p src.bowl) src.bowl `remote:noltbook`[%remote-hey ~])]
-      :_  this(pal-incoming new-incoming, peers new-peers)
-      :(weld [prof-card (gf-notes upd) ~] hey-back)
-    ::
-        %remote-bye
-      ::  a ship no longer wants to be pals
-      =/  new-incoming=(set @p)  (~(del in pal-incoming) src.bowl)
-      =/  still-visible=?
-        ?|  (~(has in contacts) src.bowl)
-            (~(has in pal-outgoing) src.bowl)
-            (~(has in pal-blocked) src.bowl)
-        ==
-      =/  status=pal-status:noltbook
-        ?:  (~(has in pal-outgoing) src.bowl)  %requesting
-        %none
-      =/  upd=update:noltbook
-        ?:  still-visible  [%pal-update src.bowl status]
-        [%pal-removed src.bowl]
-      :_  this(pal-incoming new-incoming)
-      ~[(gf-notes upd)]
-    ::
-        %remote-introduce
-      ::  no-op: auto peer-introduce removed; variant retained for future
-      ::  contact design. Do not auto-add peer / watch cover / send profile.
-      `this
-    ::
-        %remote-edit-msg
-      ::  remote user editing their own message in a note we host (or DM peer)
-      ?:  (~(has in pal-blocked) src.bowl)  `this
-      =/  old  (~(get by notes) note-id.rem)
-      ?~  old  `this
-      ?.  ?|  =(our.bowl creator.u.old)
-              =(%dm type.u.old)
-          ==
-        `this
-      ?.  (~(has in users.u.old) src.bowl)  `this
-      ::  reject if muted
-      ?:  (~(has in (fall (~(get by note-muted) note-id.rem) ~)) src.bowl)  `this
-      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
-      ::  eid-first lookup, fall back to msg-id
-      =/  found=(list message:noltbook)
-        ?^  eid.rem
-          =/  by-eid  (skim cur |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.eid.rem))))
-          ?^  by-eid  by-eid
-          (skim cur |=(m=message:noltbook =(id.m msg-id.rem)))
-        (skim cur |=(m=message:noltbook =(id.m msg-id.rem)))
-      ?~  found  `this
-      ::  only the author can edit their own msg
-      ?.  =(src.bowl author.i.found)  `this
-      ::  host updates meta: increment rev, set updated timestamp
-      =/  new-meta=(unit entry-meta:noltbook)
-        ?~  meta.i.found  ~
-        `u.meta.i.found(rev +(rev.u.meta.i.found), updated now.bowl)
-      =/  target-id=@da  id.i.found
-      =/  new-msgs=(list message:noltbook)
-        %+  turn  cur
-        |=  m=message:noltbook
-        ?.  =(id.m target-id)  m
-        m(text text.rem, edited &, meta new-meta)
-      =/  edited=message:noltbook  i.found(text text.rem, edited &, meta new-meta)
-      =/  upd=update:noltbook  [%message-edited note-id.rem edited]
-      =/  pax=path  ~[%notes note-id.rem]
-      :_  this(messages (~(put by messages) note-id.rem new-msgs))
-      :~  (gf-paths ~[pax] upd)
-          (gf-notes upd)
-      ==
-    ::
-        %remote-create-child
-      ::  host-only child creation: members may no longer ask us to create a
-      ::  child in our shared note. Reject all such requests.
-      `this
-    ::
-        %remote-child-note
-      ::  receive a child note from the host. Tolerate orphan delivery
-      ::  (root invite races behind child poke) by storing the child even
-      ::  if its parent is not yet present; root install repairs children.
-      ?.  =(parent.note.rem `parent-id.rem)  `this
-      ?.  =(creator.note.rem src.bowl)  `this
-      ?.  (~(has in users.note.rem) our.bowl)  `this
-      ?:  (~(has in removed.note.rem) our.bowl)  `this
-      ?.  ?|(=(%group type.note.rem) =(%notebook type.note.rem))  `this
-      =/  have-child=?  (~(has by notes) id.note.rem)
-      =/  old-par  (~(get by notes) parent-id.rem)
-      ?~  old-par
-        ::  parent missing — store as orphan, subscribe, emit %note-created
-        ?:  have-child  `this
-        =/  sub-card=card
-          [%pass /remote-note/[id.note.rem] %agent [creator.note.rem %noltbook] %watch /notes/[id.note.rem]]
-        =/  upd=update:noltbook  [%note-created note.rem]
-        :_  this(notes (~(put by notes) id.note.rem note.rem), messages (~(put by messages) id.note.rem *(list message:noltbook)), note-activity (put-activity note-activity id.note.rem now.bowl), note-unread-activity (put-unread-activity note-unread-activity id.note.rem now.bowl))
-        :~  sub-card
-            (gf-notes upd)
-            (activity-fact id.note.rem now.bowl)
-            (unread-activity-fact id.note.rem now.bowl)
-        ==
-      ::  parent present — host must match parent creator
-      ?.  =(src.bowl creator.u.old-par)  `this
-      =/  new-children=(list @ta)  (append-child-if-missing id.note.rem children.u.old-par)
-      =/  attach-changed=?  !=(new-children children.u.old-par)
-      =/  new-par=note:noltbook  u.old-par(children new-children)
-      ?:  have-child
-        ::  already stored — only ensure parent is attached
-        ?.  attach-changed  `this
-        :_  this(notes (~(put by notes) parent-id.rem new-par))
-        ~
-      =/  new-notes=(map @ta note:noltbook)
-        (~(put by (~(put by notes) id.note.rem note.rem)) parent-id.rem new-par)
-      =/  sub-card=card
-        [%pass /remote-note/[id.note.rem] %agent [creator.note.rem %noltbook] %watch /notes/[id.note.rem]]
-      =/  upd=update:noltbook  [%note-created note.rem]
-      :_  this(notes new-notes, messages (~(put by messages) id.note.rem *(list message:noltbook)), note-activity (put-activity note-activity id.note.rem now.bowl), note-unread-activity (put-unread-activity note-unread-activity id.note.rem now.bowl))
-      :~  sub-card
-          (gf-notes upd)
-          (activity-fact id.note.rem now.bowl)
-          (unread-activity-fact id.note.rem now.bowl)
-      ==
-    ::
-        %remote-delete-msg
-      ::  remote user deleting their own message in a note we host (or DM peer)
-      =/  old  (~(get by notes) note-id.rem)
-      ?~  old  `this
-      ?.  ?|  =(our.bowl creator.u.old)
-              =(%dm type.u.old)
-          ==
-        `this
-      ?.  (~(has in users.u.old) src.bowl)  `this
-      ::  reject if muted
-      ?:  (~(has in (fall (~(get by note-muted) note-id.rem) ~)) src.bowl)  `this
-      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
-      ::  eid-first lookup, fall back to msg-id
-      =/  found=(list message:noltbook)
-        ?^  eid.rem
-          =/  by-eid  (skim cur |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.eid.rem))))
-          ?^  by-eid  by-eid
-          (skim cur |=(m=message:noltbook =(id.m msg-id.rem)))
-        (skim cur |=(m=message:noltbook =(id.m msg-id.rem)))
-      ?~  found  `this
-      ::  only the author can delete their own msg via remote
-      ?.  =(src.bowl author.i.found)  `this
-      =/  target-id=@da  id.i.found
-      =/  new-msgs=(list message:noltbook)
-        (skim cur |=(m=message:noltbook !=(id.m target-id)))
-      =/  del-eid=(unit @uv)
-        ?~  meta.i.found  ~
-        `eid.u.meta.i.found
-      =/  upd=update:noltbook  [%message-deleted note-id.rem target-id del-eid]
-      =/  pax=path  ~[%notes note-id.rem]
-      ::  clear the pin if it (kind=%message) targeted this message (host-auth).
-      =/  pin-hit=?
-        ?~  del-eid  %.n
-        =/  pn  (~(get by note-pins) note-id.rem)
-        ?~  pn  %.n
-        &(=(%message kind.u.pn) =(u.del-eid target.u.pn))
-      =/  new-pins=(map @ta note-pin:noltbook)
-        ?:(pin-hit (~(del by note-pins) note-id.rem) note-pins)
-      =/  pin-clear-cards=(list card)  ?:(pin-hit (pin-cards note-id.rem ~) ~)
-      ::  G3B hygiene: the host owns this delete authoritatively — prune the deleted
-      ::  message's via/actor attribution rows when an eid resolved.
-      =?  via-by-eid    ?=(^ del-eid)  (~(del by via-by-eid) u.del-eid)
-      =?  actor-by-eid  ?=(^ del-eid)  (~(del by actor-by-eid) u.del-eid)
-      ::  Phase G6B: prune actor notifications targeting the deleted message's eid +
-      ::  emit authoritative full=%.y updates to affected actors (resolved post-mutation).
-      =/  old-notifs  actor-notifications
-      =?  actor-notifications  ?=(^ del-eid)
-        (actor-notif-del-eid actor-notifications u.del-eid)
-      =/  msgs-after  (~(put by messages) note-id.rem new-msgs)
-      ::  actor-by-eid is already post-deletion here (the =? above ran).
-      =/  notif-cards=(list card)
-        (actor-notif-diff-cards old-notifs actor-notifications msgs-after actor-by-eid)
-      :_  this(messages msgs-after, note-pins new-pins)
-      %+  weld  notif-cards
-      %+  weld
-        ^-  (list card)
-        :~  (gf-paths ~[pax] upd)
-            (gf-notes upd)
-        ==
-      pin-clear-cards
-    ::
-        %remote-leave
-      ::  a user left a note we host
-      =/  old  (~(get by notes) note-id.rem)
-      ?~  old  `this
-      ::  DMs use local-only leave; ignore remote-leave for DMs
-      ?:  =(%dm type.u.old)  `this
-      ::  only host processes group/other leaves
-      ?.  =(our.bowl creator.u.old)  `this
-      ?.  (~(has in users.u.old) src.bowl)  `this
-      =/  new-users=(set @p)  (~(del in users.u.old) src.bowl)
-      =/  pax=path  ~[%notes note-id.rem]
-      ::  keep note for remaining user — just remove the leaver
-      =/  new-note=note:noltbook  u.old(users new-users)
-      ::  strip leaver from admin/muted sets
-      =/  was-admin=?  (~(has in (fall (~(get by note-admins) note-id.rem) ~)) src.bowl)
-      =/  clean-admins=(map @ta (set @p))
-        ?.  was-admin  note-admins
-        (~(put by note-admins) note-id.rem (~(del in (fall (~(get by note-admins) note-id.rem) ~)) src.bowl))
-      =/  was-muted=?  (~(has in (fall (~(get by note-muted) note-id.rem) ~)) src.bowl)
-      =/  clean-muted=(map @ta (set @p))
-        ?.  was-muted  note-muted
-        (~(put by note-muted) note-id.rem (~(del in (fall (~(get by note-muted) note-id.rem) ~)) src.bowl))
-      =/  admin-cards=(list card)
-        ?.  was-admin  ~
-        =/  adm-upd=update:noltbook  [%admins-updated note-id.rem ~(tap in (fall (~(get by clean-admins) note-id.rem) ~))]
-        [(gf-notes adm-upd) (gf-paths ~[/notes/[note-id.rem]] adm-upd) ~]
-      =/  muted-cards=(list card)
-        ?.  was-muted  ~
-        =/  mut-upd=update:noltbook  [%muted-updated note-id.rem ~(tap in (fall (~(get by clean-muted) note-id.rem) ~))]
-        [(gf-notes mut-upd) (gf-paths ~[/notes/[note-id.rem]] mut-upd) ~]
-      ::  Phase 3: cascade leaver removal to %group descendants. Use clear
-      ::  (not remove) — leaver wasn't kicked, they left.
-      =/  group-descs=(list @ta)
-        ?.  =(%group type.u.old)  ~
-        (collect-group-descendants note-id.rem notes)
-      =/  notes-after=(map @ta note:noltbook)
-        (~(put by notes) note-id.rem new-note)
-      =.  notes-after
-        ?:  =(~ group-descs)  notes-after
-        (clear-ship-from-ids src.bowl group-descs notes-after)
-      =/  new-revs=(map @ta @ud)
-        (bump-member-revs [note-id.rem group-descs] member-revs)
-      =/  users-upd=update:noltbook
-        [%note-users-updated note-id.rem type.u.old ~(tap in new-users) ~(tap in removed.u.old) (member-rev-of note-id.rem new-revs)]
-      =/  base-cards=(list card)
-        :~  (gf-notes users-upd)
-            (gf-paths ~[/notes/[note-id.rem]] users-upd)
-        ==
-      =/  desc-users-cards=(list card)
-        ?:  =(~ group-descs)  ~
-        (build-users-updated-cards group-descs notes-after new-revs)
-      :_  this(notes notes-after, note-admins clean-admins, note-muted clean-muted, member-revs new-revs, note-members (del-member-from-ids src.bowl [note-id.rem group-descs] note-members note-actor-owners notes))
-      :(weld base-cards admin-cards muted-cards desc-users-cards)
-    ::
-        %remote-root-exists
-      ::  we lost a root-uniqueness race; drop loser, adopt canonical
-      ::  protect system notes from root-exists manipulation
-      ?:  |(=(losing-id.rem %cover) =(losing-id.rem %ars-rumors))  `this
-      ::  sender must be the canonical's creator (authority on winner)
-      ?.  =(src.bowl creator.canonical.rem)  `this
-      =/  loser  (~(get by notes) losing-id.rem)
-      ::  only drop if we actually created it and it's root
-      =?  notes  ?=(^ loser)
-        ?:  &(=(our.bowl creator.u.loser) ?=(~ parent.u.loser))
-          (~(del by notes) losing-id.rem)
-        notes
-      =?  messages  ?=(^ loser)
-        ?:  &(=(our.bowl creator.u.loser) ?=(~ parent.u.loser))
-          (~(del by messages) losing-id.rem)
-        messages
-      ::  install canonical if we don't have it (apply DM prefs locally)
-      =/  have-canonical=?  (~(has by notes) id.canonical.rem)
-      =/  canon-local=note:noltbook  (apply-dm-pref canonical.rem dm-prefs our.bowl)
-      =.  notes
-        ?:  have-canonical  notes
-        (~(put by notes) id.canonical.rem canon-local)
-      =.  messages
-        ?:  have-canonical  messages
-        (~(put by messages) id.canonical.rem ~)
-      ::  subscribe to canonical creator for updates (skip if already or cover)
-      =/  sub-cards=(list card)
-        ?:  have-canonical  ~
-        ?:  =(id.canonical.rem %cover)  ~
-        ~[[%pass /remote-note/[id.canonical.rem] %agent [creator.canonical.rem %noltbook] %watch /notes/[id.canonical.rem]]]
-      =/  redir=update:noltbook  [%note-redirect losing-id.rem id.canonical.rem]
-      =/  adopt=update:noltbook  [%note-created canon-local]
-      =/  tail-cards=(list card)
-        :~  (gf-notes adopt)
-            (gf-notes redir)
-        ==
-      :_  this
-      (weld sub-cards tail-cards)
-    ::
-        %remote-kick
-      ::  host removed us from a note. For %group notes we PRESERVE the
-      ::  local subtree so the user can keep reading and fork from it; we
-      ::  mark our.bowl as removed in each preserved note's users/removed
-      ::  set (write-guards block mutation while in removed). For non-group
-      ::  notes the legacy delete behavior is retained.
-      =/  old  (~(get by notes) note-id.rem)
-      ?~  old  `this
-      ?.  =(src.bowl creator.u.old)  `this
-      =/  kick-upd=update:noltbook  [%kick-notification note-id.rem note-name.rem src.bowl]
-      ?.  =(%group type.u.old)
-        ::  legacy delete path (DMs, gossip, cover, notebook)
-        =/  del-upd=update:noltbook  [%note-deleted note-id.rem]
-        =/  unsub-card=card
-          [%pass /remote-note/[note-id.rem] %agent [src.bowl %noltbook] %leave ~]
-        ::  1B.3: the note is gone — prune its logical-members row too (no stale row).
-        :_  this(notes (~(del by notes) note-id.rem), messages (~(del by messages) note-id.rem), note-members (~(del by note-members) note-id.rem))
-        :~  unsub-card
-            (gf-notes del-upd)
-            (gf-notes kick-upd)
-        ==
-      ::  %group preservation: collect subtree (same creator) and for each
-      ::  node strip our.bowl from users + add to removed. Unsubscribe from
-      ::  each subscription. Emit %note-users-updated so the FE refreshes
-      ::  membership rows and the input bar locks via note.removed.
-      =/  desc-ids=(list @ta)  (collect-group-descendants note-id.rem notes)
-      =/  subtree-ids=(list @ta)  [note-id.rem desc-ids]
-      =/  notes-after=(map @ta note:noltbook)
-        =/  acc=(map @ta note:noltbook)  notes
-        =/  todo=(list @ta)  subtree-ids
-        |-
-        ?~  todo  acc
-        =/  cur=(unit note:noltbook)  (~(get by acc) i.todo)
-        ?~  cur  $(todo t.todo)
-        =/  nu=(set @p)  (~(del in users.u.cur) our.bowl)
-        =/  nr=(set @p)  (~(put in removed.u.cur) our.bowl)
-        $(todo t.todo, acc (~(put by acc) i.todo u.cur(users nu, removed nr)))
-      =/  unsub-cards=(list card)
-        %+  turn  subtree-ids
-        |=  nid=@ta
-        ^-  card
-        [%pass /remote-note/[nid] %agent [src.bowl %noltbook] %leave ~]
-      =/  users-updated-cards=(list card)
-        (build-users-updated-cards subtree-ids notes-after member-revs)
-      ::  1B.3: we were kicked — drop our.bowl from the subtree's logical members (the
-      ::  note is preserved read-only, but we are no longer a logical participant).
-      :_  this(notes notes-after, note-members (del-member-from-ids our.bowl subtree-ids note-members note-actor-owners notes))
-      ^-  (list card)
-      :(weld unsub-cards users-updated-cards ^-((list card) ~[(gf-notes kick-upd)]))
-    ::
-        %remote-blocked
-      ::  someone blocked us — persist in blocked-by and notify frontend
-      =/  upd=update:noltbook  [%blocked-notification src.bowl]
-      :_  this(blocked-by (~(put in blocked-by) src.bowl))
-      ~[(gf-notes upd)]
-    ::
-        %remote-unblocked
-      ::  someone unblocked us — remove from blocked-by and notify frontend
-      =/  upd=update:noltbook  [%unblocked-notification src.bowl]
-      :_  this(blocked-by (~(del in blocked-by) src.bowl))
-      ~[(gf-notes upd)]
-    ::
-        %remote-dm-blocked
-      ::  our DM invite was rejected because we are blocked — clean up ghost DM
-      ::  only delete if this is clearly our just-created shell (we created it,
-      ::  sender is a member, and no messages have been exchanged yet)
-      =/  old  (~(get by notes) note-id.rem)
-      ?~  old  `this
-      ?.  =(%dm type.u.old)  `this
-      ?.  =(our.bowl creator.u.old)  `this
-      ?.  (~(has in users.u.old) src.bowl)  `this
-      =/  msgs=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
-      ?.  =(~ msgs)  `this
-      =/  del-upd=update:noltbook  [%note-deleted note-id.rem]
-      :_  this(notes (~(del by notes) note-id.rem), messages (~(del by messages) note-id.rem))
-      ~[(gf-notes del-upd)]
-    ::
-        %remote-note-deleted
-      ::  host deleted a note we were in. Phase 5: preserve local subtree as
-      ::  a host-deleted archive. Unsubscribe from host paths so we stop
-      ::  receiving live updates; mark every preserved id host-deleted so
-      ::  the write-guard blocks mutations. Emit %note-host-status per id
-      ::  and a single %note-deleted-notification banner for the root.
-      =/  old  (~(get by notes) note-id.rem)
-      ?~  old  `this
-      ?.  =(src.bowl creator.u.old)  `this
-      =/  descendants=(list @ta)  (collect-all-descendants note-id.rem notes)
-      =/  subtree-ids=(list @ta)  [note-id.rem descendants]
-      =/  notif-upd=update:noltbook  [%note-deleted-notification note-id.rem note-name.rem]
-      =/  unsub-cards=(list card)
-        %+  turn  subtree-ids
-        |=  nid=@ta
-        ^-  card
-        [%pass /remote-note/[nid] %agent [src.bowl %noltbook] %leave ~]
-      ::  mark each id as %host-deleted (preserving anything already set)
-      =/  new-host-status=(map @ta ?(%host-deleted %host-unreachable))
-        =/  acc=(map @ta ?(%host-deleted %host-unreachable))  host-status
-        =/  todo=(list @ta)  subtree-ids
-        |-
-        ?~  todo  acc
-        $(todo t.todo, acc (~(put by acc) i.todo %host-deleted))
-      =/  status-cards=(list card)
-        (build-host-status-cards subtree-ids `%host-deleted)
-      :_  this(host-status new-host-status)
-      ^-  (list card)
-      :(weld unsub-cards status-cards ^-((list card) ~[(gf-notes notif-upd)]))
-    ::
-        %remote-fork-invite
-      ::  Phase 6.2: metadata-only notification. No notes, descendants, or
-      ::  messages stored. Blocked senders dropped silently. Duplicate
-      ::  invites no-op. Collision check on root id only — payload-time
-      ::  validation happens on %remote-fork-payload after explicit accept.
-      ?:  (~(has in pal-blocked) src.bowl)  `this
-      ?:  (~(has by notes) root-id.rem)  `this
-      ?:  (~(has by pending-fork-invites) root-id.rem)  `this
-      =/  rec=pending-fork-invite:noltbook
-        :*  src.bowl  root-id.rem  source-root-id.rem
-            source-name.rem  source-version.rem  fork-origin.rem
-            now.bowl  %.n
-        ==
-      =/  notif=update:noltbook
-        [%fork-invite-received root-id.rem source-name.rem source-version.rem forker.rem]
-      :_  this(pending-fork-invites (~(put by pending-fork-invites) root-id.rem rec))
-      ~[(gf-notes notif)]
-    ::
-        %remote-fork-fetch
-      ::  Phase 6.2: receiver requested the full fork payload. Authorize:
-      ::  we must host the fork (root in our notes, creator==our.bowl),
-      ::  requester must be in fork-invitees for this root OR already in
-      ::  users (re-fetch OK), requester not blocked.
-      ?:  (~(has in pal-blocked) src.bowl)  `this
-      =/  root  (~(get by notes) root-id.rem)
-      =/  invs  (fall (~(get by fork-invitees) root-id.rem) *(set @p))
-      =/  authorized=?
-        ?~  root  %.n
-        ?.  =(our.bowl creator.u.root)  %.n
-        ?:  (~(has in invs) src.bowl)  %.y
-        (~(has in users.u.root) src.bowl)
-      ?.  authorized
-        :_  this
-        ~[(rpoke /fork-deny/(scot %p src.bowl)/[root-id.rem] src.bowl `remote:noltbook`[%remote-fork-denied root-id.rem])]
-      ::  an authorized fetch IS the acceptance: add the requester as a member of
-      ::  the fork (root + descendants), drop them from the pending invitee set,
-      ::  bump member revs, and emit note-users-updated. A re-fetch by an existing
-      ::  member (not in invitees) skips the membership churn.
-      =/  desc-ids=(list @ta)  (collect-group-descendants root-id.rem notes)
-      =/  subtree-ids=(list @ta)  [root-id.rem desc-ids]
-      =/  is-acceptance=?  (~(has in invs) src.bowl)
-      =/  notes  ?.(is-acceptance notes (add-ship-to-ids src.bowl subtree-ids notes))
-      =/  new-invitees=(set @p)  (~(del in invs) src.bowl)
-      =/  fork-invitees-after=(map @ta (set @p))
-        ?.  is-acceptance  fork-invitees
-        ?:  =(~ new-invitees)  (~(del by fork-invitees) root-id.rem)
-        (~(put by fork-invitees) root-id.rem new-invitees)
-      =/  new-revs=(map @ta @ud)
-        ?.(is-acceptance member-revs (bump-member-revs subtree-ids member-revs))
-      ::  re-read the (possibly updated) root for the payload below.
-      =/  root  (~(get by notes) root-id.rem)
-      =/  member-cards=(list card)
-        ?.  is-acceptance  ~
-        (build-users-updated-cards subtree-ids notes new-revs)
-      ::  build payload from current (post-add) state
-      =/  src-root-id=@ta
-        =/  fo  (~(get by fork-of) root-id.rem)
-        ?~  fo  root-id.rem
-        nid.u.fo
-      =/  src-origin=@uv
-        ?~  root  *@uv
-        (lineage-origin-of u.root fork-origin)
-      =/  fork-ver=@ud
-        (lineage-version-of root-id.rem fork-version)
-      ::  carry our stored parent-version (the source version we forked
-      ::  from); fall back to fork-ver-1 for older state.
-      =/  parent-ver=@ud
-        =/  stored  (~(get by fork-parent-version) root-id.rem)
-        ?^  stored  u.stored
-        ?:  (gth fork-ver 1)  (sub fork-ver 1)
-        0
-      =/  desc-pairs=(list [n=note:noltbook source-id=@ta])
-        %+  murn  desc-ids
-        |=  did=@ta
-        ^-  (unit [note:noltbook @ta])
-        =/  n  (~(get by notes) did)
-        ?~  n  ~
-        =/  fo  (~(get by fork-of) did)
-        =/  sid=@ta  ?~(fo did nid.u.fo)
-        `[u.n sid]
-      =/  payload-ids=(list @ta)  [root-id.rem desc-ids]
-      =/  fork-art-envs=(list [note-id=@ta envs=(list artifact-envelope:noltbook)])
-        %+  murn  payload-ids
-        |=  nid=@ta
-        ^-  (unit [@ta (list artifact-envelope:noltbook)])
-        =/  m  (~(get by artifact-envelopes) nid)
-        ?~  m  ~
-        =/  envs=(list artifact-envelope:noltbook)  ~(val by u.m)
-        ?~  envs  ~
-        `[nid envs]
-      ?~  root  `this
-      ::  payload carries the updated root (acceptor is now in root-note.users),
-      ::  so the acceptor's %remote-fork-payload membership check passes.
-      =/  pload=remote:noltbook
-        :*  %remote-fork-payload
-            root-id.rem  src-root-id  u.root  desc-pairs
-            src-origin  fork-ver  parent-ver  fork-art-envs
-        ==
-      :_  this(notes notes, fork-invitees fork-invitees-after, member-revs new-revs)
-      %+  weld  member-cards
-      ^-  (list card)
-      ~[(rpoke /fork-pay/(scot %p src.bowl)/[root-id.rem] src.bowl pload)]
-    ::
-        %remote-fork-payload
-      ::  Phase 6.2: forker delivered the subtree after accept. Validate
-      ::  against pending invite, install only if everything checks out.
-      ?:  (~(has in pal-blocked) src.bowl)  `this
-      =/  inv  (~(get by pending-fork-invites) root-id.rem)
-      ?~  inv  `this
-      =/  pi  u.inv
-      ?.  =(sender.pi src.bowl)  `this
-      ?.  =(root-id.pi root-id.rem)  `this
-      ?.  =(fork-origin.pi fork-origin.rem)  `this
-      ?.  =(id.root-note.rem root-id.rem)  `this
-      ?.  =(src.bowl creator.root-note.rem)  `this
-      ::  only install a fork we are actually a member of (guards against an
-      ::  acceptor installing a fork whose users set doesn't include them).
-      ?.  (~(has in users.root-note.rem) our.bowl)  `this
-      ::  flatten subtree (root first then descendants)
-      =/  all-incoming=(list note:noltbook)
-        [root-note.rem (turn descendants.rem |=([n=note:noltbook source-id=@ta] n))]
-      =/  incoming-ids=(set @ta)
-        %-  ~(gas in *(set @ta))
-        (turn all-incoming |=(n=note:noltbook id.n))
-      ::  re-check id collisions
-      =/  collides=?
-        =/  todo  all-incoming
-        |-  ^-  ?
-        ?~  todo  %.n
-        ?:  (~(has by notes) id.i.todo)  %.y
-        $(todo t.todo)
-      ?:  collides
-        ::  drop the invite without installing
-        =/  cleared=update:noltbook  [%fork-invite-cleared root-id.rem]
-        :_  this(pending-fork-invites (~(del by pending-fork-invites) root-id.rem))
-        ~[(gf-notes cleared)]
-      =/  new-version=@ud  fork-version.rem
-      =/  notes-after=(map @ta note:noltbook)
-        =/  todo  all-incoming
-        |-
-        ?~  todo  notes
-        $(todo t.todo, notes (~(put by notes) id.i.todo i.todo))
-      =/  messages-after=(map @ta (list message:noltbook))
-        =/  todo  all-incoming
-        |-
-        ?~  todo  messages
-        ?:  (~(has by messages) id.i.todo)  $(todo t.todo)
-        $(todo t.todo, messages (~(put by messages) id.i.todo ~))
-      =/  fork-origin-after=(map @ta @uv)
-        =/  todo  all-incoming
-        |-
-        ?~  todo  fork-origin
-        $(todo t.todo, fork-origin (~(put by fork-origin) id.i.todo fork-origin.rem))
-      =/  fork-version-after=(map @ta @ud)
-        =/  todo  all-incoming
-        |-
-        ?~  todo  fork-version
-        $(todo t.todo, fork-version (~(put by fork-version) id.i.todo new-version))
-      ::  fork-of: root points at the true source [sender, source-root-id];
-      ::  descendants use their carried source-id when available.
-      =/  fork-of-after=(map @ta [host=@p nid=@ta])
-        =.  fork-of  (~(put by fork-of) root-id.rem [src.bowl source-root-id.rem])
-        =/  todo=(list [n=note:noltbook source-id=@ta])  descendants.rem
-        |-
-        ?~  todo  fork-of
-        $(todo t.todo, fork-of (~(put by fork-of) id.n.i.todo [src.bowl source-id.i.todo]))
-      ::  every incoming node was forked from parent-version.rem on the
-      ::  forker's source — record it for root + descendants.
-      =/  fork-parent-version-after=(map @ta @ud)
-        =/  todo  all-incoming
-        |-
-        ?~  todo  fork-parent-version
-        $(todo t.todo, fork-parent-version (~(put by fork-parent-version) id.i.todo parent-version.rem))
-      ::  install fork artifact envelopes carried by the forker. These are
-      ::  metadata references only; bytes stay on the original artifact author.
-      =/  artifact-envelopes-after=(map @ta (map @ta artifact-envelope:noltbook))
-        =/  todo=(list [note-id=@ta envs=(list artifact-envelope:noltbook)])  artifact-envs.rem
-        =/  ae=(map @ta (map @ta artifact-envelope:noltbook))  artifact-envelopes
-        |-
-        ^-  (map @ta (map @ta artifact-envelope:noltbook))
-        ?~  todo  ae
-        =/  nid=@ta  note-id.i.todo
-        ?.  (~(has in incoming-ids) nid)  $(todo t.todo)
-        =/  cur=(map @ta artifact-envelope:noltbook)
-          (fall (~(get by ae) nid) *(map @ta artifact-envelope:noltbook))
-        =/  merged=(map @ta artifact-envelope:noltbook)
-          =/  env-todo=(list artifact-envelope:noltbook)  envs.i.todo
-          |-  ^-  (map @ta artifact-envelope:noltbook)
-          ?~  env-todo  cur
-          =/  e=artifact-envelope:noltbook  i.env-todo
-          ?.  =(note-id.e nid)  $(env-todo t.env-todo)
-          $(env-todo t.env-todo, cur (~(put by cur) aid.e e))
-        =/  ae2=(map @ta (map @ta artifact-envelope:noltbook))
-          ?:  =(~ merged)  ae
-          (~(put by ae) nid (cap-art-envs merged))
-        $(todo t.todo, ae ae2)
-      =/  sub-cards=(list card)
-        %+  turn  all-incoming
-        |=  n=note:noltbook
-        ^-  card
-        [%pass /remote-note/[id.n] %agent [src.bowl %noltbook] %watch /notes/[id.n]]
-      =/  created-cards=(list card)
-        %+  turn  all-incoming
-        |=  n=note:noltbook
-        ^-  card
-        (gf-notes `update:noltbook`[%note-created n])
-      =/  all-ids=(list @ta)
-        %+  turn  all-incoming
-        |=  n=note:noltbook  id.n
-      =/  lineage-cards=(list card)
-        (build-lineage-set-cards all-ids notes-after fork-origin-after fork-version-after fork-of-after fork-parent-version-after)
-      =/  art-env-cards=(list card)
-        %+  murn  artifact-envs.rem
-        |=  row=[note-id=@ta envs=(list artifact-envelope:noltbook)]
-        ^-  (unit card)
-        ?.  (~(has in incoming-ids) note-id.row)  ~
-        =/  m  (~(get by artifact-envelopes-after) note-id.row)
-        ?~  m  ~
-        =/  envs=(list artifact-envelope:noltbook)  ~(val by u.m)
-        ?~  envs  ~
-        `(gf-notes `update:noltbook`[%artifact-envelope-list note-id.row envs])
-      =/  cleared=update:noltbook  [%fork-invite-cleared root-id.rem]
-      =/  accepted=update:noltbook  [%fork-invite-accepted root-id.rem]
-      :_  %=  this
-            notes  notes-after
-            messages  messages-after
-            fork-origin  fork-origin-after
-            fork-version  fork-version-after
-            fork-of  fork-of-after
-            fork-parent-version  fork-parent-version-after
-            artifact-envelopes  artifact-envelopes-after
-            peers  (~(put in peers) src.bowl)
-            pending-fork-invites  (~(del by pending-fork-invites) root-id.rem)
-          ==
-      ^-  (list card)
-      %-  zing
-      :~  sub-cards
-          created-cards
-          lineage-cards
-          art-env-cards
-          ^-((list card) ~[(gf-notes cleared)])
-          ^-((list card) ~[(gf-notes accepted)])
-      ==
-    ::
-        %remote-fork-denied
-      ::  Phase 6.2: forker rejected our fetch. Clear the pending invite.
-      =/  inv  (~(get by pending-fork-invites) root-id.rem)
-      ?~  inv  `this
-      ?.  =(sender.u.inv src.bowl)  `this
-      =/  cleared=update:noltbook  [%fork-invite-cleared root-id.rem]
-      :_  this(pending-fork-invites (~(del by pending-fork-invites) root-id.rem))
-      ~[(gf-notes cleared)]
-    ::
-        %remote-fork-decline
-      ::  an invitee declined our fork. We must host it (root present, creator==us),
-      ::  and src must be a current invitee or (legacy-bad) already a user. Drop them
-      ::  from the invitee set; if they were wrongly a user, clear them from users
-      ::  (NOT removed) and bump revs + emit note-users-updated.
-      =/  root  (~(get by notes) root-id.rem)
-      ?~  root  `this
-      ?.  =(our.bowl creator.u.root)  `this
-      =/  invs  (fall (~(get by fork-invitees) root-id.rem) *(set @p))
-      =/  was-member=?  (~(has in users.u.root) src.bowl)
-      ?.  |((~(has in invs) src.bowl) was-member)  `this
-      =/  new-invitees=(set @p)  (~(del in invs) src.bowl)
-      =/  fork-invitees-after=(map @ta (set @p))
-        ?:  =(~ new-invitees)  (~(del by fork-invitees) root-id.rem)
-        (~(put by fork-invitees) root-id.rem new-invitees)
-      ?.  was-member
-        ::  normal case: never a member, just forget the pending invitee.
-        `this(fork-invitees fork-invitees-after)
-      ::  backward-compat: a bad fork listed them as a user — clear from users only.
-      =/  subtree-ids=(list @ta)  [root-id.rem (collect-group-descendants root-id.rem notes)]
-      =/  notes-after=(map @ta note:noltbook)  (clear-ship-from-ids src.bowl subtree-ids notes)
-      =/  new-revs=(map @ta @ud)  (bump-member-revs subtree-ids member-revs)
-      :_  this(notes notes-after, fork-invitees fork-invitees-after, member-revs new-revs)
-      (build-users-updated-cards subtree-ids notes-after new-revs)
-    ::
-    ::  ===== REMOTE CALL HANDLERS =====
-    ::
-        %remote-call-start
-      =/  exists  (~(get by notes) note-id.rem)
-      ?~  exists  `this
-      ?.  (~(has in users.u.exists) src.bowl)  `this
-      ::  if stale call (0 participants), allow replacement; if active, no-op
-      =/  old-call  (~(get by active-calls) note-id.rem)
-      ?:  ?&  ?=(^ old-call)
-              (gth ~(wyt in participants.u.old-call) 0)
-          ==
-        `this
-      ::  case 1: we are the creator and a member asked us to start
-      ?:  =(our.bowl creator.u.exists)
-        =/  cid=@ta  (crip (weld "call-" (trip (scot %da now.bowl))))
-        =/  ci=call-info:noltbook
-          [cid note-id.rem src.bowl now.bowl (sy ~[src.bowl]) %active]
-        =/  sys-msg=message:noltbook
-          [now.bowl note-id.rem src.bowl (crip (weld "\01SYS:call-started:" (trip (scot %p src.bowl)))) now.bowl ~ %.n ~]
-        =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
-        =/  upd=update:noltbook  [%call-started note-id.rem cid src.bowl ~[src.bowl]]
-        =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
-        =/  pax=path  ~[%notes note-id.rem]
-        ::  broadcast to all members including the requester
-        =/  broadcast=(list card)
-          %+  murn  ~(tap in users.u.exists)
-          |=  p=@p
-          ?:  =(p our.bowl)  ~
-          `(rpoke /call-start/(scot %p p)/[note-id.rem] p `remote:noltbook`[%remote-call-start note-id.rem cid src.bowl])
-        :_  this(active-calls (~(put by active-calls) note-id.rem ci), messages (~(put by messages) note-id.rem (snoc cur sys-msg)))
-        :(weld ~[(gf-paths ~[pax] upd)] ~[(gf-notes upd)] ~[(gf-paths ~[pax] msg-upd)] broadcast)
-      ::  case 2: we are NOT creator; accept notification from creator only
-      ?.  =(src.bowl creator.u.exists)  `this
-      =/  ci=call-info:noltbook
-        [call-id.rem note-id.rem started-by.rem now.bowl (sy ~[started-by.rem]) %active]
-      =/  sys-msg=message:noltbook
-        [now.bowl note-id.rem started-by.rem (crip (weld "\01SYS:call-started:" (trip (scot %p started-by.rem)))) now.bowl ~ %.n ~]
-      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
-      =/  upd=update:noltbook  [%call-started note-id.rem call-id.rem started-by.rem ~[started-by.rem]]
-      =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
-      =/  pax=path  ~[%notes note-id.rem]
-      :_  this(active-calls (~(put by active-calls) note-id.rem ci), messages (~(put by messages) note-id.rem (snoc cur sys-msg)))
-      :(weld ~[(gf-paths ~[pax] upd)] ~[(gf-notes upd)] ~[(gf-paths ~[pax] msg-upd)])
-    ::
-        %remote-call-join
-      =/  exists  (~(get by notes) note-id.rem)
-      ?~  exists  `this
-      =/  ci  (~(get by active-calls) note-id.rem)
-      ?~  ci  `this
-      ?.  (~(has in users.u.exists) ship.rem)  `this
-      ?:  (~(has in participants.u.ci) ship.rem)  `this
-      =/  new-ci=call-info:noltbook  u.ci(participants (~(put in participants.u.ci) ship.rem))
-      =/  sys-msg=message:noltbook
-        [now.bowl note-id.rem ship.rem (crip (weld "\01SYS:call-joined:" (trip (scot %p ship.rem)))) now.bowl ~ %.n ~]
-      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
-      =/  upd=update:noltbook  [%call-joined note-id.rem ship.rem]
-      =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
-      =/  pax=path  ~[%notes note-id.rem]
-      ::  case 1: we are creator — process + relay to other participants
-      ::  case 2: we are NOT creator — just process locally (notification from creator)
-      =/  broadcast=(list card)
-        ?.  =(our.bowl creator.u.exists)  ~
-        %+  murn  ~(tap in participants.u.ci)
-        |=  p=@p
-        ?:  =(p ship.rem)  ~
-        ?:  =(p our.bowl)  ~
-        `(rpoke /call-join-relay/(scot %p p)/[note-id.rem] p `remote:noltbook`[%remote-call-join note-id.rem ship.rem])
-      :_  this(active-calls (~(put by active-calls) note-id.rem new-ci), messages (~(put by messages) note-id.rem (snoc cur sys-msg)))
-      :(weld ~[(gf-paths ~[pax] upd)] ~[(gf-notes upd)] ~[(gf-paths ~[pax] msg-upd)] broadcast)
-    ::
-        %remote-call-leave
-      =/  exists  (~(get by notes) note-id.rem)
-      ?~  exists  `this
-      =/  ci  (~(get by active-calls) note-id.rem)
-      ?~  ci  `this
-      ?.  (~(has in participants.u.ci) ship.rem)  `this
-      =/  new-parts=(set @p)  (~(del in participants.u.ci) ship.rem)
-      =/  sys-msg=message:noltbook
-        [now.bowl note-id.rem ship.rem (crip (weld "\01SYS:call-left:" (trip (scot %p ship.rem)))) now.bowl ~ %.n ~]
-      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
-      =/  pax=path  ~[%notes note-id.rem]
-      ::  if no participants left, end the call
-      ?:  =(0 ~(wyt in new-parts))
-        =/  end-upd=update:noltbook  [%call-ended note-id.rem call-id.u.ci]
-        =/  end-msg=message:noltbook
-          [now.bowl note-id.rem ship.rem '\01SYS:call-ended' now.bowl ~ %.n ~]
-        ::  broadcast call-ended to all note members
-        =/  broadcast=(list card)
-          %+  murn  ~(tap in users.u.exists)
-          |=  p=@p
-          ?:  =(p our.bowl)  ~
-          `(rpoke /call-end/(scot %p p)/[note-id.rem] p `remote:noltbook`[%remote-call-ended note-id.rem])
-        :_  this(active-calls (~(del by active-calls) note-id.rem), messages (~(put by messages) note-id.rem (snoc (snoc cur sys-msg) end-msg)))
-        :(weld ~[(gf-paths ~[pax] end-upd)] ~[(gf-notes end-upd)] broadcast)
-      ::  still has participants: update and broadcast leave
-      =/  new-ci=call-info:noltbook  u.ci(participants new-parts)
-      =/  upd=update:noltbook  [%call-left note-id.rem ship.rem]
-      ::  only creator relays to other participants
-      =/  broadcast=(list card)
-        ?.  =(our.bowl creator.u.exists)  ~
-        %+  murn  ~(tap in new-parts)
-        |=  p=@p
-        ?:  =(p our.bowl)  ~
-        `(rpoke /call-leave-relay/(scot %p p)/[note-id.rem] p `remote:noltbook`[%remote-call-leave note-id.rem ship.rem])
-      :_  this(active-calls (~(put by active-calls) note-id.rem new-ci), messages (~(put by messages) note-id.rem (snoc cur sys-msg)))
-      :(weld ~[(gf-paths ~[pax] upd)] ~[(gf-notes upd)] broadcast)
-    ::
-        %remote-call-ended
-      ::  host says call is over
-      =/  ci  (~(get by active-calls) note-id.rem)
-      ?~  ci  `this
-      ::  must come from a note member
-      =/  exists  (~(get by notes) note-id.rem)
-      ?~  exists  `this
-      ?.  (~(has in users.u.exists) src.bowl)  `this
-      =/  end-msg=message:noltbook
-        [now.bowl note-id.rem src.bowl '\01SYS:call-ended' now.bowl ~ %.n ~]
-      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
-      =/  upd=update:noltbook  [%call-ended note-id.rem call-id.u.ci]
-      =/  pax=path  ~[%notes note-id.rem]
-      :_  this(active-calls (~(del by active-calls) note-id.rem), messages (~(put by messages) note-id.rem (snoc cur end-msg)))
-      ~[(gf-paths ~[pax] upd) (gf-notes upd)]
-    ::
-        %remote-call-signal
-      ::  incoming WebRTC signal from a peer; relay to local frontend
-      ::  find which note this call belongs to
-      =/  entries=(list [@ta call-info:noltbook])  ~(tap by active-calls)
-      =/  match=(list [@ta call-info:noltbook])
-        (skim entries |=([nid=@ta ci=call-info:noltbook] =(call-id.ci call-id.rem)))
-      ?~  match  `this
-      =/  note-id=@ta  -.i.match
-      =/  upd=update:noltbook  [%call-signal note-id from.rem sig-type.rem payload.rem]
-      =/  pax=path  ~[%notes note-id]
-      :_  this
-      ~[(gf-paths ~[pax] upd)]
-    ::
-        %remote-join-request
-      ::  someone wants to join one of our notes
-      ::  reject from blocked ships
-      ?:  (~(has in pal-blocked) src.bowl)  `this
-      =/  old  (~(get by notes) note-id.rem)
-      ?~  old  `this
-      ::  must be our note
-      ?.  =(our.bowl creator.u.old)  `this
-      ::  already a member? no-op
-      ?:  (~(has in users.u.old) src.bowl)  `this
-      ::  only %group notes are joinable
-      ?.  =(%group type.u.old)  `this
-      ::  secret notes: deny silently
-      ?:  =(%secret visibility.u.old)  `this
-      ::  removed users cannot rejoin — tell them explicitly
-      ?:  (~(has in removed.u.old) src.bowl)
-        :_  this
-        ~[(rpoke /join-removed/(scot %p src.bowl)/[note-id.rem] src.bowl `remote:noltbook`[%remote-join-removed note-id.rem])]
-      ::  public notes: auto-approve (immediate invite)
-      ?:  =(%public visibility.u.old)
-        =/  new-users=(set @p)  (~(put in users.u.old) src.bowl)
-        =/  new-removed=(set @p)  (~(del in removed.u.old) src.bowl)
-        =/  nid=@ta  note-id.rem
-        =/  new-note=note:noltbook  u.old(users new-users, removed new-removed)
-        =/  inv=remote:noltbook  [%remote-invite nid name.u.old type.u.old our.bowl users.new-note visibility.u.old writable.u.old]
-        =/  poke-card=card
-          (rpoke /invite/(scot %p src.bowl)/[nid] src.bowl inv)
-        =/  new-peers=(set @p)  (~(put in peers) src.bowl)
-        =/  is-new-peer=?  !(~(has in peers) src.bowl)
-        =/  ars-cards=(list card)
-          ?.  is-new-peer  ~
-          ~[[%pass /ars/(scot %p src.bowl) %agent [src.bowl %noltbook] %watch /notes/cover]]
-        ::  Phase 3: cascade auto-approved joiner to %group descendants
-        =/  group-descs=(list @ta)
-          ?.  =(%group type.u.old)  ~
-          (collect-group-descendants note-id.rem notes)
-        =/  notes-after=(map @ta note:noltbook)
-          (~(put by notes) note-id.rem new-note)
-        =.  notes-after
-          ?:  =(~ group-descs)  notes-after
-          (add-ship-to-ids src.bowl group-descs notes-after)
-        =/  new-revs=(map @ta @ud)
-          (bump-member-revs [note-id.rem group-descs] member-revs)
-        =/  users-upd=update:noltbook  [%note-users-updated note-id.rem type.u.old ~(tap in new-users) ~(tap in new-removed) (member-rev-of note-id.rem new-revs)]
-        =/  desc-users-cards=(list card)
-          ?:  =(~ group-descs)  ~
-          (build-users-updated-cards group-descs notes-after new-revs)
-        =/  desc-child-pokes=(list card)
-          ?:  =(~ group-descs)  ~
-          (build-remote-child-notes-to-ship src.bowl group-descs notes-after)
-        ::  auto-mute joiner if note is read-only
-        =/  ro-muted=(set @p)
-          ?.  !writable.u.old  (fall (~(get by note-muted) nid) ~)
-          (~(put in (fall (~(get by note-muted) nid) ~)) src.bowl)
-        =/  ro-mute-cards=(list card)
-          ?.  !writable.u.old  ~
-          =/  mute-upd=update:noltbook  [%muted-updated nid ~(tap in ro-muted)]
-          ~[(gf-notes mute-upd) (gf-paths ~[/notes/[nid]] mute-upd)]
-        :_  this(notes notes-after, peers new-peers, note-muted (~(put by note-muted) nid ro-muted), member-revs new-revs, note-members (add-member-to-ids src.bowl [nid group-descs] note-members note-actor-owners notes))
-        :(weld [poke-card (gf-notes users-upd) (gf-paths ~[/notes/[note-id.rem]] users-upd) ~] ars-cards ro-mute-cards desc-users-cards desc-child-pokes)
-      ::  private notes: queue pending request
-      =/  pending=(set @p)  (fall (~(get by join-requests) note-id.rem) *(set @p))
-      ::  already pending? send pending confirmation, no duplicate
-      ?:  (~(has in pending) src.bowl)
-        :_  this
-        :~  (rpoke /join-pending/(scot %p src.bowl)/[note-id.rem] src.bowl `remote:noltbook`[%remote-join-pending note-id.rem])
-        ==
-      ::  add to pending set
-      =.  join-requests  (~(put by join-requests) note-id.rem (~(put in pending) src.bowl))
-      ::  notify host frontend + admins + confirm pending to requester
-      =/  jr-upd=update:noltbook  [%join-request-received note-id.rem src.bowl name.u.old]
-      :_  this
-      :~  (gf-notes jr-upd)
-          (gf-paths ~[/notes/[note-id.rem]] jr-upd)
-          (rpoke /join-pending/(scot %p src.bowl)/[note-id.rem] src.bowl `remote:noltbook`[%remote-join-pending note-id.rem])
-      ==
-    ::
-        %remote-join-pending
-      ::  host confirmed our request is pending
-      =/  upd=update:noltbook  [%join-requested note-id.rem src.bowl]
-      :_  this
-      ~[(gf-notes upd)]
-    ::
-        %remote-join-denied
-      ::  host denied our join request
-      =/  upd=update:noltbook  [%join-denied note-id.rem src.bowl]
-      :_  this
-      ~[(gf-notes upd)]
-    ::
-        %remote-join-removed
-      ::  host says we're removed from this note — cannot rejoin
-      =/  upd=update:noltbook  [%join-removed note-id.rem src.bowl]
-      :_  this
-      ~[(gf-notes upd)]
-    ::
-        %remote-mod
-      ::  remote admin forwarding moderation action to host
-      =/  old  (~(get by notes) note-id.rem)
-      ?~  old  `this
-      ::  must be our note
-      ?.  =(our.bowl creator.u.old)  `this
-      ::  src must be current member AND admin of this note
-      ?.  (~(has in users.u.old) src.bowl)  `this
-      ?.  (~(has in (fall (~(get by note-admins) note-id.rem) ~)) src.bowl)  `this
-      ::  dispatch by mod-type
-      ?+  mod-type.rem  `this
-          %remove-member
-        ::  admin cannot remove host or other admins
-        ?:  =(target.rem our.bowl)  `this
-        ?:  (~(has in (fall (~(get by note-admins) note-id.rem) ~)) target.rem)  `this
-        ?.  (~(has in users.u.old) target.rem)  `this
-        =/  new-users=(set @p)  (~(del in users.u.old) target.rem)
-        =/  new-removed=(set @p)  (~(put in removed.u.old) target.rem)
-        =/  upd-note=note:noltbook  u.old(users new-users, removed new-removed)
-        =/  kick-card=card
-          (rpoke /kick/(scot %p target.rem)/[note-id.rem] target.rem `remote:noltbook`[%remote-kick note-id.rem name.u.old])
-        =/  sys-text=@t  (crip (weld (trip (scot %p target.rem)) " removed from note"))
-        =/  sys-msg=message:noltbook  [now.bowl note-id.rem our.bowl sys-text now.bowl ~ %.n ~]
-        =/  old-msgs=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
-        =/  new-msgs=(list message:noltbook)  (snoc old-msgs sys-msg)
-        =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
-        =/  clean-admins=(map @ta (set @p))
-          =/  cur=(set @p)  (fall (~(get by note-admins) note-id.rem) ~)
-          ?:  (~(has in cur) target.rem)
-            (~(put by note-admins) note-id.rem (~(del in cur) target.rem))
-          note-admins
-        =/  clean-muted=(map @ta (set @p))
-          =/  cur=(set @p)  (fall (~(get by note-muted) note-id.rem) ~)
-          ?:  (~(has in cur) target.rem)
-            (~(put by note-muted) note-id.rem (~(del in cur) target.rem))
-          note-muted
-        ::  Phase 3: cascade removal to %group descendants
-        =/  group-descs=(list @ta)
-          ?.  =(%group type.u.old)  ~
-          (collect-group-descendants note-id.rem notes)
-        =/  notes-after=(map @ta note:noltbook)
-          (~(put by notes) note-id.rem upd-note)
-        =.  notes-after
-          ?:  =(~ group-descs)  notes-after
-          (remove-ship-from-ids target.rem group-descs notes-after)
-        =/  new-revs=(map @ta @ud)
-          (bump-member-revs [note-id.rem group-descs] member-revs)
-        =/  users-upd=update:noltbook  [%note-users-updated note-id.rem type.u.old ~(tap in new-users) ~(tap in new-removed) (member-rev-of note-id.rem new-revs)]
-        =/  desc-users-cards=(list card)
-          ?:  =(~ group-descs)  ~
-          (build-users-updated-cards group-descs notes-after new-revs)
-        :_  this(notes notes-after, messages (~(put by messages) note-id.rem new-msgs), note-admins clean-admins, note-muted clean-muted, member-revs new-revs)
-        %+  weld
-          ^-  (list card)
-          :~  kick-card
-              (gf-notes users-upd)
-              (gf-paths ~[/notes/[note-id.rem]] users-upd)
-              (gf-notes msg-upd)
-              (gf-paths ~[/notes/[note-id.rem]] msg-upd)
-          ==
-        desc-users-cards
-      ::
-          %mute-member
-        ?.  (~(has in users.u.old) target.rem)  `this
-        ?:  =(target.rem creator.u.old)  `this
-        ?:  (~(has in (fall (~(get by note-admins) note-id.rem) ~)) target.rem)  `this
-        =/  cur-muted=(set @p)  (fall (~(get by note-muted) note-id.rem) ~)
-        =/  new-muted=(set @p)  (~(put in cur-muted) target.rem)
-        =/  upd=update:noltbook  [%muted-updated note-id.rem ~(tap in new-muted)]
-        :_  this(note-muted (~(put by note-muted) note-id.rem new-muted))
-        :~  (gf-notes upd)
-            (gf-paths ~[/notes/[note-id.rem]] upd)
-        ==
-      ::
-          %unmute-member
-        =/  cur-muted=(set @p)  (fall (~(get by note-muted) note-id.rem) ~)
-        ?.  (~(has in cur-muted) target.rem)  `this
-        =/  new-muted=(set @p)  (~(del in cur-muted) target.rem)
-        =/  upd=update:noltbook  [%muted-updated note-id.rem ~(tap in new-muted)]
-        :_  this(note-muted (~(put by note-muted) note-id.rem new-muted))
-        :~  (gf-notes upd)
-            (gf-paths ~[/notes/[note-id.rem]] upd)
-        ==
-      ::
-          %approve-join
-        ::  same logic as local %approve-join but triggered by remote admin
-        ?:  =(%dm type.u.old)  `this
-        =/  pending=(set @p)  (fall (~(get by join-requests) note-id.rem) *(set @p))
-        ?.  (~(has in pending) target.rem)  `this
-        =/  new-pending=(set @p)  (~(del in pending) target.rem)
-        =.  join-requests
-          ?:  =(~ new-pending)  (~(del by join-requests) note-id.rem)
-          (~(put by join-requests) note-id.rem new-pending)
-        =/  new-users=(set @p)  (~(put in users.u.old) target.rem)
-        =/  new-removed=(set @p)  (~(del in removed.u.old) target.rem)
-        =/  new-note=note:noltbook  u.old(users new-users, removed new-removed)
-        =/  inv=remote:noltbook  [%remote-invite note-id.rem name.u.old type.u.old our.bowl users.new-note visibility.u.old writable.u.old]
-        =/  poke-card=card
-          (rpoke /invite/(scot %p target.rem)/[note-id.rem] target.rem inv)
-        =/  new-peers=(set @p)  (~(put in peers) target.rem)
-        =/  is-new-peer=?  !(~(has in peers) target.rem)
-        =/  ars-cards=(list card)
-          ?.  is-new-peer  ~
-          ~[[%pass /ars/(scot %p target.rem) %agent [target.rem %noltbook] %watch /notes/cover]]
-        =/  jr-list=(list [note-id=@ta ship=@p note-name=@t])
-          %-  zing
-          %+  turn  ~(tap by join-requests)
-          |=  [nid=@ta ships=(set @p)]
-          =/  n  (~(get by notes) nid)
-          ?~  n  ~
-          (turn ~(tap in ships) |=(s=@p [nid s name.u.n]))
-        =/  jr-upd=update:noltbook  [%join-request-list jr-list]
-        ::  auto-mute approved user if note is read-only
-        =/  ro-muted=(set @p)
-          ?.  !writable.u.old  (fall (~(get by note-muted) note-id.rem) ~)
-          (~(put in (fall (~(get by note-muted) note-id.rem) ~)) target.rem)
-        =/  ro-mute-cards=(list card)
-          ?.  !writable.u.old  ~
-          =/  mute-upd=update:noltbook  [%muted-updated note-id.rem ~(tap in ro-muted)]
-          ~[(gf-notes mute-upd) (gf-paths ~[/notes/[note-id.rem]] mute-upd)]
-        ::  Phase 3: cascade approved member to %group descendants
-        =/  group-descs=(list @ta)
-          ?.  =(%group type.u.old)  ~
-          (collect-group-descendants note-id.rem notes)
-        =/  notes-after=(map @ta note:noltbook)
-          (~(put by notes) note-id.rem new-note)
-        =.  notes-after
-          ?:  =(~ group-descs)  notes-after
-          (add-ship-to-ids target.rem group-descs notes-after)
-        =/  new-revs=(map @ta @ud)
-          (bump-member-revs [note-id.rem group-descs] member-revs)
-        =/  users-upd=update:noltbook  [%note-users-updated note-id.rem type.u.old ~(tap in new-users) ~(tap in new-removed) (member-rev-of note-id.rem new-revs)]
-        =/  desc-users-cards=(list card)
-          ?:  =(~ group-descs)  ~
-          (build-users-updated-cards group-descs notes-after new-revs)
-        =/  desc-child-pokes=(list card)
-          ?:  =(~ group-descs)  ~
-          (build-remote-child-notes-to-ship target.rem group-descs notes-after)
-        :_  this(notes notes-after, peers new-peers, note-muted (~(put by note-muted) note-id.rem ro-muted), member-revs new-revs)
-        :(weld [poke-card (gf-notes users-upd) (gf-paths ~[/notes/[note-id.rem]] users-upd) (gf-notes jr-upd) ~] ars-cards ro-mute-cards desc-users-cards desc-child-pokes)
-      ::
-          %deny-join
-        =/  pending=(set @p)  (fall (~(get by join-requests) note-id.rem) *(set @p))
-        ?.  (~(has in pending) target.rem)  `this
-        =/  new-pending=(set @p)  (~(del in pending) target.rem)
-        =.  join-requests
-          ?:  =(~ new-pending)  (~(del by join-requests) note-id.rem)
-          (~(put by join-requests) note-id.rem new-pending)
-        =/  jr-list=(list [note-id=@ta ship=@p note-name=@t])
-          %-  zing
-          %+  turn  ~(tap by join-requests)
-          |=  [nid=@ta ships=(set @p)]
-          =/  n  (~(get by notes) nid)
-          ?~  n  ~
-          (turn ~(tap in ships) |=(s=@p [nid s name.u.n]))
-        =/  jr-upd=update:noltbook  [%join-request-list jr-list]
-        :_  this
-        :~  (rpoke /join-deny/(scot %p target.rem)/[note-id.rem] target.rem `remote:noltbook`[%remote-join-denied note-id.rem])
-            (gf-notes jr-upd)
-        ==
-      ::
-          %deny-block-join
-        ::  admin deny-block: note-scoped block (add to removed)
-        =/  pending=(set @p)  (fall (~(get by join-requests) note-id.rem) *(set @p))
-        ?.  (~(has in pending) target.rem)  `this
-        =/  new-pending=(set @p)  (~(del in pending) target.rem)
-        =.  join-requests
-          ?:  =(~ new-pending)  (~(del by join-requests) note-id.rem)
-          (~(put by join-requests) note-id.rem new-pending)
-        =/  new-removed=(set @p)  (~(put in removed.u.old) target.rem)
-        =/  upd-note=note:noltbook  u.old(removed new-removed)
-        =/  new-revs=(map @ta @ud)  (bump-member-rev note-id.rem member-revs)
-        =/  users-upd=update:noltbook  [%note-users-updated note-id.rem type.u.old ~(tap in users.u.old) ~(tap in new-removed) (member-rev-of note-id.rem new-revs)]
-        =/  jr-list=(list [note-id=@ta ship=@p note-name=@t])
-          %-  zing
-          %+  turn  ~(tap by join-requests)
-          |=  [nid=@ta ships=(set @p)]
-          =/  n  (~(get by notes) nid)
-          ?~  n  ~
-          (turn ~(tap in ships) |=(s=@p [nid s name.u.n]))
-        =/  jr-upd=update:noltbook  [%join-request-list jr-list]
-        :_  this(notes (~(put by notes) note-id.rem upd-note), member-revs new-revs)
-        :~  (rpoke /join-deny/(scot %p target.rem)/[note-id.rem] target.rem `remote:noltbook`[%remote-join-denied note-id.rem])
-            (gf-notes users-upd)
-            (gf-paths ~[/notes/[note-id.rem]] users-upd)
-            (gf-notes jr-upd)
-        ==
-      ::
-          %invite-member
-        ::  admin-forwarded invite: host performs canonical invite
-        ?:  =(%dm type.u.old)  `this
-        ?:  (~(has in users.u.old) target.rem)  `this
-        =/  new-users=(set @p)  (~(put in users.u.old) target.rem)
-        =/  new-removed=(set @p)  (~(del in removed.u.old) target.rem)
-        =/  new-note=note:noltbook  u.old(users new-users, removed new-removed)
-        =/  inv=remote:noltbook  [%remote-invite note-id.rem name.u.old type.u.old our.bowl users.new-note visibility.u.old writable.u.old]
-        =/  poke-card=card
-          (rpoke /invite/(scot %p target.rem)/[note-id.rem] target.rem inv)
-        =/  new-peers=(set @p)  (~(put in peers) target.rem)
-        =/  is-new-peer=?  !(~(has in peers) target.rem)
-        =/  ars-cards=(list card)
-          ?.  is-new-peer  ~
-          ~[[%pass /ars/(scot %p target.rem) %agent [target.rem %noltbook] %watch /notes/cover]]
-        =/  pax=path  ~[%notes note-id.rem]
-        ::  auto-mute invitee if note is read-only
-        =/  ro-muted=(set @p)
-          ?.  !writable.u.old  (fall (~(get by note-muted) note-id.rem) ~)
-          (~(put in (fall (~(get by note-muted) note-id.rem) ~)) target.rem)
-        =/  ro-mute-cards=(list card)
-          ?.  !writable.u.old  ~
-          =/  mute-upd=update:noltbook  [%muted-updated note-id.rem ~(tap in ro-muted)]
-          ~[(gf-notes mute-upd) (gf-paths ~[pax] mute-upd)]
-        ::  Phase 3: cascade invitee to %group descendants
-        =/  group-descs=(list @ta)
-          ?.  =(%group type.u.old)  ~
-          (collect-group-descendants note-id.rem notes)
-        =/  notes-after=(map @ta note:noltbook)
-          (~(put by notes) note-id.rem new-note)
-        =.  notes-after
-          ?:  =(~ group-descs)  notes-after
-          (add-ship-to-ids target.rem group-descs notes-after)
-        =/  new-revs=(map @ta @ud)
-          (bump-member-revs [note-id.rem group-descs] member-revs)
-        =/  users-upd=update:noltbook  [%note-users-updated note-id.rem type.u.old ~(tap in new-users) ~(tap in new-removed) (member-rev-of note-id.rem new-revs)]
-        =/  desc-users-cards=(list card)
-          ?:  =(~ group-descs)  ~
-          (build-users-updated-cards group-descs notes-after new-revs)
-        =/  desc-child-pokes=(list card)
-          ?:  =(~ group-descs)  ~
-          (build-remote-child-notes-to-ship target.rem group-descs notes-after)
-        :_  this(notes notes-after, peers new-peers, note-muted (~(put by note-muted) note-id.rem ro-muted), member-revs new-revs)
-        :(weld ~[poke-card] ~[(gf-notes users-upd)] ~[(gf-paths ~[pax] users-upd)] ars-cards ro-mute-cards desc-users-cards desc-child-pokes)
-      ==
-    ::
-        %remote-artifact-fetch
-      ::  requester asking us for artifact bytes
-      =/  art  (~(get by artifacts) art-id.rem)
-      ?~  art
-        :_  this
-        ~[(rpoke /art-deny/(scot %p src.bowl)/[art-id.rem] src.bowl `remote:noltbook`[%remote-artifact-denied art-id.rem eyre-id.rem])]
-      =/  nt  (~(get by notes) note-id.u.art)
-      ?~  nt
-        :_  this
-        ~[(rpoke /art-deny/(scot %p src.bowl)/[art-id.rem] src.bowl `remote:noltbook`[%remote-artifact-denied art-id.rem eyre-id.rem])]
-      ::  block guard
-      ?:  (~(has in pal-blocked) src.bowl)
-        :_  this
-        ~[(rpoke /art-deny/(scot %p src.bowl)/[art-id.rem] src.bowl `remote:noltbook`[%remote-artifact-denied art-id.rem eyre-id.rem])]
-      ::  per-type permission
-      ::  cover: NO direct-pal check; envelope mesh reaches further
-      ::  gossip note: explicit membership (in users, not removed)
-      ::  others: existing notebook/group/dm membership
-      ?:  ?&  !?=(%cover type.u.nt)
-              ?|  !(~(has in users.u.nt) src.bowl)
-                  (~(has in removed.u.nt) src.bowl)
-              ==
-          ==
-        :_  this
-        ~[(rpoke /art-deny/(scot %p src.bowl)/[art-id.rem] src.bowl `remote:noltbook`[%remote-artifact-denied art-id.rem eyre-id.rem])]
-      ::  scry bytes from our clay
-      =/  art-clay=path
-        :*  (scot %p our.bowl)
-            q.byk.bowl
-            (scot %da now.bowl)
-            /lib/noltbook/artifacts/[art-id.rem]/mime
-        ==
-      =/  scry-res  (mule |.(.^(mime %cx art-clay)))
-      ?:  ?=(%| -.scry-res)
-        :_  this
-        ~[(rpoke /art-deny/(scot %p src.bowl)/[art-id.rem] src.bowl `remote:noltbook`[%remote-artifact-denied art-id.rem eyre-id.rem])]
-      =/  mim=mime  p.scry-res
-      ::  if requester sent expected-hash, validate before serving.
-      ::  q.mim is octs [p=@ud q=@]; hash content == hash of byte atom (q.q.mim)
-      ?:  ?&  ?=(^ expected-hash.rem)
-              !=(u.expected-hash.rem (sham q.q.mim))
-          ==
-        :_  this
-        ~[(rpoke /art-deny/(scot %p src.bowl)/[art-id.rem] src.bowl `remote:noltbook`[%remote-artifact-denied art-id.rem eyre-id.rem])]
-      =/  mtype=@t  (rap 3 (join '/' p.mim))
-      :_  this
-      :~  :*  %pass
-              /art-content/(scot %p src.bowl)/[art-id.rem]
-              %agent  [src.bowl %noltbook]
-              %poke   %noltbook-remote
-              !>(`remote:noltbook`[%remote-artifact-content art-id.rem eyre-id.rem mtype q.mim])
-          ==
-      ==
-    ::
-        %remote-artifact-content
-      ::  byte host replied with bytes; complete pending HTTP for this response
-      ::  only. Do NOT persist bytes locally — member ships hold metadata only.
-      =/  art  (~(get by artifacts) art-id.rem)
-      ?^  art
-        ::  artifact-map path: only creator may serve us bytes
-        ?.  =(src.bowl creator.u.art)  `this
-        =/  hdrs=(list [@t @t])
-          :~  ['content-type' mime.rem]
-              ['cache-control' 'no-store']
-          ==
-        =/  =simple-payload:http  [[200 hdrs] `bytes.rem]
-        :_  this
-        (give-simple-payload:app:server eyre-id.rem simple-payload)
-      ::  envelope path: require known envelope + matching author. Hash
-      ::  check is strict when envelope carries a non-zero hash, but
-      ::  *@uv (unknown — e.g. fork-copied envelopes) bypasses it.
-      =/  env  (find-aid-in-envelopes art-id.rem artifact-envelopes)
-      ?~  env  `this
-      ?.  =(src.bowl author.u.env)  `this
-      ?.  ?|  =(content-hash.u.env *@uv)
-              =(content-hash.u.env (sham q.bytes.rem))
-          ==
-        :_  this
-        %+  give-simple-payload:app:server  eyre-id.rem
-        [[404 ~] ~]
-      =/  hdrs=(list [@t @t])
-        :~  ['content-type' mime.rem]
-            ['cache-control' 'no-store']
-        ==
-      =/  =simple-payload:http  [[200 hdrs] `bytes.rem]
-      :_  this
-      (give-simple-payload:app:server eyre-id.rem simple-payload)
-    ::
-        %remote-artifact-denied
-      ::  byte host refused (not member, missing, removed); reply 404 to http
-      =/  art  (~(get by artifacts) art-id.rem)
-      ?^  art
-        ?.  =(src.bowl creator.u.art)  `this
-        :_  this
-        %+  give-simple-payload:app:server  eyre-id.rem
-        [[404 ~] ~]
-      =/  env  (find-aid-in-envelopes art-id.rem artifact-envelopes)
-      ?~  env  `this
-      ?.  =(src.bowl author.u.env)  `this
-      :_  this
-      %+  give-simple-payload:app:server  eyre-id.rem
-      [[404 ~] ~]
-    ::
-        %remote-artifact-create
-      ::  member registering metadata for an artifact whose bytes live on member
-      =/  art  artifact.rem
-      =/  nid=@ta  note-id.art
-      =/  nt  (~(get by notes) nid)
-      ?~  nt  `this
-      ::  must be host of this note
-      ?.  =(our.bowl creator.u.nt)  `this
-      ::  only normal/group notes accept artifact metadata
-      ?.  ?|(?=(%notebook type.u.nt) ?=(%group type.u.nt))  `this
-      ::  sender must be current member, not removed
-      ?.  (~(has in users.u.nt) src.bowl)  `this
-      ?:  (~(has in removed.u.nt) src.bowl)  `this
-      ::  artifact creator must equal sender
-      ?.  =(src.bowl creator.art)  `this
-      ::  versions: artifact uploads emit exactly one version
-      ?.  ?=([^ ~] versions.art)  `this
-      =/  ver  i.versions.art
-      =/  ctnt=tape  (trip content.ver)
-      ::  type-specific content validation. %file is UNCHANGED (clay-backed metadata; reject
-      ::  inline dataUrl/mimeType blobs). %app must be a small valid plugin descriptor — a
-      ::  reference the host records but never runs. %code is not accepted via this path.
-      =/  content-ok=?
-        ?-  type.art
-            %file
-          ?&  ?=(^ (find (trip '"storage":"clay"') ctnt))
-              ?=(~ (find (trip 'dataUrl') ctnt))
-              ?=(~ (find (trip 'mimeType') ctnt))
-          ==
-        ::
-            %app   (valid-app-artifact-content content.ver)
-            %code  %.n
-        ==
-      ?.  content-ok  `this
-      ::  read-only: only host/admin can post; host already self
-      =/  admins  (fall (~(get by note-admins) nid) ~)
-      =/  is-admin=?  (~(has in admins) src.bowl)
-      ?:  ?&  !writable.u.nt
-              !is-admin
-          ==
-        `this
-      ::  mute: muted members cannot post
-      =/  muted  (fall (~(get by note-muted) nid) ~)
-      ?:  ?&  (~(has in muted) src.bowl)
-              !is-admin
-          ==
-        `this
-      ::  reject id collision (don't overwrite local artifact)
-      ?:  (~(has by artifacts) id.art)  `this
-      ::  store ref + broadcast group history; bytes stay on src.bowl
-      =/  upd=update:noltbook  [%artifact-created art]
-      =/  pax=path  ~[%notes nid]
-      =/  prev=@t  (artifact-preview art)
-      =/  upd-note=note:noltbook  u.nt(last-author `creator.art, last-preview `prev)
-      ::  reply attention: artifact reply → notify the immediate parent owner if us
-      =/  art-eid=(unit @uv)  ?~(meta.art ~ `eid.u.meta.art)
-      =/  art-rte=(unit @uv)  ?~(meta.art ~ reply-to-eid.u.meta.art)
-      =/  art-when=@da  timestamp.i.versions.art
-      =/  cur-msgs=(list message:noltbook)  (fall (~(get by messages) nid) ~)
-      =/  note-arts=(list artifact:noltbook)
-        (skim ~(val by artifacts) |=(a=artifact:noltbook =(note-id.a nid)))
-      =/  note-aenvs=(list artifact-envelope:noltbook)
-        ~(val by (fall (~(get by artifact-envelopes) nid) *(map @ta artifact-envelope:noltbook)))
-      =/  par-owner=(unit @p)  (attn-parent-owner art-rte ~ cur-msgs note-arts note-aenvs)
-      =/  rtarget=attention-item:noltbook  [%reply %artifact art-eid ~ `id.art creator.art art-when]
-      =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
-        (add-reply-attn attention nid our.bowl (host-self creator.art ~ our.bowl) par-owner rtarget)
-      :_  this(notes (~(put by notes) nid upd-note), artifacts (~(put by artifacts) id.art art), attention na.ar, note-activity (put-activity note-activity nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity nid now.bowl))
-      ^-  (list card:agent:gall)
-      :*  (gf-paths ~[pax] upd)
-          (activity-fact nid now.bowl)
-          (unread-activity-fact nid now.bowl)
-          (sidebar-signal nid creator.art `prev %artifact now.bowl)
-          ac.ar
-      ==
-    ::
-        %remote-dm-artifact
-      ::  counterparty shipped a DM artifact (metadata + bytes). Store both.
-      =/  art  artifact.rem
-      =/  nid=@ta  note-id.art
-      =/  nt  (~(get by notes) nid)
-      ?~  nt  `this
-      ?.  ?=(%dm type.u.nt)  `this
-      ::  both parties must be current, non-removed members
-      ?.  (~(has in users.u.nt) src.bowl)  `this
-      ?.  (~(has in users.u.nt) our.bowl)  `this
-      ?:  (~(has in removed.u.nt) src.bowl)  `this
-      ?:  (~(has in removed.u.nt) our.bowl)  `this
-      ::  artifact must originate from sender
-      ?.  =(src.bowl creator.art)  `this
-      ?.  ?=(%file type.art)  `this
-      ::  versions: exactly one
-      ?.  ?=([^ ~] versions.art)  `this
-      =/  ver  i.versions.art
-      =/  ctnt=tape  (trip content.ver)
-      ?~  (find (trip '"storage":"clay"') ctnt)  `this
-      ?^  (find (trip 'dataUrl') ctnt)  `this
-      ?^  (find (trip 'mimeType') ctnt)  `this
-      ::  reject id collision
-      ?:  (~(has by artifacts) id.art)  `this
-      ::  write bytes to our Clay at the deterministic path
-      =/  mpath=(list @ta)  (parse-mime-path mime.rem)
-      =/  art-cage=cage  [%mime !>(`mime`[mpath bytes.rem])]
-      =/  nori  [%& ~[[/lib/noltbook/artifacts/[id.art]/mime [%ins art-cage]]]]
-      =/  clay-card=card  [%pass /art-dm-in/[id.art] %arvo %c %info q.byk.bowl nori]
-      =/  upd=update:noltbook  [%artifact-created art]
-      =/  pax=path  ~[%notes nid]
-      =/  prev=@t  (artifact-preview art)
-      =/  upd-note=note:noltbook  u.nt(last-author `creator.art, last-preview `prev)
-      ::  reply attention: DM artifact reply → notify the immediate parent owner if us
-      =/  art-eid=(unit @uv)  ?~(meta.art ~ `eid.u.meta.art)
-      =/  art-rte=(unit @uv)  ?~(meta.art ~ reply-to-eid.u.meta.art)
-      =/  art-when=@da  timestamp.i.versions.art
-      =/  cur-msgs=(list message:noltbook)  (fall (~(get by messages) nid) ~)
-      =/  note-arts=(list artifact:noltbook)
-        (skim ~(val by artifacts) |=(a=artifact:noltbook =(note-id.a nid)))
-      =/  note-aenvs=(list artifact-envelope:noltbook)
-        ~(val by (fall (~(get by artifact-envelopes) nid) *(map @ta artifact-envelope:noltbook)))
-      =/  par-owner=(unit @p)  (attn-parent-owner art-rte ~ cur-msgs note-arts note-aenvs)
-      =/  rtarget=attention-item:noltbook  [%reply %artifact art-eid ~ `id.art creator.art art-when]
-      =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
-        (add-reply-attn attention nid our.bowl (host-self creator.art ~ our.bowl) par-owner rtarget)
-      :_  this(notes (~(put by notes) nid upd-note), artifacts (~(put by artifacts) id.art art), attention na.ar, note-activity (put-activity note-activity nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity nid now.bowl))
-      :*  clay-card
-          (gf-paths ~[pax] upd)
-          (gf-notes upd)
-          (activity-fact nid now.bowl)
-          (unread-activity-fact nid now.bowl)
-          (sidebar-signal nid creator.art `prev %artifact now.bowl)
-          ac.ar
-      ==
-    ::
-        %remote-artifact-envelope-ref
-      ::  cover/gossip artifact envelope from a peer; never carries bytes
-      =/  nid=@ta  note-id.rem
-      =/  nt  (~(get by notes) nid)
-      ?~  nt  `this
-      ?.  ?|(?=(%cover type.u.nt) ?=(%gossip type.u.nt))  `this
-      ::  blocked sender or blocked author is rejected
-      ?:  (~(has in pal-blocked) src.bowl)  `this
-      ?:  (~(has in pal-blocked) author.env.rem)  `this
-      ::  gossip notes: src must be in users, not removed
-      ?:  ?&  ?=(%gossip type.u.nt)
-              ?|  !(~(has in users.u.nt) src.bowl)
-                  (~(has in removed.u.nt) src.bowl)
-              ==
-          ==
-        `this
-      =/  envs=(map @ta artifact-envelope:noltbook)
-        (fall (~(get by artifact-envelopes) nid) *(map @ta artifact-envelope:noltbook))
-      ::  dedup by aid; skip if we already have it as a full artifact (own)
-      ?:  (~(has by envs) aid.env.rem)  `this
-      ?:  (~(has by artifacts) aid.env.rem)  `this
-      =/  my-hops=@ud  (add hops.rem 1)
-      =/  recipients=(list @p)
-        ?:  ?=(%cover type.u.nt)
-          ~(tap in pal-outgoing)
-        ~(tap in users.u.nt)
-      =/  relay=(list card)
-        %+  murn  recipients
-        |=  p=@p
-        ?:  =(p our.bowl)  ~
-        ?:  =(p src.bowl)  ~
-        ?:  =(p author.env.rem)  ~
-        `(rpoke /art-env-out/(scot %p p)/[aid.env.rem] p `remote:noltbook`[%remote-artifact-envelope-ref nid env.rem my-hops])
-      =/  upd=update:noltbook  [%artifact-envelope nid env.rem my-hops]
-      =/  pax=path  ~[%notes nid]
-      ::  cover is pinned; only user gossip notes get recency/signal/preview.
-      ::  put-activity already skips cover; suppress fact + signal for cover too.
-      =/  is-user-gossip=?  ?=(%gossip type.u.nt)
-      =/  prev=@t  (art-env-preview env.rem)
-      =/  act-cards=(list card)
-        ?:  is-user-gossip  ~[(activity-fact nid now.bowl) (unread-activity-fact nid now.bowl)]
-        ~
-      ::  signal for user gossip (dots+preview) and cover (preview only; the
-      ::  frontend never dots cover). Recency/note-preview-persist stay gossip-only.
-      =/  sig-cards=(list card)
-        ?:  is-user-gossip  ~[(sidebar-signal nid author.env.rem `prev %artifact now.bowl)]
-        ?:  =(nid %cover)  ~[(sidebar-signal nid author.env.rem `prev %artifact now.bowl)]
-        ~
-      =/  new-notes=(map @ta note:noltbook)
-        ?.  is-user-gossip  notes
-        (~(put by notes) nid u.nt(last-author `author.env.rem, last-preview `prev))
-      ::  reply attention: cover/gossip artifact-envelope reply → parent owner if us
-      =/  env-eid=(unit @uv)  ?~(meta.env.rem ~ `eid.u.meta.env.rem)
-      =/  env-rte=(unit @uv)  ?~(meta.env.rem ~ reply-to-eid.u.meta.env.rem)
-      =/  cur-msgs=(list message:noltbook)  (fall (~(get by messages) nid) ~)
-      =/  note-arts=(list artifact:noltbook)
-        (skim ~(val by artifacts) |=(a=artifact:noltbook =(note-id.a nid)))
-      =/  par-owner=(unit @p)  (attn-parent-owner env-rte ~ cur-msgs note-arts ~(val by envs))
-      =/  rtarget=attention-item:noltbook  [%reply %artifact-envelope env-eid ~ `aid.env.rem author.env.rem timestamp.env.rem]
-      =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
-        (add-reply-attn attention nid our.bowl (host-self author.env.rem ~ our.bowl) par-owner rtarget)
-      :_  this(notes new-notes, artifact-envelopes (~(put by artifact-envelopes) nid (cap-art-envs (~(put by envs) aid.env.rem env.rem))), attention na.ar, note-activity (put-activity note-activity nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity nid now.bowl))
-      :(weld ~[(gf-paths ~[pax] upd)] relay act-cards sig-cards ac.ar)
-    ==
+    =^  cards  state  (rem-handle bowl rem state)
+    [cards this]
   ==
 ::
 ++  on-arvo

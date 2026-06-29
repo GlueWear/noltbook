@@ -331,6 +331,9 @@
       [%remote-artifact-denied art-id=@ta eyre-id=@ta]
       ::  member -> note host: register artifact metadata; bytes stay on member
       [%remote-artifact-create =artifact]
+      ::  member -> note host: update an existing %app artifact's descriptor content (shared
+      ::  interactive state). Minimal: host holds the artifact, just needs id + new content.
+      [%remote-artifact-update art-id=@ta content=@t]
       ::  DM artifact: ship metadata + bytes to counterparty (symmetric storage)
       [%remote-dm-artifact =artifact mime=@t bytes=octs]
       ::  cover/gossip artifact envelope mesh propagation; bytes never travel

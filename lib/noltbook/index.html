@@ -1409,14 +1409,16 @@ function handleUpdate(upd){
     const a=upd['artifact-updated'];state.artifacts[a.id]=a;
     if(pluginArtifactDescriptor(a)){
       const pendingPluginUpdate=pluginArtifactHasPendingUpdate(a.id);
-      if(!pendingPluginUpdate){destroyPluginArtifactFrames(a.id);if(a.noteId===state.currentNoteId){scheduleRender(a.noteId);renderPinSurface(a.noteId)}}
+      const delivered=notifyPluginArtifactUpdated(a);
+      if(!pendingPluginUpdate&&!delivered){destroyPluginArtifactFrames(a.id);if(a.noteId===state.currentNoteId){scheduleRender(a.noteId);renderPinSurface(a.noteId)}}
+      else if(a.noteId===state.currentNoteId){renderPinSurface(a.noteId)}
     }
     else if(state.activeAppBridge&&state.activeAppBridge.artifactId===a.id){const lastVer=a.versions[a.versions.length-1];if(lastVer){try{const meta=JSON.parse(lastVer.content);const iframe=document.getElementById(state.activeAppBridge.iframeId);if(iframe&&iframe.contentWindow){iframe.contentWindow.postMessage({source:'noltbook-host',type:'nb:state',payload:meta.state||{}},'*')}}catch(e){}}}
     else if(document.getElementById('artifactPanel').classList.contains('open')&&document.getElementById('artifactPanelTitle').textContent===a.name)openArtifactPanel(a.id);
     if(a.noteId===state.currentNoteId)renderPinSurface(a.noteId);
   }
   else if(upd['artifact-deleted']){const id=upd['artifact-deleted'].id;destroyPluginArtifactFrames(id);delete state.artifacts[id];closeArtifactPanel();renderPinSurface(state.currentNoteId);scheduleRender()}
-  else if(upd['note-meta-updated']){const d=upd['note-meta-updated'];const n=state.notes[d.id];if(n){n.visibility=d.visibility;n.iconUrl=d.iconUrl||null;n.writable=d.writable;renderNoteList();if(d.id===state.currentNoteId)updateMuteUI()}}
+  else if(upd['note-meta-updated']){const d=upd['note-meta-updated'];const n=state.notes[d.id];if(n){n.visibility=d.visibility;n.iconUrl=d.iconUrl||null;n.writable=d.writable;renderNoteList();if(d.id===state.currentNoteId){updateMuteUI();const _sb=document.getElementById('shareBtn');if(_sb)_sb.style.display=canShareNote(n)?'block':'none'}}}
   else if(upd['note-type-updated']){const d=upd['note-type-updated'];const n=state.notes[d.id];if(n){n.type=d.type;renderNoteList();if(d.id===state.currentNoteId){scheduleRender(d.id);updateMuteUI()}}}
   else if(upd['note-host-status']){const d=upd['note-host-status'];if(d.status)state.noteHostStatus[d.id]=d.status;else delete state.noteHostStatus[d.id];if(d.status!=='host-deleted')state.notificationAcks.delete(notifAckKey('host-deleted-status',d.id));rebuildDurableNotifications();updateLogoBadge();if(d.id===state.currentNoteId)updateMuteUI();renderNoteList()}
   else if(upd['note-state-refreshed']){
@@ -1486,7 +1488,7 @@ function handleUpdate(upd){
   else if(upd['pal-removed']){const{ship}=upd['pal-removed'];delete state.palStatus[ship];if(state.palsView)renderPalsList();if(state.viewingProfileShip===ship)updateViewProfileTags(ship)}
   else if(upd['pal-update']){const{ship,status}=upd['pal-update'];const wasBlocked=state.palStatus[ship]==='blocked';state.palStatus[ship]=status;if(wasBlocked&&status!=='blocked'){Object.keys(state.removedFromNotes).forEach(nid=>{if(state.removedFromNotes[nid]===ship)delete state.removedFromNotes[nid]});api.poke('noltbook','noltbook-action',{action:'request-remote-notes',data:{ship}})}if(status!=='blocked')delete state.blockedBy[ship];if(state.palsView)renderPalsList();renderNoteList();fetchVisibleEnvelopes();if(isGossipNote(state.currentNoteId))scheduleRender(state.currentNoteId);if(state.currentNoteId){const cn=state.notes[state.currentNoteId];if(cn&&cn.type==='dm'){const cp=dmCounterparty(cn);if(cp===ship)updateMuteUI()}}}
   else if(upd['dial-update']){state.dial=upd['dial-update'];updateDialUI();if(isGossipNote(state.currentNoteId))scheduleRender(state.currentNoteId);scheduleNoteList();fetchVisibleEnvelopes()}
-  else if(upd['note-users-updated']){const d=upd['note-users-updated'];const{id,type,users,removed}=d;const rev=d.rev||0;const localRev=state.noteMemberRevs[id]||0;if(rev<localRev){console.log('[note-users-updated:stale]',id,'incoming',rev,'<','local',localRev);return}state.noteMemberRevs[id]=rev;console.log('[note-users-updated]',id,type,users,removed,'rev',rev);if(state.notes[id]){const me='~'+api.ship;const vis=state.notes[id].visibility;const notifyVis=vis==='public'||vis==='private';if(state.notes[id].creator===me&&notifyVis){const oldU=state.notes[id].users||[];const newJ=users.filter(u=>!oldU.includes(u)&&u!==me);for(const j of newJ)state.blockNotifications.push({noteId:id,noteName:state.notes[id].name,from:j,time:Date.now(),type:'joined'});if(newJ.length>0)updateLogoBadge()}state.notes[id].users=users;state.notes[id].removed=removed||[];if(type)state.notes[id].type=type;if(!(removed||[]).includes(me))state.notificationAcks.delete(notifAckKey('removed-status',id));rebuildDurableNotifications();updateLogoBadge();renderNoteList();if(state.currentNoteId===id){scheduleRender(id);updateMuteUI();updateActorDmHeader(id);updateAttachMenu();const _n=state.notes[id];const _cn=document.getElementById('chatNoteName');if(_cn&&_n)_cn.textContent=noteDisplayName(_n);const _sb=document.getElementById('shareBtn');if(_sb&&id!=='cover'&&id!=='ars-rumors'&&_n)_sb.style.display=(actorDmView(_n)||_n.type==='dm')?'none':'block'}refreshNoteInfoMembers(id)}}
+  else if(upd['note-users-updated']){const d=upd['note-users-updated'];const{id,type,users,removed}=d;const rev=d.rev||0;const localRev=state.noteMemberRevs[id]||0;if(rev<localRev){console.log('[note-users-updated:stale]',id,'incoming',rev,'<','local',localRev);return}state.noteMemberRevs[id]=rev;console.log('[note-users-updated]',id,type,users,removed,'rev',rev);if(state.notes[id]){const me='~'+api.ship;const vis=state.notes[id].visibility;const notifyVis=vis==='public'||vis==='private';if(state.notes[id].creator===me&&notifyVis){const oldU=state.notes[id].users||[];const newJ=users.filter(u=>!oldU.includes(u)&&u!==me);for(const j of newJ)state.blockNotifications.push({noteId:id,noteName:state.notes[id].name,from:j,time:Date.now(),type:'joined'});if(newJ.length>0)updateLogoBadge()}state.notes[id].users=users;state.notes[id].removed=removed||[];if(type)state.notes[id].type=type;if(!(removed||[]).includes(me))state.notificationAcks.delete(notifAckKey('removed-status',id));rebuildDurableNotifications();updateLogoBadge();renderNoteList();if(state.currentNoteId===id){scheduleRender(id);updateMuteUI();updateActorDmHeader(id);updateAttachMenu();const _n=state.notes[id];const _cn=document.getElementById('chatNoteName');if(_cn&&_n)_cn.textContent=noteDisplayName(_n);const _sb=document.getElementById('shareBtn');if(_sb&&_n)_sb.style.display=canShareNote(_n)?'block':'none'}refreshNoteInfoMembers(id)}}
   else if(upd['note-redirect']){const{oldId,newId}=upd['note-redirect'];console.log('[note-redirect]',oldId,'->',newId);if(state.noteActivity[oldId]!==undefined&&state.noteActivity[newId]===undefined)state.noteActivity[newId]=state.noteActivity[oldId];delete state.noteActivity[oldId];if(state.noteUnreadActivity[oldId]!==undefined&&state.noteUnreadActivity[newId]===undefined)state.noteUnreadActivity[newId]=state.noteUnreadActivity[oldId];delete state.noteUnreadActivity[oldId];if(state.noteRead[oldId]!==undefined&&state.noteRead[newId]===undefined)state.noteRead[newId]=state.noteRead[oldId];delete state.noteRead[oldId];if(state.attention[oldId]!==undefined&&state.attention[newId]===undefined)state.attention[newId]=state.attention[oldId];delete state.attention[oldId];delete state.notes[oldId];delete state.messages[oldId];state.notifications.delete(oldId);if(state.currentNoteId===oldId){if(state.notes[newId])openNote(newId);else openNote('cover')}renderNoteList()}
   else if(upd['wallet-update']){wallet.transactions=upd['wallet-update'].map(tx=>({type:tx.type,who:tx.counterparty,amount:tx.amount,time:new Date(tx.timestamp).toLocaleString(),txid:tx.txHash}));renderWalletNotes()}
   else if(upd['gossip-message']){const{message,hops}=upd['gossip-message'];const nid=message.noteId||'cover';const msgEid=message.meta&&message.meta.eid||null;state.gossipHops[message.id]=hops;if(!state.messages[nid])state.messages[nid]=[];const nenvs=state.gossipEnvelopes[nid]||{};delete nenvs[message.id];if(msgEid)delete nenvs[msgEid];state.gossipEnvelopes[nid]=nenvs;const nfetch=state.gossipFetching[nid];if(nfetch){nfetch.delete(message.id);if(msgEid)nfetch.delete(msgEid)}const isDup=state.messages[nid].some(m=>(msgEid&&m.meta&&m.meta.eid===msgEid)||m.id===message.id);if(!isDup){state.messages[nid].push(message);const visible=coverMsgVisible(message);if(state.currentNoteId===nid&&visible){const isOwn=message.author===('~'+api.ship);appendMessage(message,isOwn)}else if(state.currentNoteId!==nid&&visible&&!isPinnedUnreadNote(nid))state.notifications.add(nid)}const visible=coverMsgVisible(message);if(visible&&state.notes[nid]){state.notes[nid].lastAuthor=message.author;state.notes[nid].lastPreview=message.text}if(nid==='cover'&&visible)state.coverPreview={author:message.author,preview:message.text};markOpenNoteReadSoon(nid);scheduleNoteList()}
@@ -1514,7 +1516,7 @@ function handleUpdate(upd){
   else if(upd['note-deleted-notification']){const{noteId,noteName}=upd['note-deleted-notification'];state.blockNotifications.push({noteId,noteName,from:null,time:Date.now(),type:'deleted'});updateLogoBadge()}
   else if(upd['notification-acks']){const acks=upd['notification-acks']||[];state.notificationAcks=new Set(acks.map(a=>notifAckKey(a.kind,a.noteId)));console.log('[notification-acks]',state.notificationAcks.size,'acked');rebuildDurableNotifications();updateLogoBadge()}
   else if(upd['app-notifications-updated']){state.appNotifications={};for(const n of(upd['app-notifications-updated']||[])){state.appNotifications[appNotifKey(n)]=n}updateLogoBadge();refreshGrimoireIfOpen()}
-  else if(upd['admins-updated']){const{id,admins}=upd['admins-updated'];state.noteAdmins[id]=admins;console.log('[admins-updated]',id,admins);refreshNoteInfoMembers(id)}
+  else if(upd['admins-updated']){const{id,admins}=upd['admins-updated'];state.noteAdmins[id]=admins;console.log('[admins-updated]',id,admins);if(id===state.currentNoteId){const _sb=document.getElementById('shareBtn');if(_sb)_sb.style.display=canShareNote(state.notes[id])?'block':'none'}refreshNoteInfoMembers(id)}
   else if(upd['muted-updated']){const{id,muted}=upd['muted-updated'];state.noteMuted[id]=muted;console.log('[muted-updated]',id,muted);if(state.currentNoteId===id)updateMuteUI();refreshNoteInfoMembers(id)}
   else if(upd['note-pin-updated']){const{noteId,pin}=upd['note-pin-updated'];if(pin)state.notePins[noteId]=pin;else delete state.notePins[noteId];if(noteId===state.currentNoteId){renderPinSurface(noteId);scheduleRender(noteId)}}
   else if(upd['note-active-updated']){const{noteId,active}=upd['note-active-updated'];if(active)state.noteActive[noteId]=active;else delete state.noteActive[noteId];scheduleActiveExpiry(noteId);renderNoteList()}
@@ -1577,8 +1579,7 @@ async function openNote(id){
   if(state.notes[id]){state.expandedNotes.add(id)}
   document.getElementById('chatNoteName').textContent=id==='cover'?'%Grimoire':id==='ars-rumors'?'%Rumors':(state.notes[id]?noteDisplayName(state.notes[id]):id);
   updateActorDmHeader(id);
-  const _isActorDm=!!(state.notes[id]&&actorDmView(state.notes[id]));
-  document.getElementById('shareBtn').style.display=(id==='cover'||id==='ars-rumors'||_isActorDm||(state.notes[id]&&state.notes[id].type==='dm'))?'none':'block';
+  document.getElementById('shareBtn').style.display=canShareNote(state.notes[id])?'block':'none';
   const _dw=document.getElementById('dialWrap');if(_dw)_dw.style.display=isGossipNote(id)?'':'none';
   const chatMessages=document.getElementById('chatMessages');destroyPluginFramesWithin(chatMessages);chatMessages.innerHTML='';
   // render the anchored surface for this note (hides if none / unresolved / unsupported).
@@ -2066,6 +2067,20 @@ function isNoteBlocked(note){
 // Resolve a note to a normalized actor-DM presentation object, or null. Requires the
 // durable marker AND the full membership invariant AND the current ship being a party.
 // A "two-person group" alone is NEVER an actor DM — the marker is mandatory.
+// Who may see/use the SHARE (invite) button. public group/notebook: any member;
+// private/secret: creator or admin only. gossip is left UNCHANGED this phase
+// (any participant keeps the button) and folds into these rules in the gossip phase.
+function canShareNote(note){
+  if(!note)return false;
+  if(note.id==='cover'||note.id==='ars-rumors')return false;
+  if(note.type==='dm'||actorDmView(note))return false;
+  const me='~'+api.ship;
+  if(note.creator===me)return true;
+  if((state.noteAdmins[note.id]||[]).includes(me))return true;
+  if(note.type==='gossip')return true;
+  if(note.visibility==='public')return (note.users||[]).includes(me);
+  return false;
+}
 function actorDmView(note){
   if(!note)return null;
   const m=state.actorDms[note.id];
@@ -2135,9 +2150,8 @@ function refreshActorDmPresentation(){
   const el=document.getElementById('chatNoteName');
   if(el)el.textContent=noteDisplayName(n);
   if(id==='cover'||id==='ars-rumors')return;
-  const isAdm=!!actorDmView(n);
   const sb=document.getElementById('shareBtn');
-  if(sb)sb.style.display=(isAdm||n.type==='dm')?'none':'block';
+  if(sb)sb.style.display=canShareNote(n)?'block':'none';
 }
 function noteDisplayName(note){
   const adm=actorDmView(note);
@@ -4293,6 +4307,12 @@ function showNoteContextMenu(event,noteId){
     menu.innerHTML=`
       <div class="context-menu-item" data-action="profile">Profile</div>
       ${delItem}`;
+  }else if(isGossip){
+    // gossip is an immutable, hostless container: no edit / delete / visibility / writable.
+    // Sharing is the separate SHARE button; Copy Link arrives with the hostless link-fetch.
+    // The only context action is Leave (a local-only silent drop).
+    menu.innerHTML=`
+      <div class="context-menu-item danger" data-action="leave">Leave</div>`;
   }else{
   menu.innerHTML=`
     <div class="context-menu-item${ro}" data-action="visibility" data-val="public"><span class="context-radio ${vis==='public'?'selected':''}"></span> Public</div>
@@ -4452,11 +4472,26 @@ function pluginInitPayload(rec){
     noteId:spec.noteId||null,
     replyToEid:spec.replyToEid||null,
     app:{desk:spec.desk,title:(rec.manifest.title||spec.desk),publisher:appPublisher(spec.desk)||null},
-    artifact:art&&desc?{id:art.id,eid:(art.meta&&art.meta.eid)||null,name:art.name,creator:art.creator,data:(desc.data===undefined?null:desc.data),ref:(pluginHasOwn(desc,'ref')?desc.ref:null),descriptor:desc}:null,
+    artifact:art&&desc?pluginArtifactPayload(art,desc):null,
     context:spec.context||null,
     sourceArtifact:spec.sourceArtifactId?{artifactId:spec.sourceArtifactId,noteId:spec.sourceNoteId||null,desk:spec.sourceDesk||null}:null,
     capabilities:{publish:spec.mode==='private-tool',update:spec.mode==='note-artifact',request:true,resize:spec.mode!=='embedded-app',close:true,openApp:true,copyText:true,listNoteArtifacts:!!spec.noteId,updateSourceArtifact:spec.mode==='embedded-app'&&!!spec.sourceArtifactId}
   };
+}
+function pluginArtifactPayload(art,desc){
+  return{id:art.id,eid:(art.meta&&art.meta.eid)||null,name:art.name,creator:art.creator,data:(desc.data===undefined?null:desc.data),ref:(pluginHasOwn(desc,'ref')?desc.ref:null),descriptor:desc};
+}
+function notifyPluginArtifactUpdated(art){
+  const desc=pluginArtifactDescriptor(art);if(!desc)return false;
+  let delivered=false;
+  const payload={artifact:pluginArtifactPayload(art,desc)};
+  for(const rec of pluginFrames.values()){
+    if(!rec||!rec.spec||rec.spec.artifactId!==art.id)continue;
+    if(rec.spec.desk!==desc.app.desk)continue;
+    sendPluginFrame(rec,'nb:artifact-updated',payload);
+    delivered=true;
+  }
+  return delivered;
 }
 function destroyPluginFrame(frameId,keepHost){
   const rec=pluginFrames.get(frameId);if(!rec)return;
@@ -4500,7 +4535,7 @@ function mountPluginHost(hostId,force){
   if(!frameHref){pluginFallback(host,'App launch unavailable',false);return}
   const iframe=document.createElement('iframe');
   const frameId='nb-plugin-frame-'+(++pluginFrameSeq),session=pluginSession();
-  iframe.id=frameId;iframe.src=frameHref;iframe.setAttribute('sandbox','allow-scripts allow-forms allow-popups allow-downloads');iframe.setAttribute('loading','lazy');iframe.setAttribute('referrerpolicy','same-origin');
+  iframe.id=frameId;iframe.src=frameHref;applyPluginFramePermissions(iframe,pluginMediaForFrame(spec,manifest));iframe.setAttribute('loading','lazy');iframe.setAttribute('referrerpolicy','same-origin');
   const size=spec.mode==='note-artifact'
     ?(pluginSurfaceSize(manifest.artifact,'artifact')||pluginSurfaceSize(spec,'artifact'))
     :(pluginSurfaceSize(spec,spec.mode==='embedded-app'?'embedded':'tool')||pluginSurfaceSize(spec.mode==='embedded-app'?manifest.launch:manifest.artifact,spec.mode==='embedded-app'?'embedded':'tool'));
@@ -4549,6 +4584,8 @@ async function publishPluginArtifact(rec,payload){
   if(!subId){finish(false,{message:'result stream unavailable'});return}
   const app={desk:rec.spec.desk,title:rec.manifest.title||rec.spec.desk,publisher:appPublisher(rec.spec.desk)||null};
   const data={noteId:rec.spec.noteId,name:name,type:'app',content:content};if(rec.spec.replyToEid)data.replyToEid=rec.spec.replyToEid;
+  // snap the poster (only) to the bottom when our app artifact lands — parity with text/file/pasted-app
+  ScrollCo.beginOwnAction(rec.spec.noteId);
   const sent=await api.poke('noltbook','noltbook-api',{action:'create-artifact',requestId:requestId,app:app,data:data});
   if(!sent){finish(false,{message:'publish transport failed'});return}
   rec.publishTimeout=setTimeout(function(){finish(false,{message:'publish result timed out'})},12_000);
@@ -4826,7 +4863,7 @@ function openPluginTool(desk){
   applyPluginShellSize(overlay&&overlay.querySelector('.plugin-tool-shell'),'tool',size);
   document.getElementById('pluginToolTitle').textContent=manifest.artifact.label||manifest.title||desk;
   overlay.classList.add('open');overlay.setAttribute('aria-hidden','false');
-  pluginHosts.set(hostId,{mode:'private-tool',desk:desk,publisher:appPublisher(desk)||null,noteId:state.currentNoteId,replyToEid:state.replyingToEid||null,persistent:true,width:size&&size.width,height:size&&size.height});mountPluginHost(hostId,true);
+  pluginHosts.set(hostId,{mode:'private-tool',desk:desk,publisher:appPublisher(desk)||null,noteId:state.currentNoteId,replyToEid:state.replyingToEid||null,persistent:true,width:size&&size.width,height:size&&size.height,media:!!(manifest.artifact&&manifest.artifact.media)});mountPluginHost(hostId,true);
 }
 function closePluginTool(){
   const overlay=document.getElementById('pluginToolOverlay'),body=document.getElementById('pluginToolBody');if(!overlay||!body)return;
@@ -4847,7 +4884,7 @@ function openEmbeddedApp(href,desk,title,sizeHint,context,source){
   applyPluginShellSize(overlay&&overlay.querySelector('.embedded-app-shell'),'embedded',size);
   embeddedAppHref=safe;document.getElementById('embeddedAppTitle').textContent=title||('%'+desk);
   overlay.classList.add('open');overlay.setAttribute('aria-hidden','false');
-  pluginHosts.set(hostId,{mode:'embedded-app',desk:desk,publisher:appPublisher(desk)||null,noteId:state.currentNoteId,replyToEid:null,persistent:true,href:safe,width:size&&size.width,height:size&&size.height,context:context||null,sourceArtifactId:(source&&source.artifactId)||null,sourceNoteId:(source&&source.noteId)||null,sourceDesk:(source&&source.desk)||null});
+  pluginHosts.set(hostId,{mode:'embedded-app',desk:desk,publisher:appPublisher(desk)||null,noteId:state.currentNoteId,replyToEid:null,persistent:true,href:safe,width:size&&size.width,height:size&&size.height,media:!!(sizeHint&&sizeHint.media),context:context||null,sourceArtifactId:(source&&source.artifactId)||null,sourceNoteId:(source&&source.noteId)||null,sourceDesk:(source&&source.desk)||null});
   mountPluginHost(hostId,true);
 }
 // nb:open-app bridge: a registered plugin iframe asks the host to open the normal embedded
@@ -5389,11 +5426,14 @@ function openNoteDetailModal(noteId){
   if(isRemoved)desc+='<div style="font-size:.8rem;color:#ff4444;margin-top:.3rem">You were removed from this note.</div>';
   const isReadOnly=n.writable===false&&n.type==='group';
   if(isReadOnly&&!isMember)desc+='<div style="font-size:.8rem;color:#ff4444;margin-top:.3rem">This note is read only.</div>';
-  const visBadge=isPublic
+  const visBadge=n.type==='gossip'
+    ?'<span style="font-size:.7rem;padding:.1rem .4rem;border:1px solid #888;color:#888">GOSSIP</span>'
+    :isPublic
     ?'<span style="font-size:.7rem;padding:.1rem .4rem;border:1px solid #00ff88;color:#00ff88">PUBLIC</span>'
     :'<span style="font-size:.7rem;padding:.1rem .4rem;border:1px solid #ffaa00;color:#ffaa00">PRIVATE</span>';
+  // gossip is hostless with no roster — never show a member list.
   let membersHtml='';
-  if(isPublic){
+  if(isPublic&&n.type!=='gossip'){
     const users=n.users||[];
     if(users.length>0){
       membersHtml='<div style="margin-top:.25rem"><span style="font-size:.65rem;color:var(--text-dim);letter-spacing:.05em">MEMBERS ('+users.length+')</span><div class="note-detail-members" style="margin-top:.3rem">';
@@ -5905,7 +5945,7 @@ function pluginCopySize(target,size){
   return target;
 }
 function pluginSizeAttrs(size){
-  return (size&&size.width!=null?' data-grimoire-open-width="'+size.width+'"':'')+(size&&size.height!=null?' data-grimoire-open-height="'+size.height+'"':'');
+  return (size&&size.width!=null?' data-grimoire-open-width="'+size.width+'"':'')+(size&&size.height!=null?' data-grimoire-open-height="'+size.height+'"':'')+(size&&size.media?' data-grimoire-open-media="1"':'');
 }
 function applyPluginShellSize(shell,kind,size){
   if(!shell)return;
@@ -5918,9 +5958,35 @@ function applyPluginArtifactHostSize(host,size){
   if(size.height!=null)host.style.minHeight=size.height+'px';
   if(size.width!=null){host.style.width='min('+size.width+'px, 100%)';host.style.maxWidth='100%'}
 }
+function pluginManifestPerm(src,perm){
+  if(!src||typeof src!=='object')return false;
+  if(perm==='media'&&src.media===true)return true;
+  const p=Array.isArray(src.permissions)?src.permissions:[];
+  return p.some(x=>String(x).toLowerCase()===perm);
+}
+function pluginCopyMedia(target,enabled){
+  if(enabled)target.media=true;
+  return target;
+}
+function pluginMediaForFrame(spec,manifest){
+  if(spec&&spec.media)return true;
+  if(!manifest)return false;
+  if(spec&&spec.mode==='embedded-app')return !!(manifest.launch&&manifest.launch.media);
+  return !!(manifest.artifact&&manifest.artifact.media);
+}
+function applyPluginFramePermissions(iframe,media){
+  let sandbox='allow-scripts allow-forms allow-popups allow-downloads';
+  if(media)sandbox+=' allow-presentation allow-same-origin';
+  iframe.setAttribute('sandbox',sandbox);
+  if(media){
+    iframe.setAttribute('allow','accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen; web-share');
+    iframe.setAttribute('allowfullscreen','');
+  }
+}
 function normalizeNoltbookAppManifest(desk,m){
   if(!pluginDeskOk(desk)||!m||typeof m!=='object')return null;
   const version=pluginText(m.noltbook||m.noltbookVersion||m.version||1,32,'1');
+  const topMedia=pluginManifestPerm(m,'media');
   const rawActions=Array.isArray(m.actions)?m.actions:(Array.isArray(m.templates)?m.templates:[]);
   const actions=rawActions.map(function(a){
     if(!a||typeof a!=='object')return null;
@@ -5934,18 +6000,18 @@ function normalizeNoltbookAppManifest(desk,m){
     if(typeof a.href==='string')href=a.href.trim();
     else if(a.href&&typeof a.href==='object'&&typeof a.href.site==='string')href=a.href.site.trim();
     href=localPluginHref(desk,href);
-    return pluginCopySize({id:id,label:label,description:desc,kind:kind,href:href,target:target},pluginSurfaceSize(a,target==='embedded'?'embedded':'tool'));
+    return pluginCopyMedia(pluginCopySize({id:id,label:label,description:desc,kind:kind,href:href,target:target},pluginSurfaceSize(a,target==='embedded'?'embedded':'tool')),topMedia||pluginManifestPerm(a,'media'));
   }).filter(Boolean).slice(0,6);
   const rawArtifact=(m.artifact&&typeof m.artifact==='object')?m.artifact:null;
-  const artifact=rawArtifact?pluginCopySize({
+  const artifact=rawArtifact?pluginCopyMedia(pluginCopySize({
     label:pluginText(rawArtifact.label||rawArtifact.title||m.title||desk,64,desk),
     href:localPluginHref(desk,rawArtifact.href||'')
-  },pluginSurfaceSize(rawArtifact,'artifact')):null;
+  },pluginSurfaceSize(rawArtifact,'artifact')),topMedia||pluginManifestPerm(rawArtifact,'media')):null;
   const rawLaunch=(m.launch&&typeof m.launch==='object')?m.launch:null;
-  const launch=rawLaunch?pluginCopySize({
+  const launch=rawLaunch?pluginCopyMedia(pluginCopySize({
     href:localPluginHref(desk,rawLaunch.href||''),
     target:rawLaunch.target==='embedded'?'embedded':(rawLaunch.target==='same-tab'?'same-tab':'new-tab')
-  },pluginSurfaceSize(rawLaunch,'embedded')):null;
+  },pluginSurfaceSize(rawLaunch,'embedded')),topMedia||pluginManifestPerm(rawLaunch,'media')):null;
   return{
     desk:desk,
     version:version,
@@ -6092,7 +6158,7 @@ function grimoireOpenApp(href,target,desk,title,size){
   }
   window.open(href,'_blank','noopener');closeGrimoire();
 }
-document.addEventListener('click',function(e){const b=e.target.closest('[data-grimoire-open-href]');if(b)grimoireOpenApp(b.dataset.grimoireOpenHref,b.dataset.grimoireOpenTarget||'new-tab',b.dataset.grimoireOpenDesk||'',b.dataset.grimoireOpenTitle||'',{width:b.dataset.grimoireOpenWidth,height:b.dataset.grimoireOpenHeight})});
+document.addEventListener('click',function(e){const b=e.target.closest('[data-grimoire-open-href]');if(b)grimoireOpenApp(b.dataset.grimoireOpenHref,b.dataset.grimoireOpenTarget||'new-tab',b.dataset.grimoireOpenDesk||'',b.dataset.grimoireOpenTitle||'',{width:b.dataset.grimoireOpenWidth,height:b.dataset.grimoireOpenHeight,media:b.dataset.grimoireOpenMedia==='1'})});
 function grimoireCopyAppRef(desk){
   const c=_grimoireApps.charges[desk];if(!c)return;
   const ref=appRefValue(desk,c);if(!ref)return;
@@ -6430,10 +6496,12 @@ function openNoteInfoModal(note){
   const modal=document.createElement('div');
   modal.style.cssText='background:var(--bg2);border:1px solid var(--border);min-width:360px;max-width:440px;max-height:80vh;overflow:auto;padding:1rem;display:flex;flex-direction:column;gap:.75rem';
   const memberCount=(note.users||[]).length;
-  const titleRo=isCreator?'':'readonly';
-  const descRo=isCreator?'':'readonly';
+  const isGossipNote=note.type==='gossip';
+  // gossip is an immutable, hostless, roster-less container: frozen title/desc, no members.
+  const titleRo=(isCreator&&!isGossipNote)?'':'readonly';
+  const descRo=(isCreator&&!isGossipNote)?'':'readonly';
   const descVal=note.headline||'';
-  const memberRows=renderNoteInfoMemberRows(note,'');
+  const memberRows=isGossipNote?'':renderNoteInfoMemberRows(note,'');
   const lineageBadge=lineageMoniker(note);
   modal.innerHTML=`
     <div style="font-size:.75rem;color:var(--text-dim);letter-spacing:.1em">NOTE INFO${lineageBadge?' <span style="color:#ffaa00;margin-left:.5rem">'+lineageBadge+'</span>':''}</div>
@@ -6446,16 +6514,17 @@ function openNoteInfoModal(note){
       <label class="modal-label" style="font-size:.65rem">DESCRIPTION</label>
       <textarea class="modal-textarea" id="noteInfoDesc" rows="3" placeholder="purpose, rules, intent..." ${descRo} style="font-size:.8rem;resize:vertical;min-height:3rem">${escHtml(descVal)}</textarea>
     </div>
+    ${isGossipNote?'<div style="font-size:.7rem;color:var(--text-dim);letter-spacing:.05em;text-align:right;opacity:.6">gossip</div>':`
     <div style="display:flex;align-items:center;gap:.5rem;font-size:.7rem;color:var(--text-dim);letter-spacing:.05em">
       <span id="noteInfoMemberCount">${memberCount} member${memberCount!==1?'s':''}</span>
       <span style="margin-left:auto;font-size:.65rem;opacity:.6">${note.type}</span>
     </div>
     <input class="modal-input" id="noteInfoMemberSearch" type="text" placeholder="search members..." autocomplete="off" style="font-size:.75rem;padding:.25rem .4rem">
-    <div id="noteInfoMembers" style="display:flex;flex-direction:column;gap:.1rem;max-height:40vh;overflow:auto;border:1px solid var(--border);padding:.25rem">${memberRows}</div>
+    <div id="noteInfoMembers" style="display:flex;flex-direction:column;gap:.1rem;max-height:40vh;overflow:auto;border:1px solid var(--border);padding:.25rem">${memberRows}</div>`}
     <div class="modal-actions" style="margin-top:.25rem">
       <button class="modal-btn cancel-red" id="noteInfoClose">CLOSE</button>
       ${(note.type==='group'&&!isCreator)?'<button class="modal-btn" id="noteInfoFork" style="border-color:#ffaa00;color:#ffaa00">FORK GROUP</button>':''}
-      ${isCreator?'<button class="modal-btn amber" id="noteInfoSave">SAVE</button>':''}
+      ${(isCreator&&!isGossipNote)?'<button class="modal-btn amber" id="noteInfoSave">SAVE</button>':''}
     </div>`;
   overlay.appendChild(modal);
   overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove()});
