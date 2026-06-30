@@ -1397,8 +1397,37 @@ function cancelPendingRender(){if(_renderTimer){clearTimeout(_renderTimer);_rend
 let _noteListTimer=null;
 function scheduleNoteList(){if(_noteListTimer)clearTimeout(_noteListTimer);_noteListTimer=setTimeout(()=>{_noteListTimer=null;renderNoteList()},50)}
 let _lastMsgHash={};
+function mergeNoteListSnapshot(notes){
+  if(!Array.isArray(notes))return [];
+  const before=new Set(Object.keys(state.notes));
+  const added=[];
+  for(const n of notes){
+    if(!n||!n.id)continue;
+    if(!before.has(n.id))added.push(n);
+    state.notes[n.id]=n;
+  }
+  return added;
+}
+async function refreshNotesSnapshotFromScry(createHint){
+  try{
+    const upd=await api.scry('noltbook','/notes');
+    const added=mergeNoteListSnapshot(upd&&upd['note-list']);
+    const me='~'+api.ship;
+    for(const n of added){if(n&&n.creator===me&&n.parent)state.expandedNotes.add(n.parent)}
+    rebuildDurableNotifications();updateLogoBadge();renderNoteList();
+    if(createHint){
+      const matches=added.filter(function(n){
+        if(!n||n.creator!==me||n.name!==createHint.name)return false;
+        if(createHint.isGossip)return n.type==='gossip'&&!n.parent;
+        if(createHint.parent)return n.parent===createHint.parent;
+        return !n.parent&&n.type!=='gossip';
+      });
+      if(matches.length===1)openNote(matches[0].id);
+    }
+  }catch(e){console.warn('[note-create fallback refresh failed]',e)}
+}
 function handleUpdate(upd){
-  if(upd['note-list']){console.log('[note-list]',JSON.stringify(upd['note-list']));for(const n of upd['note-list'])state.notes[n.id]=n;rebuildDurableNotifications();updateLogoBadge();renderNoteList()}
+  if(upd['note-list']){console.log('[note-list]',JSON.stringify(upd['note-list']));mergeNoteListSnapshot(upd['note-list']);rebuildDurableNotifications();updateLogoBadge();renderNoteList()}
   else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));const wasPendingJoin=!!state.pendingJoins[n.id];const wasAcceptedFork=state.acceptingForkRoots.has(n.id);if(wasAcceptedFork)state.acceptingForkRoots.delete(n.id);delete state.pendingJoins[n.id];delete state.removedFromNotes[n.id];state.notes[n.id]=n;if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id)}if(state.pendingWalletMsg&&n.type==='dm'){const pw=state.pendingWalletMsg;if(n.users&&n.users.length===2&&n.users.includes(pw.ship)){api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:n.id,text:pw.text}});state.pendingWalletMsg=null}}if(n.creator==='~'+api.ship){if(n.parent)state.expandedNotes.add(n.parent);openNote(n.id)}else if(wasAcceptedFork){if(state.palsView)switchView('notes');openNote(n.id)}else if(wasPendingJoin){document.querySelectorAll('.profile-flow-modal').forEach(el=>el.remove());state.viewingProfileShip=null;if(state.palsView)switchView('notes');if(n.visibility==='public'){openNote(n.id)}else{state.notifications.add(n.id)}}else{if(state.palsView)switchView('notes');state.notifications.add(n.id)}renderNoteList()}
   else if(upd['note-renamed']){const{id,name}=upd['note-renamed'];if(state.notes[id]){state.notes[id].name=name;renderNoteList()}if(state.currentNoteId===id)document.getElementById('chatNoteName').textContent=name}
   else if(upd['note-deleted']){const{id}=upd['note-deleted'];const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];delete state.noteAdmins[id];delete state.noteMuted[id];delete state.notePins[id];delete state.noteActive[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];delete state.attention[id];state.notifications.delete(id);state.notificationAcks.delete(notifAckKey('removed-status',id));state.notificationAcks.delete(notifAckKey('host-deleted-status',id));delete state.noteActivity[id];delete state.noteUnreadActivity[id];delete state.noteRead[id];delete state.actorDms[id];if(state.currentNoteId===id)openNote('cover');renderNoteList()}
@@ -4216,7 +4245,27 @@ function showDmChoiceModal(noteId,targetShip){
 }
 function createNote(parentId){state.pendingParent=parentId||null;document.getElementById('noteNameInput').value='';document.getElementById('gossipCheck').checked=false;document.getElementById('gossipToggleWrap').style.display=parentId?'none':'flex';document.getElementById('noteModalTitle').textContent=parentId?'NEW CHILD NOTE':'NEW NOTE';document.getElementById('noteModal').classList.add('open');setTimeout(()=>document.getElementById('noteNameInput').focus(),50)}
 function closeNoteModal(){document.getElementById('noteModal').classList.remove('open');state.pendingParent=null}
-async function submitNote(){const name=document.getElementById('noteNameInput').value.trim();if(!name)return;const isGossip=document.getElementById('gossipCheck').checked&&!state.pendingParent;if(isGossip){await api.poke('noltbook','noltbook-action',{action:'create-gossip-note',data:{name,headline:''}})}else{const data={name};if(state.pendingParent)data.parent=state.pendingParent;await api.poke('noltbook','noltbook-action',{action:'create-note',data})}closeNoteModal()}
+async function submitNote(){
+  const name=document.getElementById('noteNameInput').value.trim();if(!name)return;
+  const parent=state.pendingParent;
+  const isGossip=document.getElementById('gossipCheck').checked&&!parent;
+  const btn=document.getElementById('noteModalCreate');
+  if(btn)btn.disabled=true;
+  let ok=false;
+  try{
+    if(isGossip){
+      ok=await api.poke('noltbook','noltbook-action',{action:'create-gossip-note',data:{name,headline:''}});
+    }else{
+      const data={name};if(parent)data.parent=parent;
+      ok=await api.poke('noltbook','noltbook-action',{action:'create-note',data});
+    }
+  }finally{
+    if(btn)btn.disabled=false;
+  }
+  if(!ok){alert('Could not create note. Reconnect and try again.');return}
+  closeNoteModal();
+  setTimeout(()=>refreshNotesSnapshotFromScry({name,parent,isGossip}),1500);
+}
 function promptRenameNote(id){const note=state.notes[id];if(!note)return;const name=prompt('Rename note:',note.name);if(name&&name.trim()&&name.trim()!==note.name)api.poke('noltbook','noltbook-action',{action:'rename-note',data:{id,name:name.trim()}})}
 function promptNoteImage(id){
   const note=state.notes[id];if(!note)return;
