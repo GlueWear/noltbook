@@ -250,7 +250,10 @@
       [%remote-ars-ref env=envelope hops=@ud]
       [%remote-fetch-cover-msg requester=@p msg-id=@da eid=(unit @uv)]
       [%remote-cover-msg-reply requester=@p msg=message]
-      [%remote-gossip-invite note-id=@ta name=@t creator=@p users=(set @p) headline=(unit @t)]
+      [%remote-gossip-invite note-id=@ta name=@t creator=@p users=(set @p) headline=(unit @t) icon-url=(unit @t)]
+      ::  link-acquire: requester pulls a gossip note from whoever shared the link (hostless).
+      ::  holder replies with %remote-gossip-invite (the full note packet).
+      [%remote-gossip-request note-id=@ta]
       [%remote-gossip-ref note-id=@ta env=envelope hops=@ud]
       [%remote-fetch-gossip-msg note-id=@ta requester=@p msg-id=@da eid=(unit @uv)]
       [%remote-gossip-msg-reply note-id=@ta requester=@p msg=message]
@@ -358,7 +361,9 @@
 ::  poke actions (client to agent)
 +$  action
   $%  [%create-note name=@t parent=(unit @ta)]
-      [%create-gossip-note name=@t headline=@t]
+      [%create-gossip-note name=@t headline=@t icon-url=(unit @t)]
+      ::  link-acquire: ask `from` (whoever shared the link) for a gossip note by id.
+      [%request-gossip-note note-id=@ta from=@p]
       [%rename-note id=@ta name=@t]
       [%delete-note id=@ta]
       ::  A1.3b: compact host + emergency actor management (the host's own UI pokes these

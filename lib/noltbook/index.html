@@ -712,11 +712,18 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
         <label class="modal-label" style="margin:0">NAME</label>
         <div class="gossip-toggle" id="gossipToggleWrap" style="margin:0">
           <label for="gossipCheck">%GOSSIP</label>
-          <input type="checkbox" id="gossipCheck">
+          <input type="checkbox" id="gossipCheck" onchange="document.getElementById('gossipFields').style.display=this.checked?'':'none'">
         </div>
       </div>
       <input class="modal-input" id="noteNameInput" placeholder="note name" autocomplete="off"
         onkeydown="if(event.key==='Enter')submitNote()">
+    </div>
+    <div class="modal-field" id="gossipFields" style="display:none">
+      <label class="modal-label">DESCRIPTION</label>
+      <textarea class="modal-input" id="gossipDescInput" rows="2" placeholder="what is this gossip note about? (set once, not editable)" style="resize:vertical"></textarea>
+      <label class="modal-label" style="margin-top:.4rem">IMAGE (optional)</label>
+      <label style="background:var(--bg);border:1px solid var(--border);padding:.4rem;text-align:center;cursor:pointer;font-size:.8rem;color:var(--text);display:block">Choose image…<input type="file" accept="image/*" id="gossipImageFile" style="display:none" onchange="onGossipImagePick(this)"></label>
+      <div id="gossipImagePreview" style="display:none;text-align:center;margin-top:.3rem"></div>
     </div>
     <div class="modal-actions">
       <button class="modal-btn cancel-red" id="noteModalCancel" onclick="closeNoteModal()">CANCEL</button>
@@ -1428,7 +1435,7 @@ async function refreshNotesSnapshotFromScry(createHint){
 }
 function handleUpdate(upd){
   if(upd['note-list']){console.log('[note-list]',JSON.stringify(upd['note-list']));mergeNoteListSnapshot(upd['note-list']);rebuildDurableNotifications();updateLogoBadge();renderNoteList()}
-  else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));const wasPendingJoin=!!state.pendingJoins[n.id];const wasAcceptedFork=state.acceptingForkRoots.has(n.id);if(wasAcceptedFork)state.acceptingForkRoots.delete(n.id);delete state.pendingJoins[n.id];delete state.removedFromNotes[n.id];state.notes[n.id]=n;if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id)}if(state.pendingWalletMsg&&n.type==='dm'){const pw=state.pendingWalletMsg;if(n.users&&n.users.length===2&&n.users.includes(pw.ship)){api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:n.id,text:pw.text}});state.pendingWalletMsg=null}}if(n.creator==='~'+api.ship){if(n.parent)state.expandedNotes.add(n.parent);openNote(n.id)}else if(wasAcceptedFork){if(state.palsView)switchView('notes');openNote(n.id)}else if(wasPendingJoin){document.querySelectorAll('.profile-flow-modal').forEach(el=>el.remove());state.viewingProfileShip=null;if(state.palsView)switchView('notes');if(n.visibility==='public'){openNote(n.id)}else{state.notifications.add(n.id)}}else{if(state.palsView)switchView('notes');state.notifications.add(n.id)}renderNoteList()}
+  else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));const wasPendingJoin=!!state.pendingJoins[n.id];const wasAcceptedFork=state.acceptingForkRoots.has(n.id);if(wasAcceptedFork)state.acceptingForkRoots.delete(n.id);delete state.pendingJoins[n.id];delete state.removedFromNotes[n.id];state.notes[n.id]=n;if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id)}if(state.pendingWalletMsg&&n.type==='dm'){const pw=state.pendingWalletMsg;if(n.users&&n.users.length===2&&n.users.includes(pw.ship)){api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:n.id,text:pw.text}});state.pendingWalletMsg=null}}if(n.creator==='~'+api.ship){if(n.parent)state.expandedNotes.add(n.parent);openNote(n.id)}else if(wasAcceptedFork){if(state.palsView)switchView('notes');openNote(n.id)}else if(wasPendingJoin){document.querySelectorAll('.profile-flow-modal').forEach(el=>el.remove());state.viewingProfileShip=null;if(state.palsView)switchView('notes');if(n.visibility==='public'){openNote(n.id)}else{state.notifications.add(n.id)}}else if(state.pendingGossipFetch&&state.pendingGossipFetch.nid===n.id){clearTimeout(state.pendingGossipFetch.timer);state.pendingGossipFetch=null;if(state.palsView)switchView('notes');openNote(n.id)}else{if(state.palsView)switchView('notes');state.notifications.add(n.id)}renderNoteList()}
   else if(upd['note-renamed']){const{id,name}=upd['note-renamed'];if(state.notes[id]){state.notes[id].name=name;renderNoteList()}if(state.currentNoteId===id)document.getElementById('chatNoteName').textContent=name}
   else if(upd['note-deleted']){const{id}=upd['note-deleted'];const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];delete state.noteAdmins[id];delete state.noteMuted[id];delete state.notePins[id];delete state.noteActive[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];delete state.attention[id];state.notifications.delete(id);state.notificationAcks.delete(notifAckKey('removed-status',id));state.notificationAcks.delete(notifAckKey('host-deleted-status',id));delete state.noteActivity[id];delete state.noteUnreadActivity[id];delete state.noteRead[id];delete state.actorDms[id];if(state.currentNoteId===id)openNote('cover');renderNoteList()}
   else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];let maxSeq=0,revSum=0,actorAcc='';for(const m of messages){if(m.meta){if(m.meta.seq>maxSeq)maxSeq=m.meta.seq;revSum+=m.meta.rev}if(m.actor)actorAcc+=(m.meta&&m.meta.eid?m.meta.eid:m.id)+'='+actorSig(m)+';'}const hash=noteId+':'+messages.length+':'+maxSeq+':'+revSum+':'+actorAcc;if(_lastMsgHash[noteId]===hash)return;_lastMsgHash[noteId]=hash;state.messages[noteId]=messages;requestActorProfilesFor(messages);for(const a of artifacts)state.artifacts[a.id]=a;if(state.currentNoteId===noteId){if(!ScrollCo.consumeOpenIntent(noteId))scheduleRender(noteId);renderPinSurface(noteId)}updateCoverPreview();scheduleNoteList()}
@@ -3864,7 +3871,7 @@ function showUserDropdown(inputEl,containerEl,onSelect,opts){
   _activeDropdown={dd,update,inputEl};
   return{update,destroy:function(){dd.remove();inputEl.removeEventListener('input',update);inputEl.removeEventListener('keydown',handleKey)}};
 }
-function renderText(text){if(!text)return'';var out=escHtml(text);out=out.replace(/`([^`]+)`/g,'<code style="background:var(--bg3);padding:.1rem .3rem">$1</code>');out=out.replace(/(data:image\/[^\s"]+)/g,function(m){var raw=m.replace(/&amp;/g,'&').replace(/&quot;/g,'"');return '<div class="inline-img-box"><img src="'+raw+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'});out=out.replace(/(https?:\/\/[^\s]+)/g,function(url){var raw=url.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/[.,;:!?\)]+$/,'');if(/\.(png|jpe?g|gif|webp|svg|bmp|ico)(\?[^\s]*)?$/i.test(raw)){return '<div class="inline-img-box"><img src="'+escAttr(raw)+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'}var yt=raw.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/);if(yt){return '<div style="margin:.35rem 0;max-width:480px;aspect-ratio:16/9"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[1]+'" style="width:100%;height:100%;border:1px solid var(--border)" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe></div>'}var tw=raw.match(/(?:twitter\.com|x\.com)\/(\w+)\/status\/(\d+)/);if(tw){return '<div class="tweet-embed" style="margin:.35rem 0;max-width:480px"><blockquote class="twitter-tweet" data-theme="dark" data-conversation="none"><a href="https://twitter.com/'+tw[1]+'/status/'+tw[2]+'"></a></blockquote></div>'}return '<a href="'+escAttr(raw)+'" target="_blank" rel="noopener" style="color:#ffaa00">'+url+'</a>'});out=out.replace(/~ref\[([^\]|]+)\|([^\]|]+)(?:\|([^\]]*))?\]/g,function(m,nid,cr,enc){var name='';if(enc!=null&&enc!==''){try{name=decodeURIComponent(enc)}catch(e){name=enc}}if(!name){var n=state.notes[nid]||state.discoveryNotes[nid];if(n)name=noteDisplayName(n)||n.name||''}if(!name)name='Note Link';return '<span class="note-ref" title="'+escAttr(nid+' · '+cr)+'" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-name">'+escHtml(name)+'</span></span>'});out=out.replace(/~gref\[([^\]|]+)\|([^\]|]+)\|([^\]|]*)\|([^\]]+)\]/g,function(m,nid,author,eid,mid){if(state.palStatus[author]==='blocked')return '<span style="color:#ff4444;font-size:.8rem">[blocked user ref]</span>';var n=state.notes[nid];var noteName=n?noteDisplayName(n):'gossip note';var authorName=displayName(author);var excerpt='';if(n){var msgs=state.messages[nid]||[];var found=msgs.find(function(msg){if(eid&&getMsgEid(msg)===eid)return true;return String(msg.id)===mid});if(found&&found.text)excerpt=found.text.slice(0,60)}var excerptHtml=excerpt?'<span class="gossip-ref-excerpt">\u2014 '+escHtml(excerpt)+'</span>':'<span class="gossip-ref-unavail">gossip post</span>';return '<span class="gossip-ref" onclick="clickGossipRef(\''+escAttr(nid)+'\',\''+escAttr(author)+'\',\''+escAttr(eid)+'\',\''+escAttr(mid)+'\')"><span class="gossip-ref-author">'+escHtml(authorName)+'</span><span class="gossip-ref-note">in '+escHtml(noteName)+'</span>'+excerptHtml+'</span>'});out=out.replace(/~app\[(~[a-z][a-z0-9-]*)\|%?([a-z][a-z0-9-]*)\|([^\]]*)\]/g,function(m,pub,desk,enc){var nm='';if(enc){try{nm=decodeURIComponent(enc)}catch(e){nm=enc}}var label=nm||('%'+desk);return '<span class="app-ref" title="'+escAttr(pub+'/'+desk)+'" onclick="event.stopPropagation();clickAppRef(\''+escAttr(pub)+'\',\''+escAttr(desk)+'\',\''+escAttr(enc||'')+'\',event)">'+escHtml(label)+'</span>'});out=out.replace(/@(~[a-z][\w-]*)/g,function(m,ship){var canon=normalizeShipCandidate(ship)||(ship===('~'+api.ship)?ship:null);if(!canon){var dn0=displayName(ship);var lbl0=(dn0&&dn0!==ship)?dn0:ship.replace(/^~/,'');return '<span class="msg-mention" style="color:'+shipColor(ship)+';font-weight:500" title="'+escAttr(ship)+'">'+escHtml(lbl0)+'</span>'}var dn=displayName(canon);var label=(dn&&dn!==canon)?dn:canon.replace(/^~/,'');return '<span class="msg-mention" style="color:'+shipColor(canon)+';font-weight:500;cursor:pointer" title="'+escAttr(canon)+'" onclick="event.stopPropagation();clickMention(\''+escAttr(canon)+'\',event)">'+escHtml(label)+'</span>'});return out}
+function renderText(text){if(!text)return'';var out=escHtml(text);out=out.replace(/`([^`]+)`/g,'<code style="background:var(--bg3);padding:.1rem .3rem">$1</code>');out=out.replace(/(data:image\/[^\s"]+)/g,function(m){var raw=m.replace(/&amp;/g,'&').replace(/&quot;/g,'"');return '<div class="inline-img-box"><img src="'+raw+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'});out=out.replace(/(https?:\/\/[^\s]+)/g,function(url){var raw=url.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/[.,;:!?\)]+$/,'');if(/\.(png|jpe?g|gif|webp|svg|bmp|ico)(\?[^\s]*)?$/i.test(raw)){return '<div class="inline-img-box"><img src="'+escAttr(raw)+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'}var yt=raw.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/);if(yt){return '<div style="margin:.35rem 0;max-width:480px;aspect-ratio:16/9"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[1]+'" style="width:100%;height:100%;border:1px solid var(--border)" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe></div>'}var tw=raw.match(/(?:twitter\.com|x\.com)\/(\w+)\/status\/(\d+)/);if(tw){return '<div class="tweet-embed" style="margin:.35rem 0;max-width:480px"><blockquote class="twitter-tweet" data-theme="dark" data-conversation="none"><a href="https://twitter.com/'+tw[1]+'/status/'+tw[2]+'"></a></blockquote></div>'}return '<a href="'+escAttr(raw)+'" target="_blank" rel="noopener" style="color:#ffaa00">'+url+'</a>'});out=out.replace(/~ref\[([^\]|]+)\|([^\]|]+)(?:\|([^\]]*))?\]/g,function(m,nid,cr,enc){var name='';if(enc!=null&&enc!==''){try{name=decodeURIComponent(enc)}catch(e){name=enc}}if(!name){var n=state.notes[nid]||state.discoveryNotes[nid];if(n)name=noteDisplayName(n)||n.name||''}if(!name)name='Note Link';return '<span class="note-ref" title="'+escAttr(nid+' · '+cr)+'" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-name">'+escHtml(name)+'</span></span>'});out=out.replace(/~gnote\[([^\]|]+)\|([^\]|]+)\|([^\]|]*)\|([^\]|]*)\|([^\]]*)\]/g,function(m,nid,sharer,en,ed,ei){var nm='';if(en){try{nm=decodeURIComponent(en)}catch(e){nm=en}}if(!nm)nm='Gossip note';return '<span class="note-ref" title="'+escAttr(nid+' gossip from '+sharer)+'" onclick="clickGossipNoteLink(\''+escAttr(nid)+'\',\''+escAttr(sharer)+'\',\''+escAttr(en)+'\',\''+escAttr(ed)+'\',\''+escAttr(ei)+'\')"><span class="note-ref-name">'+escHtml(nm)+'</span></span>'});out=out.replace(/~gref\[([^\]|]+)\|([^\]|]+)\|([^\]|]*)\|([^\]]+)\]/g,function(m,nid,author,eid,mid){if(state.palStatus[author]==='blocked')return '<span style="color:#ff4444;font-size:.8rem">[blocked user ref]</span>';var n=state.notes[nid];var noteName=n?noteDisplayName(n):'gossip note';var authorName=displayName(author);var excerpt='';if(n){var msgs=state.messages[nid]||[];var found=msgs.find(function(msg){if(eid&&getMsgEid(msg)===eid)return true;return String(msg.id)===mid});if(found&&found.text)excerpt=found.text.slice(0,60)}var excerptHtml=excerpt?'<span class="gossip-ref-excerpt">\u2014 '+escHtml(excerpt)+'</span>':'<span class="gossip-ref-unavail">gossip post</span>';return '<span class="gossip-ref" onclick="clickGossipRef(\''+escAttr(nid)+'\',\''+escAttr(author)+'\',\''+escAttr(eid)+'\',\''+escAttr(mid)+'\')"><span class="gossip-ref-author">'+escHtml(authorName)+'</span><span class="gossip-ref-note">in '+escHtml(noteName)+'</span>'+excerptHtml+'</span>'});out=out.replace(/~app\[(~[a-z][a-z0-9-]*)\|%?([a-z][a-z0-9-]*)\|([^\]]*)\]/g,function(m,pub,desk,enc){var nm='';if(enc){try{nm=decodeURIComponent(enc)}catch(e){nm=enc}}var label=nm||('%'+desk);return '<span class="app-ref" title="'+escAttr(pub+'/'+desk)+'" onclick="event.stopPropagation();clickAppRef(\''+escAttr(pub)+'\',\''+escAttr(desk)+'\',\''+escAttr(enc||'')+'\',event)">'+escHtml(label)+'</span>'});out=out.replace(/@(~[a-z][\w-]*)/g,function(m,ship){var canon=normalizeShipCandidate(ship)||(ship===('~'+api.ship)?ship:null);if(!canon){var dn0=displayName(ship);var lbl0=(dn0&&dn0!==ship)?dn0:ship.replace(/^~/,'');return '<span class="msg-mention" style="color:'+shipColor(ship)+';font-weight:500" title="'+escAttr(ship)+'">'+escHtml(lbl0)+'</span>'}var dn=displayName(canon);var label=(dn&&dn!==canon)?dn:canon.replace(/^~/,'');return '<span class="msg-mention" style="color:'+shipColor(canon)+';font-weight:500;cursor:pointer" title="'+escAttr(canon)+'" onclick="event.stopPropagation();clickMention(\''+escAttr(canon)+'\',event)">'+escHtml(label)+'</span>'});return out}
 function openImageFullscreen(url){var o=document.createElement('div');o.id='file-fullscreen';o.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.92);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer';o.innerHTML='<img src="'+url+'" style="max-width:95%;max-height:90vh">';o.onclick=function(){o.remove()};document.body.appendChild(o)}
 async function sendMessage(){
   const input=document.getElementById('chatInput');const text=input.value.trim();if(!text)return;
@@ -4135,10 +4142,10 @@ function openSharePrompt(){
   overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999';
   const modal=document.createElement('div');
   modal.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--bg2);border:1px solid var(--border);padding:1rem;z-index:10000;min-width:340px;display:flex;flex-direction:column;gap:.6rem';
-  const usersList=Array.from(note.users||[]).map(u=>'<div style="color:var(--text-dim);font-size:.75rem">'+escHtml(displayName(u))+' <span style="color:#555">'+escHtml(u)+'</span></div>').join('');
+  const usersList=note.type==='gossip'?'':Array.from(note.users||[]).map(u=>'<div style="color:var(--text-dim);font-size:.75rem">'+escHtml(displayName(u))+' <span style="color:#555">'+escHtml(u)+'</span></div>').join('');
   modal.innerHTML=`
     <div style="font-size:.85rem;color:#ffaa00;font-weight:bold">SHARE "${escHtml(note.name)}"</div>
-    <div style="font-size:.75rem;color:var(--text-dim)">Current users:</div>
+    ${note.type==='gossip'?'':'<div style="font-size:.75rem;color:var(--text-dim)">Current users:</div>'}
     ${usersList}
     <div id="shareChips" class="user-chips"></div>
     <div style="position:relative" id="shareFieldWrap">
@@ -4153,7 +4160,9 @@ function openSharePrompt(){
   document.body.appendChild(modal);
   const chipsEl=document.getElementById('shareChips');
   const inputEl=document.getElementById('shareShipInput');
-  const existingUsers=new Set(note.users||[]);
+  // gossip has no real roster (silent leaves make note.users stale), so don't exclude anyone —
+  // you can (re)share to any ship, including one that left.
+  const existingUsers=note.type==='gossip'?new Set():new Set(note.users||[]);
   function renderChips(){
     chipsEl.innerHTML='';
     for(const ship of selected){
@@ -4243,7 +4252,18 @@ function showDmChoiceModal(noteId,targetShip){
     api.poke('noltbook','noltbook-action',{action:'invite-to-note',data:{id:noteId,ship:targetShip}});
   });
 }
-function createNote(parentId){state.pendingParent=parentId||null;document.getElementById('noteNameInput').value='';document.getElementById('gossipCheck').checked=false;document.getElementById('gossipToggleWrap').style.display=parentId?'none':'flex';document.getElementById('noteModalTitle').textContent=parentId?'NEW CHILD NOTE':'NEW NOTE';document.getElementById('noteModal').classList.add('open');setTimeout(()=>document.getElementById('noteNameInput').focus(),50)}
+// gossip image: file -> resized 128px -> embedded data URL (self-contained; travels with the
+// note over the mesh; no external/ship fetch). Set once at creation, immutable.
+let _gossipImageDataUrl=null;
+function onGossipImagePick(input){
+  const file=input.files[0];if(!file)return;
+  resizeImageToBlob(file,128,function(blob){
+    const reader=new FileReader();
+    reader.onload=function(){_gossipImageDataUrl=reader.result;const p=document.getElementById('gossipImagePreview');p.innerHTML='<img src="'+_gossipImageDataUrl+'" style="width:64px;height:64px;object-fit:cover;border-radius:4px">';p.style.display='block'};
+    reader.readAsDataURL(blob);
+  });
+}
+function createNote(parentId){state.pendingParent=parentId||null;document.getElementById('noteNameInput').value='';document.getElementById('gossipCheck').checked=false;document.getElementById('gossipDescInput').value='';_gossipImageDataUrl=null;document.getElementById('gossipImageFile').value='';const _gp=document.getElementById('gossipImagePreview');_gp.style.display='none';_gp.innerHTML='';document.getElementById('gossipFields').style.display='none';document.getElementById('gossipToggleWrap').style.display=parentId?'none':'flex';document.getElementById('noteModalTitle').textContent=parentId?'NEW CHILD NOTE':'NEW NOTE';document.getElementById('noteModal').classList.add('open');setTimeout(()=>document.getElementById('noteNameInput').focus(),50)}
 function closeNoteModal(){document.getElementById('noteModal').classList.remove('open');state.pendingParent=null}
 async function submitNote(){
   const name=document.getElementById('noteNameInput').value.trim();if(!name)return;
@@ -4254,7 +4274,9 @@ async function submitNote(){
   let ok=false;
   try{
     if(isGossip){
-      ok=await api.poke('noltbook','noltbook-action',{action:'create-gossip-note',data:{name,headline:''}});
+      const headline=document.getElementById('gossipDescInput').value.trim();
+      if(!headline){alert('Gossip notes need a description (it is set once and cannot be edited).');return}
+      ok=await api.poke('noltbook','noltbook-action',{action:'create-gossip-note',data:{name,headline,iconUrl:_gossipImageDataUrl||''}});
     }else{
       const data={name};if(parent)data.parent=parent;
       ok=await api.poke('noltbook','noltbook-action',{action:'create-note',data});
@@ -4358,9 +4380,10 @@ function showNoteContextMenu(event,noteId){
       ${delItem}`;
   }else if(isGossip){
     // gossip is an immutable, hostless container: no edit / delete / visibility / writable.
-    // Sharing is the separate SHARE button; Copy Link arrives with the hostless link-fetch.
-    // The only context action is Leave (a local-only silent drop).
+    // Copy Link makes a hostless ~gnote link (anyone can acquire by fetching from a sharer);
+    // Leave is a local-only silent drop.
     menu.innerHTML=`
+      <div class="context-menu-item" data-action="gossip-copy-link">Copy Link</div>
       <div class="context-menu-item danger" data-action="leave">Leave</div>`;
   }else{
   menu.innerHTML=`
@@ -4393,6 +4416,7 @@ function showNoteContextMenu(event,noteId){
     else if(action==='duplicate'){closeContextMenu()}
     else if(action==='fork-group'){closeContextMenu();forkGroup(noteId)}
     else if(action==='copyref'){closeContextMenu();copyNoteRef(noteId,note.creator)}
+    else if(action==='gossip-copy-link'){closeContextMenu();copyGossipNoteLink(noteId)}
     else if(action==='rename'){closeContextMenu();promptRenameNote(noteId)}
     else if(action==='delete'){closeContextMenu();if(confirm('Delete "'+note.name+'"?'))api.poke('noltbook','noltbook-action',{action:'delete-note',data:{id:noteId}})}
     else if(action==='leave'){closeContextMenu();if(confirm('Leave "'+note.name+'"?'))api.poke('noltbook','noltbook-action',{action:'leave-note',data:{id:noteId}})}
@@ -5569,6 +5593,44 @@ function copyGossipRef(noteId,author,eid,msgId){
   const token='~gref['+noteId+'|'+author+'|'+(eid||'')+'|'+msgId+']';
   navigator.clipboard.writeText(token).then(()=>console.log('[gref] copied',token));
 }
+// gossip NOTE link (hostless acquire): ~gnote[nid|sharer|name|desc]. The link carries the
+// name + description so the click shows an instant preview; confirming fetches the full note
+// (with embedded image) from the sharer and installs it.
+function copyGossipNoteLink(noteId){
+  const note=state.notes[noteId];if(!note)return;
+  const token='~gnote['+noteId+'|~'+api.ship+'|'+encodeURIComponent(note.name||'')+'|'+encodeURIComponent(note.headline||'')+'|'+encodeURIComponent(note.iconUrl||'')+']';
+  navigator.clipboard.writeText(token).then(()=>console.log('[gnote] copied',token));
+}
+function clickGossipNoteLink(nid,sharer,encName,encDesc,encImage){
+  if(state.notes[nid]){openNote(nid);return}            // already have it
+  let name='';try{name=decodeURIComponent(encName)}catch(e){name=encName||''}
+  let desc='';try{desc=decodeURIComponent(encDesc)}catch(e){desc=encDesc||''}
+  let img='';try{img=decodeURIComponent(encImage||'')}catch(e){img=''}
+  const overlay=document.createElement('div');overlay.className='modal-overlay open';overlay.style.zIndex='200';
+  const modal=document.createElement('div');modal.className='note-detail-modal';
+  modal.innerHTML=`
+    ${img?'<div style="text-align:center;margin-bottom:.5rem"><img src="'+escAttr(img)+'" style="width:80px;height:80px;object-fit:cover;border-radius:8px"></div>':''}
+    <div style="font-size:1.1rem;color:#ffaa00">${escHtml(name||'Gossip note')}</div>
+    <div style="margin-top:.3rem"><span style="font-size:.7rem;padding:.1rem .4rem;border:1px solid #888;color:#888">GOSSIP</span></div>
+    ${desc?'<div style="font-size:.85rem;color:#bbb;line-height:1.4;margin-top:.4rem">'+escHtml(desc)+'</div>':'<div style="font-size:.8rem;color:var(--text-dim);margin-top:.4rem">no description</div>'}
+    <div style="font-size:.7rem;color:var(--text-dim);margin-top:.4rem">shared by ${escHtml(sharer)}</div>
+    <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.6rem">
+      <button class="modal-btn cancel-red" id="gnCancel">CANCEL</button>
+      <button class="modal-btn join" id="gnAcquire">JOIN</button>
+    </div>`;
+  overlay.appendChild(modal);
+  overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove()});
+  document.body.appendChild(overlay);
+  modal.querySelector('#gnCancel').onclick=()=>overlay.remove();
+  modal.querySelector('#gnAcquire').onclick=async function(){
+    const b=this;b.disabled=true;b.textContent='JOINING…';
+    const ok=await api.poke('noltbook','noltbook-action',{action:'request-gossip-note',data:{noteId:nid,from:sharer}});
+    if(!ok){b.disabled=false;b.textContent='JOIN';alert('Could not request the note. Reconnect and try again.');return}
+    overlay.remove();
+    // the note arrives via %remote-gossip-invite (auto-install + %note-created); open it then.
+    state.pendingGossipFetch={nid,timer:setTimeout(function(){if(!state.notes[nid])showRefUnavailable(nid,'Gossip note unavailable — the sharer may be offline or no longer holds it')},6000)};
+  };
+}
 function clickGossipRef(noteId,author,eid,msgId){
   // Case A: note exists locally
   if(state.notes[noteId]){
@@ -6558,7 +6620,7 @@ function openNoteInfoModal(note){
       <label class="modal-label" style="font-size:.65rem">TITLE</label>
       <input class="modal-input" id="noteInfoTitle" value="${escAttr(note.name)}" ${titleRo} style="font-size:.85rem">
     </div>
-    ${noteCanCopyRef(note)?'<div style="margin-top:-.25rem"><button class="modal-btn" id="noteInfoCopyRef" style="font-size:.65rem;padding:.25rem .5rem">COPY NOTE LINK</button></div>':''}
+    ${note.type==='gossip'?'<div style="margin-top:-.25rem"><button class="modal-btn" id="noteInfoGossipLink" style="font-size:.65rem;padding:.25rem .5rem">COPY NOTE LINK</button></div>':(noteCanCopyRef(note)?'<div style="margin-top:-.25rem"><button class="modal-btn" id="noteInfoCopyRef" style="font-size:.65rem;padding:.25rem .5rem">COPY NOTE LINK</button></div>':'')}
     <div class="modal-field">
       <label class="modal-label" style="font-size:.65rem">DESCRIPTION</label>
       <textarea class="modal-textarea" id="noteInfoDesc" rows="3" placeholder="purpose, rules, intent..." ${descRo} style="font-size:.8rem;resize:vertical;min-height:3rem">${escHtml(descVal)}</textarea>
@@ -6592,6 +6654,8 @@ function openNoteInfoModal(note){
   }
   const copyRefBtn=modal.querySelector('#noteInfoCopyRef');
   if(copyRefBtn)copyRefBtn.onclick=()=>{copyNoteRef(note.id,note.creator);copyRefBtn.textContent='COPIED';setTimeout(()=>{copyRefBtn.textContent='COPY NOTE LINK'},1500)};
+  const gLinkBtn=modal.querySelector('#noteInfoGossipLink');
+  if(gLinkBtn)gLinkBtn.onclick=()=>{copyGossipNoteLink(note.id);gLinkBtn.textContent='COPIED';setTimeout(()=>{gLinkBtn.textContent='COPY NOTE LINK'},1500)};
   const closeBtn=modal.querySelector('#noteInfoClose');
   closeBtn.onclick=()=>overlay.remove();
   const forkBtn=modal.querySelector('#noteInfoFork');

@@ -33,7 +33,20 @@
         ?~  hl-raw  ''
         ?.  ?=([%s *] u.hl-raw)  ''
         p.u.hl-raw
-      [%create-gossip-note p.nm-nd hl]
+      =/  ic-raw  (~(get by d) 'iconUrl')
+      =/  ic=(unit @t)
+        ?~  ic-raw  ~
+        ?.  ?=([%s *] u.ic-raw)  ~
+        ?:  =('' p.u.ic-raw)  ~
+        `p.u.ic-raw
+      [%create-gossip-note p.nm-nd hl ic]
+    ::  request-gossip-note: link-acquire a gossip note from `from` by id
+    ?:  =('request-gossip-note' tag)
+      =/  nid-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] nid-nd)
+      =/  from-nd  (need (~(get by d) 'from'))
+      ?>  ?=([%s *] from-nd)
+      [%request-gossip-note `@ta`p.nid-nd (need (slaw %p p.from-nd))]
     ::  A2: internal host + emergency actor management. Strict — a malformed host/desk/id/op
     ::  fails mark conversion (need/?>/!!), never produces a wrong actor ref or op.
     ?:  |(=('manage-note-actor' tag) =('emergency-manage-note-actor' tag))

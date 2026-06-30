@@ -6698,7 +6698,7 @@
     ?-  class
       %admin   is-creator
       %mod     ?|(is-creator is-admin)
-      %invite  ?|(is-creator &(?|(=(%group type.nt) =(%gossip type.nt)) ?:(=(%public visibility.nt) (~(has in users.nt) our) is-admin)))
+      %invite  ?|(is-creator =(%gossip type.nt) &(=(%group type.nt) ?:(=(%public visibility.nt) (~(has in users.nt) our) is-admin)))
     ==
   ?:  ?|(wb =(%dm type.nt) !gate)
     [%.n (api-result-card rid %.n %rejected 'not allowed for this note/user' `nid ~ ~)]
@@ -7152,16 +7152,18 @@
       ::  someone invited us to their gossip note (with headline)
       ?:  (~(has in pal-blocked) src.bowl)  `state
       =/  hl  headline.rem
+      ::  gossip is always-public + hostless; carry the embedded image (icon-url) so it travels
+      ::  with the note (no fetch). %public so a shared gossip note never reads as private.
       =/  new-note=note:noltbook
-        [note-id.rem name.rem %gossip creator.rem users.rem ~ ~ ~ ~ %secret ~ & ~ hl]
+        [note-id.rem name.rem %gossip creator.rem users.rem ~ ~ ~ ~ %public icon-url.rem & ~ hl]
       =/  new-peers=(set @p)  (~(put in peers) creator.rem)
       =/  is-new-peer=?  !(~(has in peers) creator.rem)
       =/  ars-cards=(list card)
         ?.  is-new-peer  ~
         ~[[%pass /ars/(scot %p creator.rem) %agent [creator.rem %noltbook] %watch /notes/cover]]
       =/  upd=update:noltbook  [%note-created new-note]
-      =/  sub-card=card
-        [%pass /remote-note/[note-id.rem] %agent [creator.rem %noltbook] %watch /notes/[note-id.rem]]
+      ::  gossip is hostless: do NOT subscribe to the creator's /notes/[nid] (that host coupling
+      ::  is what triggers the "host unreachable" probe). Posts arrive via the pals mesh instead.
       =/  new-headlines=(map @ta @t)
         ?~  hl  headlines
         (~(put by headlines) note-id.rem u.hl)
@@ -7170,10 +7172,22 @@
             messages  (~(put by messages) note-id.rem ~)
             peers  new-peers
             headlines  new-headlines
+            ::  acquirer is a logical member of their own copy, so they can POST (the send
+            ::  handler's member gate would otherwise no-op a non-member's post). Local view.
+            note-members  (~(put by note-members) note-id.rem (sy ~[our.bowl]))
             note-activity  (put-activity note-activity note-id.rem now.bowl)
             note-unread-activity  (put-unread-activity note-unread-activity note-id.rem now.bowl)
           ==
-      :(weld [sub-card (gf-notes upd) (activity-fact note-id.rem now.bowl) (unread-activity-fact note-id.rem now.bowl) ~] ars-cards)
+      :(weld [(gf-notes upd) (activity-fact note-id.rem now.bowl) (unread-activity-fact note-id.rem now.bowl) ~] ars-cards)
+    ::
+        %remote-gossip-request
+      ::  someone is link-acquiring a gossip note we hold — reply with the full packet (name,
+      ::  creator, headline, embedded image) so they can install it. Gossip only; nothing else.
+      =/  nt  (~(get by notes) note-id.rem)
+      ?~  nt  `state
+      ?.  =(%gossip type.u.nt)  `state
+      :_  state
+      ~[(rpoke /gossip-give/(scot %p src.bowl)/[note-id.rem] src.bowl `remote:noltbook`[%remote-gossip-invite note-id.rem name.u.nt creator.u.nt users.u.nt headline.u.nt icon-url.u.nt])]
     ::
         %remote-dm-message
       ::  atomic DM delivery: payload carries DM note metadata, so the
@@ -12654,7 +12668,7 @@
       ::  %create-gossip-note mints nid = note-{now} (same formula) with no gates.
       =/  nid=@ta  (crip (weld "note-" (trip (scot %da now.bowl))))
       =^  cards  this
-        $(mark %noltbook-action, vase (action-vase `action:noltbook`[%create-gossip-note name.aa headline.aa]))
+        $(mark %noltbook-action, vase (action-vase `action:noltbook`[%create-gossip-note name.aa headline.aa ~]))
       :_  this
       %+  weld  cards
       (api-result-card request-id.aa %.y %gossip-created 'gossip note created' `nid ~ ~)
@@ -14592,7 +14606,7 @@
       ::  gossip is always-public + hostless; visibility is a dead field (set %public so it
       ::  never reads as private). creator is attribution only, not an authority.
       =/  new-note=note:noltbook
-        :*  nid  name.act  %gossip  our.bowl  self-set  ~  ~  ~  ~  %public  ~  &  ~  hl
+        :*  nid  name.act  %gossip  our.bowl  self-set  ~  ~  ~  ~  %public  icon-url.act  &  ~  hl
         ==
       =/  upd=update:noltbook  [%note-created new-note]
       =/  new-headlines=(map @ta @t)
@@ -14603,6 +14617,12 @@
       :_  this(notes (~(put by notes) nid new-note), messages (~(put by messages) nid *(list message:noltbook)), headlines new-headlines, note-members (~(put by note-members) nid self-set), note-activity (put-activity note-activity nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity nid now.bowl), note-read (put-read note-read nid now.bowl))
       ^-  (list card:agent:gall)
       ~[(gf-notes upd) (activity-fact nid now.bowl) (unread-activity-fact nid now.bowl) (note-read-fact nid now.bowl)]
+    ::
+        %request-gossip-note
+      ::  link-acquire: ask the sharer (`from`) for a gossip note by id; they reply with the
+      ::  full %remote-gossip-invite packet, which our %remote-gossip-invite receiver installs.
+      :_  this
+      ~[(rpoke /gossip-req/(scot %p from.act)/[note-id.act] from.act `remote:noltbook`[%remote-gossip-request note-id.act])]
     ::
         %send-message
       =/  sys-note=?  ?|(=(note-id.act %cover) =(note-id.act %ars-rumors))
@@ -15124,10 +15144,12 @@
       ?:  (is-write-blocked id.act host-status notes our.bowl)  `this
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
-      ::  group + gossip share one rule: public → any member, private/secret → admin.
+      ::  gossip: ANY holder may share (hostless, always-public — having the note = may share it;
+      ::  acquirers aren't in note.users). group: public → any member, private/secret → admin.
       ::  creator always; all other types: host only.
       ?.  ?|  =(our.bowl creator.u.old)
-              ?&  ?|(=(%group type.u.old) =(%gossip type.u.old))
+              =(%gossip type.u.old)
+              ?&  =(%group type.u.old)
                   ?:  =(%public visibility.u.old)
                     (~(has in users.u.old) our.bowl)
                   (~(has in (fall (~(get by note-admins) id.act) ~)) our.bowl)
@@ -15173,7 +15195,7 @@
       =/  poke-card=card
         ?:  =(%gossip type.effective-old)
           =/  hl=(unit @t)  (~(get by headlines) id.act)
-          =/  rem=remote:noltbook  [%remote-gossip-invite id.act name.effective-old our.bowl users.new-note hl]
+          =/  rem=remote:noltbook  [%remote-gossip-invite id.act name.effective-old creator.effective-old users.new-note hl icon-url.effective-old]
           (rpoke /invite/(scot %p ship.act)/[id.act] ship.act rem)
         =/  rem=remote:noltbook  [%remote-invite id.act name.effective-old type.effective-old our.bowl users.new-note visibility.effective-old writable.effective-old]
         (rpoke /invite/(scot %p ship.act)/[id.act] ship.act rem)
@@ -15228,9 +15250,10 @@
       ?:  (is-write-blocked id.act host-status notes our.bowl)  `this
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
-      ::  permission gate matches %invite-to-note (group+gossip: public → any member, else admin)
+      ::  permission gate matches %invite-to-note (gossip: any holder; group: public→member, else admin)
       ?.  ?|  =(our.bowl creator.u.old)
-              ?&  ?|(=(%group type.u.old) =(%gossip type.u.old))
+              =(%gossip type.u.old)
+              ?&  =(%group type.u.old)
                   ?:  =(%public visibility.u.old)
                     (~(has in users.u.old) our.bowl)
                   (~(has in (fall (~(get by note-admins) id.act) ~)) our.bowl)
@@ -15293,7 +15316,7 @@
           %+  turn  ~(tap in cleaned)
           |=  p=@p
           ^-  card
-          =/  rem=remote:noltbook  [%remote-gossip-invite id.act name.effective-old our.bowl users.new-note hl]
+          =/  rem=remote:noltbook  [%remote-gossip-invite id.act name.effective-old creator.effective-old users.new-note hl icon-url.effective-old]
           (rpoke /invite/(scot %p p)/[id.act] p rem)
         %+  turn  ~(tap in cleaned)
         |=  p=@p
