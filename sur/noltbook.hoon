@@ -277,6 +277,10 @@
       [%remote-note-list notes=(list note)]
       [%remote-hey ~]
       [%remote-bye ~]
+      ::  durable pal reconciliation (supersedes hey/bye). outgoing + blocked are
+      ::  authoritative from the sender; incoming is diagnostic only (the receiver
+      ::  never lets it mutate its own pal-outgoing).
+      [%remote-pal-sync outgoing=? incoming=? blocked=?]
       [%remote-edit-msg note-id=@ta msg-id=@da eid=(unit @uv) text=@t]
       [%remote-delete-msg note-id=@ta msg-id=@da eid=(unit @uv)]
       [%remote-create-child parent-id=@ta name=@t]
@@ -831,7 +835,11 @@
       [%find-or-create-dm request-id=(unit @ud) ship=@t]
       ::  find or create a user-gossip note by exact name (Phase 16). Reuses
       ::  %create-gossip-note. headline defaults to '' when absent.
-      [%find-or-create-gossip-note request-id=(unit @ud) name=@t headline=@t]
+      [%find-or-create-gossip-note request-id=(unit @ud) name=@t headline=@t icon-url=(unit @t)]
+      ::  gossip distribution: share a copy to a ship / acquire one by ~gnote link.
+      ::  ship and from are @t (parsed to @p in the handler via api-ship-pre).
+      [%share-gossip-note request-id=(unit @ud) note-id=@ta ship=@t]
+      [%request-gossip-note request-id=(unit @ud) note-id=@ta from=@t]
       ::  fork actions (Phase 17). rootId is carried in the result's note-id field.
       [%fork-note request-id=(unit @ud) note-id=@ta name=(unit @t)]
       [%accept-fork-invite request-id=(unit @ud) root-id=@ta]

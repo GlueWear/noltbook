@@ -1,0 +1,10 @@
+:~
+  title+'Noltbook'
+  info+'Collaborative notebook: notes, chat, artifacts, and gossip over the mesh.'
+  color+0xff.8000
+  version+[1 0 0]
+  website+''
+  license+'MIT'
+  base+'noltbook'
+  site+/apps/noltbook
+==

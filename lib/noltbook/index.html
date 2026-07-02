@@ -26,6 +26,10 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .logo.has-notif .logo-badge{display:block}
 .user-info{display:flex;align-items:center;gap:.75rem;margin-right:48px}
 .ship-name{font-size:1.5rem;cursor:pointer;padding:.2rem .4rem}
+.header-avatar{width:2.2rem;height:2.2rem;border-radius:3px;overflow:hidden;cursor:pointer;background:#000;flex-shrink:0;display:flex;align-items:center;justify-content:center;border:2px solid transparent}
+.header-avatar:hover{border-color:#ffaa00}
+.header-avatar img{width:100%;height:100%;object-fit:cover}
+.header-avatar svg{width:100%;height:100%}
 .ship-name:hover{background:var(--bg2)}
 .header-dial{display:flex;align-items:center;gap:.3rem;margin:0 auto}
 .header-dial .dial-label{font-size:.65rem;color:var(--text-dim);letter-spacing:.1em}
@@ -539,6 +543,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
       <div class="dial-box" onclick="setDial(3)">3</div>
     </div>
     <div class="user-info">
+      <div class="header-avatar" id="headerAvatar" onclick="openProfileModal()" title="Edit profile"></div>
       <span class="ship-name" id="shipDisplay" onclick="openProfileModal()"></span>
     </div>
   </header>
@@ -885,6 +890,12 @@ const sigilCache={};
     const mod=await import('https://esm.sh/@urbit/sigil-js@2.2.0?bundle');
     sigilFn=mod.default||mod.sigil||mod;
     console.log('[sigil] loaded',typeof sigilFn);
+    // sigils rendered before the async lib arrived fell back to 2-letter initials
+    // (common on a fresh ship with no early profile/pal traffic to retrigger a
+    // render — e.g. a comet's own header). Re-render now that sigilFn exists.
+    try{if(typeof updateSidebarSigil==='function')updateSidebarSigil()}catch(e){}
+    try{if(typeof scheduleRender==='function'&&state&&state.currentNoteId)scheduleRender()}catch(e){}
+    try{if(typeof renderPalsList==='function'&&state&&state.palsView)renderPalsList()}catch(e){}
   }catch(e){console.warn('[sigil] failed to load',e)}
 })();
 function shipType(ship){
@@ -1043,6 +1054,7 @@ async function boot(){
   api.init(ship);
   document.getElementById('shipDisplay').textContent='~'+ship;
   document.getElementById('shipDisplay').style.color=shipColor('~'+ship);
+  updateSidebarSigil();
   loadReadCursors();
   await api.subscribe('noltbook','/notes',handleUpdate);
   api.open();
@@ -1053,6 +1065,8 @@ async function boot(){
 function updateSidebarSigil(){
   const ship='~'+api.ship;
   renderAvatar(ship,document.getElementById('profileSigil'));
+  const ha=document.getElementById('headerAvatar');
+  if(ha)renderAvatar(ship,ha);
 }
 // ===== read cursors + scroll preservation =====
 const READ_CURSORS_KEY='noltbook-read-cursors-v1';

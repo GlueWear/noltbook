@@ -174,7 +174,14 @@
     ?:  =('find-or-create-actor-dm' tag)
       [%find-or-create-actor-dm rid app actor (need (get-str 'ship'))]
     ?:  =('find-or-create-gossip-note' tag)
-      [%find-or-create-gossip-note rid (need (get-str 'name')) (fall (get-str 'headline') '')]
+      =/  ic=(unit @t)  (get-str 'iconUrl')
+      :*  %find-or-create-gossip-note  rid  (need (get-str 'name'))
+          (fall (get-str 'headline') '')  ?~(ic ~ ?:(=('' u.ic) ~ ic))
+      ==
+    ?:  =('share-gossip-note' tag)
+      [%share-gossip-note rid `@ta`(need (get-str 'noteId')) (need (get-str 'ship'))]
+    ?:  =('request-gossip-note' tag)
+      [%request-gossip-note rid `@ta`(need (get-str 'noteId')) (need (get-str 'from'))]
     ?:  =('start-call' tag)   [%start-call rid `@ta`(need (get-str 'noteId'))]
     ?:  =('join-call' tag)    [%join-call rid `@ta`(need (get-str 'noteId'))]
     ?:  =('leave-call' tag)   [%leave-call rid `@ta`(need (get-str 'noteId'))]

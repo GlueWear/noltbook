@@ -5516,6 +5516,8 @@
       ['type' s+(crip (trip (scot %tas type.n)))]
       ['creator' s+(scot %p creator.n)]
       ['visibility' s+(crip (trip (scot %tas visibility.n)))]
+      ['iconUrl' ?~(icon-url.n ~ s+u.icon-url.n)]
+      ['headline' ?~(headline.n ~ s+u.headline.n)]
       ['userCount' (numb:enjs:format lcount)]
       ['lastPreview' ?~(last-preview.n ~ s+u.last-preview.n)]
       ['app' (api-app-json app)]
@@ -5537,6 +5539,8 @@
       ['type' s+(crip (trip (scot %tas type.n)))]
       ['creator' s+(scot %p creator.n)]
       ['visibility' s+(crip (trip (scot %tas visibility.n)))]
+      ['iconUrl' ?~(icon-url.n ~ s+u.icon-url.n)]
+      ['headline' ?~(headline.n ~ s+u.headline.n)]
       ['writable' b+writable.n]
       ::  1B.3: logical human count (0 for a fresh actor note; transport host excluded).
       ['userCount' (numb:enjs:format lcount)]
@@ -7054,6 +7058,25 @@
   |=  [=wire who=@p rem=remote:noltbook]
   ^-  card
   [%pass wire %agent [who %noltbook] %poke %noltbook-remote !>(rem)]
+::  pal-status-of: the visible pal status for `target` from our actual sets.
+++  pal-status-of
+  |=  [target=@p outgoing=(set @p) incoming=(set @p) blocked=(set @p)]
+  ^-  pal-status:noltbook
+  ?:  (~(has in blocked) target)  %blocked
+  ?:  &((~(has in outgoing) target) (~(has in incoming) target))  %mutual
+  ?:  (~(has in outgoing) target)  %requesting
+  ?:  (~(has in incoming) target)  %requested
+  %none
+::  pal-sync-card: a durable %remote-pal-sync poke carrying our authoritative view
+::  of the relationship with `target` (outgoing = we follow them, blocked = we block
+::  them, incoming = we believe they follow us — diagnostic on the receiver).
+++  pal-sync-card
+  |=  [target=@p outgoing=(set @p) incoming=(set @p) blocked=(set @p)]
+  ^-  card
+  =/  out=?  (~(has in outgoing) target)
+  =/  inc=?  (~(has in incoming) target)
+  =/  blk=?  (~(has in blocked) target)
+  (rpoke /pal-sync/(scot %p target) target `remote:noltbook`[%remote-pal-sync out inc blk])
 ++  rem-handle
   ::  Option-1: the whole %noltbook-remote dispatch moved OUT of the on-poke battery.
   ::  =| / =* / =. re-expose state-66 faces exactly like the door, so handler bodies are
@@ -8097,6 +8120,42 @@
         [%pal-removed src.bowl]
       :_  state(pal-incoming new-incoming)
       ~[(gf-notes upd)]
+    ::
+        %remote-pal-sync
+      ::  durable reconciliation. `outgoing`/`blocked` from the peer are authoritative;
+      ::  `incoming` is diagnostic only and NEVER mutates our own pal-outgoing intent.
+      =/  peer=@p  src.bowl
+      =/  we-follow=?  (~(has in pal-outgoing) peer)
+      =/  i-block=?  (~(has in pal-blocked) peer)
+      =/  old-status=pal-status:noltbook
+        (pal-status-of peer pal-outgoing pal-incoming pal-blocked)
+      ::  apply their authoritative outgoing -> our pal-incoming. never keep them in
+      ::  incoming while we block them, while they block us, or when they don't follow us.
+      =/  new-incoming=(set @p)
+        ?:  i-block  (~(del in pal-incoming) peer)
+        ?:  |(blocked.rem =(%.n outgoing.rem))  (~(del in pal-incoming) peer)
+        (~(put in pal-incoming) peer)
+      =/  new-status=pal-status:noltbook
+        (pal-status-of peer pal-outgoing new-incoming pal-blocked)
+      ::  emit a fact only when the visible status actually changed (idempotent).
+      =/  status-cards=(list card)
+        ?:  =(old-status new-status)  ~
+        =/  still-visible=?
+          ?|  (~(has in contacts) peer)
+              (~(has in pal-outgoing) peer)
+              (~(has in new-incoming) peer)
+              (~(has in pal-blocked) peer)
+          ==
+        ?:  still-visible  ~[(gf-notes [%pal-update peer new-status])]
+        ~[(gf-notes [%pal-removed peer])]
+      ::  reply with OUR authoritative sync only when their belief about whether we
+      ::  follow them (incoming.rem) disagrees with reality. converges in one round and
+      ::  cannot ping-pong: pal-outgoing is owner-authoritative and never mutated here.
+      =/  reply-cards=(list card)
+        ?:  =(incoming.rem we-follow)  ~
+        ~[(pal-sync-card peer pal-outgoing new-incoming pal-blocked)]
+      :_  state(pal-incoming new-incoming)
+      (weld status-cards reply-cards)
     ::
         %remote-introduce
       ::  no-op: auto peer-introduce removed; variant retained for future
@@ -10374,6 +10433,16 @@
       ?:  (~(has in pal-incoming) p)  %requested
       %none
     =/  palupd=update:noltbook  [%pal-list pal-pairs]
+    ::  durable reconciliation: on session start push our authoritative pal view to
+    ::  every ship we have a relationship with, so a missed hey/bye or one-sided state
+    ::  loss self-heals. bounded one-shot (no timer), relationship ships only.
+    =/  pal-sync-set=(set @p)
+      =/  s=(set @p)  (~(uni in pal-outgoing) pal-incoming)
+      =/  s=(set @p)  (~(uni in s) pal-blocked)
+      (~(del in s) our.bowl)
+    =/  pal-sync-cards=(list card)
+      %+  turn  ~(tap in pal-sync-set)
+      |=(p=@p (pal-sync-card p pal-outgoing pal-incoming pal-blocked))
     =/  contactupd=update:noltbook  [%contact-list ~(tap in contacts)]
     =/  dialupd=update:noltbook  [%dial-update dial]
     ::  send all current mention states (eid stored natively since state-23)
@@ -10566,7 +10635,7 @@
       ?~  live  ~
       `(gf-paths ~ `update:noltbook`[%actor-dm-updated nid `u.live])
     :_  this(notes notes-now, messages messages-now, notification-acks pruned-acks, note-activity pruned-activity, note-unread-activity pruned-unread-activity, note-read pruned-read, app-notifications pruned-app-notifications)
-    :(weld init-cards mention-cards attention-cards call-cards active-cards jr-cards role-cards bb-cards hs-cards lineage-cards pfi-cards ack-cards activity-cards read-cards unread-activity-cards user-prefs-cards app-notification-cards actor-dm-cards)
+    :(weld init-cards pal-sync-cards mention-cards attention-cards call-cards active-cards jr-cards role-cards bb-cards hs-cards lineage-cards pfi-cards ack-cards activity-cards read-cards unread-activity-cards user-prefs-cards app-notification-cards actor-dm-cards)
   ::
       [%notes @ ~]
     =/  nid=@ta  i.t.path
@@ -11161,6 +11230,23 @@
     =/  mrev  (~(get by member-revs) nid)
     =/  caps=(list [@t json])
       (api-capabilities-pairs nid nt our.bowl note-admins note-muted host-status note-members note-actor-owners notes)
+    ::  gossipLink: the shareable ~gnote token, matching the browser's
+    ::  copyGossipNoteLink shape exactly: ~gnote[nid|~sharer|name|desc|image],
+    ::  each of name/desc/image url-encoded. null for non-gossip notes.
+    =/  gossip-link=json
+      ?.  =(%gossip type.nt)  ~
+      =/  enc  |=(t=@t `tape`(en-urlt:html (trip t)))
+      =/  tok=@t
+        %-  crip
+        ;:  weld
+          "~gnote["  (trip id.nt)
+          "|"  (trip (scot %p our.bowl))
+          "|"  (enc name.nt)
+          "|"  (enc ?~(headline.nt '' u.headline.nt))
+          "|"  (enc ?~(icon-url.nt '' u.icon-url.nt))
+          "]"
+        ==
+      s+tok
     =/  jon=json
       %-  pairs:enjs:format
       :~  ['id' s+(crip (trip id.nt))]
@@ -11176,6 +11262,7 @@
           ['removedCount' (numb:enjs:format ~(wyt in removed.nt))]
           ['iconUrl' ?~(icon-url.nt ~ s+u.icon-url.nt)]
           ['headline' ?~(headline.nt ~ s+u.headline.nt)]
+          ['gossipLink' gossip-link]
           ['lastAuthor' ?~(last-author.nt ~ s+(scot %p u.last-author.nt))]
           ['lastPreview' ?~(last-preview.nt ~ s+u.last-preview.nt)]
           ['hostStatus' ?~(hst ~ s+(scot %tas u.hst))]
@@ -12668,10 +12755,40 @@
       ::  %create-gossip-note mints nid = note-{now} (same formula) with no gates.
       =/  nid=@ta  (crip (weld "note-" (trip (scot %da now.bowl))))
       =^  cards  this
-        $(mark %noltbook-action, vase (action-vase `action:noltbook`[%create-gossip-note name.aa headline.aa ~]))
+        $(mark %noltbook-action, vase (action-vase `action:noltbook`[%create-gossip-note name.aa headline.aa icon-url.aa]))
       :_  this
       %+  weld  cards
       (api-result-card request-id.aa %.y %gossip-created 'gossip note created' `nid ~ ~)
+    ::
+    ::  ---- gossip distribution: share a copy / acquire by link. ----
+    ::  share: gossip is hostless + always-public, so ANY holder may share it.
+    ::  Reuses the internal %invite-to-note gossip path (any-holder gate).
+        %share-gossip-note
+      =/  nt-u  (~(get by notes) note-id.aa)
+      ?~  nt-u
+        :_  this
+        (api-result-card request-id.aa %.n %missing-note 'no such note' `note-id.aa ~ ~)
+      ?.  =(%gossip type.u.nt-u)
+        :_  this
+        (api-result-card request-id.aa %.n %unsupported 'only gossip notes can be shared this way' `note-id.aa ~ ~)
+      =/  pre  (api-ship-pre request-id.aa ship.aa our.bowl)
+      ?:  ?=(%.n -.pre)  [p.pre this]
+      =^  cards  this
+        $(mark %noltbook-action, vase (action-vase `action:noltbook`[%invite-to-note note-id.aa p.pre]))
+      :_  this
+      %+  weld  cards
+      (api-result-card request-id.aa %.y %gossip-shared 'gossip note shared' `note-id.aa ~ ~)
+    ::
+    ::  acquire: request a gossip note by link. `from` is the sharer named in the
+    ::  ~gnote token; the note installs async via %remote-gossip-invite.
+        %request-gossip-note
+      =/  pre  (api-ship-pre request-id.aa from.aa our.bowl)
+      ?:  ?=(%.n -.pre)  [p.pre this]
+      =^  cards  this
+        $(mark %noltbook-action, vase (action-vase `action:noltbook`[%request-gossip-note note-id.aa p.pre]))
+      :_  this
+      %+  weld  cards
+      (api-result-card request-id.aa %.y %gossip-requested 'gossip note requested (installs async)' `note-id.aa ~ ~)
     ::
     ::  ---- Phase 17: fork actions (reuse the internal fork handlers). ----
         %fork-note
@@ -13527,6 +13644,12 @@
         :_  this
         (api-result-card request-id.aa %.n %missing-note 'no such note' `note-id.aa ~ ~)
       =/  nt=note:noltbook  (~(got by notes) note-id.aa)
+      ::  gossip is an immutable snapshot (name/visibility/icon/headline frozen at
+      ::  creation). Reject up front so the API is honest instead of reporting
+      ::  %configured while the internal freezes silently drop every field.
+      ?:  =(%gossip type.nt)
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'gossip notes are immutable' `note-id.aa ~ ~)
       ?:  ?&(?=(^ name.aa) =('' u.name.aa))
         :_  this
         (api-result-card request-id.aa %.n %invalid-name 'name cannot be empty' `note-id.aa ~ ~)
@@ -14375,6 +14498,8 @@
       ?:  (is-write-blocked id.act host-status notes our.bowl)  `this
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
+      ::  gossip is an immutable snapshot — headline (description) frozen at creation.
+      ?:  =(%gossip type.u.old)  `this
       ::  only creator can set headline
       ?.  =(our.bowl creator.u.old)  `this
       =/  hl=(unit @t)  ?:(=(%~ headline.act) ~ `headline.act)
@@ -15618,7 +15743,7 @@
         %requesting
       =/  upd=update:noltbook  [%pal-update ship.act status]
       :_  this(pal-outgoing new-outgoing, pal-blocked new-blocked, peers new-peers)
-      [hey-card prof-card (gf-notes upd) ~]
+      [hey-card prof-card (pal-sync-card ship.act new-outgoing pal-incoming new-blocked) (gf-notes upd) ~]
     ::
         %remove-pal
       ?:  =(ship.act our.bowl)  `this
@@ -15637,7 +15762,7 @@
         ?:  still-visible  [%pal-update ship.act status]
         [%pal-removed ship.act]
       :_  this(pal-outgoing new-outgoing)
-      [bye-card (gf-notes upd) ~]
+      [bye-card (pal-sync-card ship.act new-outgoing pal-incoming pal-blocked) (gf-notes upd) ~]
     ::
         %dismiss-pal-request
       ?:  =(ship.act our.bowl)  `this
@@ -15655,7 +15780,7 @@
         ?:  still-visible  [%pal-update ship.act status]
         [%pal-removed ship.act]
       :_  this(pal-incoming new-incoming)
-      ~[(gf-notes upd)]
+      ~[(pal-sync-card ship.act pal-outgoing new-incoming pal-blocked) (gf-notes upd)]
     ::
         %block-pal
       ?:  =(ship.act our.bowl)  `this
@@ -15733,7 +15858,7 @@
         ?:  =(~ cleaned)  acc
         (~(put by acc) nid cleaned)
       :_  this(notes new-notes.leave-result, messages new-msgs.leave-result, artifacts new-arts.leave-result, note-admins new-admins.removal-result, note-muted new-muted.removal-result, pal-outgoing new-outgoing, pal-incoming new-incoming, pal-blocked new-blocked, join-requests new-jr)
-      :(weld [(gf-notes upd) ~] bye-cards cards.removal-result cards.leave-result)
+      :(weld [(gf-notes upd) (pal-sync-card ship.act new-outgoing new-incoming new-blocked) ~] bye-cards cards.removal-result cards.leave-result)
     ::
         %unblock-pal
       ?:  =(ship.act our.bowl)  `this
@@ -15755,6 +15880,7 @@
       :_  this(pal-blocked new-blocked)
       :~  (gf-notes upd)
           (rpoke /unblock-notify/(scot %p ship.act) ship.act `remote:noltbook`[%remote-unblocked ~])
+          (pal-sync-card ship.act pal-outgoing pal-incoming new-blocked)
       ==
     ::
         %add-contact
