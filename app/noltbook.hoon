@@ -6677,6 +6677,41 @@
   ?~  who  [%.n (api-result-card rid %.n %invalid-ship 'ship did not parse' ~ ~ ~)]
   ?:  =(u.who our)  [%.n (api-result-card rid %.n %rejected 'cannot target yourself' ~ ~ ~)]
   [%.y u.who]
+::  post-app-pre: validate an app-authored (member-authorized) post and build the
+::  [via actor] display attribution. author stays our; actor.host is stamped our and
+::  actor.desk = app.desk so the host trust rule (actor.host==via.ship==src.bowl,
+::  actor.desk==via.desk) preserves it. This is display attribution ONLY — no
+::  registry/roster/access/grants.
+++  post-app-pre
+  |=  [our=@p ap=(unit api-app:noltbook) pn=(unit api-actor:noltbook)]
+  ^-  (each [via=via-app:noltbook actor=actor:noltbook] [code=@tas msg=@t])
+  ?~  ap  [%.n %missing-app 'app identity required']
+  ?:  =(%$ desk.u.ap)  [%.n %invalid-desk 'app desk is empty']
+  ?~  pn  [%.n %invalid-id 'persona attribution required']
+  ?:  =('' id.u.pn)  [%.n %invalid-id 'persona id is empty']
+  ?.  ?=(?(%user %bot %app) kind.u.pn)  [%.n %invalid-kind 'kind must be user/bot/app']
+  =/  nm=@t  ?:(=('' name.u.pn) id.u.pn name.u.pn)
+  :-  %.y
+  :-  [desk.u.ap title.u.ap publisher.u.ap our]
+  [our desk.u.ap id.u.pn nm kind.u.pn]
+::  parent-actor-participant: is the parent message's actor a NOTE-SCOPED participant
+::  of `nid` (owner / roster / actor-DM)? note-scoped ONLY — never the global
+::  actor-registry, so app-authored display-only attribution reads as non-participant
+::  and does not steal host reply attention.
+++  parent-actor-participant
+  |=  $:  our=@p  nid=@ta  par-eid=(unit @uv)
+          amap=actor-map:noltbook
+          nmap=(map @ta note:noltbook)
+          owners=(map @ta actor-owner:noltbook)
+          parts=(map @ta (set actor-ref:noltbook))
+          dms=(map @ta actor-dm-meta:noltbook)
+      ==
+  ^-  ?
+  ?~  par-eid  %.n
+  =/  a  (~(get by amap) u.par-eid)
+  ?~  a  %.n
+  =/  acc  (actor-note-access our nid desk.u.a id.u.a nmap owners parts dms)
+  ?=(%.y -.acc)
 ++  api-mod-pre
   |=  $:  class=?(%mod %admin %invite)
           rid=(unit @ud)
@@ -7038,6 +7073,55 @@
   =/  args=(list [key=@t value=@t])
     (fall (rush (crip qstr-tape) yque:de-purl:html) ~)
   [(crip path-tape) args]
+++  actor-avatar-path
+  |=  raw=@ta
+  ^-  (unit [desk=@tas id=@t slug=@ta])
+  =/  path-tape=tape  (trip raw)
+  =/  slash=(unit @ud)  (find "/" path-tape)
+  ?~  slash  ~
+  =/  desk-txt=@t  (crip (scag u.slash path-tape))
+  =/  id-txt=@t  (crip (slag +(u.slash) path-tape))
+  =/  desk-term=(unit @tas)  (rush desk-txt sym)
+  ?~  desk-term  ~
+  ::  id is arbitrary @t (Skiff ids can be mixed-case/uuid/etc.), not a bare term.
+  ::  Only require non-empty and <=128 bytes; the Clay key is a hash slug anyway.
+  ?:  =(0 (met 3 id-txt))  ~
+  ?:  (gth (met 3 id-txt) 128)  ~
+  `[u.desk-term id-txt (scot %uv (sham [u.desk-term id-txt]))]
+::  mite-of-header: derive the stored image mime from the upload's Content-Type
+::  header (browsers set it to the file's real type). Splits "image/png" into a
+::  proper mite so PNG/GIF/WebP aren't mislabeled jpeg. Falls back to image/jpeg.
+++  mite-of-header
+  |=  headers=(list [key=@t value=@t])
+  ^-  (list @ta)
+  =/  ct=(unit @t)  (~(get by (malt headers)) 'content-type')
+  ?~  ct  /image/jpeg
+  =/  ct-tape=tape  (trip u.ct)
+  =/  semi=(unit @ud)  (find ";" ct-tape)
+  =/  clean=tape  ?~(semi ct-tape (scag u.semi ct-tape))
+  =/  slash=(unit @ud)  (find "/" clean)
+  ?~  slash  /image/jpeg
+  =/  major=@ta  (crip (scag u.slash clean))
+  =/  minor=@ta  (crip (slag +(u.slash) clean))
+  ?:  |(=(0 (met 3 major)) =(0 (met 3 minor)))  /image/jpeg
+  ~[major minor]
+::  user-avatar-mite: MIME gate for avatar image uploads (user PFP + actor/persona).
+::  Accepts jpeg/png/gif/webp. Missing Content-Type -> image/jpeg fallback (keeps the
+::  browser File-upload flow working; lower-risk than rejecting). Present-but-not-an-
+::  allowed-image -> ~ (the caller returns 400). Header-only (no magic-byte sniffing).
+++  user-avatar-mite
+  |=  headers=(list [key=@t value=@t])
+  ^-  (unit (list @ta))
+  =/  ct=(unit @t)  (~(get by (malt headers)) 'content-type')
+  ?~  ct  `/image/jpeg
+  =/  ct-tape=tape  (trip u.ct)
+  =/  semi=(unit @ud)  (find ";" ct-tape)
+  =/  clean=@t  (crip ?~(semi ct-tape (scag u.semi ct-tape)))
+  ?:  =('image/jpeg' clean)  `/image/jpeg
+  ?:  =('image/png' clean)   `/image/png
+  ?:  =('image/gif' clean)   `/image/gif
+  ?:  =('image/webp' clean)  `/image/webp
+  ~
 ::  Runtime-size (Option A): factor the repeated Noltbook update-fact constructor OUT
 ::  of the agent door. Each inline [%give %fact … %noltbook-update !>(upd)] embeds the
 ::  large update:noltbook type-noun via !> ; centralising !> here leaves ONE copy in
@@ -7405,7 +7489,10 @@
       ::  notification logic and SUPPRESS host reply attention for that parent (even if
       ::  the actor is remote or the notification is later filtered).
       =/  par-eid=(unit @uv)  (reply-parent-eid msg.rem cur)
-      =/  parent-is-actor=?  ?&(?=(^ par-eid) (~(has by actor-by-eid) u.par-eid))
+      ::  note-scoped: full actor participants keep actor-notif routing; app-authored
+      ::  (display-only) attribution reads as non-participant -> host reply attn applies.
+      =/  parent-is-actor=?
+        (parent-actor-participant our.bowl note-id.rem par-eid actor-by-eid notes note-actor-owners actor-note-roster actor-dm-notes)
       ::  NOTE SEND payment posts get kind=%send via the explicit marker carried
       ::  on the %remote-message poke (no longer text-prefix based).
       =/  rkind=attention-kind:noltbook  ?:(=(`%send directed-kind.rem) %send %reply)
@@ -9366,6 +9453,85 @@
       =/  env  (find-aid-in-envelopes art-id.rem artifact-envelopes)
       ?~  env  `state
       ?.  =(src.bowl author.u.env)  `state
+      :_  state
+      %+  give-simple-payload:app:server  eyre-id.rem
+      [[404 ~] ~]
+    ::
+        %remote-user-avatar-fetch
+      ::  owner: serve ONLY our own uploaded user avatar bytes. require has-avatar +
+      ::  a mule-guarded Clay read of the FIXED /lib/noltbook/avatar/mime path (no
+      ::  arbitrary-path access); missing/read-fail -> denied.
+      ?.  has-avatar
+        :_  state
+        ~[(rpoke /uav-deny/(scot %p src.bowl) src.bowl `remote:noltbook`[%remote-user-avatar-denied eyre-id.rem])]
+      =/  av-clay=path
+        :*  (scot %p our.bowl)
+            q.byk.bowl
+            (scot %da now.bowl)
+            /lib/noltbook/avatar/mime
+        ==
+      =/  res  (mule |.(.^(mime %cx av-clay)))
+      ?.  ?=(%& -.res)
+        :_  state
+        ~[(rpoke /uav-deny/(scot %p src.bowl) src.bowl `remote:noltbook`[%remote-user-avatar-denied eyre-id.rem])]
+      =/  mim=mime  p.res
+      =/  ct=@t  (rap 3 (join '/' p.mim))
+      :_  state
+      ~[(rpoke /uav-content/(scot %p src.bowl) src.bowl `remote:noltbook`[%remote-user-avatar-content eyre-id.rem ct q.mim])]
+    ::
+        %remote-user-avatar-content
+      ::  requester: answer the held browser request with the fetched bytes; persist
+      ::  NOTHING. no-store (no versioning this pass, so never cache).
+      =/  hdrs=(list [@t @t])
+        :~  ['content-type' mime.rem]
+            ['cache-control' 'no-store']
+            ['access-control-allow-origin' '*']
+        ==
+      =/  =simple-payload:http  [[200 hdrs] `bytes.rem]
+      :_  state
+      (give-simple-payload:app:server eyre-id.rem simple-payload)
+    ::
+        %remote-user-avatar-denied
+      ::  requester: resolve the held request as 404; leave no pending state.
+      :_  state
+      %+  give-simple-payload:app:server  eyre-id.rem
+      [[404 ~] ~]
+    ::
+        %remote-actor-avatar-fetch
+      ::  owner: serve ONLY our own actor avatar bytes for the requested [desk id].
+      ::  slug is derived exactly like actor-avatar-path (sham of [desk id]) — no
+      ::  arbitrary-path access. Presentation-only: no registry/roster/grant check.
+      ::  missing/read-fail -> denied. No state mutation.
+      =/  slug=@ta  (scot %uv (sham [desk.rem actor-id.rem]))
+      =/  av-clay=path
+        :*  (scot %p our.bowl)
+            q.byk.bowl
+            (scot %da now.bowl)
+            /lib/noltbook/actor-avatars/[desk.rem]/[slug]/mime
+        ==
+      =/  res  (mule |.(.^(mime %cx av-clay)))
+      ?.  ?=(%& -.res)
+        :_  state
+        ~[(rpoke /aav-deny/(scot %p src.bowl) src.bowl `remote:noltbook`[%remote-actor-avatar-denied eyre-id.rem])]
+      =/  mim=mime  p.res
+      =/  ct=@t  (rap 3 (join '/' p.mim))
+      :_  state
+      ~[(rpoke /aav-content/(scot %p src.bowl) src.bowl `remote:noltbook`[%remote-actor-avatar-content eyre-id.rem ct q.mim])]
+    ::
+        %remote-actor-avatar-content
+      ::  requester: answer the held browser request with the fetched bytes; persist
+      ::  NOTHING. no-store (no versioning here, so never cache).
+      =/  hdrs=(list [@t @t])
+        :~  ['content-type' mime.rem]
+            ['cache-control' 'no-store']
+            ['access-control-allow-origin' '*']
+        ==
+      =/  =simple-payload:http  [[200 hdrs] `bytes.rem]
+      :_  state
+      (give-simple-payload:app:server eyre-id.rem simple-payload)
+    ::
+        %remote-actor-avatar-denied
+      ::  requester: resolve the held request as 404; leave no pending state.
       :_  state
       %+  give-simple-payload:app:server  eyre-id.rem
       [[404 ~] ~]
@@ -12340,6 +12506,35 @@
           (api-result-card request-id.aa %.y %user-actor-unblocked 'actor unblocked' ~ ~ ~)
       ==
     ::
+        %post-app-message
+      ::  App-authored post under MEMBER authority. author stays our.bowl; the actor is
+      ::  DISPLAY attribution only. Uses the normal member-post gate (human-sees-note),
+      ::  NOT gate-actor-cap/actor-note-access/registry/roster. v1: notebook/group only.
+      =/  nt-u  (~(get by notes) note-id.aa)
+      ?~  nt-u
+        :_  this
+        (api-result-card request-id.aa %.n %missing-note 'no such note' `note-id.aa ~ ~)
+      ?.  ?|(=(%notebook type.u.nt-u) =(%group type.u.nt-u))
+        :_  this
+        (api-result-card request-id.aa %.n %unsupported 'only notebook/group notes support app-authored posts' `note-id.aa ~ ~)
+      ?:  (is-write-blocked note-id.aa host-status notes our.bowl)
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'write blocked' `note-id.aa ~ ~)
+      ?.  (human-sees-note note-id.aa our.bowl note-members note-actor-owners notes)
+        :_  this
+        (api-result-card request-id.aa %.n %not-participant 'host user is not a logical participant of this note' `note-id.aa ~ ~)
+      =/  pre  (post-app-pre our.bowl app.aa persona.aa)
+      ?:  ?=(%.n -.pre)
+        :_  this
+        (api-result-card request-id.aa %.n code.p.pre msg.p.pre `note-id.aa ~ ~)
+      ::  reuse internal %send-message with via + actor: author=our.bowl, remote-hosted
+      ::  notes forward %remote-message where the host validates src.bowl membership.
+      =^  cards  this
+        $(mark %noltbook-action, vase (action-vase `action:noltbook`[%send-message note-id.aa text.aa ~ reply-to-eid.aa ~ `via.p.pre `actor.p.pre]))
+      :_  this
+      %+  weld  cards
+      (api-result-card request-id.aa %.y %app-message-sent 'app-authored message sent' `note-id.aa ~ ~)
+    ::
         %post-message
       ::  cheap pre-checks mirror the internal handler's guards so obvious
       ::  failures report honestly instead of silently no-op'ing.
@@ -13368,6 +13563,50 @@
     ::  actor-profiles. Three-state per field. Self-scoped to [our, desk, id] —
     ::  Noltbook enforces the host grant; the trusted app (Skiff) authenticates
     ::  which Earth user supplied the actor id (Gall cannot). ----
+    ::
+    ::  presentation-only avatar setter: writes actor-profiles[[desk id]].avatar with
+    ::  NO gate-actor-cap / registry / roster / grants. For app-authored personas.
+        %set-actor-avatar
+      ?~  app.aa
+        :_  this
+        (api-result-card request-id.aa %.n %missing-app 'app required' ~ ~ ~)
+      ?~  actor.aa
+        :_  this
+        (api-result-card request-id.aa %.n %invalid-id 'actor required' ~ ~ ~)
+      ?.  ?=(?(%user %bot %app) kind.u.actor.aa)
+        :_  this
+        (api-result-card request-id.aa %.n %invalid-kind 'kind must be user/bot/app' ~ ~ ~)
+      =/  ty=(unit actor-avatar-type:noltbook)
+        ?:  =('external' type.aa)  `%external
+        ?:  =('s3' type.aa)  `%s3
+        ?:  =('ipfs' type.aa)  `%ipfs
+        ~
+      ?~  ty
+        :_  this
+        (api-result-card request-id.aa %.n %invalid-avatar 'type must be external/s3/ipfs' ~ ~ ~)
+      ?:  =(0 (met 3 url.aa))
+        :_  this
+        (api-result-card request-id.aa %.n %invalid-avatar 'url is empty' ~ ~ ~)
+      ?:  (gth (met 3 url.aa) 2.048)
+        :_  this
+        (api-result-card request-id.aa %.n %invalid-avatar 'url too long' ~ ~ ~)
+      =/  dkey  [desk.u.app.aa id.u.actor.aa]
+      =/  existing  (~(get by actor-profiles) dkey)
+      =/  new-av=(unit actor-avatar-ref:noltbook)  `[u.ty url.aa]
+      =/  new-prof=actor-profile:noltbook
+        ?~  existing  [new-av ~ ~]
+        u.existing(avatar new-av)
+      ::  emit the public profile (built from the supplied persona fields, NOT the
+      ::  registry) so the FE renders the avatar without any actor registration.
+      =/  pp=actor-public-profile:noltbook
+        :*  desk.u.app.aa  id.u.actor.aa  name.u.actor.aa  kind.u.actor.aa  %active
+            new-av  bio.new-prof  status-text.new-prof
+        ==
+      =/  pupd=update:noltbook  [%actor-profile-updated our.bowl pp]
+      :_  this(actor-profiles (~(put by actor-profiles) dkey new-prof))
+      %+  weld  ~[(gf-notes pupd)]
+      (api-result-card request-id.aa %.y %actor-avatar-set 'actor avatar set' ~ ~ ~)
+    ::
         %update-actor-profile
       ?~  app.aa
         :_  this
@@ -13388,7 +13627,11 @@
       ::  TOFU row, no last-seen bump, and no profile change.
       =/  cand-registry  registry.p.r
       =/  dkey  [desk.u.app.aa id.u.actor.aa]
-      =/  rec  (~(got by cand-registry) dkey)
+      =/  rec-u  (~(get by cand-registry) dkey)
+      ?~  rec-u
+        :_  this
+        (api-result-card request-id.aa %.n %actor-invalid 'actor not registered' ~ ~ ~)
+      =/  rec  u.rec-u
       =/  prof  (~(get by actor-profiles) dkey)
       =/  cur-av=(unit actor-avatar-ref:noltbook)  ?~(prof ~ avatar.u.prof)
       ::  displayName three-state -> actor-record.name. absent keep; null reset to
@@ -13942,7 +14185,91 @@
             (scot %da now.bowl)
             /lib/noltbook/avatar/mime
         ==
-      =/  avatar-data=mime  .^(mime %cx av-clay)
+      =/  av-res  (mule |.(.^(mime %cx av-clay)))
+      ?.  ?=(%& -.av-res)
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[404 ~] ~]
+      =/  avatar-data=mime  p.av-res
+      =/  =simple-payload:http
+        :_  `q.avatar-data
+        :-  200
+        :~  ['content-type' (rap 3 (join '/' p.avatar-data))]
+            ['cache-control' 'max-age=3600']
+            ['access-control-allow-origin' '*']
+      ==
+      [(give-simple-payload:app:server eyre-id simple-payload) this]
+    ::  host-scoped user avatar: /apps/noltbook/user-avatar/<host>. Phase 1: only the
+    ::  owner (us) serves; remote-host Ames fetch is Phase 2 -> 404.
+    ?:  &(=(%'GET' method.request.inbound-request) =((scag 27 url-tape) "/apps/noltbook/user-avatar/"))
+      ::  split off the host so a ?v=<rev> cache-buster query is ignored.
+      =/  host-u=(unit @p)  (slaw %p path:(split-url-tail url-tape 27))
+      ?~  host-u
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[404 ~] ~]
+      ::  remote host: fetch bytes over Ames (artifact-style fetch-serve-forget). Hold
+      ::  this HTTP request; %remote-user-avatar-content/-denied answers eyre-id when the
+      ::  owner replies. We NEVER persist the fetched bytes.
+      ?.  =(u.host-u our.bowl)
+        :_  this
+        ~[(rpoke /uav-fetch-out/[eyre-id] u.host-u `remote:noltbook`[%remote-user-avatar-fetch eyre-id])]
+      ::  local host: serve our own uploaded avatar bytes.
+      ?.  has-avatar
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[404 ~] ~]
+      =/  av-clay=path
+        :*  (scot %p our.bowl)
+            q.byk.bowl
+            (scot %da now.bowl)
+            /lib/noltbook/avatar/mime
+        ==
+      =/  av-res  (mule |.(.^(mime %cx av-clay)))
+      ?.  ?=(%& -.av-res)
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[404 ~] ~]
+      =/  avatar-data=mime  p.av-res
+      =/  =simple-payload:http
+        :_  `q.avatar-data
+        :-  200
+        :~  ['content-type' (rap 3 (join '/' p.avatar-data))]
+            ['cache-control' 'max-age=3600']
+            ['access-control-allow-origin' '*']
+        ==
+      [(give-simple-payload:app:server eyre-id simple-payload) this]
+    ::  public endpoint: serve per-actor/avatar bytes. The profile stores only a URL.
+    ?:  &(=(%'GET' method.request.inbound-request) =((scag 28 url-tape) "/apps/noltbook/actor-avatar/"))
+      ::  host-scoped: /apps/noltbook/actor-avatar/<host>/<desk>/<id>. split off host.
+      =/  parts  (split-url-tail url-tape 28)
+      =/  tail=tape  (trip path.parts)
+      =/  hslash=(unit @ud)  (find "/" tail)
+      =/  host-u=(unit @p)  ?~(hslash ~ (slaw %p (crip (scag u.hslash tail))))
+      =/  avp  ?~(hslash ~ (actor-avatar-path (crip (slag +(u.hslash) tail))))
+      ::  bad host/desk/id -> 404.
+      ?:  ?|(?=(~ host-u) ?=(~ avp))
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[404 ~] ~]
+      ::  remote host: fetch bytes over Ames (fetch-serve-forget). Hold this HTTP
+      ::  request; %remote-actor-avatar-content/-denied answers eyre-id when the owner
+      ::  replies. We NEVER persist the fetched bytes.
+      ?.  =(u.host-u our.bowl)
+        :_  this
+        ~[(rpoke /aav-fetch-out/[eyre-id] u.host-u `remote:noltbook`[%remote-actor-avatar-fetch eyre-id desk.u.avp id.u.avp])]
+      =/  av-clay=path
+        :*  (scot %p our.bowl)
+            q.byk.bowl
+            (scot %da now.bowl)
+            /lib/noltbook/actor-avatars/[desk.u.avp]/[slug.u.avp]/mime
+        ==
+      =/  local-res  (mule |.(.^(mime %cx av-clay)))
+      ?.  ?=(%& -.local-res)
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[404 ~] ~]
+      =/  avatar-data=mime  p.local-res
       =/  =simple-payload:http
         :_  `q.avatar-data
         :-  200
@@ -13998,13 +14325,72 @@
         :_  this
         %+  give-simple-payload:app:server  eyre-id
         [[413 ~] ~]
-      =/  avatar-cage=cage  [%mime !>(`mime`[/image/jpeg u.bod])]
+      ::  reject non-image uploads (present-but-not-an-allowed-image -> 400).
+      =/  umite  (user-avatar-mite header-list.request.inbound-request)
+      ?~  umite
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[400 ~] ~]
+      =/  avatar-cage=cage  [%mime !>(`mime`[u.umite u.bod])]
       =/  miso-act  ?:(has-avatar [%mut avatar-cage] [%ins avatar-cage])
       =/  nori  [%& ~[[/lib/noltbook/avatar/mime miso-act]]]
       =/  clay-card=card  [%pass /avatar-write %arvo %c %info q.byk.bowl nori]
       =/  ok-payload=simple-payload:http  [[200 ~] ~]
       =/  http-cards  (give-simple-payload:app:server eyre-id ok-payload)
       :_  this(has-avatar %.y)
+      [clay-card http-cards]
+    ::  actor/avatar upload endpoint. Stores bytes in Clay only; callers set the
+    ::  returned URL on the actor profile via update-actor-profile.
+    ?:  &(=(%'POST' method.request.inbound-request) =((scag 35 url-tape) "/apps/noltbook/upload-actor-avatar/"))
+      =/  parts  (split-url-tail url-tape 35)
+      =/  avp  (actor-avatar-path path.parts)
+      ?~  avp
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[400 ~] ~]
+      =/  bod  body.request.inbound-request
+      ?~  bod
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[400 ~] ~]
+      ?:  (gth p.u.bod 51.200)
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[413 ~] ~]
+      ::  reject non-image uploads (present-but-not-an-allowed-image -> 400).
+      =/  amite  (user-avatar-mite header-list.request.inbound-request)
+      ?~  amite
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[400 ~] ~]
+      ::  decide %mut vs %ins WITHOUT reading file contents. A %cx read through a
+      ::  not-yet-existent actor-avatars/ subtree BLOCKS (mule catches crashes, not
+      ::  blocks -> bail). %cy returns an empty arch for absent paths, never blocks;
+      ::  fil non-null iff the avatar file already exists at this node.
+      =/  av-node=path
+        :*  (scot %p our.bowl)
+            q.byk.bowl
+            (scot %da now.bowl)
+            /lib/noltbook/actor-avatars/[desk.u.avp]/[slug.u.avp]
+        ==
+      =/  ex-arch=arch  .^(arch %cy av-node)
+      =/  avatar-cage=cage  [%mime !>(`mime`[u.amite u.bod])]
+      =/  miso-act  ?:(?=(^ fil.ex-arch) [%mut avatar-cage] [%ins avatar-cage])
+      =/  nori  [%& ~[[/lib/noltbook/actor-avatars/[desk.u.avp]/[slug.u.avp]/mime miso-act]]]
+      ~&  [%actor-avatar-upload-write desk.u.avp id.u.avp slug.u.avp -.miso-act]
+      =/  clay-card=card  [%pass /actor-avatar-write/[desk.u.avp]/[slug.u.avp] %arvo %c %info q.byk.bowl nori]
+      =/  avatar-url=@t
+        %-  crip
+        ;:  weld
+          "/apps/noltbook/actor-avatar/"  (trip (scot %p our.bowl))
+          "/"  (trip (scot %tas desk.u.avp))  "/"  (trip id.u.avp)
+        ==
+      =/  resp-body=@t
+        (rap 3 ['{"url":"' avatar-url '"}' ~])
+      =/  ok-payload=simple-payload:http
+        [[200 ~[['content-type' 'application/json']]] `(as-octs:mimes:html resp-body)]
+      =/  http-cards  (give-simple-payload:app:server eyre-id ok-payload)
+      :_  this
       [clay-card http-cards]
     ::  note icon upload endpoint
     ?:  &(=(%'POST' method.request.inbound-request) =((scag 27 url-tape) "/apps/noltbook/upload-icon/"))
@@ -14965,7 +15351,8 @@
       =/  rte=(unit @uv)  ?~(meta.msg ~ reply-to-eid.u.meta.msg)
       =/  par-owner=(unit @p)  (attn-parent-owner rte reply-to.act cur note-arts note-aenvs)
       =/  par-eid=(unit @uv)  (reply-parent-eid msg cur)
-      =/  parent-is-actor=?  ?&(?=(^ par-eid) (~(has by actor-by-eid) u.par-eid))
+      =/  parent-is-actor=?
+        (parent-actor-participant our.bowl note-id.act par-eid actor-by-eid notes note-actor-owners actor-note-roster actor-dm-notes)
       =/  rkind=attention-kind:noltbook  ?:(=(`%send directed-kind.act) %send %reply)
       =/  rtarget=attention-item:noltbook  [rkind %message msg-eid `id.msg ~ our.bowl id.msg]
       =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
@@ -17044,6 +17431,11 @@
     ~&  [%clay-write-failed wire]
     ?:  ?=([%avatar-write ~] wire)
       `this(has-avatar %.n)
+    ?:  ?=([%actor-avatar-write @ @ ~] wire)
+      ::  presentation-avatar Clay write bounced. Trace desk/slug so a failed upload
+      ::  is diagnosable; no state to roll back (bytes-only, no map entry).
+      ~&  [%actor-avatar-write-failed desk=i.t.wire slug=i.t.t.wire wire]
+      `this
     ?:  ?=([%icon-write @ ~] wire)
       =/  nid=@ta  i.t.wire
       =/  old  (~(get by notes) nid)
@@ -17473,7 +17865,8 @@
         ::  Phase G6B: actor-attributed parent => route to actor notifications + suppress
         ::  host reply attention for that parent.
         =/  par-eid=(unit @uv)  (reply-parent-eid msg cur)
-        =/  parent-is-actor=?  ?&(?=(^ par-eid) (~(has by actor-by-eid) u.par-eid))
+        =/  parent-is-actor=?
+          (parent-actor-participant our.bowl nid par-eid actor-by-eid notes note-actor-owners actor-note-roster actor-dm-notes)
         ::  classify %send via the marker the host preserved on the broadcast;
         ::  otherwise %reply. (Member-origin NOTE SEND: member→host %remote-message
         ::  carried directed-kind, host rebroadcast it on %new-message.)

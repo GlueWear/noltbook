@@ -231,6 +231,11 @@
         =/  v  (get-str 'replyToEid')
         ?~(v ~ `(slav %uv u.v))
       [%post-message rid app actor `@ta`(need (get-str 'noteId')) (need (get-str 'text')) rte]
+    ?:  =('post-app-message' tag)
+      =/  rte=(unit @uv)
+        =/  v  (get-str 'replyToEid')
+        ?~(v ~ `(slav %uv u.v))
+      [%post-app-message rid app actor `@ta`(need (get-str 'noteId')) (need (get-str 'text')) rte]
     ?:  =('post-app-ref' tag)
       :*  %post-app-ref  rid  app  actor
           `@ta`(need (get-str 'noteId'))
@@ -293,6 +298,8 @@
           (three-str 'bio')
           (three-str 'statusText')
       ==
+    ?:  =('set-actor-avatar' tag)
+      [%set-actor-avatar rid app actor (fall (get-str 'type') 'external') (need (get-str 'url'))]
     ::  Actor Social (Phase F2): contact actions carry data.ref (parsed above into
     ::  `ref`). MUST stay above the noteId extraction — no noteId here.
     ?:  =('actor-add-contact' tag)     [%actor-add-contact rid app actor ref]

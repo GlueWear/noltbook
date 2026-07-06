@@ -336,6 +336,20 @@
       [%remote-artifact-fetch art-id=@ta eyre-id=@ta expected-hash=(unit @uv)]
       [%remote-artifact-content art-id=@ta eyre-id=@ta mime=@t bytes=octs]
       [%remote-artifact-denied art-id=@ta eyre-id=@ta]
+      ::  main USER profile-picture bytes fetched over Ames (fetch-serve-forget, no
+      ::  local persistence). The owner serves ONLY its own /lib/noltbook/avatar/mime;
+      ::  eyre-id correlates the held browser request. (Not for actor avatars.)
+      [%remote-user-avatar-fetch eyre-id=@ta]
+      [%remote-user-avatar-content eyre-id=@ta mime=@t bytes=octs]
+      [%remote-user-avatar-denied eyre-id=@ta]
+      ::  actor/persona avatar bytes fetched over Ames (fetch-serve-forget, no local
+      ::  persistence). The owner serves ONLY its own /lib/noltbook/actor-avatars/
+      ::  <desk>/<slug>/mime for the requested [desk actor-id]; eyre-id correlates the
+      ::  held browser request. Presentation-only: serving does NOT require registry,
+      ::  roster, grants, or membership — the URL was already public in the profile.
+      [%remote-actor-avatar-fetch eyre-id=@ta desk=@tas actor-id=@t]
+      [%remote-actor-avatar-content eyre-id=@ta mime=@t bytes=octs]
+      [%remote-actor-avatar-denied eyre-id=@ta]
       ::  member -> note host: register artifact metadata; bytes stay on member
       [%remote-artifact-create =artifact]
       ::  member -> note host: update an existing %app artifact's descriptor content (shared
@@ -806,6 +820,10 @@
           bio=(unit (unit @t))
           status-text=(unit (unit @t))
       ==
+      ::  presentation-only avatar setter for app-authored/member-authorized personas.
+      ::  writes actor-profiles[[desk id]].avatar ONLY. no gate-actor-cap, no roster,
+      ::  no membership/grants — display attribution under local host authority.
+      [%set-actor-avatar request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) type=@t url=@t]
       ::  Actor Social (Phase G4): developer-facing actor profile resolution. host/desk/
       ::  id are raw text (parsed server-side). requestId is required for correlation;
       ::  the async result arrives as %actor-profile-result on /api/results.
@@ -858,6 +876,10 @@
       [%block-pal request-id=(unit @ud) ship=@t]
       [%unblock-pal request-id=(unit @ud) ship=@t]
       [%post-message request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta text=@t reply-to-eid=(unit @uv)]
+      ::  app-authored post under MEMBER authority: actor-shaped display attribution
+      ::  only. author stays our.bowl; NO actor membership/registry/access. persona is
+      ::  reused api-actor (one actor system, not a second identity model).
+      [%post-app-message request-id=(unit @ud) app=(unit api-app) persona=(unit api-actor) note-id=@ta text=@t reply-to-eid=(unit @uv)]
       [%post-app-ref request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta publisher=@t desk=@t name=@t]
       ::  Actor Control (Phase A): host-only governance over local app actors.
       ::  desk is a bare term; caps default to {%attribute} when absent. set-actor

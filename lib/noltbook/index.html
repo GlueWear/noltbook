@@ -1521,14 +1521,14 @@ function handleUpdate(upd){
   else if(upd['message-deleted']){const{noteId,msgId,eid}=upd['message-deleted'];const msgs=state.messages[noteId]||[];const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===msgId);if(fi>=0)msgs.splice(fi,1);if(state.currentNoteId===noteId){renderPinSurface(noteId);scheduleRender(noteId)}}
   else if(upd['search-result']){const{reqId,query,hits,capped}=upd['search-result'];if(reqId!==state.searchReqInFlight)return;if(String(query||'')!==state.searchQuery)return;state.searchMessageHits=Array.isArray(hits)?hits:[];state.searchMessageCapped=!!capped;if(state.searchQuery)renderSidebarSearchResults()}
   else if(upd['profile-lookup-result']){const{reqId,ship,status}=upd['profile-lookup-result'];if(state.profileLookupInFlight[reqId]!==ship)return;delete state.profileLookupInFlight[reqId];if(state.profileLookupTimers[ship]){clearTimeout(state.profileLookupTimers[ship]);delete state.profileLookupTimers[ship]}if(status==='ok'){delete state.profileLookupStatus[ship];if(state._mentionLookups)state._mentionLookups.delete(ship);removeMentionLookupPopover(ship,0);if(state.searchQuery)renderSidebarSearchResults();viewProfile(ship)}else{state.profileLookupStatus[ship]='unreachable';if(state.searchQuery)renderSidebarSearchResults();if(state._mentionLookups&&state._mentionLookups.has(ship)){state._mentionLookups.delete(ship);if(_mentionLookupPopovers[ship]){showMentionLookupPopover(ship,"this user can't be reached",'#ff4444',null);removeMentionLookupPopover(ship,3000)}}}}
-  else if(upd['profile-list']){for(const entry of upd['profile-list']){state.profiles[entry.ship]=entry.profile}const me=state.profiles['~'+api.ship];if(me){if(me.displayName)document.getElementById('shipDisplay').textContent=me.displayName;updateSidebarSigil()}if(state.palsView)renderPalsList();if(state.currentNoteId)scheduleRender()}
-  else if(upd['profile-updated']){const{ship,profile}=upd['profile-updated'];state.profiles[ship]=profile;if(ship==='~'+api.ship){document.getElementById('shipDisplay').textContent=profile.displayName||'~'+api.ship;updateSidebarSigil()}if(state.palsView)renderPalsList();if(state.currentNoteId)scheduleRender();refreshActorDmPresentation()}
+  else if(upd['profile-list']){for(const entry of upd['profile-list']){state.profiles[entry.ship]=entry.profile;const uav=entry.profile&&entry.profile.avatar&&entry.profile.avatar.type==='urbit';if(uav){if(!avatarRevisionByShip[entry.ship])avatarRevisionByShip[entry.ship]=Date.now()}else{delete avatarRevisionByShip[entry.ship]}}const me=state.profiles['~'+api.ship];if(me){if(me.displayName)document.getElementById('shipDisplay').textContent=me.displayName;updateSidebarSigil()}if(state.palsView)renderPalsList();if(state.currentNoteId)scheduleRender()}
+  else if(upd['profile-updated']){const{ship,profile}=upd['profile-updated'];state.profiles[ship]=profile;const uav=profile&&profile.avatar&&profile.avatar.type==='urbit';if(uav){avatarRevisionByShip[ship]=Date.now()}else{delete avatarRevisionByShip[ship]}if(ship==='~'+api.ship&&!uav)clearOwnAvatarBlob();if(ship==='~'+api.ship){document.getElementById('shipDisplay').textContent=profile.displayName||'~'+api.ship;updateSidebarSigil()}if(state.palsView)renderPalsList();if(state.currentNoteId)scheduleRender();refreshActorDmPresentation()}
   else if(upd['remote-note-list']){const{ship,notes}=upd['remote-note-list'];Object.keys(state.discoveryNotes).forEach(k=>{if(state.discoveryNotes[k].creator===ship)delete state.discoveryNotes[k]});for(const n of notes)state.discoveryNotes[n.id]=n;const el=document.getElementById('viewProfileNotes');if(el&&state.viewingProfileShip===ship){el.innerHTML=renderProfileNotesHtml(ship,'none available')}if(state.pendingRefOpen&&state.pendingRefOpen.creator===ship){const _pnid=state.pendingRefOpen.noteId;clearTimeout(state.pendingRefOpen.timer);state.pendingRefOpen=null;if(state.discoveryNotes[_pnid]){openNoteDetailModal(_pnid)}else{showRefUnavailable(_pnid,'Note unavailable')}}}
   // Phase G4: async actor-profile resolution result. ok => cache + render; missing/
   // unreachable => keep the glyph fallback. Never reloads the message timeline.
-  else if(upd['actor-profile-result']){const r=upd['actor-profile-result'];const key=actorKey(r.host,r.desk,r.id);if(state.actorProfileTimers[key]){clearTimeout(state.actorProfileTimers[key]);delete state.actorProfileTimers[key]}if(state.actorProfileInFlight[key]===r.requestId)delete state.actorProfileInFlight[key];if(r.status==='ok'&&r.profile){state.actorProfiles[key]=r.profile;state.actorProfileFetchedAt[key]=(typeof r.fetchedAt==='number'?r.fetchedAt:Date.now());delete state.actorProfileStatus[key];delete state.actorProfileRetryAt[key];refreshActorModal(key);if(state.currentNoteId)scheduleRender();refreshActorDmPresentation()}else{state.actorProfileStatus[key]=r.status;state.actorProfileRetryAt[key]=Date.now()+(r.status==='unreachable'?ACTOR_PROFILE_UNREACHABLE_COOLDOWN:ACTOR_PROFILE_NEG_COOLDOWN);refreshActorModal(key)}}
+  else if(upd['actor-profile-result']){const r=upd['actor-profile-result'];const key=actorKey(r.host,r.desk,r.id);if(state.actorProfileTimers[key]){clearTimeout(state.actorProfileTimers[key]);delete state.actorProfileTimers[key]}if(state.actorProfileInFlight[key]===r.requestId)delete state.actorProfileInFlight[key];if(r.status==='ok'&&r.profile){state.actorProfiles[key]=r.profile;state.actorProfileFetchedAt[key]=(typeof r.fetchedAt==='number'?r.fetchedAt:Date.now());if(r.profile.avatar&&isHostedActorAvatar(r.profile.avatar.url)){actorAvatarRevision[key]=Date.now()}else{delete actorAvatarRevision[key]}delete state.actorProfileStatus[key];delete state.actorProfileRetryAt[key];refreshActorModal(key);if(state.currentNoteId)scheduleRender();refreshActorDmPresentation()}else{state.actorProfileStatus[key]=r.status;state.actorProfileRetryAt[key]=Date.now()+(r.status==='unreachable'?ACTOR_PROFILE_UNREACHABLE_COOLDOWN:ACTOR_PROFILE_NEG_COOLDOWN);refreshActorModal(key)}}
   // Phase G4: a local actor profile changed — restamp cache + re-render immediately.
-  else if(upd['actor-profile-updated']){const p=upd['actor-profile-updated'];const key=actorKey(p.host,p.desk,p.id);state.actorProfiles[key]=p;state.actorProfileFetchedAt[key]=Date.now();delete state.actorProfileRetryAt[key];delete state.actorProfileStatus[key];refreshActorModal(key);if(state.currentNoteId)scheduleRender();refreshActorDmPresentation()}
+  else if(upd['actor-profile-updated']){const p=upd['actor-profile-updated'];const key=actorKey(p.host,p.desk,p.id);state.actorProfiles[key]=p;state.actorProfileFetchedAt[key]=Date.now();if(p.avatar&&isHostedActorAvatar(p.avatar.url)){actorAvatarRevision[key]=Date.now()}else{delete actorAvatarRevision[key]}delete state.actorProfileRetryAt[key];delete state.actorProfileStatus[key];refreshActorModal(key);if(state.currentNoteId)scheduleRender();refreshActorDmPresentation()}
   // Phase G5A/G5B: actor-DM marker hydration (live fact + on-watch snapshot). meta null
   // => the marker was removed. The marker drives the G5B direct-conversation
   // presentation; refreshActorDmPresentation re-renders sidebar/header/controls.
@@ -3644,14 +3644,28 @@ function appendMessage(msg,isOwn){
   renderMessages(state.currentNoteId,isOwn?'bottom':undefined);
 }
 let ownAvatarBlobUrl=null;
+// per-ship revision for uploaded (type:"urbit") avatars. The served URL is stable
+// (/user-avatar/<ship>) so browsers won't re-fetch after an avatar change without a
+// cache-buster. Bumped on profile-updated; cleared when the avatar isn't urbit.
+const avatarRevisionByShip={};
+function clearOwnAvatarBlob(){
+  if(ownAvatarBlobUrl){try{URL.revokeObjectURL(ownAvatarBlobUrl)}catch(e){}ownAvatarBlobUrl=null}
+}
+function setOwnAvatarBlob(blob){
+  clearOwnAvatarBlob();
+  ownAvatarBlobUrl=URL.createObjectURL(blob);
+}
 function resolveAvatarUrl(ship){
   if(ship==='~'+api.ship&&ownAvatarBlobUrl)return ownAvatarBlobUrl;
   const prof=state.profiles[ship];
   if(!prof||!prof.avatar)return null;
   const av=prof.avatar;
   if(av.type==='urbit'){
-    if(ship==='~'+api.ship)return '/apps/noltbook/avatar';
-    return null;
+    // host-scoped: my own ship serves locally, a remote ship's bytes arrive over Ames.
+    // Append ?v=<rev> so a changed avatar re-fetches instead of using the cached URL.
+    const rev=avatarRevisionByShip[ship];
+    const base='/apps/noltbook/user-avatar/'+encodeURIComponent(ship);
+    return rev?base+'?v='+rev:base;
   }
   if(av.url)return av.url;
   return null;
@@ -3690,12 +3704,25 @@ function actorHeaderHtml(av,author,timeStr,actions){
 function actorKey(host,desk,id){return host+'|'+desk+'|'+id}
 function actorKeyOf(a){return a?actorKey(a.host,a.desk,a.id):''}
 // resolved avatar url for an actor (external/s3/ipfs only — NEVER an Urbit sigil).
+// per-actor revision for uploaded (host-scoped /actor-avatar/…) avatars. The served
+// URL is stable so browsers won't re-fetch after a change without a cache-buster.
+// Bumped on actor-profile-result/-updated when the avatar is a hosted actor-avatar URL.
+const actorAvatarRevision={};
+function isHostedActorAvatar(url){return typeof url==='string'&&url.indexOf('/apps/noltbook/actor-avatar/')===0}
 function resolveActorAvatarUrl(a){
   if(!a)return null;
-  const p=state.actorProfiles[actorKeyOf(a)];
+  const key=actorKeyOf(a);
+  const p=state.actorProfiles[key];
   if(!p||!p.avatar)return null;
   const t=p.avatar.type;
-  if(t==='external'||t==='s3'||t==='ipfs')return p.avatar.url||null;
+  if(t==='external'||t==='s3'||t==='ipfs'){
+    const url=p.avatar.url||null;
+    if(!url)return null;
+    // uploaded actor avatars ride a host-scoped Noltbook route; cache-bust those only.
+    // Arbitrary external/s3/ipfs public URLs are returned verbatim.
+    if(isHostedActorAvatar(url)){const rev=actorAvatarRevision[key];return rev?url+'?v='+rev:url}
+    return url;
+  }
   return null;
 }
 // avatar markup: first-letter glyph from the message-stamped actor name underneath,
@@ -5153,7 +5180,9 @@ function shipToPoint(ship){
 }
 function resizeImageToBlob(file,maxSize,cb){
   const img=new Image();
+  const src=URL.createObjectURL(file);
   img.onload=function(){
+    try{URL.revokeObjectURL(src)}catch(e){}
     const c=document.createElement('canvas');
     const scale=Math.min(maxSize/img.width,maxSize/img.height,1);
     c.width=Math.round(img.width*scale);
@@ -5161,10 +5190,12 @@ function resizeImageToBlob(file,maxSize,cb){
     c.getContext('2d').drawImage(img,0,0,c.width,c.height);
     c.toBlob(function(blob){cb(blob)},'image/jpeg',0.7);
   };
-  img.src=URL.createObjectURL(file);
+  img.onerror=function(){try{URL.revokeObjectURL(src)}catch(e){}};
+  img.src=src;
 }
 function promptProfileIcon(){
   let pendingBlob=null;
+  let pendingPreviewUrl=null;
   const overlay=document.createElement('div');
   overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999';
   const menu=document.createElement('div');
@@ -5182,7 +5213,11 @@ function promptProfileIcon(){
       <button class="modal-btn clear" id="profileIconClear">CLEAR</button>
       <button class="modal-btn save" id="profileIconSave">SAVE</button>
     </div>`;
-  overlay.addEventListener('click',function(e){if(e.target===overlay){overlay.remove();menu.remove()}});
+  function cleanupProfileIconModal(){
+    if(pendingPreviewUrl){try{URL.revokeObjectURL(pendingPreviewUrl)}catch(e){}pendingPreviewUrl=null}
+    overlay.remove();menu.remove();
+  }
+  overlay.addEventListener('click',function(e){if(e.target===overlay)cleanupProfileIconModal()});
   document.body.appendChild(overlay);
   document.body.appendChild(menu);
   const fileInput=menu.querySelector('#profileIconFile');
@@ -5191,36 +5226,51 @@ function promptProfileIcon(){
   fileInput.addEventListener('change',function(){
     const file=this.files[0];if(!file)return;
     resizeImageToBlob(file,128,function(blob){
+      if(!blob)return;
       pendingBlob=blob;
       urlInput.value='(file selected)';
-      preview.innerHTML='<img src="'+URL.createObjectURL(blob)+'" style="width:64px;height:64px;object-fit:cover;border-radius:4px">';
+      if(pendingPreviewUrl){try{URL.revokeObjectURL(pendingPreviewUrl)}catch(e){}}
+      pendingPreviewUrl=URL.createObjectURL(blob);
+      preview.innerHTML='<img src="'+pendingPreviewUrl+'" style="width:64px;height:64px;object-fit:cover;border-radius:4px">';
       preview.style.display='block';
     });
   });
-  menu.querySelector('#profileIconCancel').addEventListener('click',function(){overlay.remove();menu.remove()});
+  menu.querySelector('#profileIconCancel').addEventListener('click',cleanupProfileIconModal);
   menu.querySelector('#profileIconClear').addEventListener('click',function(){
+    const ship='~'+api.ship;
     const p=state.profiles['~'+api.ship]||{};
+    state.profiles[ship]={...p,avatar:null};
+    delete avatarRevisionByShip[ship];
     api.poke('noltbook','noltbook-action',{action:'update-profile',data:{displayName:p.displayName||null,avatar:null,walletAddress:p.walletAddress||null,azimuthAddress:p.azimuthAddress||null}});
-    ownAvatarBlobUrl=null;
+    clearOwnAvatarBlob();
     updateSidebarSigil();
-    overlay.remove();menu.remove();
+    cleanupProfileIconModal();
   });
   menu.querySelector('#profileIconSave').addEventListener('click',async function(){
+    const ship='~'+api.ship;
     const p=state.profiles['~'+api.ship]||{};
     if(pendingBlob){
       const resp=await fetch('/apps/noltbook/upload-avatar',{method:'POST',body:pendingBlob,credentials:'include'});
       if(resp.ok){
-        ownAvatarBlobUrl=URL.createObjectURL(pendingBlob);
+        state.profiles[ship]={...p,avatar:{type:'urbit',url:''}};
+        avatarRevisionByShip[ship]=Date.now();
+        setOwnAvatarBlob(pendingBlob);
         api.poke('noltbook','noltbook-action',{action:'update-profile',data:{displayName:p.displayName||null,avatar:{type:'urbit',url:''},walletAddress:p.walletAddress||null,azimuthAddress:p.azimuthAddress||null}});
         updateSidebarSigil();
       }
     }else{
       const val=urlInput.value.trim();
       if(val&&!val.startsWith('data:')){
+        // switching to a URL avatar: drop any stale uploaded-blob preview so the owner
+        // sees the URL image immediately, not the old local blob.
+        state.profiles[ship]={...p,avatar:{type:'external',url:val}};
+        delete avatarRevisionByShip[ship];
+        clearOwnAvatarBlob();
         api.poke('noltbook','noltbook-action',{action:'update-profile',data:{displayName:p.displayName||null,avatar:{type:'external',url:val},walletAddress:p.walletAddress||null,azimuthAddress:p.azimuthAddress||null}});
+        updateSidebarSigil();
       }
     }
-    overlay.remove();menu.remove();
+    cleanupProfileIconModal();
   });
 }
 function renderProfileNotesHtml(ship,fallback){
@@ -5360,10 +5410,7 @@ function viewActorProfile(host,desk,id,fallbackName,fallbackKind){
       </div>
     </div>
     <div class="modal-actions">
-      <button class="actor-modal-pref-btn ${_muted?'on':''}" id="actorMuteBtn">${_muted?'UNMUTE':'MUTE'}</button>
-      <button class="actor-modal-pref-btn ${_blocked?'on':''}" id="actorBlockBtn">${_blocked?'UNBLOCK':'BLOCK'}</button>
-      <button class="modal-btn" id="actorRetry">RETRY</button>
-      <button class="modal-btn" id="actorViewHost">View Host (${escHtml(host)})</button>
+      <button class="modal-btn primary" id="actorViewHost">View Host (${escHtml(host)})</button>
       <button class="modal-btn amber-hover" id="actorProfileClose">CLOSE</button>
     </div>`;
   overlay.appendChild(modal);
@@ -5372,12 +5419,6 @@ function viewActorProfile(host,desk,id,fallbackName,fallbackKind){
   document.body.appendChild(overlay);
   modal.querySelector('#actorProfileClose').addEventListener('click',_close);
   modal.querySelector('#actorViewHost').addEventListener('click',function(){_close();viewProfile(host)});
-  // RETRY bypasses freshness + cooldown; the async result refreshes this modal.
-  modal.querySelector('#actorRetry').addEventListener('click',function(){requestActorProfile(host,desk,id,true)});
-  // Phase B: real-user mute/block by stable [host,desk,id]. The live %user-actor-preferences
-  // fact refreshes button state + rerenders hidden content (no actor data in inline JS).
-  modal.querySelector('#actorMuteBtn').addEventListener('click',function(){pokeActorPref(_muted?'unmute-actor':'mute-actor',host,desk,id)});
-  modal.querySelector('#actorBlockBtn').addEventListener('click',function(){pokeActorPref(_blocked?'unblock-actor':'block-actor',host,desk,id)});
   requestActorProfile(host,desk,id);
 }
 // Phase B: poke the real-user actor mute/block API by full [host,desk,id].
