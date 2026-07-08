@@ -563,6 +563,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
         <button class="sidebar-search-clear" id="sidebarSearchClear" style="display:none" onclick="setSidebarSearch('');document.getElementById('sidebarSearchInput').value='';document.getElementById('sidebarSearchInput').focus()">CLEAR</button>
       </div>
       <div class="sidebar-scroll">
+        <div class="section-body open" id="coverPinnedBody"></div>
         <div class="section-header" onclick="toggleSection('notes')">
           <span class="section-arrow open" id="notesArrow">▶</span>
           <span class="section-title">NOTES</span>
@@ -1545,7 +1546,7 @@ function handleUpdate(upd){
   else if(upd['gossip-envelope']){const{noteId,envelope,hops}=upd['gossip-envelope'];const nid=noteId||'cover';const envEid=envelope.meta&&envelope.meta.eid||null;if((state.messages[nid]||[]).some(m=>(envEid&&m.meta&&m.meta.eid===envEid)||m.id===envelope.id))return;const nenvs=state.gossipEnvelopes[nid]||{};const envKey=envEid||envelope.id;if(nenvs[envKey])return;envelope._eid=envEid;nenvs[envKey]=envelope;state.gossipEnvelopes[nid]=nenvs;state.gossipHops[envelope.id]=hops;const shell={id:envelope.id,noteId:nid,author:envelope.author,text:null};fetchTopWindowEnvelopes(nid);if(state.currentNoteId!==nid&&coverMsgVisible(shell)&&!isPinnedUnreadNote(nid))state.notifications.add(nid);markOpenNoteReadSoon(nid);scheduleNoteList()}
   else if(upd['envelope-list']){const{noteId,envelopes}=upd['envelope-list'];const existingMsgs=state.messages[noteId]||[];const existingIds=new Set(existingMsgs.map(m=>m.id));const existingEids=new Set(existingMsgs.filter(m=>m.meta&&m.meta.eid).map(m=>m.meta.eid));const nenvs=state.gossipEnvelopes[noteId]||{};for(const env of envelopes){const eeid=env.meta&&env.meta.eid||null;const envKey=eeid||env.id;if(existingIds.has(env.id)||(eeid&&existingEids.has(eeid))||nenvs[envKey])continue;env._eid=eeid;nenvs[envKey]=env}state.gossipEnvelopes[noteId]=nenvs;const fetched=fetchTopWindowEnvelopes(noteId);if(fetched>0)scheduleNoteList()}
   else if(upd['cover-msg-content']){const{noteId,message:msg}=upd['cover-msg-content'];const nid=noteId||'cover';markOpenNoteReadSoon(nid);if(state.currentNoteId===nid)ScrollCo.bump();const msgEid=msg.meta&&msg.meta.eid||null;const nfetch=state.gossipFetching[nid];if(nfetch){nfetch.delete(msg.id);if(msgEid)nfetch.delete(msgEid)}const nenvs=state.gossipEnvelopes[nid]||{};delete nenvs[msg.id];if(msgEid)delete nenvs[msgEid];state.gossipEnvelopes[nid]=nenvs;if(!state.messages[nid])state.messages[nid]=[];const isDup=state.messages[nid].some(m=>(msgEid&&m.meta&&m.meta.eid===msgEid)||m.id===msg.id);let _appendedGossipText=false;if(!isDup){state.messages[nid].push(msg);const visible=coverMsgVisible(msg);const _isGossipy=nid==='cover'||(state.notes[nid]&&state.notes[nid].type==='gossip');if(_isGossipy&&state.currentNoteId===nid&&visible){const _isOwn=msg.author===('~'+api.ship);appendMessage(msg,_isOwn);_appendedGossipText=true}else if(state.currentNoteId!==nid&&visible&&!isPinnedUnreadNote(nid))state.notifications.add(nid);if(nid==='cover'){const _cm=(state.messages['cover']||[]).filter(coverMsgVisible);if(_cm.length){const _nw=_cm.reduce((a,b)=>b.id>a.id?b:a);state.coverPreview={author:_nw.author,preview:_nw.text}}}}state.gossipPending[nid]=Math.max(0,(state.gossipPending[nid]||1)-1);if(state.gossipPending[nid]===0){hideGossipLoading();if(state.currentNoteId===nid&&!_appendedGossipText)scheduleRender(nid);if(state.notes[nid]){const msgs=state.messages[nid]||[];if(msgs.length){const newest=msgs.reduce((a,b)=>b.timestamp>a.timestamp?b:a);state.notes[nid].lastPreview=newest.text;state.notes[nid].lastAuthor=newest.author}}scheduleNoteList()}if(state.pendingGossipRef&&state.pendingGossipRef.noteId===nid){const pr=state.pendingGossipRef;const match=(msgEid&&pr.eid&&msgEid===pr.eid)||String(msg.id)===pr.msgId;if(match){clearTimeout(pr.timer);state.pendingGossipRef=null;setTimeout(function(){scrollToGossipMsg(pr.msgId,pr.eid)},400)}}}
-  else if(upd['rumor-message']){const msg=upd['rumor-message'].message;if(!state.messages['ars-rumors'])state.messages['ars-rumors']=[];const isDup=state.messages['ars-rumors'].some(m=>m.text===msg.text);if(!isDup){state.messages['ars-rumors'].unshift(msg);if(state.currentNoteId==='ars-rumors')renderMessages('ars-rumors');else state.notifications.add('ars-rumors');scheduleNoteList()}}
+  else if(upd['rumor-message']){/* %Rumors removed from UI — ignore rumor traffic so no phantom %GOSSIP notification dot */}
   else if(upd['mention-update']){const{noteId,mentions}=upd['mention-update'];if(!state.mentions[noteId])state.mentions[noteId]=[];for(const m of mentions){const mEid=m.eid||null;const dup=state.mentions[noteId].some(x=>(mEid&&x.eid&&x.eid===mEid)||x.id===m.id);if(!dup)state.mentions[noteId].push({id:m.id,eid:mEid,author:m.author})}scheduleNoteList()}
   else if(upd['attention-update']){const{noteId,items,full}=upd['attention-update'];const mapped=(items||[]).map(it=>({kind:it.kind,targetKind:it.targetKind,eid:it.eid||null,msgId:(it.msgId!=null?it.msgId:null),aid:it.aid||null,author:it.author,when:it.when}));if(full){state.attention[noteId]=mapped}else{if(!state.attention[noteId])state.attention[noteId]=[];for(const it of mapped){const dup=state.attention[noteId].some(x=>(it.eid&&x.eid&&x.eid===it.eid)||(it.msgId!=null&&x.targetKind==='message'&&x.msgId===it.msgId)||(it.aid&&x.aid===it.aid)||(x.kind===it.kind&&x.author===it.author&&x.when===it.when));if(!dup)state.attention[noteId].push(it)}}scheduleNoteList()}
   else if(upd['call-state']){const{noteId,call}=upd['call-state'];console.log('[call-state]',noteId,call);if(call.status==='active'){state.activeCalls[noteId]=call}else{delete state.activeCalls[noteId]}updateCallUI()}
@@ -2052,10 +2053,9 @@ function fetchVisibleEnvelopes(){
   // per note: fetch all currently-selected unresolved text envelopes (top window)
   for(const nid of Object.keys(state.gossipEnvelopes))fetchTopWindowEnvelopes(nid);
 }
-const arsEntries=[
-  {id:'cover',name:'%Grimoire',color:'#ffaa00',icon:null,bgColor:null},
-  {id:'ars-rumors',name:'%Rumors',color:'#652287',icon:null,bgColor:null},
-];
+// %Grimoire cover note — pinned to the very top of the sidebar (above every section),
+// independent of notifications/recency. (%Rumors removed from the UI.)
+const coverEntry={id:'cover',name:'%Grimoire',color:'#ffaa00',icon:null,bgColor:null};
 // attention-aware sidebar preview: when a note has pending directed attention,
 // show "<kind>: <sender displayName>" using the OLDEST target (same ordering as
 // getAttentionTargets open/jump). Returns null when there is no attention.
@@ -2288,8 +2288,8 @@ function computeTrickle(){
 }
 function renderNoteList(){
   if(state.searchQuery){renderSidebarSearchResults();return}
-  const arsEl=document.getElementById('arsBody'),notesEl=document.getElementById('notesBody'),sharedEl=document.getElementById('sharedBody');
-  arsEl.innerHTML='';notesEl.innerHTML='';sharedEl.innerHTML='';
+  const coverEl=document.getElementById('coverPinnedBody'),arsEl=document.getElementById('arsBody'),notesEl=document.getElementById('notesBody'),sharedEl=document.getElementById('sharedBody');
+  coverEl.innerHTML='';arsEl.innerHTML='';notesEl.innerHTML='';sharedEl.innerHTML='';
   const trickle=computeTrickle();
   state._trickleDotted=trickle.dotted;
   // section-header dots
@@ -2297,7 +2297,7 @@ function renderNoteList(){
     const hdr=document.querySelector('.section-header[onclick*="\''+sec+'\'"]');
     if(hdr)hdr.classList.toggle('has-notif',trickle.sections[sec]);
   }
-  for(const entry of arsEntries)arsEl.appendChild(makeArsItem(entry));
+  coverEl.appendChild(makeArsItem(coverEntry));
   // effective recency: own activity bubbled up with the max of all descendants,
   // without mutating any note's own stored activity. Memoized per render pass.
   const actMemo={};
@@ -4577,6 +4577,20 @@ function sendPluginFrame(rec,type,payload){
   if(!rec||!rec.iframe||!rec.iframe.contentWindow)return;
   rec.iframe.contentWindow.postMessage({source:'noltbook-host',protocol:NB_PLUGIN_PROTOCOL,session:rec.session,type:type,payload:payload||{}},'*');
 }
+// pluginNoteContextId: the note a frame is bound to, IF the frame may read bounded
+// note context. Derived ONLY from rec.spec.noteId (never from a plugin payload). Valid
+// when: spec.noteId is set, is a real loaded note (not the synthetic 'cover'), and the
+// current ship is still a member and not removed. Shared by the capability flag and the
+// nb:get-note-context handler so they can never disagree. Returns nid or null.
+function pluginNoteContextId(rec){
+  const nid=rec&&rec.spec&&rec.spec.noteId;
+  if(!nid||nid==='cover')return null;
+  const note=state.notes[nid];
+  if(!note)return null;
+  const me='~'+api.ship;
+  if(!(note.users||[]).includes(me)||(note.removed||[]).includes(me))return null;
+  return nid;
+}
 function pluginInitPayload(rec){
   const spec=rec.spec,art=spec.artifactId?state.artifacts[spec.artifactId]:null;
   const desc=art?pluginArtifactDescriptor(art):null;
@@ -4589,7 +4603,7 @@ function pluginInitPayload(rec){
     artifact:art&&desc?pluginArtifactPayload(art,desc):null,
     context:spec.context||null,
     sourceArtifact:spec.sourceArtifactId?{artifactId:spec.sourceArtifactId,noteId:spec.sourceNoteId||null,desk:spec.sourceDesk||null}:null,
-    capabilities:{publish:spec.mode==='private-tool',update:spec.mode==='note-artifact',request:true,resize:spec.mode!=='embedded-app',close:true,openApp:true,copyText:true,listNoteArtifacts:!!spec.noteId,updateSourceArtifact:spec.mode==='embedded-app'&&!!spec.sourceArtifactId}
+    capabilities:{publish:spec.mode==='private-tool',update:spec.mode==='note-artifact',request:true,resize:spec.mode!=='embedded-app',close:true,openApp:true,copyText:true,listNoteArtifacts:!!spec.noteId,updateSourceArtifact:spec.mode==='embedded-app'&&!!spec.sourceArtifactId,noteContext:!!pluginNoteContextId(rec)}
   };
 }
 function pluginArtifactPayload(art,desc){
@@ -4777,6 +4791,63 @@ function listNoteArtifacts(rec,payload){
   }
   sendPluginFrame(rec,'nb:list-note-artifacts-result',{ok:true,artifacts:out});
 }
+// nb:get-note-context: bounded, read-only context from the note the frame is bound to.
+// noteId is derived from the frame spec (pluginNoteContextId), never the payload. All
+// fields are copied explicitly (no spreads) so nothing internal leaks. Message text and
+// artifact summaries only; no raw versions/content, no other notes.
+function getNoteContext(rec,payload){
+  const fail=function(error){sendPluginFrame(rec,'nb:get-note-context-result',{ok:false,error:error});};
+  payload=(payload&&typeof payload==='object')?payload:{};
+  const nid=pluginNoteContextId(rec);
+  if(!nid)return fail((rec&&rec.spec&&rec.spec.noteId)?'not-allowed':'no-note-context');
+  const note=state.notes[nid];
+  const msgs=state.messages[nid];
+  if(!msgs)return fail('note-not-loaded');
+  const mopt=(payload.messages&&typeof payload.messages==='object')?payload.messages:{};
+  let limit=200;const ln=Number(mopt.limit);
+  if(Number.isFinite(ln)&&ln>0)limit=Math.min(200,Math.floor(ln));
+  const order=(mopt.order==='newest')?'newest':'oldest';
+  // "recent" window = newest N of the chronological array; kept oldest->newest here.
+  let mapped=msgs.slice(Math.max(0,msgs.length-limit)).map(function(m){
+    const out={id:m.id,eid:(m.meta&&m.meta.eid)||null,author:m.author,actor:null,via:null,
+      text:(typeof m.text==='string'?m.text:''),timestamp:(m.timestamp!=null?m.timestamp:null),
+      replyToEid:(m.meta&&m.meta.replyToEid)||null};
+    if(m.actor&&typeof m.actor==='object')out.actor={host:m.actor.host||null,desk:m.actor.desk||null,id:m.actor.id||null,name:m.actor.name||null,kind:m.actor.kind||null};
+    if(m.via&&typeof m.via==='object')out.via={desk:m.via.desk||null,title:m.via.title||null,publisher:m.via.publisher||null,ship:m.via.ship||null};
+    return out;
+  });
+  let truncated=msgs.length>mapped.length;
+  // artifact summaries for THIS note only; app/kind/summary from the parsed descriptor
+  // (app artifacts) or file meta. Never raw versions/content.
+  const arts=state.artifacts||{},outArts=[];
+  for(const id in arts){
+    if(!Object.prototype.hasOwnProperty.call(arts,id))continue;
+    const art=arts[id];
+    if(!art||art.noteId!==nid||(art.type!=='app'&&art.type!=='file'))continue;
+    let app=null,kind=null,summary='';
+    if(art.type==='app'){
+      const desc=pluginArtifactDescriptor(art);if(!desc)continue;
+      app=(desc.app&&desc.app.desk)||null;
+      kind=(desc.data&&desc.data.kind)||(desc.ref&&desc.ref.kind)||null;
+      summary=(desc.data&&(desc.data.summary||desc.data.description||desc.data.info))||'';
+    }else{
+      let meta={};try{const vs=art.versions||[];if(vs.length)meta=JSON.parse(vs[vs.length-1].content)}catch(e){}
+      kind=meta.kind||null;summary=meta.summary||meta.description||'';
+    }
+    const vers=Array.isArray(art.versions)?art.versions:[];
+    const ts=vers.length?vers[vers.length-1].timestamp:(art.updated!=null?art.updated:(art.created!=null?art.created:null));
+    outArts.push({id:art.id,eid:(art.meta&&art.meta.eid)||null,name:art.name,creator:art.creator,app:app,kind:kind,
+      summary:(typeof summary==='string'?summary.slice(0,280):''),timestamp:(ts!=null?ts:null)});
+  }
+  const build=function(mm){return{ok:true,note:{id:nid,name:note.name,type:note.type,visibility:note.visibility},messages:mm,artifacts:outArts,truncated:truncated};};
+  let result=build(mapped);
+  // enforce byte cap against the FINAL payload; drop oldest messages until under cap.
+  while(mapped.length>0&&pluginContentBytes(JSON.stringify(result))>NB_PLUGIN_MAX_RESPONSE_BYTES){
+    mapped=mapped.slice(1);truncated=true;result=build(mapped);
+  }
+  if(order==='newest')result.messages=result.messages.slice().reverse();
+  sendPluginFrame(rec,'nb:get-note-context-result',result);
+}
 async function proxyPluginRequest(rec,payload){
   const requestId=pluginText(payload&&payload.requestId,128,'');
   let timer=null;
@@ -4819,6 +4890,24 @@ async function proxyPluginRequest(rec,payload){
 //   Raw versions/content are NEVER exposed.
 //   Capability flag: capabilities.listNoteArtifacts === true (when the frame has a noteId).
 //
+// nb:get-note-context — bounded, read-only context from the note the frame is BOUND to
+//   (frame spec's noteId; never a note id from the payload). Requires valid note context:
+//   pluginNoteContextId(rec) non-null (loaded member note, not removed, not 'cover').
+//   message: { type:'nb:get-note-context', payload:{
+//              messages?:{ window?:'recent', limit?:<1..200>, order?:'oldest'|'newest' },
+//              artifacts?:{ include?:'summaries' } } }
+//   result:  { type:'nb:get-note-context-result', payload:{ ok:true,
+//              note:{ id, name, type, visibility },
+//              messages:[ { id, eid, author, actor, via, text, timestamp, replyToEid } ],
+//              artifacts:[ { id, eid, name, creator, app, kind, summary, timestamp } ],
+//              truncated:<bool> } }
+//         or { ok:false, error:'no-note-context'|'not-allowed'|'note-not-loaded' }.
+//   window 'recent' selects the newest N (limit default 200, max 200); order 'oldest'
+//   returns that window oldest->newest, 'newest' reverses it. All fields copied explicitly
+//   (no spreads); artifact SUMMARIES only, never raw versions/content. The final payload is
+//   held under NB_PLUGIN_MAX_RESPONSE_BYTES by dropping oldest messages (truncated:true).
+//   Capability flag: capabilities.noteContext === true.
+//
 // nb:update-source-artifact — for an embedded-app frame opened from a note artifact via
 //   nb:open-app: update ONLY that source artifact (its id is remembered on the frame spec, never
 //   taken from payload — no arbitrary/cross-app updates). Replaces app-owned descriptor fields
@@ -4856,6 +4945,7 @@ window.addEventListener('message',function(event){
   else if(d.type==='nb:open-app')openPluginAppFromFrame(rec,d.payload||{});
   else if(d.type==='nb:copy-text')copyPluginText(rec,d.payload||{});
   else if(d.type==='nb:list-note-artifacts')listNoteArtifacts(rec,d.payload||{});
+  else if(d.type==='nb:get-note-context')getNoteContext(rec,d.payload||{});
   else if(d.type==='nb:update-source-artifact')updateSourceArtifact(rec,d.payload||{});
   else if(d.type==='nb:close'){if(rec.spec.mode==='private-tool')closePluginTool();else if(rec.spec.mode==='embedded-app')closeEmbeddedApp();else destroyPluginFrame(rec.id,true)}
 });
@@ -6244,7 +6334,13 @@ function renderGrimoireApps(){
       const title=appDisplayTitle(r.desk,r.c),ver=appVersion(r.c),pub=appPublisher(r.desk);
       const cap=withCap&&r.manifest?' &middot; Noltbook':'';
       const sub='%'+escHtml(r.desk)+' &middot; '+(pub?escHtml(pub):'local')+(ver?' &middot; v'+escHtml(ver):'')+cap;
-      out+='<div class="grimoire-row grimoire-attn" onclick="grimoireSelectApp(\''+escAttr(r.desk)+'\')">'
+      // left-click OPENS the app directly (same data-attrs the OPEN button uses, handled
+      // by the delegated [data-grimoire-open-href] click); right-click opens the detail
+      // card (grimoireSelectApp). No launch href => left-click falls back to the card.
+      const href=(r.manifest&&r.manifest.launch&&r.manifest.launch.href)||appHref(r.c,r.desk);
+      const target=(r.manifest&&r.manifest.launch&&r.manifest.launch.target)||'new-tab';
+      const openAttrs=href?(' data-grimoire-open-href="'+escAttr(href)+'" data-grimoire-open-target="'+escAttr(target)+'" data-grimoire-open-desk="'+escAttr(r.desk)+'" data-grimoire-open-title="'+escAttr(title)+'"'+pluginSizeAttrs(r.manifest&&r.manifest.launch)):(' onclick="grimoireSelectApp(\''+escAttr(r.desk)+'\')"');
+      out+='<div class="grimoire-row grimoire-attn"'+openAttrs+' oncontextmenu="event.preventDefault();grimoireSelectApp(\''+escAttr(r.desk)+'\')" style="cursor:pointer">'
       +appIconHtml(r.desk,r.c)
       +'<div class="grimoire-row-main"><span class="grimoire-row-note">'+escHtml(title)+'</span>'
       +'<span class="grimoire-row-sub">'+sub+'</span></div></div>';
