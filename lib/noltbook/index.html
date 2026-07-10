@@ -183,7 +183,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .paste-app-btn.primary{border-color:#ffaa00;color:#ffaa00}
 .paste-app-btn:hover{border-color:#ffaa00;color:#ffaa00}
 .chat-input-area{border-top:1px solid var(--border);padding:1rem 1rem 1.5rem;flex-shrink:0;background:var(--bg)}
-.chat-input-row{display:flex;align-items:stretch;gap:.5rem}
+.chat-input-row{display:flex;align-items:flex-end;gap:.5rem}
 .attach-wrap{position:relative;flex-shrink:0;display:flex}
 .attach-btn{font-family:var(--font);font-size:1rem;line-height:1;padding:.4rem .55rem;background:transparent;border:1px solid var(--border2);color:var(--text-dim);cursor:pointer;display:block;width:100%}
 .attach-btn:hover{border-color:#ffaa00;color:#ffaa00;background:rgba(255,170,0,.1)}
@@ -191,11 +191,11 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .attach-menu.open{display:block}
 .attach-item{display:block;width:100%;font-family:var(--font);font-size:.8rem;padding:.45rem .75rem;background:none;border:none;color:var(--text-muted);cursor:pointer;text-align:left}
 .attach-item:hover{background:var(--bg3);color:var(--text)}
-.chat-input-wrap{flex:1;position:relative;min-height:2.1rem;max-height:8rem}
-.chat-input-mirror{position:absolute;top:0;left:0;width:100%;height:100%;padding:.4rem .6rem;font-family:var(--font);font-size:1rem;line-height:1.4;color:#ddd;background:var(--bg2);border:1px solid var(--border2);white-space:pre-wrap;word-wrap:break-word;overflow:hidden;pointer-events:none;box-sizing:border-box}
-.chat-input{width:100%;box-sizing:border-box;font-family:var(--font);font-size:1rem;background:transparent;border:1px solid transparent;color:transparent;caret-color:#ddd;padding:.4rem .6rem;resize:none;outline:none;min-height:2.1rem;max-height:8rem;line-height:1.4;position:relative;z-index:1}
+.chat-input-wrap{flex:1;position:relative;min-height:2.1rem;max-height:22rem;overflow-y:auto;scrollbar-gutter:stable;background:var(--bg2);border:1px solid var(--border2);box-sizing:border-box}
+.chat-input-mirror{position:absolute;top:0;left:0;width:100%;min-height:100%;padding:.4rem .6rem;font-family:var(--font);font-size:1rem;line-height:1.4;color:#ddd;white-space:pre-wrap;word-wrap:break-word;pointer-events:none;box-sizing:border-box}
+.chat-input{width:100%;box-sizing:border-box;font-family:var(--font);font-size:1rem;background:transparent;border:none;color:transparent;caret-color:#ddd;padding:.4rem .6rem;resize:none;outline:none;line-height:1.4;overflow:hidden;display:block;position:relative;z-index:1}
 .chat-input::placeholder{color:transparent}
-.chat-input:focus~.chat-input-mirror,.chat-input-wrap:focus-within .chat-input-mirror{border-color:var(--text-muted)}
+.chat-input-wrap:focus-within{border-color:var(--text-muted)}
 .send-btn{font-family:var(--font);font-size:.8rem;padding:.4rem .9rem;background:transparent;border:1px solid #ffaa00;color:#ffaa00;cursor:pointer;white-space:nowrap;flex-shrink:0}
 .send-btn:hover{background:rgba(255,170,0,.15)}
 .artifact-panel{width:0;border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:width .2s;flex-shrink:0}
@@ -382,6 +382,14 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .plugin-frame-host iframe{display:block;width:100%;border:0;background:#101010}
 .plugin-frame-fallback{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.45rem;min-height:180px;padding:1rem;color:var(--text-dim);font-size:.78rem;text-align:center}
 .plugin-frame-open{font-family:var(--font);font-size:.7rem;padding:.35rem .7rem;border:1px solid var(--amber);background:transparent;color:var(--amber);cursor:pointer}
+.plugin-install-lure{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4rem;min-height:180px;padding:1.1rem;text-align:center;box-sizing:border-box}
+.plugin-install-lure.pil-actionable{cursor:pointer;transition:background .12s}
+.plugin-install-lure.pil-actionable:hover{background:rgba(255,170,0,.06)}
+.pil-title{color:var(--text,#ddd);font-size:1rem;font-weight:600}
+.pil-desc{color:var(--text,#ccc);font-size:.82rem;line-height:1.4;max-width:34ch}
+.pil-sub{color:var(--text-dim,#888);font-size:.78rem}
+.pil-btn{font-family:var(--font);font-size:.8rem;padding:.4rem 1rem;background:#ffaa00;color:#000;font-weight:bold;border:none;cursor:pointer;margin-top:.15rem}
+.pil-from{color:var(--text-dim,#888);font-size:.68rem}
 .plugin-tool-overlay{position:fixed;inset:0;z-index:1200;background:rgba(0,0,0,.68);display:none;align-items:center;justify-content:center;padding:1rem}
 .plugin-tool-overlay.open{display:flex}
 .plugin-tool-shell{width:min(680px,100%);height:min(720px,90vh);background:#101010;border:1px solid var(--border);display:flex;flex-direction:column;box-shadow:0 12px 36px rgba(0,0,0,.6)}
@@ -1418,6 +1426,15 @@ function scheduleRender(noteId,target){
 function cancelPendingRender(){if(_renderTimer){clearTimeout(_renderTimer);_renderTimer=null}_pendingRenderNid=null;_pendingRenderTarget=undefined}
 let _noteListTimer=null;
 function scheduleNoteList(){if(_noteListTimer)clearTimeout(_noteListTimer);_noteListTimer=setTimeout(()=>{_noteListTimer=null;renderNoteList()},50)}
+// A profile change only needs a timeline re-render if that ship authors a message in the
+// OPEN note; otherwise re-rendering just reloads interactive-artifact iframes for nothing
+// (the jitter on an unrelated invite). Names/avatars elsewhere refresh on the next render.
+function profileTouchesOpenNote(ship){
+  const nid=state.currentNoteId;if(!nid)return false;
+  const msgs=state.messages[nid];if(!msgs)return false;
+  for(let i=0;i<msgs.length;i++)if(msgs[i].author===ship)return true;
+  return false;
+}
 let _lastMsgHash={};
 function mergeNoteListSnapshot(notes){
   if(!Array.isArray(notes))return [];
@@ -1449,8 +1466,8 @@ async function refreshNotesSnapshotFromScry(createHint){
   }catch(e){console.warn('[note-create fallback refresh failed]',e)}
 }
 function handleUpdate(upd){
-  if(upd['note-list']){console.log('[note-list]',JSON.stringify(upd['note-list']));mergeNoteListSnapshot(upd['note-list']);rebuildDurableNotifications();updateLogoBadge();renderNoteList()}
-  else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));const wasPendingJoin=!!state.pendingJoins[n.id];const wasAcceptedFork=state.acceptingForkRoots.has(n.id);if(wasAcceptedFork)state.acceptingForkRoots.delete(n.id);delete state.pendingJoins[n.id];delete state.removedFromNotes[n.id];state.notes[n.id]=n;if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id)}if(state.pendingWalletMsg&&n.type==='dm'){const pw=state.pendingWalletMsg;if(n.users&&n.users.length===2&&n.users.includes(pw.ship)){api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:n.id,text:pw.text}});state.pendingWalletMsg=null}}if(n.creator==='~'+api.ship){if(n.parent)state.expandedNotes.add(n.parent);openNote(n.id)}else if(wasAcceptedFork){if(state.palsView)switchView('notes');openNote(n.id)}else if(wasPendingJoin){document.querySelectorAll('.profile-flow-modal').forEach(el=>el.remove());state.viewingProfileShip=null;if(state.palsView)switchView('notes');if(n.visibility==='public'){openNote(n.id)}else{state.notifications.add(n.id)}}else if(state.pendingGossipFetch&&state.pendingGossipFetch.nid===n.id){clearTimeout(state.pendingGossipFetch.timer);state.pendingGossipFetch=null;if(state.palsView)switchView('notes');openNote(n.id)}else{if(state.palsView)switchView('notes');state.notifications.add(n.id)}renderNoteList()}
+  if(upd['note-list']){console.log('[note-list]',JSON.stringify(upd['note-list']));mergeNoteListSnapshot(upd['note-list']);rebuildDurableNotifications();updateLogoBadge();scheduleNoteList()}
+  else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));const wasPendingJoin=!!state.pendingJoins[n.id];const wasAcceptedFork=state.acceptingForkRoots.has(n.id);if(wasAcceptedFork)state.acceptingForkRoots.delete(n.id);delete state.pendingJoins[n.id];delete state.removedFromNotes[n.id];state.notes[n.id]=n;if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id)}if(state.pendingWalletMsg&&n.type==='dm'){const pw=state.pendingWalletMsg;if(n.users&&n.users.length===2&&n.users.includes(pw.ship)){api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:n.id,text:pw.text}});state.pendingWalletMsg=null}}if(n.creator==='~'+api.ship){if(n.parent)state.expandedNotes.add(n.parent);openNote(n.id)}else if(wasAcceptedFork){if(state.palsView)switchView('notes');openNote(n.id)}else if(wasPendingJoin){document.querySelectorAll('.profile-flow-modal').forEach(el=>el.remove());state.viewingProfileShip=null;if(state.palsView)switchView('notes');if(n.visibility==='public'){openNote(n.id)}else{state.notifications.add(n.id)}}else if(state.pendingGossipFetch&&state.pendingGossipFetch.nid===n.id){clearTimeout(state.pendingGossipFetch.timer);state.pendingGossipFetch=null;if(state.palsView)switchView('notes');openNote(n.id)}else{if(state.palsView)switchView('notes');state.notifications.add(n.id)}scheduleNoteList()}
   else if(upd['note-renamed']){const{id,name}=upd['note-renamed'];if(state.notes[id]){state.notes[id].name=name;renderNoteList()}if(state.currentNoteId===id)document.getElementById('chatNoteName').textContent=name}
   else if(upd['note-deleted']){const{id}=upd['note-deleted'];const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];delete state.noteAdmins[id];delete state.noteMuted[id];delete state.notePins[id];delete state.noteActive[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];delete state.attention[id];state.notifications.delete(id);state.notificationAcks.delete(notifAckKey('removed-status',id));state.notificationAcks.delete(notifAckKey('host-deleted-status',id));delete state.noteActivity[id];delete state.noteUnreadActivity[id];delete state.noteRead[id];delete state.actorDms[id];if(state.currentNoteId===id)openNote('cover');renderNoteList()}
   else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];let maxSeq=0,revSum=0,actorAcc='';for(const m of messages){if(m.meta){if(m.meta.seq>maxSeq)maxSeq=m.meta.seq;revSum+=m.meta.rev}if(m.actor)actorAcc+=(m.meta&&m.meta.eid?m.meta.eid:m.id)+'='+actorSig(m)+';'}const hash=noteId+':'+messages.length+':'+maxSeq+':'+revSum+':'+actorAcc;if(_lastMsgHash[noteId]===hash)return;_lastMsgHash[noteId]=hash;state.messages[noteId]=messages;requestActorProfilesFor(messages);for(const a of artifacts)state.artifacts[a.id]=a;if(state.currentNoteId===noteId){if(!ScrollCo.consumeOpenIntent(noteId))scheduleRender(noteId);renderPinSurface(noteId)}updateCoverPreview();scheduleNoteList()}
@@ -1522,8 +1539,8 @@ function handleUpdate(upd){
   else if(upd['message-deleted']){const{noteId,msgId,eid}=upd['message-deleted'];const msgs=state.messages[noteId]||[];const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===msgId);if(fi>=0)msgs.splice(fi,1);if(state.currentNoteId===noteId){renderPinSurface(noteId);scheduleRender(noteId)}}
   else if(upd['search-result']){const{reqId,query,hits,capped}=upd['search-result'];if(reqId!==state.searchReqInFlight)return;if(String(query||'')!==state.searchQuery)return;state.searchMessageHits=Array.isArray(hits)?hits:[];state.searchMessageCapped=!!capped;if(state.searchQuery)renderSidebarSearchResults()}
   else if(upd['profile-lookup-result']){const{reqId,ship,status}=upd['profile-lookup-result'];if(state.profileLookupInFlight[reqId]!==ship)return;delete state.profileLookupInFlight[reqId];if(state.profileLookupTimers[ship]){clearTimeout(state.profileLookupTimers[ship]);delete state.profileLookupTimers[ship]}if(status==='ok'){delete state.profileLookupStatus[ship];if(state._mentionLookups)state._mentionLookups.delete(ship);removeMentionLookupPopover(ship,0);if(state.searchQuery)renderSidebarSearchResults();viewProfile(ship)}else{state.profileLookupStatus[ship]='unreachable';if(state.searchQuery)renderSidebarSearchResults();if(state._mentionLookups&&state._mentionLookups.has(ship)){state._mentionLookups.delete(ship);if(_mentionLookupPopovers[ship]){showMentionLookupPopover(ship,"this user can't be reached",'#ff4444',null);removeMentionLookupPopover(ship,3000)}}}}
-  else if(upd['profile-list']){for(const entry of upd['profile-list']){state.profiles[entry.ship]=entry.profile;const uav=entry.profile&&entry.profile.avatar&&entry.profile.avatar.type==='urbit';if(uav){if(!avatarRevisionByShip[entry.ship])avatarRevisionByShip[entry.ship]=Date.now()}else{delete avatarRevisionByShip[entry.ship]}}const me=state.profiles['~'+api.ship];if(me){if(me.displayName)document.getElementById('shipDisplay').textContent=me.displayName;updateSidebarSigil()}if(state.palsView)renderPalsList();if(state.currentNoteId)scheduleRender()}
-  else if(upd['profile-updated']){const{ship,profile}=upd['profile-updated'];state.profiles[ship]=profile;const uav=profile&&profile.avatar&&profile.avatar.type==='urbit';if(uav){avatarRevisionByShip[ship]=Date.now()}else{delete avatarRevisionByShip[ship]}if(ship==='~'+api.ship&&!uav)clearOwnAvatarBlob();if(ship==='~'+api.ship){document.getElementById('shipDisplay').textContent=profile.displayName||'~'+api.ship;updateSidebarSigil()}if(state.palsView)renderPalsList();if(state.currentNoteId)scheduleRender();refreshActorDmPresentation()}
+  else if(upd['profile-list']){const _plNid=state.currentNoteId;const _plAu=_plNid?new Set((state.messages[_plNid]||[]).map(m=>m.author)):null;let _plDirty=false;for(const entry of upd['profile-list']){const _plOld=state.profiles[entry.ship];if(_plAu&&_plAu.has(entry.ship)&&JSON.stringify(_plOld)!==JSON.stringify(entry.profile))_plDirty=true;state.profiles[entry.ship]=entry.profile;const uav=entry.profile&&entry.profile.avatar&&entry.profile.avatar.type==='urbit';if(uav){if(!avatarRevisionByShip[entry.ship])avatarRevisionByShip[entry.ship]=Date.now()}else{delete avatarRevisionByShip[entry.ship]}}const me=state.profiles['~'+api.ship];if(me){if(me.displayName)document.getElementById('shipDisplay').textContent=me.displayName;updateSidebarSigil()}if(state.palsView)renderPalsList();if(_plDirty)scheduleRender()}
+  else if(upd['profile-updated']){const{ship,profile}=upd['profile-updated'];const _puOld=state.profiles[ship];state.profiles[ship]=profile;const uav=profile&&profile.avatar&&profile.avatar.type==='urbit';if(uav){avatarRevisionByShip[ship]=Date.now()}else{delete avatarRevisionByShip[ship]}if(ship==='~'+api.ship&&!uav)clearOwnAvatarBlob();if(ship==='~'+api.ship){document.getElementById('shipDisplay').textContent=profile.displayName||'~'+api.ship;updateSidebarSigil()}if(state.palsView)renderPalsList();if(profileTouchesOpenNote(ship)&&JSON.stringify(_puOld)!==JSON.stringify(profile))scheduleRender();refreshActorDmPresentation()}
   else if(upd['remote-note-list']){const{ship,notes}=upd['remote-note-list'];Object.keys(state.discoveryNotes).forEach(k=>{if(state.discoveryNotes[k].creator===ship)delete state.discoveryNotes[k]});for(const n of notes)state.discoveryNotes[n.id]=n;const el=document.getElementById('viewProfileNotes');if(el&&state.viewingProfileShip===ship){el.innerHTML=renderProfileNotesHtml(ship,'none available')}if(state.pendingRefOpen&&state.pendingRefOpen.creator===ship){const _pnid=state.pendingRefOpen.noteId;clearTimeout(state.pendingRefOpen.timer);state.pendingRefOpen=null;if(state.discoveryNotes[_pnid]){openNoteDetailModal(_pnid)}else{showRefUnavailable(_pnid,'Note unavailable')}}}
   // Phase G4: async actor-profile resolution result. ok => cache + render; missing/
   // unreachable => keep the glyph fallback. Never reloads the message timeline.
@@ -1537,9 +1554,9 @@ function handleUpdate(upd){
   else if(upd['pal-list']){for(const entry of upd['pal-list']){state.palStatus[entry.ship]=entry.status}if(state.palsView)renderPalsList();fetchVisibleEnvelopes()}
   else if(upd['contact-list']){state.contacts=new Set(upd['contact-list']);if(state.palsView)renderPalsList();if(state.viewingProfileShip)updateViewProfileTags(state.viewingProfileShip)}
   else if(upd['pal-removed']){const{ship}=upd['pal-removed'];delete state.palStatus[ship];if(state.palsView)renderPalsList();if(state.viewingProfileShip===ship)updateViewProfileTags(ship)}
-  else if(upd['pal-update']){const{ship,status}=upd['pal-update'];const wasBlocked=state.palStatus[ship]==='blocked';state.palStatus[ship]=status;if(wasBlocked&&status!=='blocked'){Object.keys(state.removedFromNotes).forEach(nid=>{if(state.removedFromNotes[nid]===ship)delete state.removedFromNotes[nid]});api.poke('noltbook','noltbook-action',{action:'request-remote-notes',data:{ship}})}if(status!=='blocked')delete state.blockedBy[ship];if(state.palsView)renderPalsList();renderNoteList();fetchVisibleEnvelopes();if(isGossipNote(state.currentNoteId))scheduleRender(state.currentNoteId);if(state.currentNoteId){const cn=state.notes[state.currentNoteId];if(cn&&cn.type==='dm'){const cp=dmCounterparty(cn);if(cp===ship)updateMuteUI()}}}
+  else if(upd['pal-update']){const{ship,status}=upd['pal-update'];const wasBlocked=state.palStatus[ship]==='blocked';state.palStatus[ship]=status;if(wasBlocked&&status!=='blocked'){Object.keys(state.removedFromNotes).forEach(nid=>{if(state.removedFromNotes[nid]===ship)delete state.removedFromNotes[nid]});api.poke('noltbook','noltbook-action',{action:'request-remote-notes',data:{ship}})}if(status!=='blocked')delete state.blockedBy[ship];if(state.palsView)renderPalsList();scheduleNoteList();fetchVisibleEnvelopes();if(isGossipNote(state.currentNoteId))scheduleRender(state.currentNoteId);if(state.currentNoteId){const cn=state.notes[state.currentNoteId];if(cn&&cn.type==='dm'){const cp=dmCounterparty(cn);if(cp===ship)updateMuteUI()}}}
   else if(upd['dial-update']){state.dial=upd['dial-update'];updateDialUI();if(isGossipNote(state.currentNoteId))scheduleRender(state.currentNoteId);scheduleNoteList();fetchVisibleEnvelopes()}
-  else if(upd['note-users-updated']){const d=upd['note-users-updated'];const{id,type,users,removed}=d;const rev=d.rev||0;const localRev=state.noteMemberRevs[id]||0;if(rev<localRev){console.log('[note-users-updated:stale]',id,'incoming',rev,'<','local',localRev);return}state.noteMemberRevs[id]=rev;console.log('[note-users-updated]',id,type,users,removed,'rev',rev);if(state.notes[id]){const me='~'+api.ship;const vis=state.notes[id].visibility;const notifyVis=vis==='public'||vis==='private';if(state.notes[id].creator===me&&notifyVis){const oldU=state.notes[id].users||[];const newJ=users.filter(u=>!oldU.includes(u)&&u!==me);for(const j of newJ)state.blockNotifications.push({noteId:id,noteName:state.notes[id].name,from:j,time:Date.now(),type:'joined'});if(newJ.length>0)updateLogoBadge()}state.notes[id].users=users;state.notes[id].removed=removed||[];if(type)state.notes[id].type=type;if(!(removed||[]).includes(me))state.notificationAcks.delete(notifAckKey('removed-status',id));rebuildDurableNotifications();updateLogoBadge();renderNoteList();if(state.currentNoteId===id){scheduleRender(id);updateMuteUI();updateActorDmHeader(id);updateAttachMenu();const _n=state.notes[id];const _cn=document.getElementById('chatNoteName');if(_cn&&_n)_cn.textContent=noteDisplayName(_n);const _sb=document.getElementById('shareBtn');if(_sb&&_n)_sb.style.display=canShareNote(_n)?'block':'none'}refreshNoteInfoMembers(id)}}
+  else if(upd['note-users-updated']){const d=upd['note-users-updated'];const{id,type,users,removed}=d;const rev=d.rev||0;const localRev=state.noteMemberRevs[id]||0;if(rev<localRev){console.log('[note-users-updated:stale]',id,'incoming',rev,'<','local',localRev);return}state.noteMemberRevs[id]=rev;console.log('[note-users-updated]',id,type,users,removed,'rev',rev);if(state.notes[id]){const me='~'+api.ship;const vis=state.notes[id].visibility;const notifyVis=vis==='public'||vis==='private';if(state.notes[id].creator===me&&notifyVis){const oldU=state.notes[id].users||[];const newJ=users.filter(u=>!oldU.includes(u)&&u!==me);for(const j of newJ)state.blockNotifications.push({noteId:id,noteName:state.notes[id].name,from:j,time:Date.now(),type:'joined'});if(newJ.length>0)updateLogoBadge()}state.notes[id].users=users;state.notes[id].removed=removed||[];if(type)state.notes[id].type=type;if(!(removed||[]).includes(me))state.notificationAcks.delete(notifAckKey('removed-status',id));rebuildDurableNotifications();updateLogoBadge();scheduleNoteList();if(state.currentNoteId===id){scheduleRender(id);updateMuteUI();updateActorDmHeader(id);updateAttachMenu();const _n=state.notes[id];const _cn=document.getElementById('chatNoteName');if(_cn&&_n)_cn.textContent=noteDisplayName(_n);const _sb=document.getElementById('shareBtn');if(_sb&&_n)_sb.style.display=canShareNote(_n)?'block':'none'}refreshNoteInfoMembers(id)}}
   else if(upd['note-redirect']){const{oldId,newId}=upd['note-redirect'];console.log('[note-redirect]',oldId,'->',newId);if(state.noteActivity[oldId]!==undefined&&state.noteActivity[newId]===undefined)state.noteActivity[newId]=state.noteActivity[oldId];delete state.noteActivity[oldId];if(state.noteUnreadActivity[oldId]!==undefined&&state.noteUnreadActivity[newId]===undefined)state.noteUnreadActivity[newId]=state.noteUnreadActivity[oldId];delete state.noteUnreadActivity[oldId];if(state.noteRead[oldId]!==undefined&&state.noteRead[newId]===undefined)state.noteRead[newId]=state.noteRead[oldId];delete state.noteRead[oldId];if(state.attention[oldId]!==undefined&&state.attention[newId]===undefined)state.attention[newId]=state.attention[oldId];delete state.attention[oldId];delete state.notes[oldId];delete state.messages[oldId];state.notifications.delete(oldId);if(state.currentNoteId===oldId){if(state.notes[newId])openNote(newId);else openNote('cover')}renderNoteList()}
   else if(upd['wallet-update']){wallet.transactions=upd['wallet-update'].map(tx=>({type:tx.type,who:tx.counterparty,amount:tx.amount,time:new Date(tx.timestamp).toLocaleString(),txid:tx.txHash}));renderWalletNotes()}
   else if(upd['gossip-message']){const{message,hops}=upd['gossip-message'];const nid=message.noteId||'cover';const msgEid=message.meta&&message.meta.eid||null;state.gossipHops[message.id]=hops;if(!state.messages[nid])state.messages[nid]=[];const nenvs=state.gossipEnvelopes[nid]||{};delete nenvs[message.id];if(msgEid)delete nenvs[msgEid];state.gossipEnvelopes[nid]=nenvs;const nfetch=state.gossipFetching[nid];if(nfetch){nfetch.delete(message.id);if(msgEid)nfetch.delete(msgEid)}const isDup=state.messages[nid].some(m=>(msgEid&&m.meta&&m.meta.eid===msgEid)||m.id===message.id);if(!isDup){state.messages[nid].push(message);const visible=coverMsgVisible(message);if(state.currentNoteId===nid&&visible){const isOwn=message.author===('~'+api.ship);appendMessage(message,isOwn)}else if(state.currentNoteId!==nid&&visible&&!isPinnedUnreadNote(nid))state.notifications.add(nid)}const visible=coverMsgVisible(message);if(visible&&state.notes[nid]){state.notes[nid].lastAuthor=message.author;state.notes[nid].lastPreview=message.text}if(nid==='cover'&&visible)state.coverPreview={author:message.author,preview:message.text};markOpenNoteReadSoon(nid);scheduleNoteList()}
@@ -3915,7 +3932,7 @@ function showUserDropdown(inputEl,containerEl,onSelect,opts){
 function renderText(text){if(!text)return'';var out=escHtml(text);out=out.replace(/`([^`]+)`/g,'<code style="background:var(--bg3);padding:.1rem .3rem">$1</code>');out=out.replace(/(data:image\/[^\s"]+)/g,function(m){var raw=m.replace(/&amp;/g,'&').replace(/&quot;/g,'"');return '<div class="inline-img-box"><img src="'+raw+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'});out=out.replace(/(https?:\/\/[^\s]+)/g,function(url){var raw=url.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/[.,;:!?\)]+$/,'');if(/\.(png|jpe?g|gif|webp|svg|bmp|ico)(\?[^\s]*)?$/i.test(raw)){return '<div class="inline-img-box"><img src="'+escAttr(raw)+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'}var yt=raw.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/);if(yt){return '<div style="margin:.35rem 0;max-width:480px;aspect-ratio:16/9"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[1]+'" style="width:100%;height:100%;border:1px solid var(--border)" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe></div>'}var tw=raw.match(/(?:twitter\.com|x\.com)\/(\w+)\/status\/(\d+)/);if(tw){return '<div class="tweet-embed" style="margin:.35rem 0;max-width:480px"><blockquote class="twitter-tweet" data-theme="dark" data-conversation="none"><a href="https://twitter.com/'+tw[1]+'/status/'+tw[2]+'"></a></blockquote></div>'}return '<a href="'+escAttr(raw)+'" target="_blank" rel="noopener" style="color:#ffaa00">'+url+'</a>'});out=out.replace(/~ref\[([^\]|]+)\|([^\]|]+)(?:\|([^\]]*))?\]/g,function(m,nid,cr,enc){var name='';if(enc!=null&&enc!==''){try{name=decodeURIComponent(enc)}catch(e){name=enc}}if(!name){var n=state.notes[nid]||state.discoveryNotes[nid];if(n)name=noteDisplayName(n)||n.name||''}if(!name)name='Note Link';return '<span class="note-ref" title="'+escAttr(nid+' · '+cr)+'" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-name">'+escHtml(name)+'</span></span>'});out=out.replace(/~gnote\[([^\]|]+)\|([^\]|]+)\|([^\]|]*)\|([^\]|]*)\|([^\]]*)\]/g,function(m,nid,sharer,en,ed,ei){var nm='';if(en){try{nm=decodeURIComponent(en)}catch(e){nm=en}}if(!nm)nm='Gossip note';return '<span class="note-ref" title="'+escAttr(nid+' gossip from '+sharer)+'" onclick="clickGossipNoteLink(\''+escAttr(nid)+'\',\''+escAttr(sharer)+'\',\''+escAttr(en)+'\',\''+escAttr(ed)+'\',\''+escAttr(ei)+'\')"><span class="note-ref-name">'+escHtml(nm)+'</span></span>'});out=out.replace(/~gref\[([^\]|]+)\|([^\]|]+)\|([^\]|]*)\|([^\]]+)\]/g,function(m,nid,author,eid,mid){if(state.palStatus[author]==='blocked')return '<span style="color:#ff4444;font-size:.8rem">[blocked user ref]</span>';var n=state.notes[nid];var noteName=n?noteDisplayName(n):'gossip note';var authorName=displayName(author);var excerpt='';if(n){var msgs=state.messages[nid]||[];var found=msgs.find(function(msg){if(eid&&getMsgEid(msg)===eid)return true;return String(msg.id)===mid});if(found&&found.text)excerpt=found.text.slice(0,60)}var excerptHtml=excerpt?'<span class="gossip-ref-excerpt">\u2014 '+escHtml(excerpt)+'</span>':'<span class="gossip-ref-unavail">gossip post</span>';return '<span class="gossip-ref" onclick="clickGossipRef(\''+escAttr(nid)+'\',\''+escAttr(author)+'\',\''+escAttr(eid)+'\',\''+escAttr(mid)+'\')"><span class="gossip-ref-author">'+escHtml(authorName)+'</span><span class="gossip-ref-note">in '+escHtml(noteName)+'</span>'+excerptHtml+'</span>'});out=out.replace(/~app\[(~[a-z][a-z0-9-]*)\|%?([a-z][a-z0-9-]*)\|([^\]]*)\]/g,function(m,pub,desk,enc){var nm='';if(enc){try{nm=decodeURIComponent(enc)}catch(e){nm=enc}}var label=nm||('%'+desk);return '<span class="app-ref" title="'+escAttr(pub+'/'+desk)+'" onclick="event.stopPropagation();clickAppRef(\''+escAttr(pub)+'\',\''+escAttr(desk)+'\',\''+escAttr(enc||'')+'\',event)">'+escHtml(label)+'</span>'});out=out.replace(/@(~[a-z][\w-]*)/g,function(m,ship){var canon=normalizeShipCandidate(ship)||(ship===('~'+api.ship)?ship:null);if(!canon){var dn0=displayName(ship);var lbl0=(dn0&&dn0!==ship)?dn0:ship.replace(/^~/,'');return '<span class="msg-mention" style="color:'+shipColor(ship)+';font-weight:500" title="'+escAttr(ship)+'">'+escHtml(lbl0)+'</span>'}var dn=displayName(canon);var label=(dn&&dn!==canon)?dn:canon.replace(/^~/,'');return '<span class="msg-mention" style="color:'+shipColor(canon)+';font-weight:500;cursor:pointer" title="'+escAttr(canon)+'" onclick="event.stopPropagation();clickMention(\''+escAttr(canon)+'\',event)">'+escHtml(label)+'</span>'});return out}
 function openImageFullscreen(url){var o=document.createElement('div');o.id='file-fullscreen';o.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.92);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer';o.innerHTML='<img src="'+url+'" style="max-width:95%;max-height:90vh">';o.onclick=function(){o.remove()};document.body.appendChild(o)}
 async function sendMessage(){
-  const input=document.getElementById('chatInput');const text=input.value.trim();if(!text)return;
+  const input=document.getElementById('chatInput');const raw=input.value;if(!raw.trim())return;const text=raw.replace(/\s+$/,'');
   const _nid=state.currentNoteId;const _note=state.notes[_nid];
   const _me='~'+api.ship;const _muted=(state.noteMuted[_nid]||[]).includes(_me);
   if(_muted)return;
@@ -4025,8 +4042,10 @@ function updateInputMirror(){
   if(!inp.value){mirror.innerHTML='<span style="color:var(--text-muted)">'+escHtml(inp.placeholder)+'</span>';return}
   let text=escHtml(inp.value);
   text=text.replace(/@(~[a-z][\w-]*)/g,function(m,ship){return '<span style="color:'+shipColor(ship)+';font-weight:500" title="'+escAttr(ship)+'">@'+ship+'</span>'});
-  mirror.innerHTML=text+'\n';
-  mirror.scrollTop=inp.scrollTop;
+  // pre-wrap drops the empty line after a final newline; add one back ONLY then, so
+  // the mirror's height/scroll-range matches the textarea's (an unconditional '\n' made
+  // the mirror one line taller than the textarea, desyncing the scroll).
+  mirror.innerHTML=text+(inp.value.charAt(inp.value.length-1)==='\n'?'\n':'');
 }
 function syncMirrorScroll(){const inp=document.getElementById('chatInput');const mirror=document.getElementById('chatInputMirror');if(inp&&mirror)mirror.scrollTop=inp.scrollTop}
 function chatInputBaseHeight(el){
@@ -4050,29 +4069,34 @@ function setChatInputHeight(px){
   if(!inp)return;
   const base=chatInputBaseHeight(inp);
   const requested=(typeof px==='number'&&px>0)?px:base;
-  const h=Math.max(base,Math.min(requested,120));
+  // ~15 lines before scrolling; beyond that clamp height and show a scrollbar.
+  const CHAT_INPUT_MAX=350;
+  const h=Math.max(base,Math.min(requested,CHAT_INPUT_MAX));
   inp.style.height=h+'px';
   if(mirror)mirror.style.height=h+'px';
   if(wrap)wrap.style.height=h+'px';
-  inp.style.overflowY=(requested>120)?'auto':'hidden';
+  inp.style.overflowY=(requested>CHAT_INPUT_MAX)?'auto':'hidden';
 }
 function resetChatInputHeight(){
   const inp=document.getElementById('chatInput');
   if(!inp)return;
-  setChatInputHeight(chatInputBaseHeight(inp));
+  inp.style.height='auto';
+  inp.style.height=inp.scrollHeight+'px';
+  const wrap=inp.closest('.chat-input-wrap');
+  if(wrap)wrap.scrollTop=0;
 }
 function autoResize(el){
-  // Measure natural content height. scrollHeight excludes border under
-  // border-box, so add border back in for parity with what the height
-  // style we set later (which DOES include border under border-box).
+  // Single-scroll-container model: the textarea is always exactly as tall as its text
+  // (no internal scroll); the .chat-input-wrap clips at max-height and scrolls, carrying
+  // BOTH the textarea and the (absolutely-positioned, same-height) mirror together — so
+  // caret and glyphs never drift. Only job here: size the textarea to its content, then
+  // scroll the wrap to the caret when typing at the end (the common case).
   el.style.height='auto';
-  const cs=getComputedStyle(el);
-  const border=(parseFloat(cs.borderTopWidth)||0)+(parseFloat(cs.borderBottomWidth)||0);
-  const measured=Math.ceil(el.scrollHeight+border);
-  const next=Math.max(chatInputBaseHeight(el),Math.min(measured,120));
-  setChatInputHeight(next);
+  el.style.height=el.scrollHeight+'px';
   updateMentionDropdown();
   updateInputMirror();
+  const wrap=el.closest('.chat-input-wrap');
+  if(wrap&&el.selectionEnd===el.value.length)wrap.scrollTop=wrap.scrollHeight;
 }
 // startReply: target can be a message (@da numeric id), a real artifact id,
 // or an artifact-envelope aid. Prefer eid as the durable parent identity;
@@ -4573,6 +4597,42 @@ function pluginFallback(host,text,canOpen,spec){
   }
   host.appendChild(box);
 }
+// pluginInstallLure: the not-installed interactive-artifact placeholder rendered as a
+// clickable "get this app" card (icon + friendly name + one-line description + Get <App>
+// button + "from ~ship"). The whole card and the button open the app-ref install card
+// (clickAppRef), which shows the publisher and performs the reviewed install. Name and
+// description come from the loaded app directory / charge; the directory is already
+// loaded by the time mountPluginHost reaches this branch. No publisher embedded => same
+// card without a button (nothing to install from).
+function pluginInstallLure(host,spec){
+  host.innerHTML='';
+  const desk=spec.desk;
+  const pub=(spec.publisher&&appRefValidPub(spec.publisher)&&pluginDeskOk(desk))?spec.publisher:null;
+  const c=(_grimoireApps.charges&&_grimoireApps.charges[desk])||null;
+  const title=appDisplayTitle(desk,c);
+  const info=appDisplayInfo(desk,c);
+  const art=spec.artifactId?state.artifacts[spec.artifactId]:null;
+  const refName=(art&&art.name)||title||desk;
+  const card=document.createElement('div');
+  card.className='plugin-install-lure'+(pub?' pil-actionable':'');
+  const icon=c?appIconHtml(desk,c):'<div class="grimoire-app-icon" style="background:#2a2a2a"></div>';
+  let html=icon+'<div class="pil-title">'+escHtml(title)+'</div>';
+  if(info)html+='<div class="pil-desc">'+escHtml(info)+'</div>';
+  if(pub){
+    html+='<div class="pil-sub">You don\'t have this app installed.</div>'
+      +'<button class="pil-btn" type="button">Get '+escHtml(title)+'</button>'
+      +'<div class="pil-from">from '+escHtml(pub)+'</div>';
+  }else{
+    html+='<div class="pil-sub">No install link available.</div>';
+  }
+  card.innerHTML=html;
+  if(pub){
+    const open=function(e){if(e){try{e.stopPropagation()}catch(_){}}clickAppRef(pub,desk,encodeURIComponent(refName),e);};
+    card.addEventListener('click',open);
+    const btn=card.querySelector('.pil-btn');if(btn)btn.addEventListener('click',open);
+  }
+  host.appendChild(card);
+}
 function sendPluginFrame(rec,type,payload){
   if(!rec||!rec.iframe||!rec.iframe.contentWindow)return;
   rec.iframe.contentWindow.postMessage({source:'noltbook-host',protocol:NB_PLUGIN_PROTOCOL,session:rec.session,type:type,payload:payload||{}},'*');
@@ -4657,7 +4717,7 @@ function mountPluginHost(hostId,force){
   const manifest=pluginManifestFor(spec.desk,spec.publisher,spec.mode);
   if(!manifest){
     if(_grimoireApps.state!=='loaded'){pluginFallback(host,'Loading app…',false);ensurePluginManifests().then(function(){mountPluginHost(hostId,force)});return}
-    pluginFallback(host,'%'+spec.desk+' is not installed or does not provide this '+(spec.mode==='embedded-app'?'launch':'artifact'),false,spec);return;
+    pluginInstallLure(host,spec);return;
   }
   const frameHref=spec.href||(spec.mode==='embedded-app'?manifest.launch.href:manifest.artifact.href);
   if(!frameHref){pluginFallback(host,'App launch unavailable',false);return}
