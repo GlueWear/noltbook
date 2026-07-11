@@ -306,6 +306,10 @@
       [%remote-call-leave note-id=@ta ship=@p]
       [%remote-call-ended note-id=@ta]
       [%remote-call-signal call-id=@ta from=@p sig-type=@t payload=@t]
+      ::  authoritative full call snapshot from the note creator to note members.
+      ::  The sidebar active-call badge is note-visible state, so non-participant
+      ::  members need the current participant set (deltas only reach participants).
+      [%remote-call-state note-id=@ta call=call-info]
       ::  block: host kicked you from a note
       [%remote-kick note-id=@ta note-name=@t]
       ::  block: high-level notification that someone blocked you

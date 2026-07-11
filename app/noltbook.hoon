@@ -7142,6 +7142,18 @@
   |=  [=wire who=@p rem=remote:noltbook]
   ^-  card
   [%pass wire %agent [who %noltbook] %poke %noltbook-remote !>(rem)]
+::  call-state-cards: creator -> members. Sends the authoritative full call-info as
+::  %remote-call-state to each ship in `to` (excluding self). Sent to ALL note members
+::  (participants and non-participants) so every member's active-call badge/participant
+::  set self-heals after any join/leave, even if a delta was missed. The
+::  %call-joined/%call-left deltas still drive WebRTC peer setup for participants.
+++  call-state-cards
+  |=  [to=(set @p) nid=@ta ci=call-info:noltbook our=@p]
+  ^-  (list card)
+  %+  murn  ~(tap in to)
+  |=  p=@p
+  ?:  =(p our)  ~
+  `(rpoke /call-state/(scot %p p)/[nid] p `remote:noltbook`[%remote-call-state nid ci])
 ::  pal-status-of: the visible pal status for `target` from our actual sets.
 ++  pal-status-of
   |=  [target=@p outgoing=(set @p) incoming=(set @p) blocked=(set @p)]
@@ -8929,6 +8941,10 @@
       =/  ci  (~(get by active-calls) note-id.rem)
       ?~  ci  `state
       ?.  (~(has in users.u.exists) ship.rem)  `state
+      ::  authority: creator accepts a join only from the joiner itself; a member
+      ::  accepts a relayed join only from the note creator (never member-to-member).
+      ?.  ?:(=(our.bowl creator.u.exists) =(src.bowl ship.rem) =(src.bowl creator.u.exists))
+        `state
       ?:  (~(has in participants.u.ci) ship.rem)  `state
       =/  new-ci=call-info:noltbook  u.ci(participants (~(put in participants.u.ci) ship.rem))
       =/  sys-msg=message:noltbook
@@ -8937,15 +8953,19 @@
       =/  upd=update:noltbook  [%call-joined note-id.rem ship.rem]
       =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
       =/  pax=path  ~[%notes note-id.rem]
-      ::  case 1: we are creator — process + relay to other participants
-      ::  case 2: we are NOT creator — just process locally (notification from creator)
+      ::  creator only: relay the join DELTA to existing participants (media peer
+      ::  setup) AND send the authoritative full call-state to ALL members (self-healing
+      ::  badge/participant set). Non-creators just process locally (relay from creator).
       =/  broadcast=(list card)
         ?.  =(our.bowl creator.u.exists)  ~
-        %+  murn  ~(tap in participants.u.ci)
-        |=  p=@p
-        ?:  =(p ship.rem)  ~
-        ?:  =(p our.bowl)  ~
-        `(rpoke /call-join-relay/(scot %p p)/[note-id.rem] p `remote:noltbook`[%remote-call-join note-id.rem ship.rem])
+        %+  weld
+          ^-  (list card)
+          %+  murn  ~(tap in participants.u.ci)
+          |=  p=@p
+          ?:  =(p ship.rem)  ~
+          ?:  =(p our.bowl)  ~
+          `(rpoke /call-join-relay/(scot %p p)/[note-id.rem] p `remote:noltbook`[%remote-call-join note-id.rem ship.rem])
+        (call-state-cards users.u.exists note-id.rem new-ci our.bowl)
       :_  state(active-calls (~(put by active-calls) note-id.rem new-ci), messages (~(put by messages) note-id.rem (snoc cur sys-msg)))
       :(weld ~[(gf-paths ~[pax] upd)] ~[(gf-notes upd)] ~[(gf-paths ~[pax] msg-upd)] broadcast)
     ::
@@ -8955,6 +8975,10 @@
       =/  ci  (~(get by active-calls) note-id.rem)
       ?~  ci  `state
       ?.  (~(has in participants.u.ci) ship.rem)  `state
+      ::  authority: creator accepts a leave only from the leaver itself; a member
+      ::  accepts a relayed leave only from the note creator.
+      ?.  ?:(=(our.bowl creator.u.exists) =(src.bowl ship.rem) =(src.bowl creator.u.exists))
+        `state
       =/  new-parts=(set @p)  (~(del in participants.u.ci) ship.rem)
       =/  sys-msg=message:noltbook
         [now.bowl note-id.rem ship.rem (crip (weld "\01SYS:call-left:" (trip (scot %p ship.rem)))) now.bowl ~ %.n ~]
@@ -8976,13 +9000,17 @@
       ::  still has participants: update and broadcast leave
       =/  new-ci=call-info:noltbook  u.ci(participants new-parts)
       =/  upd=update:noltbook  [%call-left note-id.rem ship.rem]
-      ::  only creator relays to other participants
+      ::  creator only: relay the leave DELTA to remaining participants (media) AND
+      ::  send the authoritative full call-state to ALL members (self-healing badge).
       =/  broadcast=(list card)
         ?.  =(our.bowl creator.u.exists)  ~
-        %+  murn  ~(tap in new-parts)
-        |=  p=@p
-        ?:  =(p our.bowl)  ~
-        `(rpoke /call-leave-relay/(scot %p p)/[note-id.rem] p `remote:noltbook`[%remote-call-leave note-id.rem ship.rem])
+        %+  weld
+          ^-  (list card)
+          %+  murn  ~(tap in new-parts)
+          |=  p=@p
+          ?:  =(p our.bowl)  ~
+          `(rpoke /call-leave-relay/(scot %p p)/[note-id.rem] p `remote:noltbook`[%remote-call-leave note-id.rem ship.rem])
+        (call-state-cards users.u.exists note-id.rem new-ci our.bowl)
       :_  state(active-calls (~(put by active-calls) note-id.rem new-ci), messages (~(put by messages) note-id.rem (snoc cur sys-msg)))
       :(weld ~[(gf-paths ~[pax] upd)] ~[(gf-notes upd)] broadcast)
     ::
@@ -9000,6 +9028,25 @@
       =/  upd=update:noltbook  [%call-ended note-id.rem call-id.u.ci]
       =/  pax=path  ~[%notes note-id.rem]
       :_  state(active-calls (~(del by active-calls) note-id.rem), messages (~(put by messages) note-id.rem (snoc cur end-msg)))
+      ~[(gf-paths ~[pax] upd) (gf-notes upd)]
+    ::
+        %remote-call-state
+      ::  authoritative full call snapshot from the note creator (keeps the note-visible
+      ::  active-call badge correct for members not in the call). Replace our local call
+      ::  with the received set; an ended/empty snapshot clears it.
+      =/  exists  (~(get by notes) note-id.rem)
+      ?~  exists  `state
+      ?.  (~(has in users.u.exists) our.bowl)  `state
+      ::  only the note creator may push call-state (never member-to-member).
+      ?.  =(src.bowl creator.u.exists)  `state
+      =/  new-ci=call-info:noltbook  call.rem
+      =/  pax=path  ~[%notes note-id.rem]
+      ?:  ?|(?=(%ended status.new-ci) =(0 ~(wyt in participants.new-ci)))
+        =/  end-upd=update:noltbook  [%call-ended note-id.rem call-id.new-ci]
+        :_  state(active-calls (~(del by active-calls) note-id.rem))
+        ~[(gf-paths ~[pax] end-upd) (gf-notes end-upd)]
+      =/  upd=update:noltbook  [%call-state note-id.rem new-ci]
+      :_  state(active-calls (~(put by active-calls) note-id.rem new-ci))
       ~[(gf-paths ~[pax] upd) (gf-notes upd)]
     ::
         %remote-call-signal
@@ -17089,10 +17136,14 @@
       ::  if non-creator, tell the host who relays
       =/  broadcast=(list card)
         ?:  =(our.bowl creator.u.exists)
-          %+  murn  ~(tap in participants.u.ci)
-          |=  p=@p
-          ?:  =(p our.bowl)  ~
-          `(rpoke /call-join-relay/(scot %p p)/[note-id.act] p `remote:noltbook`[%remote-call-join note-id.act our.bowl])
+          ::  creator: relay delta to existing participants + full state to all members
+          %+  weld
+            ^-  (list card)
+            %+  murn  ~(tap in participants.u.ci)
+            |=  p=@p
+            ?:  =(p our.bowl)  ~
+            `(rpoke /call-join-relay/(scot %p p)/[note-id.act] p `remote:noltbook`[%remote-call-join note-id.act our.bowl])
+          (call-state-cards users.u.exists note-id.act new-ci our.bowl)
         ~[(rpoke /call-join/(scot %p creator.u.exists)/[note-id.act] creator.u.exists `remote:noltbook`[%remote-call-join note-id.act our.bowl])]
       :_  this(active-calls (~(put by active-calls) note-id.act new-ci), messages (~(put by messages) note-id.act (snoc cur sys-msg)))
       :(weld ~[(gf-paths ~[pax] upd)] ~[(gf-notes upd)] ~[(gf-paths ~[pax] msg-upd)] broadcast)
@@ -17128,10 +17179,14 @@
       ::  if non-creator, tell the host who relays
       =/  broadcast=(list card)
         ?:  =(our.bowl creator.u.exists)
-          %+  murn  ~(tap in new-parts)
-          |=  p=@p
-          ?:  =(p our.bowl)  ~
-          `(rpoke /call-leave-relay/(scot %p p)/[note-id.act] p `remote:noltbook`[%remote-call-leave note-id.act our.bowl])
+          ::  creator: relay delta to remaining participants + full state to all members
+          %+  weld
+            ^-  (list card)
+            %+  murn  ~(tap in new-parts)
+            |=  p=@p
+            ?:  =(p our.bowl)  ~
+            `(rpoke /call-leave-relay/(scot %p p)/[note-id.act] p `remote:noltbook`[%remote-call-leave note-id.act our.bowl])
+          (call-state-cards users.u.exists note-id.act new-ci our.bowl)
         ~[(rpoke /call-leave/(scot %p creator.u.exists)/[note-id.act] creator.u.exists `remote:noltbook`[%remote-call-leave note-id.act our.bowl])]
       =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
       :_  this(active-calls (~(put by active-calls) note-id.act new-ci), messages (~(put by messages) note-id.act (snoc cur sys-msg)))
