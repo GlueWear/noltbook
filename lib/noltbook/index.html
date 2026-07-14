@@ -916,7 +916,7 @@ function shipType(ship){
   if(parts.length===2)return'planet';
   const phons=shipPhonemes(ship);
   if(bare.includes('--')||(phons&&phons.length===16))return'comet';
-  if(phons&&phons.length===8)return'moon';
+  if(phons&&(phons.length===6||phons.length===8))return'moon';
   return'comet';
 }
 function shipColor(ship){
@@ -929,7 +929,7 @@ function shipColor(ship){
 }
 function shipPhonemes(ship){
   // Phonemes are the 3-letter chunks that drive sigil-js's symbol lookup.
-  // galaxy=1, star=2, planet=4, moon=8, comet=16 phonemes.
+  // galaxy=1, star=2, planet=4, moons can be 6 or 8, comet=16 phonemes.
   // We strip all dashes (single OR double) and split into 3-letter groups.
   if(!ship||!ship.startsWith('~'))return null;
   const flat=ship.slice(1).replace(/-/g,'');
@@ -946,12 +946,18 @@ function getTiledExtendedSigilSvg(ship,size){
   if(!sigilFn)return null;
   const phons=shipPhonemes(ship);
   if(!phons)return null;
-  if(phons.length!==8&&phons.length!==16)return null;
+  if(phons.length!==6&&phons.length!==8&&phons.length!==16)return null;
   const color=shipColor(ship);
   const cfg={size:128,foreground:color,background:'#000000',space:'none',detail:'default'};
   let subs;
   try{
-    if(phons.length===8){
+    if(phons.length===6){
+      subs=[
+        sigilFn(Object.assign({},cfg,{point:'~'+phons[0]+phons[1]})),
+        sigilFn(Object.assign({},cfg,{point:'~'+phons[2]+phons[3]})),
+        sigilFn(Object.assign({},cfg,{point:'~'+phons[4]+phons[5]})),
+      ];
+    }else if(phons.length===8){
       subs=[
         sigilFn(Object.assign({},cfg,{point:'~'+phons[0]+phons[1]})),
         sigilFn(Object.assign({},cfg,{point:'~'+phons[2]+phons[3]})),
@@ -969,27 +975,25 @@ function getTiledExtendedSigilSvg(ship,size){
   }catch(e){console.warn('[sigil] extended tiled fallback error',ship,e);return null}
   const inners=subs.map(_extractSigilInner);
   if(inners.some(s=>!s))return null;
-  return '<svg xmlns="http://www.w3.org/2000/svg" width="'+size+'" height="'+size+'" viewBox="0 0 128 128" preserveAspectRatio="xMidYMid meet">'+
-    '<rect width="128" height="128" fill="#000000"/>'+
-    '<g transform="translate(0,0) scale(0.5)">'+inners[0]+'</g>'+
-    '<g transform="translate(64,0) scale(0.5)">'+inners[1]+'</g>'+
-    '<g transform="translate(0,64) scale(0.5)">'+inners[2]+'</g>'+
-    '<g transform="translate(64,64) scale(0.5)">'+inners[3]+'</g>'+
-    '</svg>';
+  const transforms=phons.length===6
+    ?['translate(0,0) scale(0.5)','translate(64,0) scale(0.5)','translate(32,64) scale(0.5)']
+    :['translate(0,0) scale(0.5)','translate(64,0) scale(0.5)','translate(0,64) scale(0.5)','translate(64,64) scale(0.5)'];
+  const cells=inners.map((inner,i)=>'<g transform="'+transforms[i]+'">'+inner+'</g>').join('');
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="'+size+'" height="'+size+'" viewBox="0 0 128 128" preserveAspectRatio="xMidYMid meet"><rect width="128" height="128" fill="#000000"/>'+cells+'</svg>';
 }
 function getExtendedSigilSvg(ship,size){
-  // Moons (8 phonemes) and comets (16 phonemes) aren't natively supported
+  // Moons (6/8 phonemes) and comets (16 phonemes) aren't natively supported
   // by @urbit/sigil-js. For those ships, render the individual phoneme
-  // symbols in the 4x4 layout used by Tlon Groups' /lib/sigil: moons use
-  // the corners and center cells, comets fill the whole grid.
+  // symbols in a 4x4 layout: moons use corner/center cells, comets fill the grid.
   if(!sigilFn)return null;
   const phons=shipPhonemes(ship);
   if(!phons)return null;
-  if(phons.length!==8&&phons.length!==16)return null;
+  if(phons.length!==6&&phons.length!==8&&phons.length!==16)return null;
   const color=shipColor(ship);
   const cfg={size:128,foreground:color,background:'#000000',space:'none',detail:'default'};
+  const moon6Pos=[[0,0],[3,0],[0,3],[3,3],[1,1],[2,2]];
   const moonPos=[[0,0],[3,0],[0,3],[3,3],[1,1],[2,1],[1,2],[2,2]];
-  const positions=phons.length===8?moonPos:phons.map((_,i)=>[i%4,Math.floor(i/4)]);
+  const positions=phons.length===6?moon6Pos:(phons.length===8?moonPos:phons.map((_,i)=>[i%4,Math.floor(i/4)]));
   let inners;
   try{
     inners=phons.map(p=>_extractSigilInner(sigilFn(Object.assign({},cfg,{point:'~'+p}))));
@@ -1012,7 +1016,7 @@ function getSigilSvg(ship){
     if(phons.length<=4){
       const color=shipColor(ship);
       svg=sigilFn({point:ship,size:44,foreground:color,background:'#000000',space:'none',detail:'default'});
-    }else if(phons.length===8||phons.length===16){
+    }else if(phons.length===6||phons.length===8||phons.length===16){
       svg=getExtendedSigilSvg(ship,44);
     }else{
       return null;
@@ -2752,9 +2756,9 @@ function lookupUnknownShip(ship){
       delete state.profileLookupInFlight[reqId];
       state.profileLookupStatus[ship]='unreachable';
       if(state.searchQuery)renderSidebarSearchResults();
-      if(state._mentionLookups&&state._mentionLookups.has(ship)){state._mentionLookups.delete(ship);if(_mentionLookupPopovers[ship]){showMentionLookupPopover(ship,"this user can't be reached",'#ff4444',null);removeMentionLookupPopover(ship,3000)}}
+      if(state._mentionLookups&&state._mentionLookups.has(ship)){state._mentionLookups.delete(ship);if(_mentionLookupPopovers[ship]){showMentionLookupPopover(ship,"couldn't reach — tap again to retry",'#ffaa00',null);removeMentionLookupPopover(ship,4000)}}
     }
-  },9000);
+  },28000);  // two cold Ames hops (request + response) can exceed a short timeout on first contact
   api.poke('noltbook','noltbook-action',{action:'request-profile',data:{ship,reqId}});
   if(state.searchQuery)renderSidebarSearchResults();
 }
@@ -2766,8 +2770,8 @@ function makeSearchUnknownPersonResult(ship){
   let statusText='LOOK UP';
   let statusColor='#ffaa00';
   let clickable=true;
-  if(status==='looking'){statusText='LOOKING...';statusColor='#3b82f6';clickable=false}
-  else if(status==='unreachable'){statusText="this user can't be reached";statusColor='#ff4444'}
+  if(status==='looking'){statusText='LOOKING… (first contact can take ~20s)';statusColor='#3b82f6';clickable=false}
+  else if(status==='unreachable'){statusText="couldn't reach — tap to retry";statusColor='#ffaa00'}
   const av=avatarHtml(ship);
   div.innerHTML=`<div class="contact-avatar">${av}</div><div class="contact-info"><span class="contact-name">${escHtml(ship)}</span><span class="contact-ship" style="color:${statusColor}">${escHtml(statusText)}</span></div>`;
   if(clickable)div.onclick=()=>lookupUnknownShip(ship);
