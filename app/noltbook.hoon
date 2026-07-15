@@ -14905,6 +14905,8 @@
         %rename-note
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
+      ::  System-note names are fixed presentation identities.
+      ?:  |(=(id.act %cover) =(id.act %ars-rumors))  `this
       ::  gossip is an immutable snapshot — name is frozen at creation, no rename.
       ?:  =(%gossip type.u.old)  `this
       ::  DM: local-only rename; either member can rename their copy.
