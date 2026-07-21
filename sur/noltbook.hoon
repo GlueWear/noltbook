@@ -361,6 +361,11 @@
       [%remote-artifact-update art-id=@ta content=@t]
       ::  DM artifact: ship metadata + bytes to counterparty (symmetric storage)
       [%remote-dm-artifact =artifact mime=@t bytes=octs]
+      ::  DM %app artifact create (Phase 1): symmetric peer-authoritative creation of an
+      ::  interactive app artifact in an ordinary 2-person DM. Carries the DM note
+      ::  metadata because peers may hold different canonical local note ids; no mime/
+      ::  bytes (app artifacts are descriptor-only). Actor DMs are excluded.
+      [%remote-dm-app-artifact-create =note =artifact]
       ::  cover/gossip artifact envelope mesh propagation; bytes never travel
       [%remote-artifact-envelope-ref note-id=@ta env=artifact-envelope hops=@ud]
   ==

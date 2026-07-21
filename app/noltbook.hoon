@@ -7391,6 +7391,77 @@
       :_  state(notes (~(put by staged-notes) target-nid upd-note), messages (~(put by staged-msgs) target-nid new-cur), note-activity (put-activity note-activity target-nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity target-nid now.bowl))
       :(weld note-cards msg-cards ~[(activity-fact target-nid now.bowl) (unread-activity-fact target-nid now.bowl)])
     ::
+        %remote-dm-app-artifact-create
+      ::  Phase 1: symmetric peer-authoritative %app-artifact creation in an ordinary
+      ::  2-person DM. No subscription — the sender pokes us directly; we resolve OUR
+      ::  canonical local DM id (peers may differ), validate, dedup, store, and relay.
+      ::  Missing local DM is silently rejected (no recreate this phase). Any malformed
+      ::  or duplicate poke is a silent no-op, never a bail.
+      ?:  (~(has in pal-blocked) src.bowl)  `state
+      =/  pnote=note:noltbook      note.rem
+      =/  part=artifact:noltbook   artifact.rem
+      ::  payload note: ordinary 2-person DM whose users are exactly us + src, none removed.
+      ?.  =(%dm type.pnote)  `state
+      ?.  =(2 ~(wyt in users.pnote))  `state
+      ?.  (~(has in users.pnote) our.bowl)  `state
+      ?.  (~(has in users.pnote) src.bowl)  `state
+      ?.  =(~ removed.pnote)  `state
+      ::  artifact: %app, authored by the sender, exactly one version by the sender,
+      ::  note-id matching the payload note (pre-canonicalization), valid descriptor.
+      ?.  =(%app type.part)  `state
+      ?.  =(src.bowl creator.part)  `state
+      ?.  =(id.pnote note-id.part)  `state
+      ?.  ?=([* ~] versions.part)  `state
+      ?.  =(src.bowl editor.i.versions.part)  `state
+      ?.  (valid-app-artifact-content content.i.versions.part)  `state
+      ::  resolve OUR local canonical DM for this pair; must already exist and be an
+      ::  ordinary (non-actor) DM with neither party removed locally.
+      =/  local=(unit note:noltbook)  (find-dm-root notes users.pnote)
+      ?~  local  `state
+      =/  lnid=@ta  id.u.local
+      ?:  (~(has by actor-dm-notes) lnid)  `state
+      ?.  =(~ removed.u.local)  `state
+      ::  dedup: artifact id OR matching eid already present => silent no-op.
+      =/  part-eid=(unit @uv)  ?~(meta.part ~ `eid.u.meta.part)
+      ?:  ?|  (~(has by artifacts) id.part)
+              ?&  ?=(^ part-eid)
+                  %+  lien  ~(val by artifacts)
+                  |=(a=artifact:noltbook ?&(?=(^ meta.a) =(eid.u.meta.a u.part-eid)))
+              ==
+          ==
+        `state
+      ::  rewrite note-id to OUR local canonical id, store, and relay to the frontend.
+      =/  stored=artifact:noltbook  part(note-id lnid)
+      =/  upd=update:noltbook  [%artifact-created stored]
+      =/  prev=@t  (artifact-preview stored)
+      =/  upd-note=note:noltbook  u.local(last-author `src.bowl, last-preview `prev)
+      ::  reply-attention parity with %remote-dm-artifact: if this artifact replies to an
+      ::  immediate parent owned by us, add reply attention. Uses the canonicalized
+      ::  artifact + our local DM id + current local msgs/arts/envs. Runs AFTER the dedup
+      ::  above, so a replayed create mutates no attention.
+      ::  read artifact fields off `part` (narrowed to a 1-version list above); `stored`
+      ::  differs only in note-id, which attention never uses.
+      =/  art-eid=(unit @uv)  ?~(meta.part ~ `eid.u.meta.part)
+      =/  art-rte=(unit @uv)  ?~(meta.part ~ reply-to-eid.u.meta.part)
+      =/  art-when=@da  timestamp.i.versions.part
+      =/  cur-msgs=(list message:noltbook)  (fall (~(get by messages) lnid) ~)
+      =/  note-arts=(list artifact:noltbook)
+        (skim ~(val by artifacts) |=(a=artifact:noltbook =(note-id.a lnid)))
+      =/  note-aenvs=(list artifact-envelope:noltbook)
+        ~(val by (fall (~(get by artifact-envelopes) lnid) *(map @ta artifact-envelope:noltbook)))
+      =/  par-owner=(unit @p)  (attn-parent-owner art-rte ~ cur-msgs note-arts note-aenvs)
+      =/  rtarget=attention-item:noltbook  [%reply %artifact art-eid ~ `id.part creator.part art-when]
+      =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
+        (add-reply-attn attention lnid our.bowl (host-self creator.part ~ our.bowl) par-owner rtarget)
+      :_  state(notes (~(put by notes) lnid upd-note), artifacts (~(put by artifacts) id.part stored), attention na.ar, note-activity (put-activity note-activity lnid now.bowl), note-unread-activity (put-unread-activity note-unread-activity lnid now.bowl))
+      :*  (gf-paths ~[/notes/[lnid]] upd)
+          (gf-notes upd)
+          (activity-fact lnid now.bowl)
+          (unread-activity-fact lnid now.bowl)
+          (sidebar-signal lnid src.bowl `prev %artifact now.bowl)
+          ac.ar
+      ==
+    ::
         %remote-message
       ::  a remote user sent a message to a note we host
       ::  reject if sender is blocked
@@ -12871,6 +12942,19 @@
       ?:  ?|(=(%cover type.nt) =(%gossip type.nt))
         :_  this
         (api-art-result-card request-id.aa %.n %unsupported 'cover/gossip artifact creation not supported' `note-id.aa ~ ~)
+      ::  Phase 1.1: an artifact in an ordinary (non-actor) DM is peer-authoritative, so
+      ::  refuse when a participant was removed/left — otherwise we store locally + report
+      ::  success while the peer's receiver rejects it, leaving a one-sided artifact.
+      ::  Notebook/group and actor DMs are unaffected.
+      ?:  ?&  =(%dm type.nt)
+              !(~(has by actor-dm-notes) note-id.aa)
+              ?|  !=(2 ~(wyt in users.nt))
+                  !(~(has in users.nt) our.bowl)
+                  !=(~ removed.nt)
+              ==
+          ==
+        :_  this
+        (api-art-result-card request-id.aa %.n %rejected 'cannot create a DM artifact after a participant was removed' `note-id.aa ~ ~)
       ::  precompute the aid/eid the handler mints this same event:
       ::  aid = art-{now}, eid = (sham [our aid]).
       =/  aid=@ta  (crip (weld "art-" (trip (scot %da now.bowl))))
@@ -15952,6 +16036,17 @@
       ?~  exists  `this
       ::  cover/gossip artifact creation is not implemented; close legacy door
       ?:  ?|(?=(%cover type.u.exists) ?=(%gossip type.u.exists))  `this
+      ::  Phase 1.1: defensive — a direct internal action must not store a one-sided DM
+      ::  artifact. An ordinary (non-actor) DM with a removed/departed participant is
+      ::  peer-unauthoritative, so no-op. Notebook/group and actor DMs are unaffected.
+      ?:  ?&  =(%dm type.u.exists)
+              !(~(has by actor-dm-notes) note-id.act)
+              ?|  !=(2 ~(wyt in users.u.exists))
+                  !(~(has in users.u.exists) our.bowl)
+                  !=(~ removed.u.exists)
+              ==
+          ==
+        `this
       =/  aid=@ta  (crip (weld "art-" (trip (scot %da now.bowl))))
       =/  new-art=artifact:noltbook
         :*  aid  name.act  type.act  our.bowl  note-id.act
@@ -15973,7 +16068,23 @@
       =/  pax=path  ~[%notes note-id.act]
       =/  prev=@t  (artifact-preview new-art)
       =/  upd-note=note:noltbook  u.exists(last-author `our.bowl, last-preview `prev)
+      ::  Phase 1: an %app artifact in an ordinary (non-actor) 2-person DM is peer-
+      ::  authoritative — also poke the sole counterparty directly (like %remote-dm-
+      ::  message), carrying the DM note metadata so they resolve their own canonical
+      ::  local id. Actor DMs keep no artifact wire; DM files use %remote-dm-artifact.
+      =/  dm-cards=(list card:agent:gall)
+        ?.  ?&  =(%dm type.u.exists)
+                =(%app type.act)
+                =(2 ~(wyt in users.u.exists))
+                !(~(has by actor-dm-notes) note-id.act)
+            ==
+          ~
+        =/  others=(list @p)  (skim ~(tap in users.u.exists) |=(p=@p !=(p our.bowl)))
+        ?~  others  ~
+        ?:  =(i.others our.bowl)  ~
+        ~[(rpoke /dm-art-out/[aid] i.others `remote:noltbook`[%remote-dm-app-artifact-create u.exists new-art])]
       :_  this(notes (~(put by notes) note-id.act upd-note), artifacts (~(put by artifacts) aid new-art), note-activity (put-activity note-activity note-id.act now.bowl), note-unread-activity (put-unread-activity note-unread-activity note-id.act now.bowl), note-read (put-read note-read note-id.act now.bowl))
+      %+  weld  dm-cards
       ^-  (list card:agent:gall)
       ::  1B.2: keep /notes/[nid] transport; drop the global host-human facts when hidden.
       %:  human-note-cards  note-id.act  our.bowl
@@ -18106,6 +18217,13 @@
         ~[(gf-notes upd)]
       ::
           %artifact-created
+        ::  Phase 1: DM artifacts are delivered by the direct DM wires
+        ::  (%remote-dm-app-artifact-create for %app, %remote-dm-artifact for %file),
+        ::  which are authoritative. Ignore any artifact-created arriving via the legacy
+        ::  DM subscription so it can neither duplicate the direct delivery nor race
+        ::  ahead of the file bytes and trip the collision guard. Notebook/group
+        ::  subscriptions are unaffected.
+        ?:  ?&(?=(^ note) =(%dm type.u.note))  `this
         ::  host added an artifact; store locally and relay to frontend
         =.  artifacts  (~(put by artifacts) id.artifact.upd artifact.upd)
         ::  recency: a genuinely-new artifact from the host bumps this note.
