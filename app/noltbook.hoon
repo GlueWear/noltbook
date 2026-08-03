@@ -1614,6 +1614,172 @@
 ::  state-71: local external-DM import provenance. Imports are keyed by deterministic
 ::  EID and retained after local removal for permanent idempotency. import-only-dms
 ::  marks locally-created DM shells that have never participated in Noltbook transport.
+::  state-72: bounded in-flight image requests. Two additive maps only -- held
+::  remote note-icon fetches and held local avatar/icon uploads -- so every open
+::  HTTP request has an owner and a deadline. No existing field changes.
+::  state-73: pending-img-write gains an `answered` flag so a completion wake that lands
+::  AFTER the HTTP timeout still applies its verified state change. Only that record
+::  shape changes; every other field is carried through untouched.
++$  state-73
+  $:  %73
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      actor-by-eid=(map @uv actor:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      actor-registry=(map [@tas @t] actor-record:noltbook)
+      note-actor-owners=(map @ta actor-owner:noltbook)
+      actor-profiles=(map [@tas @t] actor-profile:noltbook)
+      actor-contacts=(map [@tas @t] (set identity-ref:noltbook))
+      actor-preferences=(map [@tas @t] actor-preferences:noltbook)
+      actor-note-roster=(map @ta (set actor-ref:noltbook))
+      remote-actor-profiles=(map [host=@p desk=@tas id=@t] [profile=actor-public-profile:noltbook fetched-at=@da])
+      actor-dm-notes=(map @ta actor-dm-meta:noltbook)
+      actor-note-read=(map [@tas @t] (map @ta @da))
+      actor-notifications=(map [@tas @t] (list actor-notification:noltbook))
+      note-unread-activity=(map @ta @da)
+      user-muted-actors=(set actor-ref:noltbook)
+      user-blocked-actors=(set actor-ref:noltbook)
+      note-members=(map @ta (set @p))
+      actor-join-requests=(map @ta (set actor-ref:noltbook))
+      note-actor-muted=(map @ta (set actor-ref:noltbook))
+      user-actor-contacts=(set actor-ref:noltbook)
+      app-notifications=(map [@tas @t] app-notification:noltbook)
+      dm-artifact-refs=(map @uv dm-artifact-ref:noltbook)
+      dm-artifact-tombs=(map @uv dm-artifact-tomb:noltbook)
+      dm-msg-tombs=(map dm-message-key:noltbook @da)
+      peer-proto=(map @p @ud)
+      pending-dm-fetches=(map @ta pending-dm-fetch:noltbook)
+      note-artifact-tombs=(map @ta note-artifact-tomb:noltbook)
+      mesh-tombs=(set @uv)
+      mesh-tomb-meta=(map @uv mesh-tomb:noltbook)
+      dm-imports=(map @uv dm-import:noltbook)
+      import-only-dms=(set @ta)
+      pending-icon-fetches=(map @ta pending-icon-fetch:noltbook)
+      pending-img-writes=(map @ta pending-img-write:noltbook)
+  ==
+::  pending-img-write-72: frozen pre-state-73 shape (state-72 load only). state-73
+::  adds `answered`; this keeps the old stored map nesting during upgrade.
++$  pending-img-write-72
+  [eyre-id=@ta kind=img-write-kind:noltbook note-id=@ta deadline=@da]
++$  state-72
+  $:  %72
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      actor-by-eid=(map @uv actor:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      actor-registry=(map [@tas @t] actor-record:noltbook)
+      note-actor-owners=(map @ta actor-owner:noltbook)
+      actor-profiles=(map [@tas @t] actor-profile:noltbook)
+      actor-contacts=(map [@tas @t] (set identity-ref:noltbook))
+      actor-preferences=(map [@tas @t] actor-preferences:noltbook)
+      actor-note-roster=(map @ta (set actor-ref:noltbook))
+      remote-actor-profiles=(map [host=@p desk=@tas id=@t] [profile=actor-public-profile:noltbook fetched-at=@da])
+      actor-dm-notes=(map @ta actor-dm-meta:noltbook)
+      actor-note-read=(map [@tas @t] (map @ta @da))
+      actor-notifications=(map [@tas @t] (list actor-notification:noltbook))
+      note-unread-activity=(map @ta @da)
+      user-muted-actors=(set actor-ref:noltbook)
+      user-blocked-actors=(set actor-ref:noltbook)
+      note-members=(map @ta (set @p))
+      actor-join-requests=(map @ta (set actor-ref:noltbook))
+      note-actor-muted=(map @ta (set actor-ref:noltbook))
+      user-actor-contacts=(set actor-ref:noltbook)
+      app-notifications=(map [@tas @t] app-notification:noltbook)
+      dm-artifact-refs=(map @uv dm-artifact-ref:noltbook)
+      dm-artifact-tombs=(map @uv dm-artifact-tomb:noltbook)
+      dm-msg-tombs=(map dm-message-key:noltbook @da)
+      peer-proto=(map @p @ud)
+      pending-dm-fetches=(map @ta pending-dm-fetch:noltbook)
+      note-artifact-tombs=(map @ta note-artifact-tomb:noltbook)
+      mesh-tombs=(set @uv)
+      mesh-tomb-meta=(map @uv mesh-tomb:noltbook)
+      dm-imports=(map @uv dm-import:noltbook)
+      import-only-dms=(set @ta)
+      pending-icon-fetches=(map @ta pending-icon-fetch:noltbook)
+      pending-img-writes=(map @ta pending-img-write-72)
+  ==
 +$  state-71
   $:  %71
       notes=(map @ta note:noltbook)
@@ -4469,7 +4635,7 @@
   |=  [our=@p s=state-64]
   ::  the ladder terminates at the live state-71, so every on-load
   ::  branch that lands here finalizes directly on the current state type.
-  ^-  state-71
+  ^-  state-73
   %-  upgrade-65-to-66
   :*  %65
       notes.s  messages.s  artifacts.s  profiles.s
@@ -4525,7 +4691,7 @@
   |=  s=state-65
   ::  chains through 66-to-67 -> 67-to-68 -> 68-to-69 -> 69-to-70 so the whole ladder
   ::  terminates at the active state-71 (like upgrade-64-to-65 chains into 65-to-66).
-  ^-  state-71
+  ^-  state-73
   %-  upgrade-66-to-67
   :*  %66
       notes.s  messages.s  artifacts.s  profiles.s
@@ -4585,7 +4751,7 @@
   |=  s=state-66
   ::  on-load ladder link: builds state-67 then chains through 67-to-68 -> 68-to-69 ->
   ::  69-to-70 so callers land on the live state type. Carry-forward is byte-for-byte.
-  ^-  state-71
+  ^-  state-73
   %-  upgrade-67-to-68
   ^-  state-67
   :*  %67
@@ -4649,7 +4815,7 @@
 ++  upgrade-67-to-68
   |=  s=state-67
   ::  builds state-68 then chains onward (68->69->70) so the ladder lands on the live state.
-  ^-  state-71
+  ^-  state-73
   %-  upgrade-68-to-69
   ^-  state-68
   :*  %68
@@ -4712,7 +4878,7 @@
 ::  cover/gossip tombstone set is initialized empty. Chains into upgrade-69-to-70.
 ++  upgrade-68-to-69
   |=  s=state-68
-  ^-  state-71
+  ^-  state-73
   %-  upgrade-69-to-70
   ^-  state-69
   :*  %69
@@ -4776,7 +4942,7 @@
 ::  canonical mesh-tomb record map is initialized empty, then chains to state-71.
 ++  upgrade-69-to-70
   |=  s=state-69
-  ^-  state-71
+  ^-  state-73
   %-  upgrade-70-to-71
   ^-  state-70
   :*  %70
@@ -4837,10 +5003,179 @@
       ::  state-70 new field — empty; the author populates it per new deletion.
       `(map @uv mesh-tomb:noltbook)`~
   ==
+::  upgrade-72-to-73: retypes pending-img-writes only. In-flight upload rows cannot
+::  survive an agent reload (their Eyre requests are gone), so the map starts empty;
+::  all other state is carried across verbatim.
+++  upgrade-72-to-73
+  |=  s=state-72
+  ^-  state-73
+  :*  %73
+      notes.s
+      messages.s
+      artifacts.s
+      profiles.s
+      transactions.s
+      current-note.s
+      peers.s
+      has-avatar.s
+      pal-outgoing.s
+      pal-incoming.s
+      pal-blocked.s
+      blocked-by.s
+      dial.s
+      gossip-hops.s
+      mentions.s
+      active-calls.s
+      gossip-envelopes.s
+      headlines.s
+      seq-counters.s
+      join-requests.s
+      note-admins.s
+      note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s
+      fork-version.s
+      fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      fork-parent-version.s
+      host-checks.s
+      notification-acks.s
+      note-activity.s
+      note-read.s
+      attention.s
+      cleared-mentions.s
+      via-by-eid.s
+      note-pins.s
+      note-apps.s
+      note-active.s
+      actor-by-eid.s
+      app-grants.s
+      actor-registry.s
+      note-actor-owners.s
+      actor-profiles.s
+      actor-contacts.s
+      actor-preferences.s
+      actor-note-roster.s
+      remote-actor-profiles.s
+      actor-dm-notes.s
+      actor-note-read.s
+      actor-notifications.s
+      note-unread-activity.s
+      user-muted-actors.s
+      user-blocked-actors.s
+      note-members.s
+      actor-join-requests.s
+      note-actor-muted.s
+      user-actor-contacts.s
+      app-notifications.s
+      dm-artifact-refs.s
+      dm-artifact-tombs.s
+      dm-msg-tombs.s
+      peer-proto.s
+      pending-dm-fetches.s
+      note-artifact-tombs.s
+      mesh-tombs.s
+      mesh-tomb-meta.s
+      dm-imports.s
+      import-only-dms.s
+      pending-icon-fetches.s
+      `(map @ta pending-img-write:noltbook)`~
+  ==
+::  upgrade-71-to-72: additive only. Both in-flight maps start empty; nothing that
+::  was open across the upgrade can be resolved, and none needs to be.
+++  upgrade-71-to-72
+  |=  s=state-71
+  ^-  state-73
+  %-  upgrade-72-to-73
+  ^-  state-72
+  :*  %72
+      notes.s
+      messages.s
+      artifacts.s
+      profiles.s
+      transactions.s
+      current-note.s
+      peers.s
+      has-avatar.s
+      pal-outgoing.s
+      pal-incoming.s
+      pal-blocked.s
+      blocked-by.s
+      dial.s
+      gossip-hops.s
+      mentions.s
+      active-calls.s
+      gossip-envelopes.s
+      headlines.s
+      seq-counters.s
+      join-requests.s
+      note-admins.s
+      note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s
+      fork-version.s
+      fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      fork-parent-version.s
+      host-checks.s
+      notification-acks.s
+      note-activity.s
+      note-read.s
+      attention.s
+      cleared-mentions.s
+      via-by-eid.s
+      note-pins.s
+      note-apps.s
+      note-active.s
+      actor-by-eid.s
+      app-grants.s
+      actor-registry.s
+      note-actor-owners.s
+      actor-profiles.s
+      actor-contacts.s
+      actor-preferences.s
+      actor-note-roster.s
+      remote-actor-profiles.s
+      actor-dm-notes.s
+      actor-note-read.s
+      actor-notifications.s
+      note-unread-activity.s
+      user-muted-actors.s
+      user-blocked-actors.s
+      note-members.s
+      actor-join-requests.s
+      note-actor-muted.s
+      user-actor-contacts.s
+      app-notifications.s
+      dm-artifact-refs.s
+      dm-artifact-tombs.s
+      dm-msg-tombs.s
+      peer-proto.s
+      pending-dm-fetches.s
+      note-artifact-tombs.s
+      mesh-tombs.s
+      mesh-tomb-meta.s
+      dm-imports.s
+      import-only-dms.s
+      `(map @ta pending-icon-fetch:noltbook)`~
+      `(map @ta pending-img-write-72)`~
+  ==
 ::  upgrade-70-to-71: additive import state only; no existing DM is classified as
 ::  import-only and no historical message is inferred to be imported.
 ++  upgrade-70-to-71
   |=  s=state-70
+  ^-  state-73
+  %-  upgrade-71-to-72
   ^-  state-71
   :*  %71
       notes.s  messages.s  artifacts.s  profiles.s
@@ -7751,8 +8086,8 @@
 ::  lose==win. Actor/group/fork/gossip-only fields hold no ordinary-DM data and are left
 ::  alone; pending-dm-fetches/dm-msg-tombs key by entry identity (not note-id).
 ++  reconcile-dm-roots
-  |=  [st=state-71 lose=@ta win=@ta cn=note:noltbook]
-  ^-  state-71
+  |=  [st=state-73 lose=@ta win=@ta cn=note:noltbook]
+  ^-  state-73
   ?:  =(lose win)  st
   =*  s  st
   ::  notes: install canonical winner, drop loser
@@ -7924,8 +8259,8 @@
 ::  DMs, and non-DM notes. Terminally-tombstoned eids are dropped, not referenced.
 ::  Re-runnable: once the full artifact is gone there is nothing left to convert.
 ++  migrate-dm-artifacts
-  |=  [our=@p st=state-71]
-  ^-  state-71
+  |=  [our=@p st=state-73]
+  ^-  state-73
   =*  s  st
   =/  targets=(list [aid=@ta a=artifact:noltbook])
     %+  murn  ~(tap by artifacts.s)
@@ -7937,7 +8272,7 @@
     ?~  nt  ~
     ?.  (is-ordinary-dm u.nt actor-dm-notes.s)  ~
     `[aid a]
-  |-  ^-  state-71
+  |-  ^-  state-73
   ?~  targets  s
   =/  a=artifact:noltbook  a.i.targets
   =/  eid=@uv  (dm-artifact-eid a)
@@ -7989,6 +8324,86 @@
   ?:  =('/' i.s)
     $(parts (snoc parts cur), cur "", s t.s)
   $(cur (snoc cur i.s), s t.s)
+::  ===== %file artifact byte-serving policy (preview vs download) =====
+::  Applies ONLY to %file artifact bytes on the ordinary + DM routes, local or
+::  ephemerally fetched. Never touches %app descriptors, /pkg plugin pages,
+::  avatars, note icons or gossip images. Bytes are NEVER altered — only headers.
+::  art-ct: mite -> 'type/subtype' cord.
+++  art-ct
+  |=  m=mite
+  ^-  @t
+  (rap 3 (join '/' m))
+::  art-serve-class: how a declared type may be presented.
+::    %raster/%media/%pdf — established safe inline previews, served as declared.
+::    %svg   — still rendered, but under a no-script sandbox CSP.
+::    %doc   — active or textual documents (html, js, xml, ...). NEVER served as the
+::             declared type; downgraded to text/plain so navigating to the raw URL
+::             cannot execute as a same-origin Noltbook page. The frontend doc/text
+::             cards read these with fetch() + textContent, so excerpts are unchanged.
+::    %other — unknown: octet-stream + attachment, so opening downloads.
+++  art-serve-class
+  |=  ct=@t
+  ^-  ?(%raster %media %pdf %svg %doc %other)
+  =/  s=tape  (cass (trip ct))
+  ?:  =("image/svg+xml" s)     %svg
+  ?:  =("image/svg" s)         %svg
+  ?:  =("application/pdf" s)   %pdf
+  ?:  =("image/" (scag 6 s))
+    ::  allowlisted rasters only; any other image/* is unknown, not assumed safe.
+    ?:  ?|  =("image/jpeg" s)  =("image/jpg" s)   =("image/png" s)
+            =("image/gif" s)   =("image/webp" s)  =("image/bmp" s)
+            =("image/avif" s)  =("image/x-icon" s)
+            =("image/vnd.microsoft.icon" s)
+        ==
+      %raster
+    %other
+  ?:  |(=("audio/" (scag 6 s)) =("video/" (scag 6 s)))  %media
+  ?:  =("text/" (scag 5 s))  %doc
+  ?:  ?|  =("application/json" s)            =("application/xml" s)
+          =("application/javascript" s)      =("application/x-javascript" s)
+          =("application/ecmascript" s)      =("application/xhtml+xml" s)
+          =("application/rss+xml" s)         =("application/atom+xml" s)
+          =("application/xml-dtd" s)         =("application/x-httpd-php" s)
+      ==
+    %doc
+  %other
+::  art-serve-payload: build the response for %file bytes.
+::  download=& always wins: original bytes, declared type, forced attachment.
+::  Otherwise the class decides. nosniff is on EVERY response so a downgraded
+::  content-type can never be re-sniffed back into an active document.
+++  art-serve-payload
+  |=  [m=mime fname=@t download=? cache=@t]
+  ^-  simple-payload:http
+  =/  ct=@t       (art-ct p.m)
+  =/  ns=[@t @t]  ['x-content-type-options' 'nosniff']
+  =/  cc=[@t @t]  ['cache-control' cache]
+  =/  cd=[@t @t]
+    ['content-disposition' (rap 3 ['attachment; filename="' fname '"' ~])]
+  ?:  download
+    [[200 ~[['content-type' ct] cc ns cd]] `q.m]
+  =/  cls  (art-serve-class ct)
+  ?-  cls
+      %raster  [[200 ~[['content-type' ct] cc ns]] `q.m]
+      %media   [[200 ~[['content-type' ct] cc ns]] `q.m]
+      %pdf     [[200 ~[['content-type' ct] cc ns]] `q.m]
+  ::
+      %svg
+    ::  visual preview preserved; the CSP sandbox blocks scripts, plugins and every
+    ::  external load, so an embedded <script> cannot run even on direct navigation.
+    :_  `q.m
+    :-  200
+    :~  ['content-type' 'image/svg+xml']
+        cc  ns
+        :-  'content-security-policy'
+        'default-src \'none\'; style-src \'unsafe-inline\'; img-src data:; sandbox'
+    ==
+  ::
+      %doc
+    [[200 ~[['content-type' 'text/plain; charset=utf-8'] cc ns]] `q.m]
+  ::
+      %other
+    [[200 ~[['content-type' 'application/octet-stream'] cc ns cd]] `q.m]
+  ==
 ::  art-meta-json: build clay-backed artifact metadata blob
 ++  art-meta-json
   |=  [mime=@t kind=@t size=@ud version=@ud]
@@ -8230,6 +8645,84 @@
   =/  art-cage=cage  [%mime !>(m)]
   =/  nori  [%& ~[[(art-store-spur aid) [%ins art-cage]]]]
   [%pass wire %arvo %c %info art-store-desk nori]
+::  ===== data-desk-first image reads (storage migration step 1: READS ONLY) =====
+::  Uploads still write to the live %noltbook desk in this segment. These readers try
+::  the migrated %noltbook-data location FIRST and fall back to the legacy live-desk
+::  path, so images written before the move keep serving with no migration step.
+::  Data-desk spurs: /avatar/mime and /icons/<nid>/mime.
+::  Legacy spur:     /lib/noltbook/avatar/mime (profile picture only). Note icons have
+::  NO legacy fallback -- they are read from %noltbook-data exclusively.
+::  clay-read-mime: mule-guarded read of ONE Clay file. %cu existence check FIRST so an
+::  absent file answers ~ rather than blocking; the typed %cx runs only once the file is
+::  known present. Never writes, copies, migrates or deletes.
+++  clay-read-mime
+  |=  fpath=path
+  ^-  (unit mime)
+  =/  ex-res  (mule |.(.^(? %cu fpath)))
+  ?.  ?=(%& -.ex-res)  ~
+  ?.  p.ex-res  ~
+  =/  res  (mule |.(.^(mime %cx fpath)))
+  ?:(?=(%| -.res) ~ `p.res)
+::  avatar-read: this ship's own profile picture, data desk first then legacy.
+::  The data-desk probe is gated on art-store-exists so a not-yet-provisioned desk
+::  can never block the (unauthenticated) avatar routes.
+++  avatar-read
+  |=  [our=@p now=@da live=@tas]
+  ^-  (unit mime)
+  =/  d=(unit mime)
+    ?.  (art-store-exists our now)  ~
+    (clay-read-mime ~[(scot %p our) art-store-desk (scot %da now) %avatar %mime])
+  ?^  d  d
+  (clay-read-mime ~[(scot %p our) live (scot %da now) %lib %noltbook %avatar %mime])
+::  icon-read: a note icon this ship hosts. %noltbook-data ONLY -- note icons have no
+::  legacy fallback (deliberately dropped; the profile-picture fallback is unaffected).
+++  icon-read
+  |=  [our=@p now=@da nid=@ta]
+  ^-  (unit mime)
+  ?.  (art-store-exists our now)  ~
+  (clay-read-mime ~[(scot %p our) art-store-desk (scot %da now) %icons nid %mime])
+::  note-icon-pointer: the ONLY icon-url value that denotes an internally uploaded
+::  note icon. Both the host and the member require an exact match, so an external or
+::  malformed pointer can never trigger a byte fetch.
+++  note-icon-pointer
+  |=  nid=@ta
+  ^-  @t
+  (crip (weld "/apps/noltbook/icon/" (trip nid)))
+++  note-icon-is-internal
+  |=  [nid=@ta iu=(unit @t)]
+  ^-  ?
+  ?~  iu  |
+  =(u.iu (note-icon-pointer nid))
+::  ===== data-desk image WRITES (storage migration step 2) =====
+::  New profile-picture and note-icon bytes go to %noltbook-data, never to the live
+::  %noltbook desk. Callers MUST gate on art-store-exists first so a missing or
+::  incomplete data desk fails safe (503) instead of falling back to the live desk.
+::  Legacy live-desk files are never copied, modified or deleted; the readers added in
+::  step 1 keep serving them.
+::  avatar-data-spur / icon-data-spur: file spurs WITHIN the data desk.
+++  avatar-data-spur  `path`/avatar/mime
+++  icon-data-spur
+  |=  nid=@ta
+  ^-  path
+  /icons/[nid]/mime
+::  data-file-exists: does this exact file already exist? mule-guarded %cu, so an
+::  absent file, a read failure, or an unbuilt subtree all answer %.n (-> %ins).
+++  data-file-exists
+  |=  fpath=path
+  ^-  ?
+  =/  res  (mule |.(.^(? %cu fpath)))
+  ?:(?=(%| -.res) %.n p.res)
+::  data-write-mime-card: the %c %info card writing a mime cage into art-store-desk at
+::  `spur`. %mut iff that exact DATA-DESK file already exists, else %ins -- decided
+::  purely from Clay on the data-desk path, never from has-avatar, icon-url, or whether
+::  a legacy live-desk file happens to exist.
+++  data-write-mime-card
+  |=  [our=@p now=@da wire=path spur=path m=mime]
+  ^-  card
+  =/  fpath=path  (weld ~[(scot %p our) art-store-desk (scot %da now)] spur)
+  =/  cag=cage  [%mime !>(m)]
+  =/  miso  ?:((data-file-exists fpath) [%mut cag] [%ins cag])
+  [%pass wire %arvo %c %info art-store-desk [%& ~[[spur miso]]]]
 ::  ensure-data-desk: self-provision the local artifact-byte desk on first install/load.
 ::  Mirrors the shipped |new-desk seed construction, adding %mime for artifact cages.
 ::  The desk has no desk.bill, runs no agent, is not mounted, and has no remote sync.
@@ -8378,6 +8871,92 @@
   ?:  =(0 (met 3 id-txt))  ~
   ?:  (gth (met 3 id-txt) 128)  ~
   `[u.desk-term id-txt (scot %uv (sham [u.desk-term id-txt]))]
+::  ===== note-icon URL size bounds =====
+::  iconUrl is a free-form cord stored in note state AND propagated to every peer on a
+::  gossip invite, so an unbounded value is both a state and a network amplifier.
+::  Two caps, because the two uses differ in kind:
+::    ordinary notes — 2.048 bytes. Internal /apps/noltbook/icon/<nid> pointers and
+::                     ordinary http(s) URLs are far below this.
+::    gossip notes   — 71.680 bytes (70 KiB). A gossip icon IS the image: the frontend
+::                     downscales to 128px and embeds it as a data URL that travels
+::                     with the note, so it needs real headroom.
+::  Empty stays valid so clearing an icon keeps working. Measured in BYTES via (met 3)
+::  on the cord actually stored -- not characters, and not the pre-encode image size.
+++  icon-url-cap     ^-(@ud 2.048)
+++  gossip-icon-cap  ^-(@ud 71.680)
+::  icon-url-ok: does this value fit the cap? Both ~ and '' pass.
+++  icon-url-ok
+  |=  [iu=(unit @t) cap=@ud]
+  ^-  ?
+  ?~  iu  &
+  (lte (met 3 u.iu) cap)
+::  clamp-icon-url: drop an oversized icon but KEEP the note. Used on receive paths,
+::  where discarding one image beats refusing the whole gossip note.
+++  clamp-icon-url
+  |=  [iu=(unit @t) cap=@ud]
+  ^-  (unit @t)
+  ?:  (icon-url-ok iu cap)  iu
+  ~
+::  sanitize-note-icon: bound the icon reference on a COMPLETE note record arriving
+::  from the network. Several handlers receive a whole note and store it directly,
+::  bypassing the action/API gates. Gossip notes carry the embedded image, so they get
+::  the larger cap; every other type gets the ordinary pointer cap. ONLY icon-url is
+::  touched -- every other field is preserved exactly, and an oversized icon never
+::  causes the note itself to be rejected. Remote ships never ship image BYTES through
+::  these fields; this bounds the reference text only.
+++  sanitize-note-icon
+  |=  n=note:noltbook
+  ^-  note:noltbook
+  =/  cap=@ud  ?:(=(%gossip type.n) gossip-icon-cap icon-url-cap)
+  n(icon-url (clamp-icon-url icon-url.n cap))
+::  ===== uploaded-image signature validation =====
+::  Identify a locally uploaded image by its ACTUAL leading bytes. The request's
+::  Content-Type is caller-controlled and is NOT evidence of the real format, so it
+::  is no longer consulted for avatar / note-icon / actor-avatar uploads. The stored
+::  mime is derived from the signature that matched. Applies to uploaded BYTES only:
+::  external image URLs, file/image artifacts and gossip images are untouched here.
+::  image-byte-at: byte i of an octs, 0 = FIRST byte of the file (atoms are
+::  little-endian, so the leading file byte is the least significant). Out-of-range
+::  reads answer 0 instead of crashing, so truncated bodies are safe to probe.
+++  image-byte-at
+  |=  [b=octs i=@ud]
+  ^-  @
+  ?:  (gte i p.b)  0
+  (cut 3 [i 1] q.b)
+::  image-sig-mite: allowed-format signature gate. ~ for empty, truncated,
+::  malformed or unknown bytes; the caller answers 400. Total — never crashes.
+++  image-sig-mite
+  |=  b=octs
+  ^-  (unit (list @ta))
+  =/  at  |=(i=@ud (image-byte-at b i))
+  ::  every allowed signature is at least 3 bytes; shorter bodies cannot match.
+  ?:  (lth p.b 3)  ~
+  ::  JPEG: FF D8 FF
+  ?:  ?&  =(0xff (at 0))  =(0xd8 (at 1))  =(0xff (at 2))
+      ==
+    `/image/jpeg
+  ::  PNG: 89 50 4E 47 0D 0A 1A 0A
+  ?:  ?&  (gte p.b 8)
+          =(0x89 (at 0))  =(0x50 (at 1))  =(0x4e (at 2))  =(0x47 (at 3))
+          =(0xd (at 4))   =(0xa (at 5))   =(0x1a (at 6))   =(0xa (at 7))
+      ==
+    `/image/png
+  ::  GIF: "GIF87a" or "GIF89a"
+  ?:  ?&  (gte p.b 6)
+          =('G' (at 0))  =('I' (at 1))  =('F' (at 2))  =('8' (at 3))
+          |(=('7' (at 4)) =('9' (at 4)))
+          =('a' (at 5))
+      ==
+    `/image/gif
+  ::  WebP: "RIFF" <4 length bytes> "WEBP"
+  ?:  ?&  (gte p.b 12)
+          =('R' (at 0))  =('I' (at 1))  =('F' (at 2))   =('F' (at 3))
+          =('W' (at 8))  =('E' (at 9))  =('B' (at 10))  =('P' (at 11))
+      ==
+    `/image/webp
+  ~
+::  SUPERSEDED by image-sig-mite; no callers remain. Content-Type is caller-
+::  controlled and is not evidence of format. Do not re-wire to an upload path.
 ::  mite-of-header: derive the stored image mime from the upload's Content-Type
 ::  header (browsers set it to the file's real type). Splits "image/png" into a
 ::  proper mite so PNG/GIF/WebP aren't mislabeled jpeg. Falls back to image/jpeg.
@@ -8395,6 +8974,8 @@
   =/  minor=@ta  (crip (slag +(u.slash) clean))
   ?:  |(=(0 (met 3 major)) =(0 (met 3 minor)))  /image/jpeg
   ~[major minor]
+::  SUPERSEDED by image-sig-mite; no callers remain. Header-only, no magic bytes.
+::  Do not re-wire to an upload path.
 ::  user-avatar-mite: MIME gate for avatar image uploads (user PFP + actor/persona).
 ::  Accepts jpeg/png/gif/webp. Missing Content-Type -> image/jpeg fallback (keeps the
 ::  browser File-upload flow working; lower-risk than rejecting). Present-but-not-an-
@@ -8467,11 +9048,11 @@
   ::  Option-1: the whole %noltbook-remote dispatch moved OUT of the on-poke battery.
   ::  =| / =* / =. re-expose state-67 faces exactly like the door, so handler bodies are
   ::  unchanged except this->state. on-poke delegates: =^ cards state (rem-handle bowl rem state).
-  |=  [=bowl:gall rem=remote:noltbook sin=state-71]
-  =|  state-71
+  |=  [=bowl:gall rem=remote:noltbook sin=state-73]
+  =|  state-73
   =*  state  -
   =.  state  sin
-  ^-  (quip card state-71)
+  ^-  (quip card state-73)
     ?-  -.rem
     ::
         %remote-invite
@@ -8562,8 +9143,10 @@
       =/  hl  headline.rem
       ::  gossip is always-public + hostless; carry the embedded image (icon-url) so it travels
       ::  with the note (no fetch). %public so a shared gossip note never reads as private.
+      ::  oversized incoming icon: keep the gossip note, discard just the image.
+      =/  ic=(unit @t)  (clamp-icon-url icon-url.rem gossip-icon-cap)
       =/  new-note=note:noltbook
-        [note-id.rem name.rem %gossip creator.rem users.rem ~ ~ ~ ~ %public icon-url.rem & ~ hl]
+        [note-id.rem name.rem %gossip creator.rem users.rem ~ ~ ~ ~ %public ic & ~ hl]
       =/  new-peers=(set @p)  (~(put in peers) creator.rem)
       =/  is-new-peer=?  !(~(has in peers) creator.rem)
       =/  ars-cards=(list card)
@@ -8598,6 +9181,8 @@
       ~[(rpoke /gossip-give/(scot %p src.bowl)/[note-id.rem] src.bowl `remote:noltbook`[%remote-gossip-invite note-id.rem name.u.nt creator.u.nt users.u.nt headline.u.nt icon-url.u.nt])]
     ::
         %remote-dm-message
+      ::  bound the icon on the incoming DM note before any use of note.rem below.
+      =.  rem  rem(note (sanitize-note-icon note.rem))
       ::  atomic DM delivery: payload carries DM note metadata, so the
       ::  receiver can recreate the DM if they previously left it. No
       ::  subscription, no echo poke — avoids ames loops.
@@ -9277,6 +9862,8 @@
       ~[(rpoke /note-resp/(scot %p requester.rem) requester.rem resp)]
     ::
         %remote-note-list
+      ::  bound icons before the list is handed to the frontend.
+      =.  rem  rem(notes (turn notes.rem sanitize-note-icon))
       ::  received a remote ship's public/private notes
       =/  upd=update:noltbook  [%remote-note-list src.bowl notes.rem]
       :_  state
@@ -9333,6 +9920,8 @@
       ~[(rpoke /state-out/(scot %p src.bowl)/[root-id] src.bowl resp)]
     ::
         %remote-note-state
+      ::  bound icons on every note in the authoritative snapshot before any use below.
+      =.  rem  rem(notes (turn notes.rem sanitize-note-icon))
       ::  host replied with an authoritative snapshot. Validate strictly,
       ::  then conservatively merge metadata. Do not touch messages,
       ::  artifacts, mentions, calls, envelopes. Emit a single dedicated
@@ -9659,6 +10248,8 @@
       `state
     ::
         %remote-child-note
+      ::  bound the icon on the incoming child note before any use of note.rem below.
+      =.  rem  rem(note (sanitize-note-icon note.rem))
       ::  receive a child note from the host. Tolerate orphan delivery
       ::  (root invite races behind child poke) by storing the child even
       ::  if its parent is not yet present; root install repairs children.
@@ -9871,6 +10462,8 @@
       :(weld base-cards admin-cards muted-cards desc-users-cards)
     ::
         %remote-root-exists
+      ::  bound the icon on the incoming canonical note before any use below.
+      =.  rem  rem(canonical (sanitize-note-icon canonical.rem))
       ::  we lost a root-uniqueness race; adopt canonical, losslessly reconciling our loser
       ::  protect system notes from root-exists manipulation
       ?:  |(=(losing-id.rem %cover) =(losing-id.rem %ars-rumors))  `state
@@ -10132,6 +10725,15 @@
       ~[(rpoke /fork-pay/(scot %p src.bowl)/[root-id.rem] src.bowl pload)]
     ::
         %remote-fork-payload
+      ::  bound icons on the root note and every descendant before validation/install.
+      =.  rem  rem(root-note (sanitize-note-icon root-note.rem))
+      =.  rem
+        %=    rem
+            descendants
+          %+  turn  descendants.rem
+          |=  [n=note:noltbook source-id=@ta]
+          [(sanitize-note-icon n) source-id]
+        ==
       ::  Phase 6.2: forker delivered the subtree after accept. Validate
       ::  against pending invite, install only if everything checks out.
       ?:  (~(has in pal-blocked) src.bowl)  `state
@@ -10871,11 +11473,16 @@
       ?^  art
         ::  artifact-map path: only creator may serve us bytes
         ?.  =(src.bowl creator.u.art)  `state
-        =/  hdrs=(list [@t @t])
-          :~  ['content-type' mime.rem]
-              ['cache-control' 'no-store']
-          ==
-        =/  =simple-payload:http  [[200 hdrs] `bytes.rem]
+        ::  ephemeral bytes get the SAME policy as local ones. The original request's
+        ::  preview/download marker cannot survive the async host round-trip without new
+        ::  state, so preview semantics are applied unconditionally: safe types render,
+        ::  active documents are downgraded to text/plain, unknown types download. The
+        ::  bytes are always the untouched original, so the frontend's `download`
+        ::  attribute still saves the real file.
+        =/  =simple-payload:http
+          %+  art-serve-payload
+            [(parse-mime-path mime.rem) bytes.rem]
+          [name.u.art | 'no-store']
         :_  state
         (give-simple-payload:app:server eyre-id.rem simple-payload)
       ::  envelope path: require known envelope + matching author. Hash
@@ -10890,11 +11497,11 @@
         :_  state
         %+  give-simple-payload:app:server  eyre-id.rem
         [[404 ~] ~]
-      =/  hdrs=(list [@t @t])
-        :~  ['content-type' mime.rem]
-            ['cache-control' 'no-store']
-        ==
-      =/  =simple-payload:http  [[200 hdrs] `bytes.rem]
+      ::  gossip/cover envelope path: same unconditional policy as above.
+      =/  =simple-payload:http
+        %+  art-serve-payload
+          [(parse-mime-path mime.rem) bytes.rem]
+        [name.u.env | 'no-store']
       :_  state
       (give-simple-payload:app:server eyre-id.rem simple-payload)
     ::
@@ -10913,6 +11520,89 @@
       %+  give-simple-payload:app:server  eyre-id.rem
       [[404 ~] ~]
     ::
+        %remote-note-icon-fetch
+      ::  HOST: serve our OWN uploaded icon for a note we created. No arbitrary-path
+      ::  access -- the spur is derived from note-id and read only from %noltbook-data.
+      ::  Every failed check answers denied, never bytes.
+      =/  deny=(list card)
+        :~  %^    rpoke
+                /nic-deny/(scot %p src.bowl)/[note-id.rem]
+              src.bowl
+            `remote:noltbook`[%remote-note-icon-denied note-id.rem eyre-id.rem]
+        ==
+      ?:  (~(has in pal-blocked) src.bowl)  [deny state]
+      =/  nt  (~(get by notes) note-id.rem)
+      ?~  nt  [deny state]
+      ?.  =(our.bowl creator.u.nt)  [deny state]
+      ?.  (note-icon-is-internal note-id.rem icon-url.u.nt)  [deny state]
+      ::  a current non-removed member, or a note already advertised public/private.
+      =/  is-member=?
+        ?&  (~(has in users.u.nt) src.bowl)
+            !(~(has in removed.u.nt) src.bowl)
+        ==
+      =/  advertised=?
+        ?|(=(%public visibility.u.nt) =(%private visibility.u.nt))
+      ?.  |(is-member advertised)  [deny state]
+      =/  res  (icon-read our.bowl now.bowl note-id.rem)
+      ?~  res  [deny state]
+      ::  same 50 KB ceiling the upload enforces, re-checked on the way out.
+      ?:  (gth p.q.u.res 51.200)  [deny state]
+      ::  revalidate the stored bytes; never ship something that is not an image.
+      ?~  (image-sig-mite q.u.res)  [deny state]
+      :_  state
+      :~  %^    rpoke
+              /nic-content/(scot %p src.bowl)/[note-id.rem]
+            src.bowl
+          `remote:noltbook`[%remote-note-icon-content note-id.rem eyre-id.rem q.u.res]
+      ==
+    ::
+        %remote-note-icon-content
+      ::  REQUESTER: answer the held browser request and persist NOTHING. The wire
+      ::  carries no mime on purpose -- the type is re-derived from the bytes here.
+      ::  resolve-once: only a request we are actually holding may be answered, and the
+      ::  row is deleted on every path, so a late or duplicate reply finds nothing.
+      =/  pend  (~(get by pending-icon-fetches) eyre-id.rem)
+      ?~  pend  `state
+      ?.  =(note-id.rem note-id.u.pend)  `state
+      ?.  =(src.bowl host.u.pend)  `state
+      =/  dropped  (~(del by pending-icon-fetches) eyre-id.rem)
+      =/  fail-404
+        :_  state(pending-icon-fetches dropped)
+        (give-simple-payload:app:server eyre-id.rem `simple-payload:http`[[404 ~] ~])
+      =/  nt  (~(get by notes) note-id.rem)
+      ?~  nt  fail-404
+      ::  the Ames-authenticated sender must be the creator of OUR copy of the note.
+      ?.  =(src.bowl creator.u.nt)  fail-404
+      ?.  (note-icon-is-internal note-id.rem icon-url.u.nt)  fail-404
+      ?:  (gth p.bytes.rem 51.200)  fail-404
+      =/  mt  (image-sig-mite bytes.rem)
+      ?~  mt  fail-404
+      =/  hdrs=(list [@t @t])
+        :~  ['content-type' (rap 3 (join '/' u.mt))]
+            ['cache-control' 'no-store']
+            ['access-control-allow-origin' '*']
+            ['x-content-type-options' 'nosniff']
+        ==
+      :_  state(pending-icon-fetches dropped)
+      %+  give-simple-payload:app:server  eyre-id.rem
+      `simple-payload:http`[[200 hdrs] `bytes.rem]
+    ::
+        %remote-note-icon-denied
+      ::  REQUESTER: resolve the held request as 404. Only the note's creator may
+      ::  complete a request for that note -- otherwise any ship could 404 a browser
+      ::  request it does not own. Unknown note or wrong sender: ignore entirely.
+      ::  No pending-request state is kept; authority comes from our local note record.
+      =/  pend  (~(get by pending-icon-fetches) eyre-id.rem)
+      ?~  pend  `state
+      ?.  =(note-id.rem note-id.u.pend)  `state
+      ?.  =(src.bowl host.u.pend)  `state
+      =/  nt  (~(get by notes) note-id.rem)
+      ?~  nt  `state
+      ?.  =(src.bowl creator.u.nt)  `state
+      :_  state(pending-icon-fetches (~(del by pending-icon-fetches) eyre-id.rem))
+      %+  give-simple-payload:app:server  eyre-id.rem
+      `simple-payload:http`[[404 ~] ~]
+    ::
         %remote-user-avatar-fetch
       ::  owner: serve ONLY our own uploaded user avatar bytes. require has-avatar +
       ::  a mule-guarded Clay read of the FIXED /lib/noltbook/avatar/mime path (no
@@ -10920,17 +11610,11 @@
       ?.  has-avatar
         :_  state
         ~[(rpoke /uav-deny/(scot %p src.bowl) src.bowl `remote:noltbook`[%remote-user-avatar-denied eyre-id.rem])]
-      =/  av-clay=path
-        :*  (scot %p our.bowl)
-            q.byk.bowl
-            (scot %da now.bowl)
-            /lib/noltbook/avatar/mime
-        ==
-      =/  res  (mule |.(.^(mime %cx av-clay)))
-      ?.  ?=(%& -.res)
+      =/  res  (avatar-read our.bowl now.bowl q.byk.bowl)
+      ?~  res
         :_  state
         ~[(rpoke /uav-deny/(scot %p src.bowl) src.bowl `remote:noltbook`[%remote-user-avatar-denied eyre-id.rem])]
-      =/  mim=mime  p.res
+      =/  mim=mime  u.res
       =/  ct=@t  (rap 3 (join '/' p.mim))
       :_  state
       ~[(rpoke /uav-content/(scot %p src.bowl) src.bowl `remote:noltbook`[%remote-user-avatar-content eyre-id.rem ct q.mim])]
@@ -11350,6 +12034,9 @@
     ::  receive a %file/%app reference (metadata only; no bytes, no descriptor, no Clay).
     ::  local DM by the authenticated {our,src} pair; recreate it if missing.
         %remote-dm-ref-upsert
+      ::  bound the icon on the incoming complete note before validation, the
+      ::  dm-pref overlay, storage, or the emitted %note-created fact.
+      =.  rem  rem(note (sanitize-note-icon note.rem))
       ?:  (~(has in pal-blocked) src.bowl)  `state
       =/  pnote=note:noltbook          note.rem
       =/  r=dm-artifact-ref:noltbook   ref.rem
@@ -11528,11 +12215,11 @@
       =.  dm-artifact-refs
         %+  ~(put by dm-artifact-refs)  eid.u.pend
         u.cur-ref(rev rev.ref.rem, content-hash content-hash.ref.rem, file-meta file-meta.ref.rem, name name.ref.rem, updated updated.ref.rem)
-      =/  hdrs=(list [@t @t])
-        :~  ['content-type' mime.rem]
-            ['cache-control' 'no-store']
-        ==
-      =/  =simple-payload:http  [[200 hdrs] `bytes.rem]
+      ::  DM reference bytes: same policy, applied unconditionally (see above).
+      =/  =simple-payload:http
+        %+  art-serve-payload
+          [(parse-mime-path mime.rem) bytes.rem]
+        [name.ref.rem | 'no-store']
       :_  state(pending-dm-fetches (~(del by pending-dm-fetches) eyre-id.rem))
       (give-simple-payload:app:server eyre-id.rem simple-payload)
     ::  requester: complete the held HTTP request with the fetched %app descriptor; never
@@ -11565,6 +12252,7 @@
       =/  hdrs=(list [@t @t])
         :~  ['content-type' 'application/json']
             ['cache-control' 'no-store']
+            ['x-content-type-options' 'nosniff']
         ==
       =/  =simple-payload:http  [[200 hdrs] `(as-octs:mimes:html content.rem)]
       :_  state(pending-dm-fetches (~(del by pending-dm-fetches) eyre-id.rem))
@@ -11760,8 +12448,8 @@
 ::  artifact, already-tombstoned, or unauthorized sender — is a harmless no-op ([~ st]), so
 ::  duplicate and replayed requests neither mutate state nor emit a marker.
 ++  delete-note-artifact
-  |=  [=bowl:gall sender=@p nid=@ta aid=@ta st=state-71]
-  ^-  [(list card:agent:gall) state-71]
+  |=  [=bowl:gall sender=@p nid=@ta aid=@ta st=state-73]
+  ^-  [(list card:agent:gall) state-73]
   =/  nt  (~(get by notes.st) nid)
   ?~  nt  [~ st]
   ::  we must host this note; shared %group/%notebook only
@@ -11820,7 +12508,7 @@
   =/  del-upd=update:noltbook  [%artifact-deleted aid]
   =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~ ~]
   =/  pax=path  ~[%notes nid]
-  =/  st2=state-71
+  =/  st2=state-73
     %=  st
       artifacts             (~(del by artifacts.st) aid)
       note-pins             new-pins
@@ -11924,7 +12612,7 @@
   ~[(gf-paths paths `update:noltbook`[%app-notifications-updated ~(val by live)])]
 --
 %-  agent:dbug
-=|  state-71
+=|  state-73
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -12021,8 +12709,14 @@
     =/  s70  !<(state-70 old)
     $(old !>((upgrade-70-to-71 s70)))
   ?:  ?=([%71 *] q.old)
-    =/  loaded  !<(state-71 old)
-    =/  loaded=state-71
+    =/  s71  !<(state-71 old)
+    $(old !>((upgrade-71-to-72 s71)))
+  ?:  ?=([%72 *] q.old)
+    =/  s72  !<(state-72 old)
+    $(old !>((upgrade-72-to-73 s72)))
+  ?:  ?=([%73 *] q.old)
+    =/  loaded  !<(state-73 old)
+    =/  loaded=state-73
       %=  loaded
         active-calls       *(map @ta call-info:noltbook)
         note-members       (ensure-note-members note-members.loaded notes.loaded note-actor-owners.loaded)
@@ -12030,7 +12724,7 @@
       ==
     ::  idempotent normalization of remote-owned ordinary-DM %file/%app artifacts into
     ::  content-free references (no content read/write; nothing serveable by a noncreator).
-    =/  loaded=state-71  (migrate-dm-artifacts our.bowl loaded)
+    =/  loaded=state-73  (migrate-dm-artifacts our.bowl loaded)
     =/  prof  (fall (~(get by profiles.loaded) our.bowl) *profile:noltbook)
     =/  prof-cards=(list card)
       %+  turn  ~(tap in peers.loaded)
@@ -15044,6 +15738,11 @@
       ?:  =('' name.aa)
         :_  this
         (api-result-card request-id.aa %.n %invalid-name 'name cannot be empty' ~ ~ ~)
+      ::  bound the embedded gossip image (70 KiB). Reject rather than silently
+      ::  creating the note with its image stripped.
+      ?.  (icon-url-ok icon-url.aa gossip-icon-cap)
+        :_  this
+        (api-result-card request-id.aa %.n %invalid-icon 'iconUrl exceeds 71680 bytes' ~ ~ ~)
       =/  existing=(unit @ta)  (api-find-gossip-by-name name.aa notes our.bowl)
       ?^  existing
         :_  this
@@ -15987,6 +16686,11 @@
       ?~  (~(get by notes) note-id.aa)
         :_  this
         (api-result-card request-id.aa %.n %missing-note 'no such note' `note-id.aa ~ ~)
+      ::  bound iconUrl (ordinary cap). Honest failure instead of delegating and
+      ::  reporting %configured while the internal handler silently drops it.
+      ?.  (icon-url-ok icon-url.aa icon-url-cap)
+        :_  this
+        (api-result-card request-id.aa %.n %invalid-icon 'iconUrl exceeds 2048 bytes' `note-id.aa ~ ~)
       =/  nt=note:noltbook  (~(got by notes) note-id.aa)
       ::  gossip is an immutable snapshot (name/visibility/icon/headline frozen at
       ::  creation). Reject up front so the API is honest instead of reporting
@@ -16280,18 +16984,12 @@
         :_  this
         %+  give-simple-payload:app:server  eyre-id
         [[404 ~] ~]
-      =/  av-clay=path
-        :*  (scot %p our.bowl)
-            q.byk.bowl
-            (scot %da now.bowl)
-            /lib/noltbook/avatar/mime
-        ==
-      =/  av-res  (mule |.(.^(mime %cx av-clay)))
-      ?.  ?=(%& -.av-res)
+      =/  av-res  (avatar-read our.bowl now.bowl q.byk.bowl)
+      ?~  av-res
         :_  this
         %+  give-simple-payload:app:server  eyre-id
         [[404 ~] ~]
-      =/  avatar-data=mime  p.av-res
+      =/  avatar-data=mime  u.av-res
       =/  =simple-payload:http
         :_  `q.avatar-data
         :-  200
@@ -16320,18 +17018,12 @@
         :_  this
         %+  give-simple-payload:app:server  eyre-id
         [[404 ~] ~]
-      =/  av-clay=path
-        :*  (scot %p our.bowl)
-            q.byk.bowl
-            (scot %da now.bowl)
-            /lib/noltbook/avatar/mime
-        ==
-      =/  av-res  (mule |.(.^(mime %cx av-clay)))
-      ?.  ?=(%& -.av-res)
+      =/  av-res  (avatar-read our.bowl now.bowl q.byk.bowl)
+      ?~  av-res
         :_  this
         %+  give-simple-payload:app:server  eyre-id
         [[404 ~] ~]
-      =/  avatar-data=mime  p.av-res
+      =/  avatar-data=mime  u.av-res
       =/  =simple-payload:http
         :_  `q.avatar-data
         :-  200
@@ -16381,35 +17073,100 @@
       [(give-simple-payload:app:server eyre-id simple-payload) this]
     ::  public endpoint: serve note icon (only the note's host serves it)
     ?:  &(=(%'GET' method.request.inbound-request) =((scag 20 url-tape) "/apps/noltbook/icon/"))
-      =/  nid=@ta  (crip (slag 20 url-tape))
+      ::  strip any ?v=<rev> cache-buster: the revision is browser-only and the stored
+      ::  pointer never carries it.
+      =/  nid=@ta  path:(split-url-tail url-tape 20)
       =/  nt  (~(get by notes) nid)
       ?~  nt
         :_  this
         %+  give-simple-payload:app:server  eyre-id
         [[404 ~] ~]
-      ?.  =(our.bowl creator.u.nt)
-        :_  this
-        %+  give-simple-payload:app:server  eyre-id
-        [[404 ~] ~]
-      ?~  icon-url.u.nt
-        :_  this
-        %+  give-simple-payload:app:server  eyre-id
-        [[404 ~] ~]
-      =/  ic-clay=path
-        :*  (scot %p our.bowl)
-            q.byk.bowl
-            (scot %da now.bowl)
-            /lib/noltbook/icons/[nid]/mime
+      ::  serve when we host the note, OR when it is a DM icon we stored locally and we
+      ::  are still a current, non-removed member -- the upload endpoint allows exactly
+      ::  that, so the read must match. DM icons stay local-only: there is no remote
+      ::  fetch path for them, and ordinary non-host notes are still denied here.
+      =/  dm-local=?
+        ?&  =(%dm type.u.nt)
+            (~(has in users.u.nt) our.bowl)
+            !(~(has in removed.u.nt) our.bowl)
         ==
-      =/  icon-data=mime  .^(mime %cx ic-clay)
+      ?.  |(=(our.bowl creator.u.nt) dm-local)
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[404 ~] ~]
+      ::  only the exact internal pointer may serve bytes.
+      ?.  (note-icon-is-internal nid icon-url.u.nt)
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[404 ~] ~]
+      ::  data desk first, then legacy. A missing/unreadable file now answers 404
+      ::  instead of crashing the (unauthenticated) request on a bare %cx.
+      =/  ic-res  (icon-read our.bowl now.bowl nid)
+      ?~  ic-res
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[404 ~] ~]
+      =/  icon-data=mime  u.ic-res
       =/  =simple-payload:http
         :_  `q.icon-data
         :-  200
         :~  ['content-type' (rap 3 (join '/' p.icon-data))]
-            ['cache-control' 'max-age=3600']
+            ['cache-control' 'no-store']
             ['access-control-allow-origin' '*']
+            ['x-content-type-options' 'nosniff']
         ==
       [(give-simple-payload:app:server eyre-id simple-payload) this]
+    ::  member-side host-scoped uploaded-note-icon fetch:
+    ::    GET /apps/noltbook/note-icon/<host>/<nid>
+    ::  Serves an uploaded icon for a note hosted by ANOTHER ship. Bytes arrive
+    ::  ephemerally over Ames and are NEVER persisted (fetch-serve-forget).
+    ?:  &(=(%'GET' method.request.inbound-request) =((scag 25 url-tape) "/apps/noltbook/note-icon/"))
+      =/  parts  (split-url-tail url-tape 25)
+      =/  tail=tape  (trip path.parts)
+      =/  hslash=(unit @ud)  (find "/" tail)
+      =/  host-u=(unit @p)  ?~(hslash ~ (slaw %p (crip (scag u.hslash tail))))
+      =/  nid=@ta  ?~(hslash '' (crip (slag +(u.hslash) tail)))
+      =/  nt  ?:(=('' nid) ~ (~(get by notes) nid))
+      ::  malformed host/nid, unknown note, wrong host, or a non-internal pointer: 404
+      ::  and no fetch. Never emit a poke for something we cannot vouch for locally.
+      ?:  ?|  ?=(~ host-u)
+              =('' nid)
+              ?=(~ nt)
+              !=(u.host-u creator.u.nt)
+              !(note-icon-is-internal nid icon-url.u.nt)
+          ==
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[404 ~] ~]
+      ::  local host: same read and same headers as the ordinary /icon route.
+      ?:  =(u.host-u our.bowl)
+        =/  ic-res  (icon-read our.bowl now.bowl nid)
+        ?~  ic-res
+          :_  this
+          %+  give-simple-payload:app:server  eyre-id
+          [[404 ~] ~]
+        =/  icon-data=mime  u.ic-res
+        =/  =simple-payload:http
+          :_  `q.icon-data
+          :-  200
+          :~  ['content-type' (rap 3 (join '/' p.icon-data))]
+              ['cache-control' 'no-store']
+              ['access-control-allow-origin' '*']
+              ['x-content-type-options' 'nosniff']
+          ==
+        [(give-simple-payload:app:server eyre-id simple-payload) this]
+      ::  remote host: hold this request. Record it and arm a 10s Behn timeout, so
+      ::  content, denial, poke-nack and timeout each have a completion path and the
+      ::  browser can never wait forever.
+      =/  deadline=@da  (add now.bowl ~s10)
+      =/  pend=pending-icon-fetch:noltbook  [eyre-id nid u.host-u deadline]
+      :_  this(pending-icon-fetches (~(put by pending-icon-fetches) eyre-id pend))
+      :~  %^    rpoke
+                /nic-fetch-out/[nid]/[eyre-id]
+              u.host-u
+            `remote:noltbook`[%remote-note-icon-fetch nid eyre-id]
+          [%pass /icon-fetch-timeout/[eyre-id] %arvo %b %wait deadline]
+      ==
     ::  all other endpoints require auth
     ?.  authenticated.inbound-request
       :_  this
@@ -16426,20 +17183,42 @@
         :_  this
         %+  give-simple-payload:app:server  eyre-id
         [[413 ~] ~]
-      ::  reject non-image uploads (present-but-not-an-allowed-image -> 400).
-      =/  umite  (user-avatar-mite header-list.request.inbound-request)
+      ::  reject non-image uploads by SIGNATURE, not by Content-Type -> 400.
+      =/  umite  (image-sig-mite u.bod)
       ?~  umite
         :_  this
         %+  give-simple-payload:app:server  eyre-id
         [[400 ~] ~]
-      =/  avatar-cage=cage  [%mime !>(`mime`[u.umite u.bod])]
-      =/  miso-act  ?:(has-avatar [%mut avatar-cage] [%ins avatar-cage])
-      =/  nori  [%& ~[[/lib/noltbook/avatar/mime miso-act]]]
-      =/  clay-card=card  [%pass /avatar-write %arvo %c %info q.byk.bowl nori]
-      =/  ok-payload=simple-payload:http  [[200 ~] ~]
-      =/  http-cards  (give-simple-payload:app:server eyre-id ok-payload)
-      :_  this(has-avatar %.y)
-      [clay-card http-cards]
+      ::  bytes go to the separate %noltbook-data desk. If it is missing or incomplete,
+      ::  fail with 503 rather than writing into the live %noltbook desk.
+      ?.  (art-store-exists our.bowl now.bowl)
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[503 ~] ~]
+      ::  hold the Eyre request until the write is verified. has-avatar and the 200 are
+      ::  set by the /avatar-write-done wake, after the stored bytes are read back and
+      ::  hash-matched -- otherwise a browser could refetch before the new bytes land.
+      =/  clay-card=card
+        %:  data-write-mime-card
+          our.bowl  now.bowl  /avatar-write/[eyre-id]  avatar-data-spur
+          `mime`[u.umite u.bod]
+        ==
+      ::  Save must never wait forever: record the held request and arm a 10s timeout.
+      ::  Completion comes from the /avatar-write-done wake, which reads the bytes back
+      ::  and verifies them against this hash -- existence alone is not proof, since a
+      ::  replacement overwrites a file that already exists.
+      =/  want-hash=@uv  (sham u.bod)
+      =/  deadline=@da  (add now.bowl ~s10)
+      =/  pw=pending-img-write:noltbook  [eyre-id %avatar '' deadline |]
+      :_  this(pending-img-writes (~(put by pending-img-writes) eyre-id pw))
+      ::  Clay write FIRST, then the wake. Clay's %info commits inside THIS event; a
+      ::  Behn timer can only fire on a later event, so the read-back always sees it.
+      :~  clay-card
+          :*  %pass  /avatar-write-done/[eyre-id]/(scot %uv want-hash)
+              %arvo  %b  %wait  +(now.bowl)
+          ==
+          [%pass /img-write-timeout/[eyre-id] %arvo %b %wait deadline]
+      ==
     ::  actor/avatar upload endpoint. Stores bytes in Clay only; callers set the
     ::  returned URL on the actor profile via update-actor-profile.
     ?:  &(=(%'POST' method.request.inbound-request) =((scag 35 url-tape) "/apps/noltbook/upload-actor-avatar/"))
@@ -16458,8 +17237,8 @@
         :_  this
         %+  give-simple-payload:app:server  eyre-id
         [[413 ~] ~]
-      ::  reject non-image uploads (present-but-not-an-allowed-image -> 400).
-      =/  amite  (user-avatar-mite header-list.request.inbound-request)
+      ::  reject non-image uploads by SIGNATURE, not by Content-Type -> 400.
+      =/  amite  (image-sig-mite u.bod)
       ?~  amite
         :_  this
         %+  give-simple-payload:app:server  eyre-id
@@ -16504,7 +17283,10 @@
       =/  is-dm=?  =(%dm type.u.nt)
       ::  permission: creator always, or any DM member for local-only DM icon
       ?.  ?|  =(our.bowl creator.u.nt)
-              &(is-dm (~(has in users.u.nt) our.bowl))
+              ?&  is-dm
+                  (~(has in users.u.nt) our.bowl)
+                  !(~(has in removed.u.nt) our.bowl)
+              ==
           ==
         :_  this
         %+  give-simple-payload:app:server  eyre-id
@@ -16518,31 +17300,41 @@
         :_  this
         %+  give-simple-payload:app:server  eyre-id
         [[413 ~] ~]
-      =/  had-icon=?  ?=(^ icon-url.u.nt)
-      =/  icon-cage=cage  [%mime !>(`mime`[/image/jpeg u.bod])]
-      =/  miso-act  ?:(had-icon [%mut icon-cage] [%ins icon-cage])
-      =/  nori  [%& ~[[/lib/noltbook/icons/[nid]/mime miso-act]]]
-      =/  clay-card=card  [%pass /icon-write/[nid] %arvo %c %info q.byk.bowl nori]
-      =/  new-url=@t  (crip (weld "/apps/noltbook/icon/" (trip nid)))
-      =/  new-nt=note:noltbook  u.nt(icon-url `new-url)
-      =/  meta-upd=update:noltbook  [%note-meta-updated nid visibility.u.nt `new-url writable.u.nt]
-      =/  ok-payload=simple-payload:http  [[200 ~] ~]
-      =/  http-cards  (give-simple-payload:app:server eyre-id ok-payload)
-      =/  meta-fact-cards=(list card)
-        ?:  is-dm
-          ~[(gf-notes meta-upd)]
-        :~  (gf-notes meta-upd)
-            (gf-paths ~[/notes/[nid]] meta-upd)
+      ::  validate by SIGNATURE and store the real type; the previous code assumed
+      ::  every icon body was jpeg and never checked it at all.
+      =/  imite  (image-sig-mite u.bod)
+      ?~  imite
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[400 ~] ~]
+      ::  bytes go to the separate %noltbook-data desk. If it is missing or incomplete,
+      ::  fail with 503 rather than writing into the live %noltbook desk. %ins/%mut is
+      ::  decided from the data-desk file itself, NOT from icon-url (a legacy live-desk
+      ::  icon must not force %mut on an absent data-desk file).
+      ?.  (art-store-exists our.bowl now.bowl)
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[503 ~] ~]
+      ::  hold the Eyre request until the write is verified. note-id, eyre-id and the
+      ::  expected byte hash ride the wake wire. NOTHING is published here: no 200, no
+      ::  icon-url, no dm-pref, no fact. All of that happens in the /icon-write-done
+      ::  wake, so browsers are only told to refetch once the bytes are readable.
+      =/  clay-card=card
+        %:  data-write-mime-card
+          our.bowl  now.bowl  /icon-write/[nid]/[eyre-id]  (icon-data-spur nid)
+          `mime`[u.imite u.bod]
         ==
-      ::  persist DM icon as a local pref for the counterparty
-      =/  new-prefs=(map @p dm-pref)
-        ?.  is-dm  dm-prefs
-        =/  cp=(unit @p)  (dm-counterparty users.u.nt our.bowl)
-        ?~  cp  dm-prefs
-        =/  cur=dm-pref  (fall (~(get by dm-prefs) u.cp) [~ ~])
-        (~(put by dm-prefs) u.cp cur(icon-url `new-url))
-      :_  this(notes (~(put by notes) nid new-nt), dm-prefs new-prefs)
-      :(weld http-cards ~[clay-card] meta-fact-cards)
+      ::  same bounded, hash-verified contract as the avatar write.
+      =/  want-hash=@uv  (sham u.bod)
+      =/  deadline=@da  (add now.bowl ~s10)
+      =/  pw=pending-img-write:noltbook  [eyre-id %icon nid deadline |]
+      :_  this(pending-img-writes (~(put by pending-img-writes) eyre-id pw))
+      :~  clay-card
+          :*  %pass  /icon-write-done/[nid]/[eyre-id]/(scot %uv want-hash)
+              %arvo  %b  %wait  +(now.bowl)
+          ==
+          [%pass /img-write-timeout/[eyre-id] %arvo %b %wait deadline]
+      ==
     ::  Part 9: ordinary-DM %file reference fetch — collision-safe, keyed by EID.
     ::  GET /apps/noltbook/dm-artifact/<eid>. Holds the HTTP request, fetches current bytes
     ::  ephemerally from the creator, and NEVER persists them. 503 on unavailable/timeout,
@@ -16632,19 +17424,16 @@
         =/  local-res  (art-store-read our.bowl now.bowl aid)
         ?^  local-res
           =/  art-data=mime  u.local-res
-          =/  ct=@t  (rap 3 (join '/' p.art-data))
+          ::  preview=1 renders under the byte-serving policy; download=1 returns the
+          ::  untouched original as an attachment. Neither marker => treated as a
+          ::  download, so a bare link can never render as an active document.
           =/  qarg-dl  (query-arg q-args 'download')
-          =/  hdrs=(list [@t @t])
-            ?~  qarg-dl
-              ~[['content-type' ct] ['cache-control' 'max-age=3600']]
-            =/  fname=@t  name.u.art
-            =/  cd=@t  (rap 3 ['attachment; filename="' fname '"' ~])
-            :~  ['content-type' ct]
-                ['cache-control' 'max-age=3600']
-                ['content-disposition' cd]
-            ==
+          =/  qarg-pv  (query-arg q-args 'preview')
+          ::  explicit download wins; a bare link with neither marker is ALSO a
+          ::  download, so an old or hand-typed URL can never render actively.
+          =/  dl=?  |(?=(^ qarg-dl) ?=(~ qarg-pv))
           =/  =simple-payload:http
-            [[200 hdrs] `q.art-data]
+            (art-serve-payload art-data name.u.art dl 'max-age=3600')
           [(give-simple-payload:app:server eyre-id simple-payload) this]
         ::  creator has no bytes → 404
         :_  this
@@ -17250,10 +18039,13 @@
       =/  self-set=(set @p)  (sy ~[our.bowl])
       =/  nid=@ta  (crip (weld "note-" (trip (scot %da now.bowl))))
       =/  hl=(unit @t)  ?:(=(%~ headline.act) ~ `headline.act)
+      ::  bound the embedded image before it is stored or shared. Backstop: the API
+      ::  layer rejects oversized values outright so callers get an honest error.
+      =/  ic=(unit @t)  (clamp-icon-url icon-url.act gossip-icon-cap)
       ::  gossip is always-public + hostless; visibility is a dead field (set %public so it
       ::  never reads as private). creator is attribution only, not an authority.
       =/  new-note=note:noltbook
-        :*  nid  name.act  %gossip  our.bowl  self-set  ~  ~  ~  ~  %public  icon-url.act  &  ~  hl
+        :*  nid  name.act  %gossip  our.bowl  self-set  ~  ~  ~  ~  %public  ic  &  ~  hl
         ==
       =/  upd=update:noltbook  [%note-created new-note]
       =/  new-headlines=(map @ta @t)
@@ -17866,6 +18658,9 @@
       ?~  old  `this
       ::  gossip is an immutable snapshot — visibility/icon/writable frozen at creation.
       ?:  =(%gossip type.u.old)  `this
+      ::  bound the stored + propagated icon before ANY branch below writes it
+      ::  (ordinary cap; gossip returned above and is bounded at creation instead).
+      ?.  (icon-url-ok icon-url.act icon-url-cap)  `this
       ::  DM: local-only meta change (icon only); either member can set.
       ::  Persist icon-url as dm-prefs[counterparty] for re-invited DMs.
       ?:  =(%dm type.u.old)
@@ -19912,29 +20707,20 @@
     ~?  !accepted.sign-arvo
       [dap.bowl "eyre bind rejected!" binding.sign-arvo]
     `this
+  ::  Clay's %c %info does NOT acknowledge: base/sys/vane/clay.hoon emits %mere only
+  ::  from the merge core (++done), never from ++info/+park. Upload completion is
+  ::  therefore driven by the /avatar-write-done and /icon-write-done Behn wakes
+  ::  below, NOT by %mere. This block now only traces genuine merge failures.
   ?:  ?=([%clay %mere *] sign-arvo)
+    ::  every other Clay wire keeps its previous behaviour: success is a no-op,
+    ::  failure is traced. Actor-avatar and artifact writes are unchanged.
     ?:  ?=(%& -.p.sign-arvo)  `this
     ~&  [%clay-write-failed wire]
-    ?:  ?=([%avatar-write ~] wire)
-      `this(has-avatar %.n)
     ?:  ?=([%actor-avatar-write @ @ ~] wire)
       ::  presentation-avatar Clay write bounced. Trace desk/slug so a failed upload
       ::  is diagnosable; no state to roll back (bytes-only, no map entry).
       ~&  [%actor-avatar-write-failed desk=i.t.wire slug=i.t.t.wire wire]
       `this
-    ?:  ?=([%icon-write @ ~] wire)
-      =/  nid=@ta  i.t.wire
-      =/  old  (~(get by notes) nid)
-      ?~  old  `this
-      =/  rev=note:noltbook  u.old(icon-url ~)
-      =/  upd=update:noltbook  [%note-meta-updated nid visibility.u.old ~ writable.u.old]
-      ?:  =(%dm type.u.old)
-        :_  this(notes (~(put by notes) nid rev))
-        ~[(gf-notes upd)]
-      :_  this(notes (~(put by notes) nid rev))
-      :~  (gf-notes upd)
-          (gf-paths ~[/notes/[nid]] upd)
-      ==
     `this
   ::  Behn timer for host-reachability probe. Only fires unreachable if the
   ::  stored deadline token still matches; stale wakes from prior probes
@@ -19960,6 +20746,110 @@
   ::  Part 9: ordinary-DM %file fetch timeout. If the pending request is still open at the
   ::  deadline, answer 503 and clear it. Late/duplicate responses after removal are no-ops;
   ::  every held Eyre request is completed at most once.
+  ::  held remote note-icon request expired: answer 504 and drop the row, so a late
+  ::  content/denied/nack reply finds nothing and cannot answer the request twice.
+  ::  ===== upload completion (replaces the unreachable %clay %mere path) =====
+  ::  Verified by CONTENT: the stored bytes must hash to the uploaded hash carried on
+  ::  the wire. That distinguishes a real replacement from a stale file left in place.
+  ?:  ?=([%avatar-write-done @ @ ~] wire)
+    ?.  ?=([%behn %wake *] sign-arvo)  `this
+    =/  eid=@ta   i.t.wire
+    =/  want=@uv  (slav %uv i.t.t.wire)
+    =/  pw  (~(get by pending-img-writes) eid)
+    ?~  pw  `this
+    ?.  ?=(%avatar kind.u.pw)  `this
+    =/  dropped  (~(del by pending-img-writes) eid)
+    =/  got  (avatar-read our.bowl now.bowl q.byk.bowl)
+    ?:  ?|(?=(~ got) !=(want (sham q.u.got)))
+      ::  never landed, or what is stored is not what was uploaded: keep the previous
+      ::  avatar exactly as it was and do not set has-avatar.
+      ~&  [%avatar-write-unverified eid answered=answered.u.pw]
+      :_  this(pending-img-writes dropped)
+      ?:  answered.u.pw  ~
+      (give-simple-payload:app:server eid `simple-payload:http`[[500 ~] ~])
+    :_  this(has-avatar %.y, pending-img-writes dropped)
+    ?:  answered.u.pw  ~
+    (give-simple-payload:app:server eid `simple-payload:http`[[200 ~] ~])
+  ::
+  ?:  ?=([%icon-write-done @ @ @ ~] wire)
+    ?.  ?=([%behn %wake *] sign-arvo)  `this
+    =/  nid=@ta   i.t.wire
+    =/  eid=@ta   i.t.t.wire
+    =/  want=@uv  (slav %uv i.t.t.t.wire)
+    =/  pw  (~(get by pending-img-writes) eid)
+    ?~  pw  `this
+    ?.  ?=(%icon kind.u.pw)  `this
+    ?.  =(nid note-id.u.pw)  `this
+    =/  dropped  (~(del by pending-img-writes) eid)
+    =/  got  (icon-read our.bowl now.bowl nid)
+    ?:  ?|(?=(~ got) !=(want (sham q.u.got)))
+      ::  unverified: leave the note's icon and the DM preference untouched.
+      ~&  [%icon-write-unverified nid eid answered=answered.u.pw]
+      :_  this(pending-img-writes dropped)
+      ?:  answered.u.pw  ~
+      (give-simple-payload:app:server eid `simple-payload:http`[[500 ~] ~])
+    ::  verified: publish the stable pointer, the DM pref and the refresh fact. The
+    ::  fact fires on first upload AND replacement, since the URL never changes.
+    =/  old  (~(get by notes) nid)
+    ?~  old
+      :_  this(pending-img-writes dropped)
+      ?:  answered.u.pw  ~
+      (give-simple-payload:app:server eid `simple-payload:http`[[404 ~] ~])
+    =/  new-url=@t  (note-icon-pointer nid)
+    =/  new-nt=note:noltbook  u.old(icon-url `new-url)
+    =/  is-dm=?  =(%dm type.u.old)
+    =/  upd=update:noltbook  [%note-meta-updated nid visibility.u.old `new-url writable.u.old]
+    =/  new-prefs=(map @p dm-pref)
+      ?.  is-dm  dm-prefs
+      =/  cp=(unit @p)  (dm-counterparty users.u.old our.bowl)
+      ?~  cp  dm-prefs
+      =/  cur=dm-pref  (fall (~(get by dm-prefs) u.cp) [~ ~])
+      (~(put by dm-prefs) u.cp cur(icon-url `new-url))
+    =/  meta-fact-cards=(list card)
+      ?:  is-dm
+        ~[(gf-notes upd)]
+      :~  (gf-notes upd)
+          (gf-paths ~[/notes/[nid]] upd)
+      ==
+    =/  ok-http=(list card)
+      ?:  answered.u.pw  ~
+      (give-simple-payload:app:server eid `simple-payload:http`[[200 ~] ~])
+    :_  this(notes (~(put by notes) nid new-nt), dm-prefs new-prefs, pending-img-writes dropped)
+    (weld ok-http meta-fact-cards)
+  ::
+  ?:  ?=([%icon-fetch-timeout @ ~] wire)
+    ?.  ?=([%behn %wake *] sign-arvo)  `this
+    =/  eid=@ta  i.t.wire
+    ?.  (~(has by pending-icon-fetches) eid)  `this
+    :_  this(pending-icon-fetches (~(del by pending-icon-fetches) eid))
+    (give-simple-payload:app:server eid `simple-payload:http`[[504 ~] ~])
+  ::  held avatar/note-icon UPLOAD expired: the completion wake has not arrived within
+  ::  10s. Answer 504 so Save never hangs; no image or metadata is changed here.
+  ?:  ?=([%img-write-timeout @ ~] wire)
+    ?.  ?=([%behn %wake *] sign-arvo)  `this
+    =/  eid=@ta  i.t.wire
+    =/  pw  (~(get by pending-img-writes) eid)
+    ?~  pw  `this
+    ?:  answered.u.pw  `this
+    ~&  [%img-write-timeout eid]
+    ::  answer 504 now and mark the row `answered`, but KEEP it: the completion wake
+    ::  may still arrive, verify the bytes, and apply the state change and facts -- it
+    ::  just cannot answer HTTP a second time. (%c %info produces no %mere, so nothing
+    ::  else will ever resolve this row.) The reaper below removes the row if the
+    ::  completion wake never arrives at all.
+    :_  this(pending-img-writes (~(put by pending-img-writes) eid u.pw(answered &)))
+    %+  weld
+      (give-simple-payload:app:server eid `simple-payload:http`[[504 ~] ~])
+    ^-  (list card)
+    ~[[%pass /img-write-reap/[eid] %arvo %b %wait (add now.bowl ~m5)]]
+  ::  backstop: the completion wake never arrived. Drop the row so an answered
+  ::  request cannot linger in state forever.
+  ?:  ?=([%img-write-reap @ ~] wire)
+    ?.  ?=([%behn %wake *] sign-arvo)  `this
+    =/  eid=@ta  i.t.wire
+    ?.  (~(has by pending-img-writes) eid)  `this
+    ~&  [%img-write-reaped eid]
+    `this(pending-img-writes (~(del by pending-img-writes) eid))
   ?:  ?=([%dm-fetch-timeout @ ~] wire)
     ?.  ?=([%behn %wake *] sign-arvo)  `this
     =/  eid-key=@ta  i.t.wire
@@ -20917,6 +21807,20 @@
       ?~  p.sign  `this
       ~&  [%ars-watch-failed peer u.p.sign]
       `this
+    ==
+  ::
+      [%nic-fetch-out @ @ ~]
+    ::  outgoing note-icon fetch nacked: the host is unreachable, or is running a build
+    ::  with no %remote-note-icon-fetch. Resolve the held browser request as 404 rather
+    ::  than knowingly leaving it open.
+    ?+  -.sign  `this
+        %poke-ack
+      ?~  p.sign  `this
+      ~&  [%note-icon-fetch-failed wire]
+      =/  eid=@ta  i.t.t.wire
+      ?.  (~(has by pending-icon-fetches) eid)  `this
+      :_  this(pending-icon-fetches (~(del by pending-icon-fetches) eid))
+      (give-simple-payload:app:server eid `simple-payload:http`[[404 ~] ~])
     ==
   ::
       [%invite @ @ ~]

@@ -90,6 +90,10 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .note-item.depth-4{padding-left:5rem}
 .note-item.depth-5{padding-left:6rem}
 .note-icon{width:3.5rem;height:3.5rem;border-radius:3px;flex-shrink:0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;align-items:center;justify-items:center;font-size:.75rem;background:#000;color:#bbb;line-height:1}
+/* layered note icons: fallback renders in flow, image overlays it; on error the
+   image hides itself and the fallback underneath shows through. */
+.note-icon,.profile-note-icon,.note-detail-icon{position:relative}
+.icon-layer{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover}
 .note-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:.1rem}
 .note-name{font-size:1rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .note-item.active .note-name{color:#ffaa00}
@@ -1532,7 +1536,12 @@ function handleUpdate(upd){
   else if(upd['dm-ref-list']){const{noteId,refs}=upd['dm-ref-list'];for(const _e in state.artifactRefs){if(state.artifactRefs[_e].noteId===noteId)delete state.artifactRefs[_e]}for(const r of (refs||[]))state.artifactRefs[r.eid]=r;if(noteId===state.currentNoteId){scheduleRender(noteId);renderPinSurface(noteId)}scheduleNoteList()}
   else if(upd['dm-ref-upserted']){const r=upd['dm-ref-upserted'];if(r&&r.eid){state.artifactRefs[r.eid]=r;if(r.noteId===state.currentNoteId){scheduleRender(r.noteId);renderPinSurface(r.noteId)}scheduleNoteList()}}
   else if(upd['dm-ref-deleted']){const{eid,noteId}=upd['dm-ref-deleted'];delete state.artifactRefs[eid];if(noteId===state.currentNoteId){scheduleRender(noteId);renderPinSurface(noteId)}scheduleNoteList()}
-  else if(upd['note-meta-updated']){const d=upd['note-meta-updated'];const n=state.notes[d.id];if(n){n.visibility=d.visibility;n.iconUrl=d.iconUrl||null;n.writable=d.writable;renderNoteList();if(d.id===state.currentNoteId){updateMuteUI();const _sb=document.getElementById('shareBtn');if(_sb)_sb.style.display=canShareNote(n)?'block':'none'}}}
+  else if(upd['note-meta-updated']){const d=upd['note-meta-updated'];const n=state.notes[d.id];if(n){n.visibility=d.visibility;n.iconUrl=d.iconUrl||null;n.writable=d.writable;
+    // the stored URL is unchanged across a replacement, so this fact is the ONLY
+    // signal to refetch: bump unconditionally for an internal pointer, and drop the
+    // revision when the icon is cleared or switched to an external URL.
+    if(isInternalNoteIcon(d.id,n.iconUrl))bumpNoteIconRevision(d.id);else clearNoteIconRevision(d.id);
+    renderNoteList();if(d.id===state.currentNoteId){updateMuteUI();const _sb=document.getElementById('shareBtn');if(_sb)_sb.style.display=canShareNote(n)?'block':'none'}}}
   else if(upd['note-type-updated']){const d=upd['note-type-updated'];const n=state.notes[d.id];if(n){n.type=d.type;renderNoteList();if(d.id===state.currentNoteId){scheduleRender(d.id);updateMuteUI()}}}
   else if(upd['note-host-status']){const d=upd['note-host-status'];if(d.status)state.noteHostStatus[d.id]=d.status;else delete state.noteHostStatus[d.id];if(d.status!=='host-deleted')state.notificationAcks.delete(notifAckKey('host-deleted-status',d.id));rebuildDurableNotifications();updateLogoBadge();if(d.id===state.currentNoteId)updateMuteUI();renderNoteList()}
   else if(upd['note-state-refreshed']){
@@ -2329,13 +2338,33 @@ function noteDisplayName(note){
   }
   return note.name;
 }
+// Layered icon renderer. The fallback markup renders in normal flow exactly as it
+// does when there is no icon; the image is overlaid on top of it. If the image fails
+// to load we hide ONLY the image, revealing the fallback underneath -- so a dead
+// note-icon URL shows initials (or the DM avatar/sigil), never a broken-image glyph.
+// No retry and no URL rewriting.
+function iconWithFallbackHtml(url,fallbackHtml,imgStyle){
+  if(!url)return fallbackHtml;
+  return fallbackHtml+'<img class="icon-layer" src="'+escAttr(url)+'"'
+    +(imgStyle?' style="'+imgStyle+'"':'')
+    +' onerror="this.style.display=&#39;none&#39;">';
+}
 function resolveNoteIconUrl(note){
   if(!note.iconUrl)return null;
   if(note.iconUrl.startsWith('/apps/noltbook/icon/')){
-    // DM icons are local-only and may be uploaded on a ship that did not
-    // create the canonical DM root; allow local resolution regardless.
-    if(note.type==='dm')return note.iconUrl;
-    if(note.creator!=='~'+api.ship)return null;
+    // an internal pointer must name THIS note; a mismatched one is never fetched.
+    if(note.iconUrl!=='/apps/noltbook/icon/'+note.id)return null;
+    const _rev=noteIconRevision[note.id];
+    const _q=_rev?'?v='+_rev:'';
+    // DM icons are local-only: stored by whichever member uploaded them and never
+    // fetched from the counterparty. They still need the revision token so a replaced
+    // DM icon refreshes instead of serving the cached URL.
+    if(note.type==='dm')return note.iconUrl+_q;
+    if(note.creator==='~'+api.ship)return note.iconUrl+_q;
+    // hosted elsewhere: ask our own ship, which fetches from the host over Ames
+    // and forgets the bytes. Failure falls back to initials via the img onerror.
+    if(!note.creator||!note.creator.startsWith('~'))return null;
+    return '/apps/noltbook/note-icon/'+encodeURIComponent(note.creator)+'/'+encodeURIComponent(note.id)+_q;
   }
   return note.iconUrl;
 }
@@ -2351,11 +2380,10 @@ function noteDisplayIconHtml(note){
   const cp=dmCounterparty(note);
   if(cp){
     const url=resolveNoteIconUrl(note);
-    if(url)return `<img src="${escAttr(url)}" style="width:100%;height:100%;object-fit:cover;border-radius:3px">`;
-    return avatarHtml(cp);
+    return iconWithFallbackHtml(url,avatarHtml(cp),'border-radius:3px');
   }
   const url=resolveNoteIconUrl(note);
-  return url?`<img src="${escAttr(url)}" style="width:100%;height:100%;object-fit:cover;border-radius:3px">`:noteInitials(note.name);
+  return iconWithFallbackHtml(url,noteInitials(note.name),'border-radius:3px');
 }
 
 function findDmRoot(ship){
@@ -3075,7 +3103,7 @@ function artifactFileDescriptor(art){
   if(meta.storage==='clay'){
     const v=meta.version||1;
     const url='/apps/noltbook/artifact/'+encodeURIComponent(art.id)+'?v='+v;
-    d.storage='clay';d.url=url;d.downloadUrl=url+'&download=1';d.mime=meta.mime||'';
+    d.storage='clay';d.url=url+'&preview=1';d.downloadUrl=url+'&download=1';d.mime=meta.mime||'';
     if(meta.kind==='image'||d.mime.startsWith('image/'))d.cat='image';
     else if(isDocMime(d.mime,d.fname))d.cat='doc';
     else d.cat='file';
@@ -3354,7 +3382,7 @@ function renderEnvCard(el,env,depth,isThreadAnchor){
   wrap.id='inline-art-env-'+env.aid+idSuf;
   const authorColor=env.author.startsWith('~')?shipColor(env.author):'var(--visitor)';
   const ts=env.timestamp?new Date(env.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
-  const url='/apps/noltbook/artifact/'+encodeURIComponent(env.aid)+'?v=1';
+  const url='/apps/noltbook/artifact/'+encodeURIComponent(env.aid)+'?v=1&preview=1';
   const isImg=(env.kind==='image')||((env.mime||'').startsWith('image/'));
   const rawName=env.name||env.aid;
   const fname=escHtml(rawName);
@@ -4014,6 +4042,15 @@ let ownAvatarBlobUrl=null;
 // (/user-avatar/<ship>) so browsers won't re-fetch after an avatar change without a
 // cache-buster. Bumped on profile-updated; cleared when the avatar isn't urbit.
 const avatarRevisionByShip={};
+// Browser-only note-icon cache busting. The STORED pointer stays
+// /apps/noltbook/icon/<nid> forever and the Clay file is never versioned or
+// duplicated; only the URL the browser requests carries ?v=<rev>. Both icon routes
+// strip the query string, so the revision never reaches Clay.
+const noteIconRevision={};
+function bumpNoteIconRevision(nid){noteIconRevision[nid]=Date.now()}
+function clearNoteIconRevision(nid){delete noteIconRevision[nid]}
+// A stored pointer is "internal" only when it names this exact note.
+function isInternalNoteIcon(nid,url){return !!url&&url==='/apps/noltbook/icon/'+nid}
 function clearOwnAvatarBlob(){
   if(ownAvatarBlobUrl){try{URL.revokeObjectURL(ownAvatarBlobUrl)}catch(e){}ownAvatarBlobUrl=null}
 }
@@ -4759,7 +4796,7 @@ function promptNoteImage(id){
   menu.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--bg2);border:1px solid var(--border);padding:1rem;z-index:10000;display:flex;flex-direction:column;gap:.5rem;min-width:280px';
   menu.innerHTML=`
     <div style="font-size:.85rem;color:var(--text)">Note Icon</div>
-    <input type="text" id="noteIconUrl" value="${escAttr(note.iconUrl||'')}" placeholder="Paste image URL (https://...)..." style="background:var(--bg);color:var(--text);border:1px solid var(--border);padding:.4rem;font-size:.8rem">
+    <input type="text" id="noteIconUrl" maxlength="2048" value="${escAttr(note.iconUrl||'')}" placeholder="Paste image URL (https://...)..." style="background:var(--bg);color:var(--text);border:1px solid var(--border);padding:.4rem;font-size:.8rem">
     <div style="font-size:.75rem;color:var(--text-dim)">— or —</div>
     <label style="background:var(--bg);border:1px solid var(--border);padding:.4rem;text-align:center;cursor:pointer;font-size:.8rem;color:var(--text)">Upload Image<input type="file" accept="image/*" id="noteIconFile" style="display:none"></label>
     <div id="noteIconPreview" style="display:none;text-align:center"></div>
@@ -4794,6 +4831,14 @@ function promptNoteImage(id){
       try{
         const resp=await fetch('/apps/noltbook/upload-icon/'+encodeURIComponent(id),{method:'POST',body:pendingBlob,credentials:'include'});
         if(!resp.ok){alert('upload failed: '+resp.status)}
+        else{
+          // 200 means Clay confirmed the write. Bump the revision and refresh locally
+          // so the new bytes show even if our own subscription fact is missed.
+          const _n=state.notes[id];
+          if(_n)_n.iconUrl='/apps/noltbook/icon/'+id;
+          bumpNoteIconRevision(id);
+          renderNoteList();
+        }
       }catch(e){alert('upload error: '+e.message)}
       overlay.remove();menu.remove();return;
     }
@@ -5675,7 +5720,7 @@ async function uploadFile(file){
     cancelReply();
   }catch(e){ScrollCo.cancelOwnAction(nid);console.error('[upload-artifact]',e);alert('Upload error: '+e.message)}
 }
-function openFileFullscreen(artId){const art=state.artifacts[artId];if(!art)return;const lastVer=art.versions[art.versions.length-1];if(!lastVer)return;let meta={};try{meta=JSON.parse(lastVer.content)}catch(e){return}const overlay=document.createElement('div');overlay.id='file-fullscreen';overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.92);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center';const bar=document.createElement('div');bar.style.cssText='position:absolute;top:0;right:0;padding:.75rem 1rem;display:flex;gap:.5rem;z-index:1';let srcUrl,downloadUrl,mtype;if(meta.storage==='clay'){const v=meta.version||1;srcUrl='/apps/noltbook/artifact/'+encodeURIComponent(art.id)+'?v='+v;downloadUrl=srcUrl+'&download=1';mtype=meta.mime||'';}else{srcUrl=meta.dataUrl;downloadUrl=meta.dataUrl;mtype=meta.mimeType||'';}bar.innerHTML=`<a href="${escAttr(downloadUrl)}" download="${escAttr(meta.fileName||art.name)}" style="font-family:var(--font);font-size:.75rem;padding:.25rem .6rem;border:1px solid #555;color:#aaa;text-decoration:none;cursor:pointer">DOWNLOAD</a><button onclick="this.closest('#file-fullscreen').remove()" style="font-family:var(--font);font-size:.75rem;padding:.25rem .6rem;border:1px solid #555;color:#aaa;background:none;cursor:pointer">CLOSE</button>`;overlay.appendChild(bar);const body=document.createElement('div');body.style.cssText='max-width:95%;max-height:90%;overflow:auto';if(mtype.startsWith('image/')){body.innerHTML=`<img src="${escAttr(srcUrl)}" style="max-width:100%;max-height:90vh">`}else if(mtype==='application/pdf'){body.innerHTML=`<iframe src="${escAttr(srcUrl)}" style="width:90vw;height:85vh;border:none;background:#fff"></iframe>`}else if(mtype.startsWith('text/')||mtype==='application/json'){fetch(srcUrl).then(r=>r.text()).then(t=>{body.innerHTML=`<pre style="color:#ddd;font-size:.85rem;white-space:pre-wrap;padding:1rem">${escHtml(t)}</pre>`})}else{body.innerHTML=`<div style="color:#aaa;font-size:1rem;text-align:center"><div style="font-size:2rem;margin-bottom:.5rem">📄</div>${escHtml(meta.fileName||art.name)}</div>`}overlay.appendChild(body);overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove()});document.body.appendChild(overlay)}
+function openFileFullscreen(artId){const art=state.artifacts[artId];if(!art)return;const lastVer=art.versions[art.versions.length-1];if(!lastVer)return;let meta={};try{meta=JSON.parse(lastVer.content)}catch(e){return}const overlay=document.createElement('div');overlay.id='file-fullscreen';overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.92);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center';const bar=document.createElement('div');bar.style.cssText='position:absolute;top:0;right:0;padding:.75rem 1rem;display:flex;gap:.5rem;z-index:1';let srcUrl,downloadUrl,mtype;if(meta.storage==='clay'){const v=meta.version||1;const _b='/apps/noltbook/artifact/'+encodeURIComponent(art.id)+'?v='+v;srcUrl=_b+'&preview=1';downloadUrl=_b+'&download=1';mtype=meta.mime||'';}else{srcUrl=meta.dataUrl;downloadUrl=meta.dataUrl;mtype=meta.mimeType||'';}bar.innerHTML=`<a href="${escAttr(downloadUrl)}" download="${escAttr(meta.fileName||art.name)}" style="font-family:var(--font);font-size:.75rem;padding:.25rem .6rem;border:1px solid #555;color:#aaa;text-decoration:none;cursor:pointer">DOWNLOAD</a><button onclick="this.closest('#file-fullscreen').remove()" style="font-family:var(--font);font-size:.75rem;padding:.25rem .6rem;border:1px solid #555;color:#aaa;background:none;cursor:pointer">CLOSE</button>`;overlay.appendChild(bar);const body=document.createElement('div');body.style.cssText='max-width:95%;max-height:90%;overflow:auto';if(mtype.startsWith('image/')){body.innerHTML=`<img src="${escAttr(srcUrl)}" style="max-width:100%;max-height:90vh">`}else if(mtype==='application/pdf'){body.innerHTML=`<iframe src="${escAttr(srcUrl)}" style="width:90vw;height:85vh;border:none;background:#fff"></iframe>`}else if(mtype.startsWith('text/')||mtype==='application/json'){fetch(srcUrl).then(r=>r.text()).then(t=>{body.innerHTML=`<pre style="color:#ddd;font-size:.85rem;white-space:pre-wrap;padding:1rem">${escHtml(t)}</pre>`})}else{body.innerHTML=`<div style="color:#aaa;font-size:1rem;text-align:center"><div style="font-size:2rem;margin-bottom:.5rem">📄</div>${escHtml(meta.fileName||art.name)}</div>`}overlay.appendChild(body);overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove()});document.body.appendChild(overlay)}
 function openArtifactPanel(id){
   const art=state.artifacts[id],desc=pluginArtifactDescriptor(art);if(!art||!desc){openArtifactPanelLegacy(id);return}
   closeArtifactPanel();const panel=document.getElementById('artifactPanel'),body=document.getElementById('artifactPanelBody');panel.classList.add('open');
@@ -5684,7 +5729,7 @@ function openArtifactPanel(id){
   const lastVer=art.versions[art.versions.length-1];document.getElementById('artifactPanelMeta').textContent=`v${art.versions.length} · ${art.creator} · ${new Date(lastVer?lastVer.timestamp:Date.now()).toLocaleDateString()}`;
   observePluginHost(hostId,{mode:'note-artifact',desk:desc.app.desk,publisher:desc.app.publisher||null,noteId:art.noteId,artifactId:art.id,persistent:true,height:520});
 }
-function openArtifactPanelLegacy(id){const art=state.artifacts[id];if(!art)return;document.getElementById('artifactPanel').classList.add('open');document.getElementById('artifactPanelTitle').textContent=art.name;const lastVer=art.versions[art.versions.length-1];const content=lastVer?lastVer.content:'';const body=document.getElementById('artifactPanelBody');if(art.type==='file'){let meta={};try{meta=JSON.parse(content)}catch(e){}if(meta.storage==='clay'){const v=meta.version||1;const src='/apps/noltbook/artifact/'+encodeURIComponent(id)+'?v='+v;const m=meta.mime||'';if(meta.kind==='image'||m.startsWith('image/')){body.innerHTML=`<img src="${escAttr(src)}" alt="${escAttr(art.name)}" style="max-width:100%" onerror="this.outerHTML='<div style=&quot;color:#ff4444;font-size:.85rem&quot;>[content not yet available on this ship]</div>'">`}else{body.innerHTML=`<a href="${escAttr(src)}&download=1" download="${escAttr(art.name)}" style="color:var(--amber)">${escHtml(art.name)}</a>`}}else if(meta.dataUrl&&meta.mimeType&&meta.mimeType.startsWith('image/')){body.innerHTML=`<img src="${escAttr(meta.dataUrl)}" alt="${escAttr(art.name)}" style="max-width:100%">`}else if(meta.dataUrl){body.innerHTML=`<a href="${escAttr(meta.dataUrl)}" download="${escAttr(meta.fileName||art.name)}" style="color:var(--amber)">${escHtml(meta.fileName||art.name)}</a>`}else{body.innerHTML=`<div class="artifact-file-wrap">${escHtml(content)}</div>`}}else if(art.type==='app'){let meta={};try{meta=JSON.parse(content)}catch(e){}const pkg=legacyAppPackage(meta);if(pkg){const iframeId='app-iframe-'+id;body.innerHTML=`<iframe id="${iframeId}" src="/apps/noltbook/pkg/${encodeURIComponent(pkg)}" sandbox="allow-scripts" style="width:100%;height:600px;border:none;background:#181818"></iframe>`;initHostBridge(iframeId,id,meta)}else body.innerHTML='<div class="plugin-frame-fallback">App artifact unavailable</div>'}else{body.innerHTML=`<pre class="artifact-code">${escHtml(content)}</pre>`}document.getElementById('artifactPanelMeta').textContent=`v${art.versions.length} · ${art.creator} · ${new Date(lastVer?lastVer.timestamp:Date.now()).toLocaleDateString()}`}
+function openArtifactPanelLegacy(id){const art=state.artifacts[id];if(!art)return;document.getElementById('artifactPanel').classList.add('open');document.getElementById('artifactPanelTitle').textContent=art.name;const lastVer=art.versions[art.versions.length-1];const content=lastVer?lastVer.content:'';const body=document.getElementById('artifactPanelBody');if(art.type==='file'){let meta={};try{meta=JSON.parse(content)}catch(e){}if(meta.storage==='clay'){const v=meta.version||1;const src='/apps/noltbook/artifact/'+encodeURIComponent(id)+'?v='+v,psrc=src+'&preview=1';const m=meta.mime||'';if(meta.kind==='image'||m.startsWith('image/')){body.innerHTML=`<img src="${escAttr(psrc)}" alt="${escAttr(art.name)}" style="max-width:100%" onerror="this.outerHTML='<div style=&quot;color:#ff4444;font-size:.85rem&quot;>[content not yet available on this ship]</div>'">`}else{body.innerHTML=`<a href="${escAttr(src)}&download=1" download="${escAttr(art.name)}" style="color:var(--amber)">${escHtml(art.name)}</a>`}}else if(meta.dataUrl&&meta.mimeType&&meta.mimeType.startsWith('image/')){body.innerHTML=`<img src="${escAttr(meta.dataUrl)}" alt="${escAttr(art.name)}" style="max-width:100%">`}else if(meta.dataUrl){body.innerHTML=`<a href="${escAttr(meta.dataUrl)}" download="${escAttr(meta.fileName||art.name)}" style="color:var(--amber)">${escHtml(meta.fileName||art.name)}</a>`}else{body.innerHTML=`<div class="artifact-file-wrap">${escHtml(content)}</div>`}}else if(art.type==='app'){let meta={};try{meta=JSON.parse(content)}catch(e){}const pkg=legacyAppPackage(meta);if(pkg){const iframeId='app-iframe-'+id;body.innerHTML=`<iframe id="${iframeId}" src="/apps/noltbook/pkg/${encodeURIComponent(pkg)}" sandbox="allow-scripts" style="width:100%;height:600px;border:none;background:#181818"></iframe>`;initHostBridge(iframeId,id,meta)}else body.innerHTML='<div class="plugin-frame-fallback">App artifact unavailable</div>'}else{body.innerHTML=`<pre class="artifact-code">${escHtml(content)}</pre>`}document.getElementById('artifactPanelMeta').textContent=`v${art.versions.length} · ${art.creator} · ${new Date(lastVer?lastVer.timestamp:Date.now()).toLocaleDateString()}`}
 function closeArtifactPanel(){
   const panel=document.getElementById('artifactPanel'),body=document.getElementById('artifactPanelBody');destroyPluginFramesWithin(body);
   if(state.activeAppBridge&&state.activeAppBridge.listener)window.removeEventListener('message',state.activeAppBridge.listener);
@@ -5838,7 +5883,7 @@ function renderProfileNotesHtml(ship,fallback){
   const all=[...pubNotes,...privNotes];
   if(all.length===0)return '<span style="color:var(--dim)">'+escHtml(fallback)+'</span>';
   return all.map(n=>{
-    const _icU=resolveNoteIconUrl(n);const ic=_icU?'<img src="'+escAttr(_icU)+'">':noteInitials(n.name);
+    const _icU=resolveNoteIconUrl(n);const ic=iconWithFallbackHtml(_icU,noteInitials(n.name));
     const vis=n.visibility==='public'?'public':'private';
     const isMember=state.notes[n.id]&&(state.notes[n.id].users||[]).includes(me);
     const isPending=!!state.pendingJoins[n.id];
@@ -6104,7 +6149,7 @@ function openNoteDetailModal(noteId){
   const isRemoved=!!state.removedFromNotes[noteId]||(n.removed&&n.removed.includes(me));
   const isPublic=n.visibility==='public';
   const _icU=resolveNoteIconUrl(n);
-  const ic=_icU?'<img src="'+escAttr(_icU)+'">':noteInitials(n.name);
+  const ic=iconWithFallbackHtml(_icU,noteInitials(n.name));
   let desc=n.headline?'<div style="font-size:.85rem;color:#bbb;line-height:1.4">'+escHtml(n.headline)+'</div>':'';
   if(isRemoved)desc+='<div style="font-size:.8rem;color:#ff4444;margin-top:.3rem">You were removed from this note.</div>';
   const isReadOnly=n.writable===false&&n.type==='group';

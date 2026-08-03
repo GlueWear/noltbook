@@ -1,3 +1,9 @@
+# OS debris
+**/.DS_Store
 
-# Uploaded/test artifact payloads
-lib/noltbook/artifacts/*.mime
+# Runtime/user data. Uploaded images live in the separate %noltbook-data desk;
+# these live-desk paths are legacy or actor-only and must never ship or be tracked.
+/lib/noltbook/artifacts/
+/lib/noltbook/avatar.mime
+/lib/noltbook/icons/
+/lib/noltbook/actor-avatars/

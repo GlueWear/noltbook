@@ -225,6 +225,27 @@
 ::  dm-fetch-kind / pending-dm-fetch: schema foundation for the (future) ephemeral
 ::  authoritative-content fetch. This phase adds the SHAPES ONLY — no HTTP endpoint, no
 ::  Behn timer, and no fetch behavior are implemented.
+::  pending-icon-fetch: a held browser request for a REMOTE note icon, keyed in state
+::  by eyre-id. Exactly one of content / denied / poke-nack / timeout resolves it;
+::  deleting the row is what makes that "at most once", so late or duplicate replies
+::  find nothing and are ignored.
++$  pending-icon-fetch  [eyre-id=@ta note-id=@ta host=@p deadline=@da]
+::  pending-img-write: a held local upload request waiting on a later-event Behn wake
+::  that reads back and hash-verifies the Clay %info write. Keyed by eyre-id; kind
+::  selects the flow, and note-id is '' for an avatar. Same at-most-once rule.
++$  img-write-kind  ?(%avatar %icon)
+::  answered: the HTTP request has already been resolved (by timeout). The row is
+::  KEPT so a late completion wake can still apply its state change and facts -- the
+::  write cannot be cancelled, so ignoring a late success would strand written bytes
+::  behind stale or null metadata. The row is deleted when the wake resolves, or reaped
+::  if it never does.
++$  pending-img-write
+  $:  eyre-id=@ta
+      kind=img-write-kind
+      note-id=@ta
+      deadline=@da
+      answered=?
+  ==
 +$  dm-fetch-kind  ?(%file %app)
 +$  pending-dm-fetch
   $:  eyre-id=@ta
@@ -457,6 +478,13 @@
       ::  main USER profile-picture bytes fetched over Ames (fetch-serve-forget, no
       ::  local persistence). The owner serves ONLY its own /lib/noltbook/avatar/mime;
       ::  eyre-id correlates the held browser request. (Not for actor avatars.)
+      ::  note-icon fetch-serve-forget (additive). The host reads its own uploaded icon
+      ::  from %noltbook-data and streams the bytes back to the member's held HTTP
+      ::  request; the member persists nothing. No mime rides the wire on purpose --
+      ::  the requester re-derives the type from the bytes with image-sig-mite.
+      [%remote-note-icon-fetch note-id=@ta eyre-id=@ta]
+      [%remote-note-icon-content note-id=@ta eyre-id=@ta bytes=octs]
+      [%remote-note-icon-denied note-id=@ta eyre-id=@ta]
       [%remote-user-avatar-fetch eyre-id=@ta]
       [%remote-user-avatar-content eyre-id=@ta mime=@t bytes=octs]
       [%remote-user-avatar-denied eyre-id=@ta]
