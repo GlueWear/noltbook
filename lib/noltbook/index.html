@@ -20,7 +20,8 @@
 html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg);color:var(--text);overflow:hidden}
 .app{display:flex;flex-direction:column;height:100vh}
 .app-header{display:flex;align-items:center;justify-content:space-between;padding:0 1rem 0 1rem;height:42px;border-bottom:1px solid var(--border);flex-shrink:0}
-.logo{font-size:1.5rem;letter-spacing:.3em;color:#ffaa00;margin-left:.3em;cursor:pointer;padding:.2rem .4rem;position:relative}
+.logo{font-size:1.5rem;letter-spacing:.3em;color:#ffaa00;margin-left:.3em;cursor:pointer;padding:.2rem .4rem;position:relative;display:inline-block}
+.logo-mark{display:block;width:145px;height:23.45px}
 .logo:hover{background:var(--bg2)}
 .logo-badge{position:absolute;top:2px;right:-2px;width:8px;height:8px;border-radius:50%;background:#ff4444;display:none}
 .logo.has-notif .logo-badge{display:block}
@@ -92,6 +93,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .note-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:.1rem}
 .note-name{font-size:1rem;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .note-item.active .note-name{color:#ffaa00}
+.note-item[data-note-id="cover"] .note-name{color:#ffaa00}
 .note-source{font-size:.85rem;color:#bbb;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .note-preview{font-size:.8rem;color:#bbb;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .note-dot{width:5px;height:5px;border-radius:50%;background:var(--bot);flex-shrink:0;display:none}
@@ -543,7 +545,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 <body>
 <div class="app">
   <header class="app-header">
-    <span class="logo" id="noltbookLogo" onclick="openGrimoireMenu()" style="font-family:'Share Tech Mono',monospace">NOLTBOOK<span class="logo-badge"></span></span>
+    <span class="logo" id="noltbookLogo" onclick="openGrimoireMenu()"><svg class="logo-mark" viewBox="0 0 641.2 103.7" role="img" aria-label="Noltbook"><defs><clipPath id="nbLogoClip"><rect x="134.2" y="16.8" width="506.9" height="63.8"/></clipPath></defs><g clip-path="url(#nbLogoClip)"><path fill="#ffaa00" d="M583.9,79.4h15.3V18h-15.3v61.4ZM599.4,46.9l22,32.5h19.3l-24.4-32.8,24.9-28.6h-17.5l-24.3,28.9ZM550.8,33.3c3.7,3.8,5.6,9,5.6,15.4s-1.9,11.6-5.6,15.5c-2.5,2.6-5.8,4-9.7,4s-7.3-1.3-9.8-4c-3.7-3.9-5.6-9.1-5.6-15.7s1.9-11.3,5.6-15.2c2.6-2.6,5.8-4,9.8-4s7.2,1.3,9.7,4M525.2,20.7c-4.7,2.6-8.2,6.1-10.7,10.7-2.9,5.4-4.3,11-4.3,16.9,0,11.5,3.9,20.3,11.7,26.3,5.2,4,11.6,6.1,19.1,6.1s18.2-3.6,24-10.7c4.6-5.7,6.8-12.7,6.8-21.1s-1.4-12.1-4.3-17.3c-1.8-3.3-4.3-6.1-7.4-8.5-5.2-4-11.6-6.1-19.1-6.1s-11.2,1.3-15.8,3.8M480.9,33.3c3.7,3.8,5.6,9,5.6,15.4s-1.9,11.6-5.6,15.5c-2.5,2.6-5.8,4-9.7,4s-7.3-1.3-9.8-4c-3.7-3.9-5.6-9.1-5.6-15.7s1.9-11.3,5.6-15.2c2.6-2.6,5.8-4,9.8-4s7.2,1.3,9.7,4M455.3,20.7c-4.7,2.6-8.2,6.1-10.7,10.7-2.9,5.4-4.3,11-4.3,16.9,0,11.5,3.9,20.3,11.7,26.3,5.2,4,11.6,6.1,19.1,6.1s18.2-3.6,24-10.7c4.6-5.7,6.8-12.7,6.8-21.1s-1.4-12.1-4.3-17.3c-1.8-3.3-4.3-6.1-7.4-8.5-5.2-4-11.6-6.1-19.1-6.1s-11.2,1.3-15.8,3.8M395,53.6h8.2c4.1,0,7,.2,8.7.6,3.1.7,4.6,2.8,4.6,6.2s-1.6,5.4-4.7,6.1c-1.5.3-4.5.4-8.8.4h-7.9v-13.3ZM395,30.5h7.4c4.4,0,7.4.4,8.9,1.1,1.5.7,2.3,2.1,2.3,4.2s-1.1,4.2-3.4,4.7c-1.4.4-4,.5-7.8.5h-7.3v-10.6ZM380.4,79.4h20.5c5.5,0,9.4-.1,11.7-.3,2.3-.2,4.5-.6,6.7-1.3,4-1.2,7.2-3.3,9.4-6.3,2.2-3,3.3-6.5,3.3-10.6s-1.5-8.3-4.5-11c-1.4-1.3-3.2-2.4-5.5-3.5,4.7-2.8,7.1-6.8,7.1-12s-.8-6.1-2.4-8.6c-1.6-2.5-3.9-4.3-6.7-5.5-3.8-1.5-9.9-2.3-18.4-2.3h-21.1v61.4ZM322,30.5h16.3v48.9h15.3V30.5h16.9v-12.5h-48.6v12.5ZM274.7,79.4h43v-12.5h-27.7V18h-15.3v61.4ZM241.5,33.3c3.7,3.8,5.6,9,5.6,15.4s-1.9,11.6-5.6,15.5c-2.5,2.6-5.8,4-9.7,4s-7.3-1.3-9.8-4c-3.7-3.9-5.6-9.1-5.6-15.7s1.9-11.3,5.6-15.2c2.6-2.6,5.8-4,9.8-4s7.2,1.3,9.7,4M216,20.7c-4.7,2.6-8.2,6.1-10.7,10.7-2.9,5.4-4.3,11-4.3,16.9,0,11.5,3.9,20.3,11.7,26.3,5.2,4,11.6,6.1,19.1,6.1s18.2-3.6,24-10.7c4.6-5.7,6.8-12.7,6.8-21.1s-1.4-12.1-4.3-17.3c-1.8-3.3-4.3-6.1-7.4-8.5-5.2-4-11.6-6.1-19.1-6.1s-11.1,1.3-15.8,3.8M134.2,79.4h15v-37.8l25.4,37.8h14.2V18h-15v36.3l-24.8-36.3h-14.9v61.4Z"/></g><g fill="#ffaa00"><polygon points="8.2 62.1 8.2 8.2 62.1 8.2 62.1 31.5 62.1 43.8 62.1 62.1 45.1 62.1 45.1 70.4 70.4 70.4 70.4 43.8 70.4 31.5 70.4 0 0 0 0 70.4 29.7 70.4 29.7 62.1 8.2 62.1"/><polygon points="74 33.4 74 41.6 95.4 41.6 95.4 95.5 41.5 95.5 41.5 72.7 41.5 70.4 41.5 62.1 41.5 60.4 41.5 41.6 58.5 41.6 58.5 33.4 33.3 33.4 33.3 59.1 33.3 62.1 33.3 70.4 33.3 71.4 33.3 103.7 103.6 103.7 103.6 33.4 74 33.4"/></g></svg><span class="logo-badge"></span></span>
     <div class="header-dial" id="dialWrap">
       <span class="dial-label">DIAL</span>
       <div class="dial-box active" onclick="setDial(0)">0</div>
@@ -634,7 +636,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
     </aside>
     <section class="chat">
       <div class="chat-header">
-        <span class="chat-note-name" id="chatNoteName" onclick="openCurrentNoteMenu(event)">%Grimoire</span>
+        <span class="chat-note-name" id="chatNoteName" onclick="openCurrentNoteMenu(event)">Cover</span>
         <span id="actorDmContext" style="display:none;font-size:.7rem;margin-left:.5rem;vertical-align:middle"></span>
         <span id="readOnlyBadge" style="display:none;font-size:.6rem;padding:.1rem .4rem;border:1px solid #ff4444;color:#ff4444;letter-spacing:.06em;margin-left:.4rem;vertical-align:middle">READ ONLY</span>
         <span id="lineageBadge" style="display:none;font-size:.6rem;padding:.1rem .4rem;border:1px solid #ffaa00;color:#ffaa00;letter-spacing:.06em;margin-left:.4rem;vertical-align:middle"></span>
@@ -1723,7 +1725,7 @@ async function openNote(id){
   // state never drives expansion (folders do not auto-open for notifications).
   if(state.notes[id]){state.expandedNotes.add(id)}
   if(state.notes[id]&&!state.notes[id].localImport)hydrateDmNoteProfile(state.notes[id]);
-  document.getElementById('chatNoteName').textContent=id==='cover'?'%Grimoire':id==='ars-rumors'?'%Rumors':(state.notes[id]?noteDisplayName(state.notes[id]):id);
+  document.getElementById('chatNoteName').textContent=id==='cover'?'Cover':id==='ars-rumors'?'%Rumors':(state.notes[id]?noteDisplayName(state.notes[id]):id);
   updateActorDmHeader(id);
   document.getElementById('shareBtn').style.display=canShareNote(state.notes[id])?'block':'none';
   const _dw=document.getElementById('dialWrap');if(_dw)_dw.style.display=isGossipNote(id)?'':'none';
@@ -2166,7 +2168,7 @@ function fetchVisibleEnvelopes(){
 }
 // %Grimoire cover note — pinned to the very top of the sidebar (above every section),
 // independent of notifications/recency. (%Rumors removed from the UI.)
-const coverEntry={id:'cover',name:'%Grimoire',color:'#ffaa00',icon:null,bgColor:null};
+const coverEntry={id:'cover',name:'Cover',color:null,icon:'data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 355.9 346.3%22%3E%3Cdefs%3E%3CclipPath id=%22c%22%3E%3Crect y=%22301.6%22 width=%22355.9%22 height=%2244.8%22/%3E%3C/clipPath%3E%3C/defs%3E%3Cg clip-path=%22url(%23c)%22%3E%3Cpath fill=%22%23ffaa00%22 d=%22M315.7,345.5h10.7v-43.1h-10.7v43.1ZM326.6,322.7l15.5,22.8h13.5l-17.1-23,17.5-20.1h-12.3l-17,20.3ZM292.5,313.1c2.6,2.7,3.9,6.3,3.9,10.8s-1.3,8.2-3.9,10.9c-1.8,1.8-4,2.8-6.8,2.8s-5.1-.9-6.9-2.8c-2.6-2.7-3.9-6.4-3.9-11.1s1.3-8,3.9-10.7c1.8-1.9,4.1-2.8,6.9-2.8s5,.9,6.8,2.8M274.5,304.3c-3.3,1.8-5.8,4.3-7.5,7.5-2,3.8-3,7.7-3,11.8,0,8.1,2.7,14.2,8.2,18.5,3.7,2.8,8.1,4.3,13.4,4.3s12.8-2.5,16.8-7.5c3.2-4,4.8-8.9,4.8-14.8s-1-8.5-3-12.2c-1.3-2.3-3-4.3-5.2-5.9-3.7-2.8-8.1-4.3-13.4-4.3s-7.8.9-11.1,2.7M243.4,313.1c2.6,2.7,3.9,6.3,3.9,10.8s-1.3,8.2-3.9,10.9c-1.8,1.8-4,2.8-6.8,2.8s-5.1-.9-6.9-2.8c-2.6-2.7-3.9-6.4-3.9-11.1s1.3-8,3.9-10.7c1.8-1.9,4.1-2.8,6.9-2.8s5,.9,6.8,2.8M225.5,304.3c-3.3,1.8-5.8,4.3-7.5,7.5-2,3.8-3,7.7-3,11.8,0,8.1,2.7,14.2,8.2,18.5,3.6,2.8,8.1,4.3,13.4,4.3s12.8-2.5,16.8-7.5c3.2-4,4.8-8.9,4.8-14.8s-1-8.5-3-12.2c-1.3-2.3-3-4.3-5.2-5.9-3.7-2.8-8.2-4.3-13.4-4.3s-7.8.9-11.1,2.7M183.1,327.4h5.7c2.9,0,4.9.1,6.1.4,2.2.5,3.2,2,3.2,4.4s-1.1,3.8-3.3,4.3c-1.1.2-3.1.3-6.2.3h-5.6v-9.4ZM183.1,311.2h5.2c3.1,0,5.2.3,6.3.7,1.1.5,1.6,1.5,1.6,3s-.8,2.9-2.4,3.3c-1,.3-2.8.4-5.5.4h-5.1v-7.4ZM172.9,345.5h14.4c3.9,0,6.6,0,8.2-.2,1.6-.1,3.2-.5,4.7-.9,2.8-.9,5-2.3,6.6-4.4,1.6-2.1,2.3-4.6,2.3-7.5s-1.1-5.8-3.2-7.7c-1-.9-2.3-1.7-3.9-2.4,3.3-2,5-4.8,5-8.4s-.6-4.3-1.7-6c-1.1-1.7-2.7-3-4.7-3.8-2.6-1.1-7-1.6-12.9-1.6h-14.8v43.1ZM131.8,311.2h11.5v34.3h10.7v-34.3h11.9v-8.8h-34.1v8.8ZM98.6,345.5h30.2v-8.8h-19.5v-34.3h-10.7v43.1ZM75.3,313.1c2.6,2.7,3.9,6.3,3.9,10.8s-1.3,8.2-3.9,10.9c-1.8,1.8-4.1,2.8-6.8,2.8s-5.1-.9-6.9-2.8c-2.6-2.7-3.9-6.4-3.9-11.1s1.3-8,3.9-10.7c1.8-1.9,4.1-2.8,6.9-2.8s5,.9,6.8,2.8M57.4,304.3c-3.3,1.8-5.8,4.3-7.5,7.5-2,3.8-3,7.7-3,11.8,0,8.1,2.7,14.2,8.2,18.5,3.7,2.8,8.1,4.3,13.4,4.3s12.8-2.5,16.8-7.5c3.2-4,4.8-8.9,4.8-14.8s-1-8.5-3-12.2c-1.3-2.3-3-4.3-5.2-5.9-3.7-2.8-8.2-4.3-13.4-4.3s-7.8.9-11.1,2.7M0,345.5h10.5v-26.5l17.9,26.5h10v-43.1h-10.5v25.5l-17.4-25.5H0v43.1Z%22/%3E%3C/g%3E%3Cg fill=%22%23ffaa00%22%3E%3Cpolygon points=%2266 159.5 66 21.2 204.3 21.2 204.3 80.8 204.3 112.5 204.3 159.5 160.7 159.5 160.7 180.7 225.5 180.7 225.5 112.5 225.5 80.8 225.5 0 44.8 0 44.8 180.7 121 180.7 121 159.5 66 159.5%22/%3E%3Cpolygon points=%22234.7 85.7 234.7 106.9 289.8 106.9 289.8 245.3 151.4 245.3 151.4 186.8 151.4 180.7 151.4 159.5 151.4 155.1 151.4 106.9 195 106.9 195 85.7 130.2 85.7 130.2 151.8 130.2 159.5 130.2 180.7 130.2 183.5 130.2 266.4 310.9 266.4 310.9 85.7 234.7 85.7%22/%3E%3C/g%3E%3C/svg%3E',bgColor:'transparent'};
 // attention-aware sidebar preview: when a note has pending directed attention,
 // show "<kind>: <sender displayName>" using the OLDEST target (same ordering as
 // getAttentionTargets open/jump). Returns null when there is no attention.
@@ -2315,7 +2317,7 @@ function refreshActorDmPresentation(){
   if(sb)sb.style.display=canShareNote(n)?'block':'none';
 }
 function noteDisplayName(note){
-  if(note.id==='cover')return'%Grimoire';
+  if(note.id==='cover')return'Cover';
   if(note.id==='ars-rumors')return'%Rumors';
   const adm=actorDmView(note);
   if(adm)return adm.primaryName;
@@ -7123,9 +7125,40 @@ function renderGrimoireJrRow(jr){
 function openCurrentNoteMenu(event){
   event.stopPropagation();
   const id=state.currentNoteId;
-  if(!id||id==='cover'||(id+'').startsWith('ars-'))return;
+  if(!id)return;
+  // cover has no note record and no roster/owner controls: dedicated read-only info modal.
+  if(id==='cover'){openCoverInfoModal();return}
+  if((id+'').startsWith('ars-'))return;
   const note=state.notes[id]; if(!note)return;
   openNoteInfoModal(note);
+}
+// Read-only Cover info modal. Mirrors openNoteInfoModal's overlay/panel styling exactly;
+// no note record is fabricated in state and no mutating control is rendered.
+function openCoverInfoModal(){
+  const existing=document.getElementById('coverInfoModal');if(existing)existing.remove();
+  const overlay=document.createElement('div');
+  overlay.className='modal-overlay open note-info-modal';
+  overlay.id='coverInfoModal';
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center';
+  const modal=document.createElement('div');
+  modal.style.cssText='background:var(--bg2);border:1px solid var(--border);min-width:360px;max-width:440px;max-height:80vh;overflow:auto;padding:1rem;display:flex;flex-direction:column;gap:.75rem';
+  modal.innerHTML=`
+    <div style="font-size:.75rem;color:var(--text-dim);letter-spacing:.1em">NOTE INFO</div>
+    <div class="modal-field">
+      <label class="modal-label" style="font-size:.65rem">TITLE</label>
+      <input class="modal-input" id="coverInfoTitle" value="Cover" readonly style="font-size:.85rem">
+    </div>
+    <div class="modal-field">
+      <label class="modal-label" style="font-size:.65rem">DESCRIPTION</label>
+      <textarea class="modal-textarea" id="coverInfoDesc" rows="6" readonly style="font-size:.8rem;resize:none;min-height:3rem">Cover is the front page of Noltbook. It shows posts from your pals and, as you turn up DIAL, from the wider Noltbook network. Every Noltbook has a Cover, which works like the gossip-style notes you can create.</textarea>
+    </div>
+    <div class="modal-actions" style="margin-top:.25rem">
+      <button class="modal-btn cancel-red" id="coverInfoClose">CLOSE</button>
+    </div>`;
+  overlay.appendChild(modal);
+  overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove()});
+  document.body.appendChild(overlay);
+  modal.querySelector('#coverInfoClose').onclick=()=>overlay.remove();
 }
 function noteCanCopyRef(note){
   return note&&note.type==='group'&&(note.visibility==='public'||note.visibility==='private');
