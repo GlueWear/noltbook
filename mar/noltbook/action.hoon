@@ -172,6 +172,13 @@
         ?.  ?=([%s *] u.eid-raw)  ~
         `(slav %uv p.u.eid-raw)
       [%delete-message `@ta`p.nid-nd mid eid]
+    ::  remove-dm-import
+    ?:  =('remove-dm-import' tag)
+      =/  nid-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] nid-nd)
+      =/  eid-nd  (need (~(get by d) 'eid'))
+      ?>  ?=([%s *] eid-nd)
+      [%remove-dm-import `@ta`p.nid-nd (slav %uv p.eid-nd)]
     ::  set-note-meta
     ?:  =('set-note-meta' tag)
       =/  id-nd  (need (~(get by d) 'id'))
@@ -248,6 +255,15 @@
       =/  id-nd  (need (~(get by d) 'id'))
       ?>  ?=([%s *] id-nd)
       [%delete-artifact `@ta`p.id-nd]
+    ::  delete-mesh-envelope (own cover/gossip artifact envelope; no full artifact locally)
+    ?:  =('delete-mesh-envelope' tag)
+      =/  nid-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] nid-nd)
+      =/  aid-nd  (need (~(get by d) 'aid'))
+      ?>  ?=([%s *] aid-nd)
+      =/  eid-nd  (need (~(get by d) 'eid'))
+      ?>  ?=([%s *] eid-nd)
+      [%delete-mesh-envelope `@ta`p.nid-nd `@ta`p.aid-nd (slav %uv p.eid-nd)]
     ::  set-note-pin
     ?:  =('set-note-pin' tag)
       =/  nid-nd  (need (~(get by d) 'noteId'))

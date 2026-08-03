@@ -120,6 +120,120 @@
       timestamp=@da
       meta=(unit entry-meta)
   ==
+::  ===== ordinary-DM artifact origin-hosting (Phase 0 schema foundation) =====
+::  Strict origin-hosted model: the creator ship holds authoritative content; the
+::  counterparty persists ONLY a content-free reference + safe timeline metadata.
+::  Nothing here is wired to behavior yet.
+::
+::  dm-artifact-type: DM references admit ONLY %file and %app. %code is deliberately
+::  excluded (never referenced across a DM) — this is NOT the unrestricted artifact-type.
++$  dm-artifact-type  ?(%file %app)
+::  dm-file-meta: content-free file display metadata a counterparty may keep. It must
+::  NEVER contain file bytes, a data URL, Clay content, or any inline file content —
+::  only what the frontend needs to build the creator-hosted fetch URL and pick a renderer.
++$  dm-file-meta
+  $:  mime=@t
+      kind=@t
+      size=@ud
+  ==
+::  dm-artifact-ref: a counterparty's durable, CONTENT-FREE reference to a %file or %app
+::  artifact whose authority lives on `creator` (creator != our.bowl). Invariants:
+::    - the state map key is `eid`.
+::    - `eid` is normally (sham [creator aid]).
+::    - `note-id` is ALWAYS the receiving ship's local canonical DM id.
+::    - %file carries file-meta=[~ x]; %app carries file-meta=~.
+::    - content-hash=~ means UNKNOWN; do NOT use *@uv as an unknown sentinel.
+::    - `rev` will eventually be sourced from the latest artifact-version.version
+::      (NOT artifact.meta.rev).
+::    - NO file bytes, app descriptor, app data, or version history may ever appear here.
++$  dm-artifact-ref
+  $:  eid=@uv
+      aid=@ta
+      creator=@p
+      note-id=@ta
+      type=dm-artifact-type
+      name=@t
+      rev=@ud
+      content-hash=(unit @uv)
+      file-meta=(unit dm-file-meta)
+      created=@da
+      updated=@da
+      reply-to-eid=(unit @uv)
+  ==
+::  dm-artifact-tomb: a TERMINAL deletion record for a DM artifact reference.
+::    - once present, no later create/edit for the same `eid` may resurrect it.
+::    - a higher claimed revision does NOT override a tombstone.
+::    - tombstones are retained indefinitely.
+::    - a replacement artifact must receive a new aid / new eid.
++$  dm-artifact-tomb
+  $:  eid=@uv
+      aid=@ta
+      creator=@p
+      note-id=@ta
+      type=dm-artifact-type
+      rev=@ud
+      when=@da
+  ==
+::  note-artifact-tomb: a TERMINAL deletion record for a SHARED-note (%group/%notebook)
+::  artifact, keyed in state by its aid. Host-authoritative:
+::    - once present, no later %remote-artifact-create/-update for the same aid may
+::      resurrect the artifact (host receivers refuse a tombstoned aid).
+::    - retained indefinitely; a replacement artifact must receive a new aid.
+::    - `by`/`when` record who performed the deletion (audit); the user-visible durable
+::      record is the \01SYS:art-delete control message, not this tomb.
++$  note-artifact-tomb
+  $:  aid=@ta
+      eid=@uv
+      creator=@p
+      note-id=@ta
+      by=@p
+      when=@da
+  ==
+::  mesh-tomb: the CANONICAL deletion record for a cover/ordinary-gossip entry, built by the
+::  ORIGIN from its actual stored message/artifact/envelope. It is the sole source of truth
+::  for author-confirmed mesh deletion — receivers act ONLY on this (never on requester- or
+::  hint-supplied note/kind/aid). %text => msg-id present, aid ~; %artifact => aid present,
+::  msg-id ~. Stored on the origin in mesh-tomb-meta and carried on the authoritative event.
++$  mesh-tomb
+  $:  eid=@uv
+      note-id=@ta
+      author=@p
+      kind=?(%text %artifact)
+      msg-id=(unit @da)
+      aid=(unit @ta)
+  ==
+::  dm-message-key: collision-safe identity for a DM message tombstone. %eid for modern
+::  (entry-meta-bearing) messages; %legacy [author id] for pre-meta messages — NOT a bare
+::  id=@da, because two authors could theoretically share a timestamp id.
++$  dm-message-key
+  $%  [%eid eid=@uv]
+      [%legacy author=@p id=@da]
+  ==
+::  dm-import: durable provenance for a message imported into a local ordinary DM.
+::  The row is retained after removal so a repeated external id remains idempotent.
++$  dm-import
+  $:  eid=@uv
+      note-id=@ta
+      peer=@p
+      importer=via-app
+      source=@tas
+      external-id=@t
+      sent-at=@da
+      received-at=@da
+      removed-at=(unit @da)
+  ==
+::  dm-fetch-kind / pending-dm-fetch: schema foundation for the (future) ephemeral
+::  authoritative-content fetch. This phase adds the SHAPES ONLY — no HTTP endpoint, no
+::  Behn timer, and no fetch behavior are implemented.
++$  dm-fetch-kind  ?(%file %app)
++$  pending-dm-fetch
+  $:  eyre-id=@ta
+      eid=@uv
+      aid=@ta
+      creator=@p
+      kind=dm-fetch-kind
+      deadline=@da
+  ==
 ::
 ::  pin: a host/admin-pinned timeline entry. target = the message's or
 ::  artifact's meta.eid (the durable cross-type identity). kind routes render.
@@ -359,6 +473,11 @@
       ::  member -> note host: update an existing %app artifact's descriptor content (shared
       ::  interactive state). Minimal: host holds the artifact, just needs id + new content.
       [%remote-artifact-update art-id=@ta content=@t]
+      ::  member -> note host: request host-authoritative deletion of a shared-note
+      ::  (%group/%notebook) artifact. The host infers the deleter from the authenticated
+      ::  Ames source (src.bowl) and never trusts a client-supplied ship/role; it validates
+      ::  authority (artifact creator, note host, or current admin) before finalizing.
+      [%remote-artifact-delete note-id=@ta art-id=@ta]
       ::  DM artifact: ship metadata + bytes to counterparty (symmetric storage)
       [%remote-dm-artifact =artifact mime=@t bytes=octs]
       ::  DM %app artifact create (Phase 1): symmetric peer-authoritative creation of an
@@ -366,8 +485,48 @@
       ::  metadata because peers may hold different canonical local note ids; no mime/
       ::  bytes (app artifacts are descriptor-only). Actor DMs are excluded.
       [%remote-dm-app-artifact-create =note =artifact]
+      ::  DM %app artifact edit (Phase 2): symmetric peer-authoritative version bump of an
+      ::  interactive app artifact in an ordinary 2-person DM. Carries the full updated
+      ::  artifact (all versions) so the receiver is idempotent + order-tolerant, plus the
+      ::  DM note for canonical local-id resolution. Actor DMs excluded.
+      [%remote-dm-app-artifact-edit =note =artifact]
+      ::  DM %app artifact delete (Phase 3): symmetric peer-authoritative removal of an app
+      ::  artifact in an ordinary 2-person DM. Carries the note (for canonical local-id
+      ::  resolution) and the artifact id. Actor DMs excluded.
+      [%remote-dm-app-artifact-delete =note art-id=@ta]
       ::  cover/gossip artifact envelope mesh propagation; bytes never travel
       [%remote-artifact-envelope-ref note-id=@ta env=artifact-envelope hops=@ud]
+      ::  cover/ordinary-gossip AUTHOR-AUTHENTICATED deletion carrying the CANONICAL record.
+      ::  Applied ONLY when authenticated src.bowl == author.tomb (origin->neighbor, or an
+      ::  author's reply to a verify). All mutation + relay routing use tomb, never anything
+      ::  a relay/requester supplied. Never bytes.
+      [%remote-mesh-delete tomb=mesh-tomb]
+      ::  relay HINT (src is a relay, NOT the author): minimal + fully untrusted. Only triggers
+      ::  a direct verify to `author`; it can NEVER determine a mutation.
+      [%remote-mesh-delete-hint eid=@uv author=@p]
+      ::  verify REQUEST to the claimed author: EID only. The author replies with its stored
+      ::  canonical %remote-mesh-delete record iff mesh-tomb-meta holds that eid; else ignores.
+      [%remote-mesh-delete-verify eid=@uv]
+      ::  ===== ordinary-DM origin-hosting wires (Phase 0 — INACTIVE SCHEMA) =====
+      ::  Schema foundation ONLY: in this phase the receivers are explicit no-ops, no
+      ::  sender emits them, and no advertisement is stored or answered. Legacy
+      ::  %remote-dm-artifact and %remote-dm-app-artifact-* above are retained unchanged.
+      ::  metadata-only creator event: reference create OR edit (no content travels).
+      [%remote-dm-ref-upsert =note ref=dm-artifact-ref]
+      ::  terminal creator deletion (tombstone).
+      [%remote-dm-ref-delete =note tomb=dm-artifact-tomb]
+      ::  counterparty requests authoritative content by EID.
+      [%remote-dm-content-fetch eid=@uv aid=@ta kind=dm-fetch-kind eyre-id=@ta known-rev=(unit @ud)]
+      ::  creator returns current file bytes + current safe reference metadata.
+      [%remote-dm-file-content eyre-id=@ta ref=dm-artifact-ref mime=@t bytes=octs]
+      ::  creator returns the current app descriptor ephemerally.
+      [%remote-dm-app-content eyre-id=@ta ref=dm-artifact-ref content=@t]
+      ::  artifact still logically live but content temporarily unavailable.
+      [%remote-dm-content-unavailable eyre-id=@ta eid=@uv]
+      ::  artifact was authoritatively deleted.
+      [%remote-dm-content-gone eyre-id=@ta tomb=dm-artifact-tomb]
+      ::  dedicated protocol advertisement (does NOT modify %remote-profile).
+      [%remote-proto-advertise version=@ud]
   ==
 ::  directed attention (Phase A scaffold). A single durable list per note that
 ::  unifies @-mentions (today) with reply / note-SEND attention (future phases).
@@ -413,6 +572,12 @@
       [%send-message note-id=@ta text=@t reply-to=(unit @da) reply-to-eid=(unit @uv) directed-kind=(unit attention-kind) via=(unit via-app) actor=(unit actor)]
       [%edit-message note-id=@ta msg-id=@da eid=(unit @uv) text=@t]
       [%delete-message note-id=@ta msg-id=@da eid=(unit @uv)]
+      ::  Local-only removal for externally imported DM history. Never emits Ames.
+      [%remove-dm-import note-id=@ta eid=@uv]
+      ::  own cover/gossip artifact-ENVELOPE deletion when no full artifact record exists
+      ::  locally (stale/test state). Carries full identity so the backend can validate the
+      ::  local envelope's author == our.bowl before tombstoning/removing/propagating.
+      [%delete-mesh-envelope note-id=@ta aid=@ta eid=@uv]
       [%set-note-meta id=@ta visibility=note-visibility icon-url=(unit @t) writable=?]
       [%invite-to-note id=@ta ship=@p]
       [%invite-to-note-batch id=@ta ships=(list @p)]
@@ -547,7 +712,7 @@
       %update-own-profile  %manage-own-contacts
       %manage-own-preferences  %manage-own-notifications
       %create-artifact  %edit-own-artifact  %delete-own-artifact
-      %set-active  %pin-note
+      %set-active  %pin-note  %import-dm
   ==
 ::  app-grant: a host's grant to a single local app desk. enabled gates all
 ::  attribution; revoked-at records the last disable (audit, never cleared).
@@ -885,6 +1050,9 @@
       [%block-pal request-id=(unit @ud) ship=@t]
       [%unblock-pal request-id=(unit @ud) ship=@t]
       [%post-message request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta text=@t reply-to-eid=(unit @uv)]
+      ::  Dedicated local history import. The server stamps importer.ship and derives
+      ::  the message EID from [peer source external-id]. It never sends to the peer.
+      [%import-dm-message request-id=(unit @ud) app=(unit api-app) peer=@t source=@t external-id=@t sent-at=@da text=@t]
       ::  app-authored post under MEMBER authority: actor-shaped display attribution
       ::  only. author stays our.bowl; NO actor membership/registry/access. persona is
       ::  reused api-actor (one actor system, not a second identity model).
@@ -950,8 +1118,10 @@
   ==
 +$  update
   $%  [%api-result =api-result]
-      [%note-list notes=(list note)]
+      [%note-list notes=(list note) import-only-dms=(set @ta)]
       [%note-created note=note]
+      ::  Encodes as the ordinary `note-created` JSON fact with localImport=true.
+      [%import-dm-note-created note=note]
       [%note-renamed id=@ta name=@t]
       [%note-deleted id=@ta]
       [%note-meta-updated id=@ta visibility=note-visibility icon-url=(unit @t) writable=?]
@@ -964,16 +1134,21 @@
       [%fork-invite-received root-id=@ta source-name=@t source-version=@ud forker=@p]
       [%fork-invite-cleared root-id=@ta]
       [%fork-invite-accepted root-id=@ta]
-      [%message-list note-id=@ta messages=(list message) artifacts=(list artifact) via=(map @uv via-app) actor=(map @uv actor)]
+      [%message-list note-id=@ta messages=(list message) artifacts=(list artifact) via=(map @uv via-app) actor=(map @uv actor) imports=(map @uv dm-import)]
       ::  directed-kind: carries the NOTE SEND marker through host broadcasts so
       ::  non-host members classify reply attention as %send (Phase C). JSON shape
       ::  is unchanged (enjs emits the message directly); ~ for normal/sys/DM.
-      [%new-message msg=message directed-kind=(unit attention-kind) via=(unit via-app) actor=(unit actor)]
+      [%new-message msg=message directed-kind=(unit attention-kind) via=(unit via-app) actor=(unit actor) import=(unit dm-import)]
       [%message-edited note-id=@ta msg=message]
       [%message-deleted note-id=@ta msg-id=@da eid=(unit @uv)]
       [%artifact-created artifact=artifact]
       [%artifact-updated artifact=artifact]
       [%artifact-deleted id=@ta]
+      ::  note-scoped cover/gossip mesh deletion for the frontend — one shape for BOTH text
+      ::  and artifact. Text carries msg-id (+ eid); artifact carries aid (+ eid). The client
+      ::  removes ONLY within note-id, EID-first, so ephemeral remote text disappears live and
+      ::  no unrelated note's envelope is touched.
+      [%mesh-entry-deleted note-id=@ta eid=(unit @uv) aid=(unit @ta) msg-id=(unit @da)]
       [%profile-list profiles=(list [@p profile])]
       [%profile-updated ship=@p profile=profile]
       [%wallet-update transactions=(list transaction)]
@@ -1075,5 +1250,12 @@
       ::  Phase B: ONE authoritative snapshot of the real user's actor mute/block prefs
       ::  (full lists, not deltas), replayed on watch and after every mutation.
       [%user-actor-preferences muted=(list actor-ref) blocked=(list actor-ref)]
+      ::  ordinary-DM artifact references (Phase 0 — INACTIVE; nothing emits these yet).
+      ::  authoritative replacement snapshot of one DM note's references.
+      [%dm-ref-list note-id=@ta refs=(list dm-artifact-ref)]
+      ::  reference create or newer metadata revision.
+      [%dm-ref-upserted ref=dm-artifact-ref]
+      ::  terminal reference deletion.
+      [%dm-ref-deleted eid=@uv aid=@ta note-id=@ta]
   ==
 --

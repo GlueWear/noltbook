@@ -169,6 +169,17 @@
       [%search-messages rid (need (get-str 'query')) lim only]
     ?:  =('find-or-create-dm' tag)
       [%find-or-create-dm rid (need (get-str 'ship'))]
+    ?:  =('import-dm-message' tag)
+      =/  sent-ms=@ud  (need (get-num 'sentAt'))
+      =/  sent=@da
+        (add ~1970.1.1 (mul sent-ms (div ~s1 1.000)))
+      :*  %import-dm-message  rid  app
+          (need (get-str 'peer'))
+          (need (get-str 'source'))
+          (need (get-str 'externalId'))
+          sent
+          (need (get-str 'text'))
+      ==
     ::  Actor DM (Phase G5A): idempotent create carries top-level app+actor + ship; no
     ::  noteId, so it stays above the noteId extraction.
     ?:  =('find-or-create-actor-dm' tag)

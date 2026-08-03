@@ -28,10 +28,13 @@
       ==
     ::
         %note-list
-      (frond 'note-list' a+(turn notes.upd note-to-json))
+      (frond 'note-list' a+(turn notes.upd |=(n=note:noltbook (note-json-local n (~(has in import-only-dms.upd) id.n)))))
     ::
         %note-created
       (frond 'note-created' (note-to-json note.upd))
+    ::
+        %import-dm-note-created
+      (frond 'note-created' (note-json-local note.upd %.y))
     ::
         %note-renamed
       %+  frond  'note-renamed'
@@ -115,12 +118,12 @@
       %+  frond  'message-list'
       %-  pairs
       :~  ['noteId' s+(crip (trip note-id.upd))]
-          ['messages' a+(turn messages.upd |=(m=message:noltbook (msg-list-actor m actor.upd)))]
+          ['messages' a+(turn messages.upd |=(m=message:noltbook (msg-list-context m actor.upd imports.upd)))]
           ['artifacts' a+(turn artifacts.upd art-to-json)]
       ==
     ::
         %new-message
-      (frond 'new-message' (msg-json-actor msg.upd actor.upd))
+      (frond 'new-message' (msg-json-context msg.upd actor.upd import.upd))
     ::
         %message-edited
       %+  frond  'message-edited'
@@ -145,6 +148,33 @@
     ::
         %artifact-deleted
       (frond 'artifact-deleted' (frond 'id' s+(crip (trip id.upd))))
+    ::
+        %mesh-entry-deleted
+      %+  frond  'mesh-entry-deleted'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['eid' ?~(eid.upd ~ s+(scot %uv u.eid.upd))]
+          ['aid' ?~(aid.upd ~ s+(crip (trip u.aid.upd)))]
+          ['msgId' ?~(msg-id.upd ~ (numb (da-to-ms u.msg-id.upd)))]
+      ==
+    ::
+        %dm-ref-list
+      %+  frond  'dm-ref-list'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['refs' a+(turn refs.upd dm-ref-to-json)]
+      ==
+    ::
+        %dm-ref-upserted
+      (frond 'dm-ref-upserted' (dm-ref-to-json ref.upd))
+    ::
+        %dm-ref-deleted
+      %+  frond  'dm-ref-deleted'
+      %-  pairs
+      :~  ['eid' s+(scot %uv eid.upd)]
+          ['aid' s+(crip (trip aid.upd))]
+          ['noteId' s+(crip (trip note-id.upd))]
+      ==
     ::
         %profile-list
       %+  frond  'profile-list'
@@ -734,6 +764,12 @@
           ['removed' a+(turn ~(tap in removed.n) |=(p=@p s+(scot %p p)))]
           ['headline' ?~(headline.n ~ s+u.headline.n)]
       ==
+    ++  note-json-local
+      |=  [n=note:noltbook import-only=?]
+      ^-  ^json
+      =/  base=^json  (note-to-json n)
+      ?.  ?=([%o *] base)  base
+      [%o (~(put by p.base) 'localImport' b+import-only)]
     ::
     ++  msg-to-json
       |=  m=message:noltbook
@@ -759,6 +795,25 @@
           ['name' s+name.u.a]
           ['kind' s+(scot %tas kind.u.a)]
       ==
+    ::  Browser-safe import provenance. external-id is deliberately not exposed.
+    ++  import-to-json
+      |=  di=(unit dm-import:noltbook)
+      ^-  ^json
+      ?~  di  ~
+      =/  app-json=^json
+        %-  pairs
+        :~  ['desk' s+(scot %tas desk.importer.u.di)]
+            ['title' ?~(title.importer.u.di ~ s+u.title.importer.u.di)]
+            ['publisher' ?~(publisher.importer.u.di ~ s+(scot %p u.publisher.importer.u.di))]
+            ['ship' s+(scot %p ship.importer.u.di)]
+        ==
+      %-  pairs
+      :~  ['app' app-json]
+          ['source' s+(scot %tas source.u.di)]
+          ['sentAt' (numb (da-to-ms sent-at.u.di))]
+          ['receivedAt' (numb (da-to-ms received-at.u.di))]
+          ['removedAt' ?~(removed-at.u.di ~ (numb (da-to-ms u.removed-at.u.di)))]
+      ==
     ::  msg-json-actor: a message object with an added 'actor' field. For a live
     ::  %new-message the actor is supplied directly; for %message-list it's joined
     ::  from the per-eid actor map. Additive — never wraps/changes the message
@@ -769,12 +824,24 @@
       =/  base=^json  (msg-to-json m)
       ?.  ?=([%o *] base)  base
       [%o (~(put by p.base) 'actor' (actor-to-json a))]
+    ++  msg-json-context
+      |=  [m=message:noltbook a=(unit actor:noltbook) di=(unit dm-import:noltbook)]
+      ^-  ^json
+      =/  base=^json  (msg-json-actor m a)
+      ?.  ?=([%o *] base)  base
+      [%o (~(put by p.base) 'import' (import-to-json di))]
     ::  msg-list-actor: like msg-json-actor but pulls actor from a map by eid.
     ++  msg-list-actor
       |=  [m=message:noltbook amap=(map @uv actor:noltbook)]
       ^-  ^json
       =/  a=(unit actor:noltbook)  ?~(meta.m ~ (~(get by amap) eid.u.meta.m))
       (msg-json-actor m a)
+    ++  msg-list-context
+      |=  [m=message:noltbook amap=(map @uv actor:noltbook) imap=(map @uv dm-import:noltbook)]
+      ^-  ^json
+      =/  a=(unit actor:noltbook)  ?~(meta.m ~ (~(get by amap) eid.u.meta.m))
+      =/  di=(unit dm-import:noltbook)  ?~(meta.m ~ (~(get by imap) eid.u.meta.m))
+      (msg-json-context m a di)
     ::
     ++  meta-to-json
       |=  m=entry-meta:noltbook
@@ -823,6 +890,31 @@
           ['contentHash' s+(scot %uv content-hash.e)]
           ['timestamp' (numb (da-to-ms timestamp.e))]
           ['meta' ?~(meta.e ~ (meta-to-json u.meta.e))]
+      ==
+    ::
+    ++  dm-file-meta-to-json
+      |=  m=dm-file-meta:noltbook
+      %-  pairs
+      :~  ['mime' s+mime.m]
+          ['kind' s+kind.m]
+          ['size' (numb size.m)]
+      ==
+    ::
+    ++  dm-ref-to-json
+      |=  r=dm-artifact-ref:noltbook
+      %-  pairs
+      :~  ['eid' s+(scot %uv eid.r)]
+          ['aid' s+(crip (trip aid.r))]
+          ['creator' s+(scot %p creator.r)]
+          ['noteId' s+(crip (trip note-id.r))]
+          ['type' s+(crip (trip (scot %tas type.r)))]
+          ['name' s+name.r]
+          ['rev' (numb rev.r)]
+          ['contentHash' ?~(content-hash.r ~ s+(scot %uv u.content-hash.r))]
+          ['fileMeta' ?~(file-meta.r ~ (dm-file-meta-to-json u.file-meta.r))]
+          ['created' (numb (da-to-ms created.r))]
+          ['updated' (numb (da-to-ms updated.r))]
+          ['replyToEid' ?~(reply-to-eid.r ~ s+(scot %uv u.reply-to-eid.r))]
       ==
     ::
     ++  ver-to-json

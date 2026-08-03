@@ -158,6 +158,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .msg-action-btn.delete-msg{color:#666;border-color:#333}
 .msg-action-btn.delete-msg:hover{border-color:#ff4444;color:#ff4444;background:rgba(255,68,68,.15)}
 .msg-edited{font-size:.65rem;color:var(--text-dim);font-style:italic;margin-left:.4rem}
+.msg-import-badge{display:inline-block;margin-left:.45rem;padding:.08rem .3rem;border:1px solid #4a5568;color:#94a3b8;font-size:.62rem;letter-spacing:.04em;vertical-align:middle}
 .msg-text.nock-send{color:#00ff88}
 .rumor-post{padding:.8rem 1.5rem;text-align:center}
 .rumor-text{color:#c8b0d8;font-size:.95rem;line-height:1.5;font-style:italic}
@@ -849,7 +850,7 @@ const api = {
     this.reconnecting=false;
   }
 };
-const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,lastMsgActorSig:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteUnreadActivity:{},noteRead:{},userMutedActors:new Set(),userBlockedActors:new Set(),actorRevealed:new Set(),coverPreview:null,notePins:{},pinArtId:null,noteActive:{},actorProfiles:{},actorProfileInFlight:{},actorProfileTimers:{},actorProfileStatus:{},actorProfileReqCounter:0,actorProfileFetchedAt:{},actorProfileRetryAt:{},viewingActorKey:null,_actorModalArgs:null,actorDms:{},appNotifications:{}};
+const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,editingEid:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,lastMsgActorSig:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteUnreadActivity:{},noteRead:{},userMutedActors:new Set(),userBlockedActors:new Set(),actorRevealed:new Set(),coverPreview:null,notePins:{},pinArtId:null,noteActive:{},actorProfiles:{},actorProfileInFlight:{},actorProfileTimers:{},actorProfileStatus:{},actorProfileReqCounter:0,actorProfileFetchedAt:{},actorProfileRetryAt:{},viewingActorKey:null,_actorModalArgs:null,actorDms:{},appNotifications:{},artifactRefs:{},pendingRedirect:null};
 // Phase G4 freshness: resolved profiles are fresh for 10 min; negative results
 // (missing/invalid) cool down 5 min; unreachable cools down 2 min. Render cycles
 // poke only when fresh-expired AND past the cooldown (and not in flight).
@@ -1306,14 +1307,19 @@ function markVisibleMessagesRead(){
   }
   const msgs=state.messages[noteId]||[];
   if(!msgs.length)return;
-  const byId={};
-  for(const m of msgs)byId[String(m.id)]=m;
+  // Key the lookup by the SAME identity renderMsg uses for the DOM id (msgDomId =
+  // 'msg-'+msgKeyId): EID-first ('e-'+eid) for ordinary DMs, bare id otherwise. Parsing the
+  // suffix as a timestamp skipped every DM message (msg-e-<eid>).
+  const byDom={};
+  for(const m of msgs)byDom[msgKeyId(m,noteId)]=m;
   const viewportBottom=el.scrollTop+el.clientHeight;
   let best=0;
   const nodes=el.querySelectorAll('[id^="msg-"]');
   for(const node of nodes){
-    const id=node.id.slice(4);
-    const m=byId[id];
+    // match canonical elements only; a thread-anchor duplicate ends in -ta.
+    if(node.id.slice(-3)==='-ta')continue;
+    const key=node.id.slice(4);
+    const m=byDom[key];
     if(!m)continue;
     if(node.offsetTop<viewportBottom-24){
       const o=msgOrder(m);
@@ -1372,10 +1378,13 @@ function getAttentionTargets(noteId){
 }
 // resolve a target to its rendered DOM element (canonical, non -ta copy).
 function attentionTargetEl(t){
-  if(t.targetKind==='message'&&t.msgId!=null){const e=document.getElementById('msg-'+t.msgId);if(e)return e}
-  if(t.targetKind==='artifact'&&t.aid){const art=state.artifacts[t.aid];const pre=(art&&art.type==='app')?'inline-app-':'inline-file-';const e=document.getElementById(pre+t.aid)||document.getElementById('inline-file-'+t.aid)||document.getElementById('inline-app-'+t.aid);if(e)return e}
+  // P3/P4: resolve EID-first (message + artifact/reference), with AID/id legacy fallback.
+  if(t.targetKind==='message'){const e=msgElByEid(t.eid,t.msgId);if(e)return e}
+  if(t.targetKind==='artifact'){const e=(t.eid?(document.getElementById('inline-file-'+t.eid)||document.getElementById('inline-app-'+t.eid)):null)||(t.aid?(document.getElementById('inline-file-'+t.aid)||document.getElementById('inline-app-'+t.aid)):null);if(e)return e}
   if(t.targetKind==='artifact-envelope'&&t.aid){const e=document.getElementById('inline-art-env-'+t.aid);if(e)return e}
-  // fallback by any id form
+  // fallback by any id form (eid-first)
+  const be=t.eid?(document.getElementById('msg-e-'+t.eid)||document.getElementById('inline-file-'+t.eid)||document.getElementById('inline-app-'+t.eid)):null;
+  if(be)return be;
   if(t.aid){const e=document.getElementById('inline-file-'+t.aid)||document.getElementById('inline-app-'+t.aid)||document.getElementById('inline-art-env-'+t.aid);if(e)return e}
   if(t.msgId!=null){const e=document.getElementById('msg-'+t.msgId);if(e)return e}
   return null;
@@ -1448,6 +1457,7 @@ function mergeNoteListSnapshot(notes){
     if(!n||!n.id)continue;
     if(!before.has(n.id))added.push(n);
     state.notes[n.id]=n;
+    if(!n.localImport)hydrateDmNoteProfile(n);
   }
   return added;
 }
@@ -1471,11 +1481,11 @@ async function refreshNotesSnapshotFromScry(createHint){
 }
 function handleUpdate(upd){
   if(upd['note-list']){console.log('[note-list]',JSON.stringify(upd['note-list']));mergeNoteListSnapshot(upd['note-list']);rebuildDurableNotifications();updateLogoBadge();scheduleNoteList()}
-  else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));const wasPendingJoin=!!state.pendingJoins[n.id];const wasAcceptedFork=state.acceptingForkRoots.has(n.id);if(wasAcceptedFork)state.acceptingForkRoots.delete(n.id);delete state.pendingJoins[n.id];delete state.removedFromNotes[n.id];state.notes[n.id]=n;if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id)}if(state.pendingWalletMsg&&n.type==='dm'){const pw=state.pendingWalletMsg;if(n.users&&n.users.length===2&&n.users.includes(pw.ship)){api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:n.id,text:pw.text}});state.pendingWalletMsg=null}}if(n.creator==='~'+api.ship){if(n.parent)state.expandedNotes.add(n.parent);openNote(n.id)}else if(wasAcceptedFork){if(state.palsView)switchView('notes');openNote(n.id)}else if(wasPendingJoin){document.querySelectorAll('.profile-flow-modal').forEach(el=>el.remove());state.viewingProfileShip=null;if(state.palsView)switchView('notes');if(n.visibility==='public'){openNote(n.id)}else{state.notifications.add(n.id)}}else if(state.pendingGossipFetch&&state.pendingGossipFetch.nid===n.id){clearTimeout(state.pendingGossipFetch.timer);state.pendingGossipFetch=null;if(state.palsView)switchView('notes');openNote(n.id)}else{if(state.palsView)switchView('notes');state.notifications.add(n.id)}scheduleNoteList()}
+  else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));if(state.pendingRedirect&&state.pendingRedirect.to===n.id){state.notes[n.id]=n;if(!n.localImport)hydrateDmNoteProfile(n);state.pendingRedirect=null;if(state.currentNoteId===n.id)scheduleRender(n.id);scheduleNoteList();return;}const wasPendingJoin=!!state.pendingJoins[n.id];const wasAcceptedFork=state.acceptingForkRoots.has(n.id);if(wasAcceptedFork)state.acceptingForkRoots.delete(n.id);delete state.pendingJoins[n.id];delete state.removedFromNotes[n.id];state.notes[n.id]=n;if(!n.localImport)hydrateDmNoteProfile(n);if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id)}if(state.pendingWalletMsg&&n.type==='dm'){const pw=state.pendingWalletMsg;if(n.users&&n.users.length===2&&n.users.includes(pw.ship)){api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:n.id,text:pw.text}});state.pendingWalletMsg=null}}if(n.creator==='~'+api.ship){if(n.parent)state.expandedNotes.add(n.parent);openNote(n.id)}else if(wasAcceptedFork){if(state.palsView)switchView('notes');openNote(n.id)}else if(wasPendingJoin){document.querySelectorAll('.profile-flow-modal').forEach(el=>el.remove());state.viewingProfileShip=null;if(state.palsView)switchView('notes');if(n.visibility==='public'){openNote(n.id)}else{state.notifications.add(n.id)}}else if(state.pendingGossipFetch&&state.pendingGossipFetch.nid===n.id){clearTimeout(state.pendingGossipFetch.timer);state.pendingGossipFetch=null;if(state.palsView)switchView('notes');openNote(n.id)}else{if(state.palsView)switchView('notes');state.notifications.add(n.id)}scheduleNoteList()}
   else if(upd['note-renamed']){const{id,name}=upd['note-renamed'];if(state.notes[id]){state.notes[id].name=name;renderNoteList()}if(state.currentNoteId===id)document.getElementById('chatNoteName').textContent=state.notes[id]?noteDisplayName(state.notes[id]):name}
-  else if(upd['note-deleted']){const{id}=upd['note-deleted'];const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];delete state.noteAdmins[id];delete state.noteMuted[id];delete state.notePins[id];delete state.noteActive[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];delete state.attention[id];state.notifications.delete(id);state.notificationAcks.delete(notifAckKey('removed-status',id));state.notificationAcks.delete(notifAckKey('host-deleted-status',id));delete state.noteActivity[id];delete state.noteUnreadActivity[id];delete state.noteRead[id];delete state.actorDms[id];if(state.currentNoteId===id)openNote('cover');renderNoteList()}
-  else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];let maxSeq=0,revSum=0,actorAcc='';for(const m of messages){if(m.meta){if(m.meta.seq>maxSeq)maxSeq=m.meta.seq;revSum+=m.meta.rev}if(m.actor)actorAcc+=(m.meta&&m.meta.eid?m.meta.eid:m.id)+'='+actorSig(m)+';'}const hash=noteId+':'+messages.length+':'+maxSeq+':'+revSum+':'+actorAcc;if(_lastMsgHash[noteId]===hash)return;_lastMsgHash[noteId]=hash;state.messages[noteId]=messages;requestActorProfilesFor(messages);for(const a of artifacts)state.artifacts[a.id]=a;if(state.currentNoteId===noteId){if(!ScrollCo.consumeOpenIntent(noteId))scheduleRender(noteId);renderPinSurface(noteId)}updateCoverPreview();scheduleNoteList()}
-  else if(upd['new-message']){const msg=upd['new-message'];if(!state.messages[msg.noteId])state.messages[msg.noteId]=[];if(state.messages[msg.noteId].some(m=>(msg.meta&&msg.meta.eid&&m.meta&&m.meta.eid===msg.meta.eid)||m.id===msg.id))return;state.messages[msg.noteId].push(msg);if(msg.actor)requestActorProfile(msg.actor.host,msg.actor.desk,msg.actor.id);if(state.notes[msg.noteId]){state.notes[msg.noteId].lastAuthor=msg.author;state.notes[msg.noteId].lastPreview=msg.text}const suppressedActor=msg.actor&&actorSuppressed(msg.actor);/* Phase B: muted/blocked actor => no unread (divider/notification), but still rendered */if(state.currentNoteId===msg.noteId){const isOwn=msg.author===('~'+api.ship)&&!msg.actor;/* Phase A: an actor msg under our @p is a distinct sender (not own) for unread/divider behavior */if(!isOwn&&!suppressedActor){const _cmEl=document.getElementById('chatMessages');if(_cmEl&&!isNearBottom(_cmEl)&&!state.unreadDividers[msg.noteId]){const _ord=msgOrder(msg);if(typeof _ord==='number')state.unreadDividers[msg.noteId]={order:_ord,until:_ord}}}appendMessage(msg,isOwn)}else if(!suppressedActor)state.notifications.add(msg.noteId);updateCoverPreview();markOpenNoteReadSoon(msg.noteId);scheduleNoteList()}
+  else if(upd['note-deleted']){const{id}=upd['note-deleted'];const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];delete state.noteAdmins[id];delete state.noteMuted[id];delete state.notePins[id];delete state.noteActive[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];delete state.attention[id];state.notifications.delete(id);state.notificationAcks.delete(notifAckKey('removed-status',id));state.notificationAcks.delete(notifAckKey('host-deleted-status',id));delete state.noteActivity[id];delete state.noteUnreadActivity[id];delete state.noteRead[id];delete state.actorDms[id];for(const _e in state.artifactRefs){if(state.artifactRefs[_e].noteId===id)delete state.artifactRefs[_e]}if(state.currentNoteId===id)openNote('cover');renderNoteList()}
+  else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];let maxSeq=0,revSum=0,actorAcc='',importAcc='';for(const m of messages){if(m.meta){if(m.meta.seq>maxSeq)maxSeq=m.meta.seq;revSum+=m.meta.rev}if(m.actor)actorAcc+=(m.meta&&m.meta.eid?m.meta.eid:m.id)+'='+actorSig(m)+';';if(m.import)importAcc+=(m.meta&&m.meta.eid?m.meta.eid:m.id)+'='+m.import.source+':'+m.import.sentAt+';'}const hash=noteId+':'+messages.length+':'+maxSeq+':'+revSum+':'+actorAcc+':'+importAcc;if(_lastMsgHash[noteId]===hash)return;_lastMsgHash[noteId]=hash;state.messages[noteId]=messages;requestActorProfilesFor(messages);for(const a of artifacts)state.artifacts[a.id]=a;if(state.currentNoteId===noteId){if(!ScrollCo.consumeOpenIntent(noteId))scheduleRender(noteId);renderPinSurface(noteId)}updateCoverPreview();scheduleNoteList()}
+  else if(upd['new-message']){const msg=upd['new-message'];if(!state.messages[msg.noteId])state.messages[msg.noteId]=[];/* Part 1B: EID-first dedup. A modern msg dups only by matching eid; a legacy msg only by [author,id]. Same @da id with different eids both survive. */if(state.messages[msg.noteId].some(m=>msgKeyOf(m)===msgKeyOf(msg)))return;state.messages[msg.noteId].push(msg);if(state.notes[msg.noteId]&&state.notes[msg.noteId].type==='dm'&&!msg.import){state.notes[msg.noteId].localImport=false;hydrateDmNoteProfile(state.notes[msg.noteId])}if(msg.actor)requestActorProfile(msg.actor.host,msg.actor.desk,msg.actor.id);/* correction 5: a \01SYS:art-delete deletion marker must never become the sidebar preview; preserve the preceding preview/source so live and reload agree (backend leaves note.last-preview untouched). */if(state.notes[msg.noteId]&&!isArtDeleteControl(msg.text)){state.notes[msg.noteId].lastAuthor=msg.author;state.notes[msg.noteId].lastPreview=msg.text}const suppressedActor=msg.actor&&actorSuppressed(msg.actor);/* Phase B: muted/blocked actor => no unread (divider/notification), but still rendered */if(state.currentNoteId===msg.noteId){const isOwn=msg.author===('~'+api.ship)&&!msg.actor;/* Phase A: an actor msg under our @p is a distinct sender (not own) for unread/divider behavior */if(!isOwn&&!suppressedActor){const _cmEl=document.getElementById('chatMessages');if(_cmEl&&!isNearBottom(_cmEl)&&!state.unreadDividers[msg.noteId]){const _ord=msgOrder(msg);if(typeof _ord==='number')state.unreadDividers[msg.noteId]={order:_ord,until:_ord}}}appendMessage(msg,isOwn)}else if(!suppressedActor)state.notifications.add(msg.noteId);updateCoverPreview();markOpenNoteReadSoon(msg.noteId);scheduleNoteList()}
   else if(upd['artifact-created']){const a=upd['artifact-created'];state.artifacts[a.id]=a;if((a.type==='app'||a.type==='file')&&a.noteId===state.currentNoteId){scheduleRender(a.noteId);renderPinSurface(a.noteId)}}
   else if(upd['artifact-updated']){
     const a=upd['artifact-updated'];state.artifacts[a.id]=a;
@@ -1490,6 +1500,36 @@ function handleUpdate(upd){
     if(a.noteId===state.currentNoteId)renderPinSurface(a.noteId);
   }
   else if(upd['artifact-deleted']){const id=upd['artifact-deleted'].id;destroyPluginArtifactFrames(id);delete state.artifacts[id];closeArtifactPanel();renderPinSurface(state.currentNoteId);scheduleRender()}
+  // note-scoped cover/gossip mesh deletion (text OR artifact). Removes ONLY within noteId.
+  // Modern entries use EID exclusively; msg-id is a fallback ONLY when the update genuinely
+  // has no EID (legacy). Never scans all notes by AID.
+  else if(upd['mesh-entry-deleted']){const{noteId,eid,aid,msgId}=upd['mesh-entry-deleted'];
+    const hasEid=eid!=null&&eid!=='';
+    if(aid){
+      // artifact: remove the full artifact ONLY if note AND eid match; remove the envelope
+      // ONLY if its eid matches. Never by AID alone.
+      const a=state.artifacts[aid];
+      if(a&&a.noteId===noteId&&hasEid&&a.meta&&a.meta.eid===eid){destroyPluginArtifactFrames(aid);delete state.artifacts[aid];}
+      const aenv=state.artifactEnvelopes[noteId]&&state.artifactEnvelopes[noteId][aid];
+      if(aenv&&hasEid&&aenv.meta&&aenv.meta.eid===eid)delete state.artifactEnvelopes[noteId][aid];
+    }else{
+      // text: choose exactly one identity mode — EID for modern entries, msg-id for legacy.
+      const msgs=state.messages[noteId];
+      if(msgs){state.messages[noteId]=msgs.filter(m=>!(hasEid?(m.meta&&m.meta.eid===eid):(msgId!=null&&m.id===msgId)));}
+      const envs=state.gossipEnvelopes[noteId];
+      if(envs){for(const k in envs){const e=envs[k];if(hasEid?(e.meta&&e.meta.eid===eid):(msgId!=null&&String(e.id)===String(msgId)))delete envs[k];}}
+    }
+    // recompute the sidebar preview/author (or coverPreview) from remaining entries so the
+    // deleted content can't linger; deleting an older entry keeps a newer valid preview.
+    recomputeMeshPreview(noteId);
+    if(noteId===state.currentNoteId){renderPinSurface(noteId);scheduleRender(noteId);}
+    scheduleNoteList();
+  }
+  // Part 12: ordinary-DM %file references (content-free; keyed by EID). Never carry
+  // versions or bytes. dm-ref-list is authoritative per-note replacement.
+  else if(upd['dm-ref-list']){const{noteId,refs}=upd['dm-ref-list'];for(const _e in state.artifactRefs){if(state.artifactRefs[_e].noteId===noteId)delete state.artifactRefs[_e]}for(const r of (refs||[]))state.artifactRefs[r.eid]=r;if(noteId===state.currentNoteId){scheduleRender(noteId);renderPinSurface(noteId)}scheduleNoteList()}
+  else if(upd['dm-ref-upserted']){const r=upd['dm-ref-upserted'];if(r&&r.eid){state.artifactRefs[r.eid]=r;if(r.noteId===state.currentNoteId){scheduleRender(r.noteId);renderPinSurface(r.noteId)}scheduleNoteList()}}
+  else if(upd['dm-ref-deleted']){const{eid,noteId}=upd['dm-ref-deleted'];delete state.artifactRefs[eid];if(noteId===state.currentNoteId){scheduleRender(noteId);renderPinSurface(noteId)}scheduleNoteList()}
   else if(upd['note-meta-updated']){const d=upd['note-meta-updated'];const n=state.notes[d.id];if(n){n.visibility=d.visibility;n.iconUrl=d.iconUrl||null;n.writable=d.writable;renderNoteList();if(d.id===state.currentNoteId){updateMuteUI();const _sb=document.getElementById('shareBtn');if(_sb)_sb.style.display=canShareNote(n)?'block':'none'}}}
   else if(upd['note-type-updated']){const d=upd['note-type-updated'];const n=state.notes[d.id];if(n){n.type=d.type;renderNoteList();if(d.id===state.currentNoteId){scheduleRender(d.id);updateMuteUI()}}}
   else if(upd['note-host-status']){const d=upd['note-host-status'];if(d.status)state.noteHostStatus[d.id]=d.status;else delete state.noteHostStatus[d.id];if(d.status!=='host-deleted')state.notificationAcks.delete(notifAckKey('host-deleted-status',d.id));rebuildDurableNotifications();updateLogoBadge();if(d.id===state.currentNoteId)updateMuteUI();renderNoteList()}
@@ -1540,11 +1580,11 @@ function handleUpdate(upd){
   else if(upd['artifact-envelope']){const d=upd['artifact-envelope'];const nid=d.noteId;const env=d.envelope;if(!state.artifactEnvelopes[nid])state.artifactEnvelopes[nid]={};if(state.artifactEnvelopes[nid][env.aid])return;state.artifactEnvelopes[nid][env.aid]=env;state.artifactEnvHops[env.aid]=(typeof d.hops==='number')?d.hops:1;fetchTopWindowEnvelopes(nid);if(state.currentNoteId===nid)scheduleRender(nid);else if(artEnvVisible(env))state.notifications.add(nid);markOpenNoteReadSoon(nid);scheduleNoteList()}
   else if(upd['artifact-envelope-list']){const d=upd['artifact-envelope-list'];const nid=d.noteId;if(!state.artifactEnvelopes[nid])state.artifactEnvelopes[nid]={};let added=0;for(const e of d.envelopes||[]){if(state.artifactEnvelopes[nid][e.aid])continue;state.artifactEnvelopes[nid][e.aid]=e;if(state.artifactEnvHops[e.aid]===undefined)state.artifactEnvHops[e.aid]=1;added++}if(added)fetchTopWindowEnvelopes(nid);if(added&&state.currentNoteId===nid)scheduleRender(nid)}
   else if(upd['message-edited']){const{noteId,message}=upd['message-edited'];const msgs=state.messages[noteId]||[];const eid=message.meta&&message.meta.eid;const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===message.id);if(fi>=0){if(!message.actor&&msgs[fi]&&msgs[fi].actor)message.actor=msgs[fi].actor;msgs[fi]=message}if(state.currentNoteId===noteId)scheduleRender(noteId)}
-  else if(upd['message-deleted']){const{noteId,msgId,eid}=upd['message-deleted'];const msgs=state.messages[noteId]||[];const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===msgId);if(fi>=0)msgs.splice(fi,1);if(state.currentNoteId===noteId){renderPinSurface(noteId);scheduleRender(noteId)}}
+  else if(upd['message-deleted']){const{noteId,msgId,eid}=upd['message-deleted'];const msgs=state.messages[noteId]||[];const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===msgId);const removed=fi>=0?msgs[fi]:null;if(fi>=0)msgs.splice(fi,1);if(removed&&removed.import&&state.notes[noteId]){let prior=null;for(let i=msgs.length-1;i>=0;i--){if(!isArtDeleteControl(msgs[i].text)){prior=msgs[i];break}}state.notes[noteId].lastAuthor=prior?prior.author:null;state.notes[noteId].lastPreview=prior?prior.text:null;scheduleNoteList()}if(state.currentNoteId===noteId){renderPinSurface(noteId);scheduleRender(noteId)}}
   else if(upd['search-result']){const{reqId,query,hits,capped}=upd['search-result'];if(reqId!==state.searchReqInFlight)return;if(String(query||'')!==state.searchQuery)return;state.searchMessageHits=Array.isArray(hits)?hits:[];state.searchMessageCapped=!!capped;if(state.searchQuery)renderSidebarSearchResults()}
   else if(upd['profile-lookup-result']){const{reqId,ship,status}=upd['profile-lookup-result'];if(state.profileLookupInFlight[reqId]!==ship)return;delete state.profileLookupInFlight[reqId];if(state.profileLookupTimers[ship]){clearTimeout(state.profileLookupTimers[ship]);delete state.profileLookupTimers[ship]}if(status==='ok'){delete state.profileLookupStatus[ship];if(state._mentionLookups)state._mentionLookups.delete(ship);removeMentionLookupPopover(ship,0);if(state.searchQuery)renderSidebarSearchResults();viewProfile(ship)}else{state.profileLookupStatus[ship]='unreachable';if(state.searchQuery)renderSidebarSearchResults();if(state._mentionLookups&&state._mentionLookups.has(ship)){state._mentionLookups.delete(ship);if(_mentionLookupPopovers[ship]){showMentionLookupPopover(ship,"this user can't be reached",'#ff4444',null);removeMentionLookupPopover(ship,3000)}}}}
-  else if(upd['profile-list']){const _plNid=state.currentNoteId;const _plAu=_plNid?new Set((state.messages[_plNid]||[]).map(m=>m.author)):null;let _plDirty=false;for(const entry of upd['profile-list']){const _plOld=state.profiles[entry.ship];if(_plAu&&_plAu.has(entry.ship)&&JSON.stringify(_plOld)!==JSON.stringify(entry.profile))_plDirty=true;state.profiles[entry.ship]=entry.profile;const uav=entry.profile&&entry.profile.avatar&&entry.profile.avatar.type==='urbit';if(uav){if(!avatarRevisionByShip[entry.ship])avatarRevisionByShip[entry.ship]=Date.now()}else{delete avatarRevisionByShip[entry.ship]}}const me=state.profiles['~'+api.ship];if(me){if(me.displayName)document.getElementById('shipDisplay').textContent=me.displayName;updateSidebarSigil()}if(state.palsView)renderPalsList();if(_plDirty)scheduleRender()}
-  else if(upd['profile-updated']){const{ship,profile}=upd['profile-updated'];const _puOld=state.profiles[ship];state.profiles[ship]=profile;const uav=profile&&profile.avatar&&profile.avatar.type==='urbit';if(uav){avatarRevisionByShip[ship]=Date.now()}else{delete avatarRevisionByShip[ship]}if(ship==='~'+api.ship&&!uav)clearOwnAvatarBlob();if(ship==='~'+api.ship){document.getElementById('shipDisplay').textContent=profile.displayName||'~'+api.ship;updateSidebarSigil()}if(state.palsView)renderPalsList();if(profileTouchesOpenNote(ship)&&JSON.stringify(_puOld)!==JSON.stringify(profile))scheduleRender();refreshActorDmPresentation()}
+  else if(upd['profile-list']){const _plNid=state.currentNoteId;const _plAu=_plNid?new Set((state.messages[_plNid]||[]).map(m=>m.author)):null;let _plDirty=false;let _plDmDirty=false;for(const entry of upd['profile-list']){const _plOld=state.profiles[entry.ship];const _plChanged=JSON.stringify(_plOld)!==JSON.stringify(entry.profile);if(_plAu&&_plAu.has(entry.ship)&&_plChanged)_plDirty=true;state.profiles[entry.ship]=entry.profile;clearDmProfileHydrating(entry.ship);const uav=entry.profile&&entry.profile.avatar&&entry.profile.avatar.type==='urbit';if(uav){if(!avatarRevisionByShip[entry.ship])avatarRevisionByShip[entry.ship]=Date.now()}else{delete avatarRevisionByShip[entry.ship]}if(_plChanged&&findDmRoot(entry.ship))_plDmDirty=true}const me=state.profiles['~'+api.ship];if(me){if(me.displayName)document.getElementById('shipDisplay').textContent=me.displayName;updateSidebarSigil()}if(state.palsView)renderPalsList();if(_plDmDirty){scheduleNoteList();const _cn=state.currentNoteId?state.notes[state.currentNoteId]:null;if(_cn&&_cn.type==='dm'){const _cp=dmCounterparty(_cn);if(_cp&&upd['profile-list'].some(e=>e.ship===_cp)){const _el=document.getElementById('chatNoteName');if(_el)_el.textContent=noteDisplayName(_cn)}}}if(_plDirty)scheduleRender()}
+  else if(upd['profile-updated']){const{ship,profile}=upd['profile-updated'];const _puOld=state.profiles[ship];state.profiles[ship]=profile;clearDmProfileHydrating(ship);const uav=profile&&profile.avatar&&profile.avatar.type==='urbit';if(uav){avatarRevisionByShip[ship]=Date.now()}else{delete avatarRevisionByShip[ship]}if(ship==='~'+api.ship&&!uav)clearOwnAvatarBlob();if(ship==='~'+api.ship){document.getElementById('shipDisplay').textContent=profile.displayName||'~'+api.ship;updateSidebarSigil()}if(state.palsView)renderPalsList();if(profileTouchesOpenNote(ship)&&JSON.stringify(_puOld)!==JSON.stringify(profile))scheduleRender();refreshActorDmPresentation()}
   else if(upd['remote-note-list']){const{ship,notes}=upd['remote-note-list'];Object.keys(state.discoveryNotes).forEach(k=>{if(state.discoveryNotes[k].creator===ship)delete state.discoveryNotes[k]});for(const n of notes)state.discoveryNotes[n.id]=n;const el=document.getElementById('viewProfileNotes');if(el&&state.viewingProfileShip===ship){el.innerHTML=renderProfileNotesHtml(ship,'none available')}if(state.pendingRefOpen&&state.pendingRefOpen.creator===ship){const _pnid=state.pendingRefOpen.noteId;clearTimeout(state.pendingRefOpen.timer);state.pendingRefOpen=null;if(state.discoveryNotes[_pnid]){openNoteDetailModal(_pnid)}else{showRefUnavailable(_pnid,'Note unavailable')}}}
   // Phase G4: async actor-profile resolution result. ok => cache + render; missing/
   // unreachable => keep the glyph fallback. Never reloads the message timeline.
@@ -1561,7 +1601,40 @@ function handleUpdate(upd){
   else if(upd['pal-update']){const{ship,status}=upd['pal-update'];const wasBlocked=state.palStatus[ship]==='blocked';state.palStatus[ship]=status;if(wasBlocked&&status!=='blocked'){Object.keys(state.removedFromNotes).forEach(nid=>{if(state.removedFromNotes[nid]===ship)delete state.removedFromNotes[nid]});api.poke('noltbook','noltbook-action',{action:'request-remote-notes',data:{ship}})}if(status!=='blocked')delete state.blockedBy[ship];if(state.palsView)renderPalsList();scheduleNoteList();fetchVisibleEnvelopes();if(isGossipNote(state.currentNoteId))scheduleRender(state.currentNoteId);if(state.currentNoteId){const cn=state.notes[state.currentNoteId];if(cn&&cn.type==='dm'){const cp=dmCounterparty(cn);if(cp===ship)updateMuteUI()}}}
   else if(upd['dial-update']){state.dial=upd['dial-update'];updateDialUI();if(isGossipNote(state.currentNoteId))scheduleRender(state.currentNoteId);scheduleNoteList();fetchVisibleEnvelopes()}
   else if(upd['note-users-updated']){const d=upd['note-users-updated'];const{id,type,users,removed}=d;const rev=d.rev||0;const localRev=state.noteMemberRevs[id]||0;if(rev<localRev){console.log('[note-users-updated:stale]',id,'incoming',rev,'<','local',localRev);return}state.noteMemberRevs[id]=rev;console.log('[note-users-updated]',id,type,users,removed,'rev',rev);if(state.notes[id]){const me='~'+api.ship;const vis=state.notes[id].visibility;const notifyVis=vis==='public'||vis==='private';if(state.notes[id].creator===me&&notifyVis){const oldU=state.notes[id].users||[];const newJ=users.filter(u=>!oldU.includes(u)&&u!==me);for(const j of newJ)state.blockNotifications.push({noteId:id,noteName:state.notes[id].name,from:j,time:Date.now(),type:'joined'});if(newJ.length>0)updateLogoBadge()}state.notes[id].users=users;state.notes[id].removed=removed||[];if(type)state.notes[id].type=type;if(!(removed||[]).includes(me))state.notificationAcks.delete(notifAckKey('removed-status',id));rebuildDurableNotifications();updateLogoBadge();scheduleNoteList();if(state.currentNoteId===id){scheduleRender(id);updateMuteUI();updateActorDmHeader(id);updateAttachMenu();const _n=state.notes[id];const _cn=document.getElementById('chatNoteName');if(_cn&&_n)_cn.textContent=noteDisplayName(_n);const _sb=document.getElementById('shareBtn');if(_sb&&_n)_sb.style.display=canShareNote(_n)?'block':'none'}refreshNoteInfoMembers(id)}}
-  else if(upd['note-redirect']){const{oldId,newId}=upd['note-redirect'];console.log('[note-redirect]',oldId,'->',newId);if(state.noteActivity[oldId]!==undefined&&state.noteActivity[newId]===undefined)state.noteActivity[newId]=state.noteActivity[oldId];delete state.noteActivity[oldId];if(state.noteUnreadActivity[oldId]!==undefined&&state.noteUnreadActivity[newId]===undefined)state.noteUnreadActivity[newId]=state.noteUnreadActivity[oldId];delete state.noteUnreadActivity[oldId];if(state.noteRead[oldId]!==undefined&&state.noteRead[newId]===undefined)state.noteRead[newId]=state.noteRead[oldId];delete state.noteRead[oldId];if(state.attention[oldId]!==undefined&&state.attention[newId]===undefined)state.attention[newId]=state.attention[oldId];delete state.attention[oldId];delete state.notes[oldId];delete state.messages[oldId];state.notifications.delete(oldId);if(state.currentNoteId===oldId){if(state.notes[newId])openNote(newId);else openNote('cover')}renderNoteList()}
+  else if(upd['note-redirect']){const{oldId,newId}=upd['note-redirect'];console.log('[note-redirect]',oldId,'->',newId);
+    // Part 5: lossless client merge. A backend root reconciliation is lossless, so do NOT
+    // discard the losing root's visible messages — merge them into the winning note
+    // EID-first (legacy [author,id]), keeping the higher revision, no duplicates. A later
+    // authoritative %message-list may replace/reconcile this temporary client merge.
+    const _keyOf=(m)=>(m.meta&&m.meta.eid)?('e:'+m.meta.eid):('l:'+m.author+':'+m.id);
+    const _revOf=(m)=>(m.meta&&typeof m.meta.rev==='number')?m.meta.rev:0;
+    const _updOf=(m)=>(m.meta&&m.meta.updated)?m.meta.updated:0;
+    const _oldMsgs=state.messages[oldId]||[];const _winMsgs=state.messages[newId]||[];
+    if(_oldMsgs.length||_winMsgs.length){const _byKey={};const _order=[];
+      for(const m of _winMsgs.concat(_oldMsgs)){const k=_keyOf(m);const nm=Object.assign({},m,{noteId:newId});
+        if(!(k in _byKey)){_byKey[k]=nm;_order.push(k);}else{const ex=_byKey[k];if(_revOf(nm)>_revOf(ex)||(_revOf(nm)===_revOf(ex)&&_updOf(nm)>_updOf(ex)))_byKey[k]=nm;}}
+      const _merged=_order.map(k=>_byKey[k]);
+      // Part 1C: created ties break on id, then a stable message-key comparison — never
+      // on array/sort-stability chance.
+      _merged.sort((a,b)=>{const ca=(a.meta&&a.meta.created)?a.meta.created:a.id;const cb=(b.meta&&b.meta.created)?b.meta.created:b.id;if(ca!==cb)return ca-cb;if(a.id!==b.id)return a.id-b.id;const ka=_keyOf(a),kb=_keyOf(b);return ka<kb?-1:ka>kb?1:0;});
+      state.messages[newId]=_merged;}
+    // rewrite reference noteIds oldId -> newId (dedup by eid is inherent to the map)
+    for(const _e in state.artifactRefs){if(state.artifactRefs[_e].noteId===oldId)state.artifactRefs[_e].noteId=newId;}
+    const _maxMove=(obj)=>{if(obj[oldId]!==undefined){obj[newId]=(obj[newId]!==undefined)?Math.max(obj[newId],obj[oldId]):obj[oldId];}delete obj[oldId];};
+    _maxMove(state.noteActivity);_maxMove(state.noteUnreadActivity);_maxMove(state.noteRead);
+    const _oa=state.attention[oldId]||[];const _na=state.attention[newId]||[];
+    if(_oa.length||_na.length){const _attnTok=(it)=>it.eid?('e:'+it.eid):(it.msgId!=null?('m:'+it.msgId):(it.aid?('a:'+it.aid):('k:'+it.kind+':'+it.author+':'+it.when)));const _seen=new Set();const _out=[];for(const it of _na.concat(_oa)){const t=_attnTok(it);if(_seen.has(t))continue;_seen.add(t);_out.push(it);}state.attention[newId]=_out;}
+    delete state.attention[oldId];
+    if(state.notePins){if(state.notePins[newId]===undefined&&state.notePins[oldId]!==undefined)state.notePins[newId]=state.notePins[oldId];delete state.notePins[oldId];}
+    // Part 1D: preserve continuity. Clone the losing note's metadata under newId as a
+    // placeholder so an open DM is NEVER bounced to Cover before %note-created arrives.
+    // The pending marker lets note-created replace the placeholder + keep newId open.
+    const _wasOpen=(state.currentNoteId===oldId);
+    if(state.notes[oldId]&&!state.notes[newId]){state.notes[newId]=Object.assign({},state.notes[oldId],{id:newId});}
+    delete state.notes[oldId];delete state.messages[oldId];state.notifications.delete(oldId);
+    if(_wasOpen){state.pendingRedirect={from:oldId,to:newId};state.currentNoteId=newId;openNote(newId);}
+    else if(state.currentNoteId===newId)scheduleRender(newId);
+    renderNoteList()}
   else if(upd['wallet-update']){wallet.transactions=upd['wallet-update'].map(tx=>({type:tx.type,who:tx.counterparty,amount:tx.amount,time:new Date(tx.timestamp).toLocaleString(),txid:tx.txHash}));renderWalletNotes()}
   else if(upd['gossip-message']){const{message,hops}=upd['gossip-message'];const nid=message.noteId||'cover';const msgEid=message.meta&&message.meta.eid||null;state.gossipHops[message.id]=hops;if(!state.messages[nid])state.messages[nid]=[];const nenvs=state.gossipEnvelopes[nid]||{};delete nenvs[message.id];if(msgEid)delete nenvs[msgEid];state.gossipEnvelopes[nid]=nenvs;const nfetch=state.gossipFetching[nid];if(nfetch){nfetch.delete(message.id);if(msgEid)nfetch.delete(msgEid)}const isDup=state.messages[nid].some(m=>(msgEid&&m.meta&&m.meta.eid===msgEid)||m.id===message.id);if(!isDup){state.messages[nid].push(message);const visible=coverMsgVisible(message);if(state.currentNoteId===nid&&visible){const isOwn=message.author===('~'+api.ship);appendMessage(message,isOwn)}else if(state.currentNoteId!==nid&&visible&&!isPinnedUnreadNote(nid))state.notifications.add(nid)}const visible=coverMsgVisible(message);if(visible&&state.notes[nid]){state.notes[nid].lastAuthor=message.author;state.notes[nid].lastPreview=message.text}if(nid==='cover'&&visible)state.coverPreview={author:message.author,preview:message.text};markOpenNoteReadSoon(nid);scheduleNoteList()}
   else if(upd['gossip-envelope']){const{noteId,envelope,hops}=upd['gossip-envelope'];const nid=noteId||'cover';const envEid=envelope.meta&&envelope.meta.eid||null;if((state.messages[nid]||[]).some(m=>(envEid&&m.meta&&m.meta.eid===envEid)||m.id===envelope.id))return;const nenvs=state.gossipEnvelopes[nid]||{};const envKey=envEid||envelope.id;if(nenvs[envKey])return;envelope._eid=envEid;nenvs[envKey]=envelope;state.gossipEnvelopes[nid]=nenvs;state.gossipHops[envelope.id]=hops;const shell={id:envelope.id,noteId:nid,author:envelope.author,text:null};fetchTopWindowEnvelopes(nid);if(state.currentNoteId!==nid&&coverMsgVisible(shell)&&!isPinnedUnreadNote(nid))state.notifications.add(nid);markOpenNoteReadSoon(nid);scheduleNoteList()}
@@ -1649,6 +1722,7 @@ async function openNote(id){
   // expand the explicitly-opened note so its children are visible. Notification
   // state never drives expansion (folders do not auto-open for notifications).
   if(state.notes[id]){state.expandedNotes.add(id)}
+  if(state.notes[id]&&!state.notes[id].localImport)hydrateDmNoteProfile(state.notes[id]);
   document.getElementById('chatNoteName').textContent=id==='cover'?'%Grimoire':id==='ars-rumors'?'%Rumors':(state.notes[id]?noteDisplayName(state.notes[id]):id);
   updateActorDmHeader(id);
   document.getElementById('shareBtn').style.display=canShareNote(state.notes[id])?'block':'none';
@@ -2048,6 +2122,22 @@ function fmtSize(n){
   if(n<1048576)return (n/1024).toFixed(1)+' KB';
   return (n/1048576).toFixed(1)+' MB';
 }
+// A \01SYS:art-delete:<role>:<ship> shared-note deletion marker. Its raw control text must
+// never leak into a sidebar preview; the timeline renders it as a system line (see renderMsg).
+function isArtDeleteControl(text){
+  return !!(text&&text.charCodeAt(0)===1&&text.slice(1).split(':')[1]==='art-delete');
+}
+// ===== shared post action-menu policy (one source of truth for all four renderers) =====
+function meShip(){return '~'+api.ship}
+// ownership: is this post authored by the current user?
+function isOwnPost(author){return !!author&&author===meShip()}
+// SEND sends $NOCK to the POST'S AUTHOR, so it only makes sense on ANOTHER user's post and
+// must never appear on your own text/artifact/envelope/reference. eid is optional stable
+// source context (resolveNoteSendSource treats '' as none). Returns '' when it must hide.
+function postSendBtn(author,id,eid){
+  if(isOwnPost(author))return '';
+  return `<button class="msg-action-btn send-msg" onclick="sendToUser('${escAttr(author)}','${escAttr(String(id==null?'':id))}','${escAttr(eid||'')}')">SEND</button>`;
+}
 function renderDocCard(url,name,mime,size){
   var labelType=(mime||'').split('/').pop()||'doc';
   var sizeLabel=fmtSize(size);
@@ -2416,11 +2506,25 @@ function makeNoteItem(n,depth){
   if(_adm)requestActorProfile(_adm.ownerActor.host,_adm.ownerActor.desk,_adm.ownerActor.id);
   const iconContent=noteDisplayIconHtml(n);
   const displayNameStr=noteDisplayName(n);
-  const rawSource=n.lastAuthor||(last?last.author:'');
+  // correction: an artifact-deletion marker (\01SYS:art-delete:...) must never drive the
+  // sidebar. If one is present (persisted into n.lastPreview by an older receive path, or in
+  // existing test state), ignore BOTH it and n.lastAuthor, and derive the preview AND author
+  // from the newest preceding non-control message (same message, so they never mismatch); if
+  // none exists, show an empty preview. Otherwise keep prior behavior, still skipping a
+  // control-message last-message fallback.
+  let rawSource, rawPreview;
+  if(isArtDeleteControl(n.lastPreview)){
+    let _pm=null;const _pmsgs=state.messages[n.id]||[];
+    for(let _i=_pmsgs.length-1;_i>=0;_i--){const _t=_pmsgs[_i].text;if(_t&&_t.charCodeAt(0)===1)continue;_pm=_pmsgs[_i];break}
+    rawSource=_pm?_pm.author:'';
+    rawPreview=_pm?String(_pm.text).replace(/\n/g,' '):'';
+  }else{
+    rawSource=n.lastAuthor||(last?last.author:'');
+    rawPreview=n.lastPreview?n.lastPreview.replace(/\n/g,' '):((last&&last.text&&last.text.charCodeAt(0)!==1)?last.text.replace(/\n/g,' '):'');
+  }
   // actor DM: the source line carries the actor-DM identity context (actor color),
   // not the ordinary group last-author source.
   const source=_adm?_adm.contextText:(rawSource?displayName(rawSource):'');
-  const rawPreview=n.lastPreview?n.lastPreview.replace(/\n/g,' '):(last?last.text.replace(/\n/g,' '):'');
   let previewHtml;
   const apN=hasMention?attentionPreviewHtml(n.id):null;
   if(apN){previewHtml=apN}
@@ -2763,6 +2867,32 @@ function lookupUnknownShip(ship){
   },28000);  // two cold Ames hops (request + response) can exceed a short timeout on first contact
   api.poke('noltbook','noltbook-action',{action:'request-profile',data:{ship,reqId}});
   if(state.searchQuery)renderSidebarSearchResults();
+}
+// Quiet, deduplicated profile hydration for ordinary-DM counterparties. Unlike
+// lookupUnknownShip (search/mention), this shows NO UI, opens NO modal, and does NOT
+// register in profileLookupInFlight/status/timers — so the %profile-lookup-result
+// handler ignores its reqId (viewProfile never fires). The profile arrives via the
+// normal %profile-updated / %profile-list fact, which also clears the pending flag.
+const _dmProfileHydrating=new Set();
+function clearDmProfileHydrating(ship){if(ship)_dmProfileHydrating.delete(ship)}
+function hydrateDmProfile(ship){
+  if(!ship||ship==='~'+api.ship)return;      // no self / empty
+  if(state.profiles[ship])return;            // already hydrated
+  if(_dmProfileHydrating.has(ship))return;   // request already pending (dedup)
+  _dmProfileHydrating.add(ship);
+  state.profileLookupReqCounter+=1;          // shared counter => globally-unique reqId
+  const reqId=state.profileLookupReqCounter;
+  // fallback clear so a later change can retry (two cold Ames hops may exceed a window)
+  setTimeout(()=>_dmProfileHydrating.delete(ship),28000);
+  // clear on nack so a retry is possible; success waits for the %profile-updated fact
+  api.poke('noltbook','noltbook-action',{action:'request-profile',data:{ship,reqId}}).catch(()=>_dmProfileHydrating.delete(ship));
+}
+// hydrate the counterparty of an ordinary (non-actor) %dm note if its profile is absent.
+// Actor DMs are secret %group notes, so type!=='dm' short-circuits them here.
+function hydrateDmNoteProfile(note){
+  if(!note||note.type!=='dm')return;
+  const cp=dmCounterparty(note);
+  if(cp)hydrateDmProfile(cp);
 }
 function makeSearchUnknownPersonResult(ship){
   const div=document.createElement('div');
@@ -3150,7 +3280,33 @@ function renderArtifactCard(el,art,depth,isThreadAnchor){
   const lastVer=art.versions[art.versions.length-1];
   const timeStr=lastVer?new Date(lastVer.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
   const artPinBtn=(art.type==='file'||art.type==='app')?pinBtnHtml(art.noteId,art.meta&&art.meta.eid,'artifact',false):'';
-  const actions=`<div class="msg-actions"><button class="msg-action-btn" onclick="startReply('${art.id}','${escAttr(art.creator)}')">REPLY</button><button class="msg-action-btn send-msg" onclick="sendToUser('${escAttr(art.creator)}','${art.id}')">SEND</button>${artPinBtn}<button class="msg-action-btn delete-msg" onclick="deleteArtifact('${art.id}')">DELETE</button></div>`;
+  // Part 12: in an ordinary %dm, DELETE shows only for the creator. In a shared
+  // %group/%notebook note, DELETE shows only for the artifact creator, the note host, or a
+  // current admin — matching the host-authoritative backend authority (which stays the
+  // final arbiter in every case). Actor DMs are %group notes but are OUT of scope: they
+  // keep their pre-change DELETE visibility exactly (detected via actorDmView). Other note
+  // types are unchanged.
+  const _acNote=state.notes[art.noteId]||{};
+  const _acDm=_acNote.type==='dm';
+  const _acAdm=actorDmView(_acNote);
+  const _acMe='~'+api.ship;
+  let _acCanDelete;
+  if(_acDm){
+    _acCanDelete=(art.creator===_acMe);
+  }else if(_acAdm){
+    // actor DM (%group note): pre-change behavior preserved (out of scope)
+    _acCanDelete=true;
+  }else if(_acNote.type==='group'||_acNote.type==='notebook'){
+    const _acAdmins=state.noteAdmins[art.noteId]||[];
+    _acCanDelete=(art.creator===_acMe||_acNote.creator===_acMe||_acAdmins.includes(_acMe));
+  }else if(_acNote.type==='cover'||_acNote.type==='gossip'){
+    // hostless origin authority: only the artifact creator may delete (never a generic true)
+    _acCanDelete=(art.creator===_acMe);
+  }else{
+    _acCanDelete=true;
+  }
+  const _acDelBtn=_acCanDelete?`<button class="msg-action-btn delete-msg" onclick="deleteArtifact('${art.id}')">DELETE</button>`:'';
+  const actions=`<div class="msg-actions"><button class="msg-action-btn" onclick="startReply('${art.id}','${escAttr(art.creator)}')">REPLY</button>${postSendBtn(art.creator,art.id,(art.meta&&art.meta.eid)||'')}${artPinBtn}${_acDelBtn}</div>`;
   if(art.type==='app'){
     let meta={};if(lastVer){try{meta=JSON.parse(lastVer.content)}catch(e){}}
     const desc=pluginArtifactDescriptor(art);
@@ -3203,7 +3359,14 @@ function renderEnvCard(el,env,depth,isThreadAnchor){
   // reply parity: envelopes with a stable eid can be replied to
   const canReply=!!(env.meta&&env.meta.eid);
   const replyBtn=canReply?`<button class="msg-action-btn" onclick="startReply('${env.aid}','${escAttr(env.author)}')">REPLY</button>`:'';
-  const actions=replyBtn?`<div class="msg-actions">${replyBtn}</div>`:'';
+  // SEND ($NOCK to the author) only on ANOTHER user's gossip/cover artifact envelope, with
+  // stable EID source context. An OWN envelope (only from stale/test state — normally the
+  // author renders the full artifact) shows DELETE for its author instead, and never SEND.
+  const sendBtn=postSendBtn(env.author,env.aid,(env.meta&&env.meta.eid)||'');
+  const _envEid=(env.meta&&env.meta.eid)||'';
+  const envDelBtn=(isOwnPost(env.author)&&_envEid)?`<button class="msg-action-btn delete-msg" onclick="deleteMeshEnvelope('${escAttr(env.noteId||state.currentNoteId)}','${escAttr(env.aid)}','${escAttr(_envEid)}')">DELETE</button>`:'';
+  const _envActs=replyBtn+sendBtn+envDelBtn;
+  const actions=_envActs?`<div class="msg-actions">${_envActs}</div>`:'';
   let body='';
   if(isImg){
     body=`<div class="artifact-img-box"><img src="${url}" alt="${fname}" onerror="this.parentElement.outerHTML='<div style=&quot;margin-top:.35rem;font-size:.8rem;color:#ff4444&quot;>[content not yet available]</div>'"></div>`;
@@ -3216,11 +3379,117 @@ function renderEnvCard(el,env,depth,isThreadAnchor){
   el.appendChild(wrap);
   state.lastMsgAuthor=null;state.lastMsgDepth=-1;
 }
-// render a unified node (message / artifact / artifact-envelope) at depth
+// ===== Part 12 / Part 1B: ordinary-DM entry helpers =====
+// collision-safe message identity: modern %eid, else legacy [author,id].
+function msgKeyOf(m){return (m&&m.meta&&m.meta.eid)?('e:'+m.meta.eid):('l:'+(m?m.author:'')+':'+(m?m.id:''));}
+// an "entry" is either a full artifact (has .versions) or a content-free reference (no
+// .versions, has top-level .eid). Normalized accessors work on either.
+function entryIsRef(x){return !!(x&&!x.versions&&x.eid!==undefined);}
+function entryEid(x){return x?(x.versions?((x.meta&&x.meta.eid)||null):(x.eid||null)):null;}
+function entryNoteId(x){return x?x.noteId:null;}
+function entryCreator(x){return x?x.creator:null;}
+function entryName(x){return x?x.name:'';}
+function entryType(x){return x?x.type:null;}
+function entryFileMeta(x){
+  if(!x)return null;
+  if(entryIsRef(x))return x.fileMeta||null;
+  const lv=(x.versions&&x.versions.length)?x.versions[x.versions.length-1]:null;
+  if(!lv)return null;try{const m=JSON.parse(lv.content);return {mime:m.mime||'',kind:m.kind||'file',size:m.size||0};}catch(e){return null;}
+}
+// remote URL: a reference resolves via the EID endpoint; a full artifact via /artifact/<aid>.
+function dmArtUrl(x){
+  if(entryIsRef(x))return '/apps/noltbook/dm-artifact/'+encodeURIComponent(x.eid);
+  const lv=(x.versions&&x.versions.length)?x.versions[x.versions.length-1]:null;let v=1;try{v=(JSON.parse(lv.content).version)||1;}catch(e){}
+  return '/apps/noltbook/artifact/'+encodeURIComponent(x.id)+'?v='+v;
+}
+// look up a full artifact or a reference by aid OR eid.
+function lookupEntry(id){
+  // P3: prefer an EID-keyed reference; then a full artifact by aid; then a ref by aid.
+  // Never silently return a full artifact whose aid merely collides with a wanted eid.
+  if(state.artifactRefs[id])return state.artifactRefs[id];
+  if(state.artifacts[id])return state.artifacts[id];
+  for(const e in state.artifactRefs){if(state.artifactRefs[e].aid===id)return state.artifactRefs[e];}
+  return null;
+}
+// P4: canonical per-message DOM identity. EID-first for ordinary DMs (when the message
+// carries an EID); bare @da id for non-DM notes / legacy messages. Shared by render+jump
+// so a same-@da message from the other participant is never selected by accident.
+function msgKeyId(m,noteId){
+  const n=state.notes[(noteId!=null)?noteId:(m&&m.noteId)];
+  const eid=(n&&n.type==='dm'&&m&&m.meta&&m.meta.eid)?m.meta.eid:null;
+  return eid?('e-'+eid):(''+(m?m.id:''));
+}
+function msgDomId(m,noteId){return 'msg-'+msgKeyId(m,noteId);}
+function msgElByEid(eid,mid){
+  return (eid?document.getElementById('msg-e-'+eid):null)||((mid!=null)?document.getElementById('msg-'+mid):null);
+}
+// P4: canonical timeline NODE key for a message — must match the renderMessages node
+// graph exactly. EID-first ('me:'+eid) in a DM with an EID; else 'm:'+id. Shared by the
+// node builder, thread wrapper/expandedThreads identity, and the fast-append bookkeeping.
+function msgNodeKey(m,noteId){
+  const n=state.notes[(noteId!=null)?noteId:(m&&m.noteId)];
+  const eid=(n&&n.type==='dm'&&m&&m.meta&&m.meta.eid)?m.meta.eid:null;
+  return eid?('me:'+eid):('m:'+(m?m.id:''));
+}
+// Render a content-free ordinary-DM %file reference as a timeline card. Never reads
+// versions, never persists bytes; fetches via the EID endpoint. DELETE only for the
+// creator (a reference is, by construction, never owned locally — belt-and-suspenders).
+function renderRefCard(el,ref,depth,isThreadAnchor){
+  const wrap=document.createElement('div');
+  wrap.className='msg'+(depth>0?' depth-'+Math.min(depth,5):'');
+  const idSuf=isThreadAnchor?'-ta':'';
+  // P3: reference DOM identity is EID-based so it never collides with a same-AID full
+  // artifact's 'inline-file-'+aid / 'inline-app-'+aid element.
+  wrap.id='inline-'+(ref.type==='app'?'app':'file')+'-'+ref.eid+idSuf;
+  const authorColor=ref.creator.startsWith('~')?shipColor(ref.creator):'var(--visitor)';
+  const ts=ref.updated?new Date(ref.updated).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
+  const fm=ref.fileMeta||{};const mime=fm.mime||'';
+  const url=dmArtUrl(ref);
+  const rawName=ref.name||ref.aid;const fname=escHtml(rawName);
+  const me='~'+api.ship;const isOwn=ref.creator===me;
+  // P3: pass the reference EID directly to REPLY/SEND so the durable parent identity is
+  // the reference, never a colliding AID.
+  const replyBtn=ref.eid?`<button class="msg-action-btn" onclick="startReply('${ref.aid}','${escAttr(ref.creator)}','${ref.eid}')">REPLY</button>`:'';
+  const sendBtn=postSendBtn(ref.creator,ref.aid,ref.eid||'');
+  const pinBtn=pinBtnHtml(ref.noteId,ref.eid,'artifact',false);
+  const delBtn=isOwn?`<button class="msg-action-btn delete-msg" onclick="deleteArtifact('${ref.aid}')">DELETE</button>`:'';
+  const actions=`<div class="msg-actions">${replyBtn}${sendBtn}${pinBtn}${delBtn}</div>`;
+  // Part 2.6: %app reference — render the creator's app READ-ONLY via the plugin system.
+  // The descriptor is fetched ephemerally from the EID endpoint and NEVER persisted (no
+  // state.artifacts insert). The frame is denied the update capability (readOnly).
+  if(ref.type==='app'){
+    const hostId='plugin-ref-host-'+ref.eid+idSuf;
+    wrap.innerHTML=`<div class="msg-header" style="padding-left:0"><span class="msg-author" style="color:${authorColor}">${escHtml(displayName(ref.creator))}</span><span class="msg-time">${ts}</span>${actions}</div><div class="plugin-frame-host" id="${hostId}"><div class="plugin-frame-fallback">loading app…</div></div>`;
+    wrap.style.cssText='display:block;padding:0 1rem;margin-top:.6rem';
+    el.appendChild(wrap);
+    fetch(url).then(function(r){if(!r.ok)throw new Error(''+r.status);return r.json()}).then(function(desc){
+      const host=document.getElementById(hostId);if(!host)return;
+      if(!desc||desc.noltbookApp!==1||!desc.app||!pluginDeskOk(desc.app.desk)){host.innerHTML='<div class="plugin-frame-fallback">App artifact unavailable</div>';return}
+      host.innerHTML='';
+      observePluginHost(hostId,{mode:'note-artifact',desk:desc.app.desk,publisher:(typeof desc.app.publisher==='string'?desc.app.publisher:null),noteId:ref.noteId,refEid:ref.eid,refAid:ref.aid,refName:ref.name,refCreator:ref.creator,refDescriptor:desc,readOnly:true,persistent:false,height:320});
+    }).catch(function(e){const host=document.getElementById(hostId);if(host)host.innerHTML='<div class="plugin-frame-fallback">App unavailable — creator offline</div>'});
+    state.lastMsgAuthor=null;state.lastMsgDepth=-1;
+    return;
+  }
+  const isImg=(fm.kind==='image')||mime.startsWith('image/');
+  let body='';
+  if(isImg){
+    body=`<div class="artifact-img-box"><img src="${url}" alt="${fname}" onerror="this.parentElement.outerHTML='<div style=&quot;margin-top:.35rem;font-size:.8rem;color:#ff4444&quot;>[file unavailable — creator offline]</div>'"></div>`;
+  }else if(isDocMime(mime,rawName)){
+    body=renderDocCard(url,rawName,mime,fm.size||0);
+  }else{
+    body=`<div style="display:flex;align-items:center;gap:.5rem;margin-top:.35rem;padding:.4rem .6rem;border:1px solid var(--border);background:var(--bg2)"><span style="font-size:.85rem;color:var(--text)">${fname}</span><a href="${url}" style="font-size:.7rem;color:#ffaa00;text-decoration:none;margin-left:auto" download="${fname}">DOWNLOAD</a></div>`;
+  }
+  wrap.innerHTML=`<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar">${avatarHtml(ref.creator)}</div><div class="msg-body"><div class="msg-header"><span class="msg-author" style="color:${authorColor}">${escHtml(displayName(ref.creator))}</span><span class="msg-time">${ts}</span>${actions}</div>${body}</div></div>`;
+  el.appendChild(wrap);
+  state.lastMsgAuthor=null;state.lastMsgDepth=-1;
+}
+// render a unified node (message / artifact / artifact-envelope / dm-file-reference) at depth
 function renderNode(el,node,depth,isThreadAnchor){
   if(node.kind==='msg')renderMsg(el,node.raw,depth,isThreadAnchor);
   else if(node.kind==='art')renderArtifactCard(el,node.raw,depth,isThreadAnchor);
   else if(node.kind==='env')renderEnvCard(el,node.raw,depth,isThreadAnchor);
+  else if(node.kind==='ref')renderRefCard(el,node.raw,depth,isThreadAnchor);
 }
 function renderMessages(noteId,target){
   const el=document.getElementById('chatMessages');
@@ -3269,7 +3538,10 @@ function renderMessages(noteId,target){
   // ===== unified timeline nodes: messages + artifacts + artifact-envelopes =====
   // node: {key,kind:'msg'|'art'|'env',raw,id,eid,replyToEid,legacyReplyTo,order}
   let nodes=[];
-  msgs.forEach(m=>nodes.push({key:'m:'+m.id,kind:'msg',raw:m,id:m.id,eid:getMsgEid(m),replyToEid:(m.meta&&m.meta.replyToEid)||null,legacyReplyTo:(m.replyTo!=null?m.replyTo:null),order:msgNodeOrder(m)}));
+  // P1.3: in an ordinary DM, key message nodes EID-first so two messages that happen to
+  // share the same @da id (different authors) never collapse to one node. Other note
+  // types keep the id-based key unchanged.
+  msgs.forEach(m=>{nodes.push({key:msgNodeKey(m,noteId),kind:'msg',raw:m,id:m.id,eid:getMsgEid(m),replyToEid:(m.meta&&m.meta.replyToEid)||null,legacyReplyTo:(m.replyTo!=null?m.replyTo:null),order:msgNodeOrder(m)})});
   const envMap=state.artifactEnvelopes[noteId]||{};
   for(const aid in envMap){
     const env=envMap[aid];
@@ -3284,6 +3556,15 @@ function renderMessages(noteId,target){
     const lv=art.versions.length?art.versions[art.versions.length-1]:null;
     nodes.push({key:'a:'+art.id,kind:'art',raw:art,id:art.id,eid:(art.meta&&art.meta.eid)||null,replyToEid:(art.meta&&art.meta.replyToEid)||null,legacyReplyTo:null,order:tsToOrder(lv?lv.timestamp:0)});
   });
+  // Part 12: content-free ordinary-DM %file references appear alongside messages +
+  // creator-owned artifacts. Skip if we somehow also hold the full artifact for that aid.
+  // P3: suppress a reference ONLY when a full artifact with the SAME EID exists (a true
+  // duplicate) — never merely because an AID collides. A locally-created full artifact and
+  // a counterparty reference can share a timestamp-derived AID yet be different artifacts
+  // (different creators/EIDs); both must render, with EID-based node/DOM identity.
+  Object.values(state.artifactRefs).filter(r=>r.noteId===noteId&&(r.type==='file'||r.type==='app')&&!Object.values(state.artifacts).some(a=>a.noteId===noteId&&((a.meta&&a.meta.eid)||null)===r.eid)).forEach(ref=>{
+    nodes.push({key:'r:'+ref.eid,kind:'ref',raw:ref,id:ref.aid,eid:ref.eid,replyToEid:ref.replyToEid||null,legacyReplyTo:null,order:tsToOrder(ref.updated||ref.created||0)});
+  });
   // top-100 visible window (cover / user-gossip only): filter the node graph down
   // to the helper's selected DATA POSTS. selectedKeys is an ALLOW-LIST only — we
   // do NOT render in selection order; the existing ordering/threading below is
@@ -3297,7 +3578,9 @@ function renderMessages(noteId,target){
     if(top.applies)nodes=nodes.filter(n=>top.selectedKeys.has(n.key));
   }
   const byKey={};const byEidN={};
-  nodes.forEach(n=>{byKey[n.key]=n;if(n.eid)byEidN[n.eid]=n});
+  // Always index messages under 'm:'+id too, so legacy @da reply-to resolution keeps
+  // working even when the canonical key is EID-first ('me:'+eid) in a DM.
+  nodes.forEach(n=>{byKey[n.key]=n;if(n.kind==='msg')byKey['m:'+n.id]=n;if(n.eid)byEidN[n.eid]=n});
   // parent resolution: prefer reply-to-eid (works across all node types);
   // legacy @da reply-to only for message->message. Unresolvable parent => root.
   function nodeParent(n){
@@ -3307,7 +3590,10 @@ function renderMessages(noteId,target){
   }
   const childrenN={};
   nodes.forEach(n=>{const p=nodeParent(n);if(p){(childrenN[p.key]=childrenN[p.key]||[]).push(n)}});
-  for(const k in childrenN)childrenN[k].sort((a,b)=>a.order-b.order);
+  // deterministic ordering: on equal order, tie-break by canonical node key (never rely
+  // on JS sort stability / insertion order).
+  const _keyCmp=(x,y)=>x<y?-1:x>y?1:0;
+  for(const k in childrenN)childrenN[k].sort((a,b)=>(a.order-b.order)||_keyCmp(a.key,b.key));
   function nodeRoot(n){let cur=n,g=0;while(cur){const p=nodeParent(cur);if(!p||g++>500)break;cur=p}return cur}
   function flattenThread(rootKey,depth){let out=[];const kids=childrenN[rootKey]||[];for(const c of kids){out.push({node:c,depth});out=out.concat(flattenThread(c.key,depth+1))}return out}
   function nodeAncestorChain(key){const out=[];let cur=byKey[key];while(cur){const p=nodeParent(cur);if(!p)break;out.push(p.key);cur=p}return out}
@@ -3328,7 +3614,9 @@ function renderMessages(noteId,target){
     // separate thread container only if replies exist, at newest-reply position
     if(t.replies>0)items.push({type:'thread',rootKey:rk,order:t.lastOrder,newestKey:t.newestKey});
   }
-  items.sort((a,b)=>noteId==='ars-rumors'?b.order-a.order:a.order-b.order);
+  // preserve ars-rumors' reverse PRIMARY ordering; break equal-order ties by canonical
+  // root key (ascending, deterministic) regardless of note type.
+  items.sort((a,b)=>{const d=noteId==='ars-rumors'?(b.order-a.order):(a.order-b.order);return d||_keyCmp(a.rootKey,b.rootKey)});
   // resolve directed-attention targets to rendered node keys so collapsed threads
   // can force them (and their ancestor chains) visible — otherwise an oldest
   // attention target hidden behind "show more replies" can't be jumped/cleared.
@@ -3365,7 +3653,9 @@ function renderMessages(noteId,target){
       renderNode(el,rootNode,0);
     }else{
       const anchorKey=item.rootKey;
-      const anchorRawId=rootNode.id;
+      // P4: thread identity is the EID-first node key (never a bare @da) so same-id DM
+      // messages get distinct threads + expand state.
+      const anchorRawId=rootNode.key;
       const flat=flattenThread(anchorKey,1);
       const expanded=state.expandedThreads&&state.expandedThreads.has(anchorRawId);
       const wrap=document.createElement('div');
@@ -3503,7 +3793,15 @@ function expandThread(rootId){
   state.expandedThreads.add(rootId);
   renderMessages(state.currentNoteId);
 }
-function jumpToOriginal(msgId){const orig=document.getElementById('msg-'+msgId);if(orig){orig.scrollIntoView({behavior:'smooth'});orig.style.background='rgba(255,170,0,.12)';setTimeout(function(){orig.style.background=''},1500)}}
+function jumpToOriginal(msgId,eid){const orig=msgElByEid(eid,msgId);if(orig){orig.scrollIntoView({behavior:'smooth'});orig.style.background='rgba(255,170,0,.12)';setTimeout(function(){orig.style.background=''},1500)}}
+function importBadgeHtml(msg){
+  if(!msg||!msg.import)return '';
+  const imp=msg.import,app=imp.app||{};
+  const source=String(imp.source||'external').replace(/^%/,'').toUpperCase();
+  const desk=String(app.title||app.desk||'APP').replace(/^%/,'');
+  const received=imp.receivedAt?new Date(imp.receivedAt).toLocaleString():'unknown';
+  return `<span class="msg-import-badge" title="Imported locally ${escAttr(received)}">VIA ${escHtml(source)} · ${escHtml(desk)}</span>`;
+}
 const _revealedBlockedMsgs=new Set();
 function renderMsg(el,msg,depth,isThreadAnchor){
   // thread-anchor copy duplicates the canonical root item; give it a
@@ -3516,8 +3814,21 @@ function renderMsg(el,msg,depth,isThreadAnchor){
       const victim=parts[2]||'';
       const div=document.createElement('div');
       div.className='msg-system';
-      div.id='msg-'+msg.id+idSuf;
+      div.id=msgDomId(msg,msg.noteId)+idSuf;
       div.innerHTML=`<div style="text-align:center;opacity:.6;font-size:.85rem;padding:.4rem 0;font-style:italic">host deleted message from ${escHtml(displayName(victim))}</div>`;
+      el.appendChild(div);
+      state.lastMsgAuthor=null;state.lastMsgDepth=-1;
+      return;
+    }
+    // shared-note artifact deletion marker: \01SYS:art-delete:<role>:<ship>. Compact,
+    // durable system line; carries no user content and exposes no edit/delete controls.
+    if(parts[0]==='SYS'&&parts[1]==='art-delete'){
+      const role=parts[2]||'';
+      const who=parts[3]||'';
+      const div=document.createElement('div');
+      div.className='msg-system';
+      div.id=msgDomId(msg,msg.noteId)+idSuf;
+      div.innerHTML=`<div style="text-align:center;opacity:.6;font-size:.85rem;padding:.4rem 0;font-style:italic">Post deleted by ${escHtml(displayName(who))} (${escHtml(role)})</div>`;
       el.appendChild(div);
       state.lastMsgAuthor=null;state.lastMsgDepth=-1;
       return;
@@ -3528,7 +3839,7 @@ function renderMsg(el,msg,depth,isThreadAnchor){
     const msgDisplay=renderText(msg.text);
     const div=document.createElement('div');
     div.className='rumor-post';
-    div.id='msg-'+msg.id+idSuf;
+    div.id=msgDomId(msg,msg.noteId)+idSuf;
     div.innerHTML=`<div class="rumor-text">${msgDisplay}</div><div class="rumor-sep"></div>`;
     el.appendChild(div);
     state.lastMsgAuthor=null;state.lastMsgDepth=-1;
@@ -3538,7 +3849,7 @@ function renderMsg(el,msg,depth,isThreadAnchor){
   if(state.palStatus[msg.author]==='blocked'&&!_revealedBlockedMsgs.has(msg.id)){
     const div=document.createElement('div');
     div.className='msg';
-    div.id='msg-'+msg.id+idSuf;
+    div.id=msgDomId(msg,msg.noteId)+idSuf;
     div.innerHTML=`<div style="padding:.5rem 1rem;color:#ff4444;font-size:.8rem;display:flex;align-items:center;gap:.5rem"><span>[you have this user blocked]</span><button style="font-family:var(--font);font-size:.7rem;padding:.15rem .4rem;background:transparent;border:1px solid #ff4444;color:#ff4444;cursor:pointer" onclick="revealBlockedMsg('${msg.id}')">VIEW</button></div>`;
     el.appendChild(div);
     state.lastMsgAuthor=null;state.lastMsgDepth=-1;
@@ -3552,37 +3863,49 @@ function renderMsg(el,msg,depth,isThreadAnchor){
   const grouped=msg.author===state.lastMsgAuthor&&aSig===state.lastMsgActorSig&&depth===state.lastMsgDepth;
   state.lastMsgAuthor=msg.author;state.lastMsgActorSig=aSig;state.lastMsgDepth=depth;
   const isUrbit=msg.author.startsWith('~');
-  const timeSource=msg.meta&&msg.meta.created?msg.meta.created:msg.id;
+  const timeSource=msg.import&&msg.import.sentAt?msg.import.sentAt:(msg.meta&&msg.meta.created?msg.meta.created:msg.id);
   const timeStr=new Date(timeSource).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
   const editedStamp=msg.edited?(msg.meta&&msg.meta.rev>0?`<span class="msg-edited" title="updated ${new Date(msg.meta.updated).toLocaleString()}">(edited r${msg.meta.rev})</span>`:'<span class="msg-edited">(edited)</span>'):'';
   const me='~'+api.ship;
   const note=state.notes[msg.noteId]||state.notes[state.currentNoteId]||{};
   const isAuthor=msg.author===me;
-  const isGroup=(note.users||[]).length>2;
   const isCreator=note.creator===me;
-  const canEdit=isAuthor;
-  const canDelete=isAuthor||(isGroup&&isCreator);
-  const editBtn=canEdit?`<button class="msg-action-btn" onclick="editMessage('${msg.id}');toggleMsgActions(this,false)">EDIT</button>`:'';
-  const delBtn=canDelete?`<button class="msg-action-btn delete-msg" onclick="deleteMessage('${msg.id}');toggleMsgActions(this,false)">DELETE</button>`:'';
-  const origBtn=isThreadAnchor?`<button class="msg-action-btn" onclick="jumpToOriginal('${msg.id}');toggleMsgActions(this,false)">ORIGINAL</button>`:'';
+  const canEdit=isAuthor&&!msg.import;
+  // DELETE policy by EXPLICIT note type (never user-count). Actor DMs are %group notes but
+  // out of scope: detect them FIRST and keep their pre-change author-only behavior. Then:
+  // cover/gossip/dm => author only (hostless origin authority); hosted group/notebook =>
+  // author or note host (admins enforced host-side). A gossip note with 3+ users must NOT
+  // grant its creator deletion of another author's post.
+  const canDelete=!msg.import&&(actorDmView(note)
+    ? isAuthor
+    : ((note.type==='group'||note.type==='notebook')?(isAuthor||isCreator):isAuthor));
+  // P1.3: carry the message EID into every action so the exact stored entry is targeted,
+  // never a same-id message from the other participant.
+  const _mEid=(msg.meta&&msg.meta.eid)||'';
+  const editBtn=canEdit?`<button class="msg-action-btn" onclick="editMessage('${msg.id}','${_mEid}');toggleMsgActions(this,false)">EDIT</button>`:'';
+  const delBtn=canDelete?`<button class="msg-action-btn delete-msg" onclick="deleteMessage('${msg.id}','${_mEid}');toggleMsgActions(this,false)">DELETE</button>`:'';
+  const removeImportBtn=msg.import&&_mEid?`<button class="msg-action-btn delete-msg" onclick="removeDmImport('${escAttr(msg.noteId)}','${escAttr(_mEid)}');toggleMsgActions(this,false)">REMOVE IMPORT</button>`:'';
+  const origBtn=isThreadAnchor?`<button class="msg-action-btn" onclick="jumpToOriginal('${msg.id}','${_mEid}');toggleMsgActions(this,false)">ORIGINAL</button>`:'';
   const isGossipRef=note.type==='gossip'&&msg.noteId!=='cover'&&msg.noteId!=='ars-rumors';
   const refBtn=isGossipRef?`<button class="msg-action-btn" onclick="copyGossipRef('${escAttr(msg.noteId)}','${escAttr(msg.author)}','${msg.meta&&msg.meta.eid?escAttr(msg.meta.eid):''}','${msg.id}');toggleMsgActions(this,false)">REF</button>`:'';
   const pinBtn=pinBtnHtml(msg.noteId,msg.meta&&msg.meta.eid,'message',true);
-  const actions=`<div class="msg-actions" onclick="event.stopPropagation()">${origBtn}<button class="msg-action-btn" onclick="startReply('${msg.id}','${escAttr(msg.author)}');toggleMsgActions(this,false)">REPLY</button>${editBtn}${refBtn}${pinBtn}<button class="msg-action-btn send-msg" onclick="sendToUser('${escAttr(msg.author)}','${msg.id}');toggleMsgActions(this,false)">SEND</button>${delBtn}</div>`;
+  const _sendBtn=isOwnPost(msg.author)?'':`<button class="msg-action-btn send-msg" onclick="sendToUser('${escAttr(msg.author)}','${msg.id}','${_mEid}');toggleMsgActions(this,false)">SEND</button>`;
+  const actions=`<div class="msg-actions" onclick="event.stopPropagation()">${origBtn}<button class="msg-action-btn" onclick="startReply('${msg.id}','${escAttr(msg.author)}','${_mEid}');toggleMsgActions(this,false)">REPLY</button>${editBtn}${refBtn}${pinBtn}${_sendBtn}${delBtn}${removeImportBtn}</div>`;
   const div=document.createElement('div');
   const depthClass=depth>0?' depth-'+Math.min(depth,5):'';
   const nockSendClass=isNockSend(msg.text)?' nock-send':'';
   const msgDisplay=isNockSend(msg.text)?parseNockSend(msg.text):renderText(msg.text);
+  const importBadge=importBadgeHtml(msg);
   if(grouped){
     div.className='msg grouped'+depthClass;
-    div.id='msg-'+msg.id+idSuf;
+    div.id=msgDomId(msg,msg.noteId)+idSuf;
     // Phase B: a grouped (consecutive) blocked-actor message must ALSO hide its text
     // behind the session-only VIEW placeholder — not just the first message of a run.
-    const groupedBody=actorContentHidden(msg.actor)?blockedActorBodyHtml(msg.actor):`<div class="msg-text${nockSendClass}" style="flex:1">${msgDisplay}${editedStamp}</div>`;
+    const groupedBody=actorContentHidden(msg.actor)?blockedActorBodyHtml(msg.actor):`<div class="msg-text${nockSendClass}" style="flex:1">${msgDisplay}${editedStamp}${importBadge}</div>`;
     div.innerHTML=`<div style="display:flex;align-items:baseline;padding-left:calc(2.8rem + .6rem)">${groupedBody}${actions}</div>`;
   }else{
     div.className='msg'+depthClass;
-    div.id='msg-'+msg.id+idSuf;
+    div.id=msgDomId(msg,msg.noteId)+idSuf;
     const authorColor=isUrbit?shipColor(msg.author):'var(--visitor)';
     if(msg.actor){
       // actor identity: app/bot glyph avatar (no sigil) + actor header. Avatar
@@ -3590,10 +3913,10 @@ function renderMsg(el,msg,depth,isThreadAnchor){
       // "on ~host" subline keep the Urbit ship recoverable.
       const realTitle=escAttr('real author '+msg.author);
       // Phase B: a blocked actor's content is hidden behind a session-only VIEW placeholder.
-      const actorBody=actorContentHidden(msg.actor)?blockedActorBodyHtml(msg.actor):`<div class="msg-text${nockSendClass}">${msgDisplay}${editedStamp}</div>`;
+      const actorBody=actorContentHidden(msg.actor)?blockedActorBodyHtml(msg.actor):`<div class="msg-text${nockSendClass}">${msgDisplay}${editedStamp}${importBadge}</div>`;
       div.innerHTML=`<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar actor-avatar actor-click" style="cursor:pointer" title="${realTitle}"${actorDataAttrs(msg.actor,msg.author)}>${actorAvatarHtml(msg.actor)}</div><div class="msg-body">${actorHeaderHtml(msg.actor,msg.author,timeStr,actions)}${actorBody}</div></div>`;
     }else{
-      div.innerHTML=`<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar" style="cursor:pointer" onclick="event.stopPropagation();viewProfile('${escAttr(msg.author)}')">${avatarHtml(msg.author)}</div><div class="msg-body"><div class="msg-header"><span class="msg-author" style="color:${authorColor};cursor:pointer" onclick="event.stopPropagation();viewProfile('${escAttr(msg.author)}')">${escHtml(displayName(msg.author))}</span><span class="msg-time">${timeStr}</span>${actions}</div><div class="msg-text${nockSendClass}">${msgDisplay}${editedStamp}</div></div></div>`;
+      div.innerHTML=`<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar" style="cursor:pointer" onclick="event.stopPropagation();viewProfile('${escAttr(msg.author)}')">${avatarHtml(msg.author)}</div><div class="msg-body"><div class="msg-header"><span class="msg-author" style="color:${authorColor};cursor:pointer" onclick="event.stopPropagation();viewProfile('${escAttr(msg.author)}')">${escHtml(displayName(msg.author))}</span><span class="msg-time">${timeStr}</span>${actions}</div><div class="msg-text${nockSendClass}">${msgDisplay}${editedStamp}${importBadge}</div></div></div>`;
     }
   }
   el.appendChild(div);
@@ -3658,7 +3981,25 @@ function appendMessageFast(msg,isOwn){
   return true;
 }
 function appendMessage(msg,isOwn){
-  if(state.expandedThreads){const byId={};const byEid={};(state.messages[state.currentNoteId]||[]).forEach(m=>{byId[m.id]=m;const eid=getMsgEid(m);if(eid)byEid[eid]=m});const root=findThreadRoot(msg.id,byId,byEid);state.expandedThreads.delete(root)}
+  if(state.expandedThreads){
+    // Walk to the thread root starting from THIS message object (never a byId[m.id]
+    // lookup, which collapses same-timestamp DM messages), preferring reply-to-EID
+    // parents with legacy replyTo as fallback, then key the root exactly like the node
+    // graph via msgNodeKey. Ensures we clear the correct same-ID DM thread only.
+    const _nid=state.currentNoteId;
+    const _byId={};const _byEid={};
+    (state.messages[_nid]||[]).forEach(m=>{const e=getMsgEid(m);if(e)_byEid[e]=m;if(!(m.id in _byId))_byId[m.id]=m});
+    let _cur=msg,_g=0;
+    while(_cur&&_g++<500){
+      let _p=null;
+      const _rte=_cur.meta&&_cur.meta.replyToEid;
+      if(_rte&&_byEid[_rte])_p=_byEid[_rte];
+      else if(_cur.replyTo!=null&&_byId[_cur.replyTo])_p=_byId[_cur.replyTo];
+      if(!_p)break;
+      _cur=_p;
+    }
+    state.expandedThreads.delete(msgNodeKey(_cur,_nid));
+  }
   if(canAppendMessageFast(msg)){
     if(appendMessageFast(msg,isOwn))return;
   }
@@ -3948,9 +4289,8 @@ async function sendMessage(){
   if(_note&&_note.type==='dm'){const _cp=dmCounterparty(_note);if(_cp&&(state.palStatus[_cp]==='blocked'||state.blockedBy[_cp]))return}
   if(state.editingMsgId){
     const msgId=state.editingMsgId;
-    const msgs=state.messages[state.currentNoteId]||[];
-    const msg=msgs.find(m=>m.id===msgId);
-    const eid=msg&&msg.meta&&msg.meta.eid?msg.meta.eid:null;
+    // P1.3: the backend targets EID-first; send the exact EID captured at edit start.
+    const eid=state.editingEid||null;
     const editData={noteId:state.currentNoteId,msgId,text};
     if(eid)editData.eid=eid;
     await api.poke('noltbook','noltbook-action',{action:'edit-message',data:editData});
@@ -4107,21 +4447,24 @@ function autoResize(el){
 // startReply: target can be a message (@da numeric id), a real artifact id,
 // or an artifact-envelope aid. Prefer eid as the durable parent identity;
 // keep legacy @da replyTo only for message targets so text->text is unchanged.
-function startReply(targetId,author){
+function startReply(targetId,author,eid){
   const nid=state.currentNoteId;
-  let legacy=null,eid=null;
+  eid=eid||null;
+  let legacy=null;
   const numId=Number(targetId);
   const msgs=state.messages[nid]||[];
-  const rm=(!isNaN(numId)&&(''+numId)===(''+targetId))?msgs.find(m=>m.id===numId):null;
-  if(rm){legacy=rm.id;eid=(rm.meta&&rm.meta.eid)||null}
-  else{
+  // P1.3: message target — prefer the passed EID (exact stored entry); else match by id.
+  const rm=eid?(msgs.find(m=>m.meta&&m.meta.eid===eid)||null):((!isNaN(numId)&&(''+numId)===(''+targetId))?(msgs.find(m=>m.id===numId)||null):null);
+  if(rm){legacy=rm.id;eid=(rm.meta&&rm.meta.eid)||eid}
+  else if(!eid){
     // not a message: artifact target. Prefer the artifact-envelope rendered on
     // THIS note (cover/gossip/fork timelines display the envelope, not a global
     // artifact record), then fall back to a real artifact record. Use the eid
     // of the displayed node; never legacy replyTo, never parse the id as a num.
     const env=(state.artifactEnvelopes[nid]||{})[targetId];
     if(env&&env.meta&&env.meta.eid)eid=env.meta.eid;
-    else{const art=state.artifacts[targetId];if(art&&art.meta&&art.meta.eid)eid=art.meta.eid}
+    // P1.2: resolve a full artifact OR a content-free reference (by aid) and carry its EID.
+    else{const ent=lookupEntry(targetId);if(ent)eid=entryEid(ent)}
   }
   state.replyingTo=legacy;
   state.replyingToEid=eid;
@@ -4130,8 +4473,9 @@ function startReply(targetId,author){
   document.getElementById('chatInput').focus();
 }
 function cancelReply(){state.replyingTo=null;state.replyingToEid=null;document.getElementById('replyBar').classList.remove('visible')}
-function editMessage(msgId){
+function editMessage(msgId,eid){
   cancelReply();
+  eid=eid||null;
   const _nid=state.currentNoteId;const _me='~'+api.ship;
   const _note=state.notes[_nid];
   const _muted=(state.noteMuted[_nid]||[]).includes(_me);
@@ -4141,9 +4485,11 @@ function editMessage(msgId){
   if(_ro&&_role!=='host'&&_role!=='admin')return;
   if(_note&&_note.type==='dm'){const _cp=dmCounterparty(_note);if(_cp&&(state.palStatus[_cp]==='blocked'||state.blockedBy[_cp]))return}
   const msgs=state.messages[_nid]||[];
-  const msg=msgs.find(m=>String(m.id)===String(msgId));
+  // P1.3: prefer the exact EID target; fall back to id only when no EID was supplied.
+  const msg=eid?msgs.find(m=>m.meta&&m.meta.eid===eid):msgs.find(m=>String(m.id)===String(msgId));
   if(!msg)return;
   state.editingMsgId=parseInt(msgId);
+  state.editingEid=(msg.meta&&msg.meta.eid)||eid||null;
   const input=document.getElementById('chatInput');
   input.value=msg.text;
   input.placeholder='editing message... (Esc to cancel)';
@@ -4151,8 +4497,9 @@ function editMessage(msgId){
   autoResize(input);
   updateInputMirror();
 }
-function cancelEdit(){state.editingMsgId=null;const input=document.getElementById('chatInput');input.value='';resetChatInputHeight();input.placeholder='message...';updateInputMirror()}
-async function deleteMessage(msgId){
+function cancelEdit(){state.editingMsgId=null;state.editingEid=null;const input=document.getElementById('chatInput');input.value='';resetChatInputHeight();input.placeholder='message...';updateInputMirror()}
+async function deleteMessage(msgId,eid){
+  eid=eid||null;
   const _nid=state.currentNoteId;const _me='~'+api.ship;
   const _note=state.notes[_nid];
   const _muted=(state.noteMuted[_nid]||[]).includes(_me);
@@ -4164,36 +4511,77 @@ async function deleteMessage(msgId){
   if(!confirm('Delete this message?'))return;
   msgId=parseInt(msgId);
   const msgs=state.messages[state.currentNoteId]||[];
-  const msg=msgs.find(m=>m.id===msgId);
-  const eid=msg&&msg.meta&&msg.meta.eid?msg.meta.eid:null;
+  // P1.3: prefer the exact EID target; the backend also targets EID-first.
+  const msg=eid?msgs.find(m=>m.meta&&m.meta.eid===eid):msgs.find(m=>m.id===msgId);
+  const _eid=(msg&&msg.meta&&msg.meta.eid)||eid||null;
   const delData={noteId:state.currentNoteId,msgId};
-  if(eid)delData.eid=eid;
+  if(_eid)delData.eid=_eid;
   await api.poke('noltbook','noltbook-action',{action:'delete-message',data:delData});
   if(state.editingMsgId===msgId)cancelEdit();
 }
+async function removeDmImport(noteId,eid){
+  if(!noteId||!eid)return;
+  if(!confirm('Remove this imported message from Noltbook?'))return;
+  await api.poke('noltbook','noltbook-action',{action:'remove-dm-import',data:{noteId,eid}});
+}
 async function deleteArtifact(artId){
-  if(!confirm('Delete this app?'))return;
+  if(!confirm('Delete this post?'))return;
   await api.poke('noltbook','noltbook-action',{action:'delete-artifact',data:{id:artId}});
+}
+// delete an OWN cover/gossip artifact envelope when no full artifact record exists locally
+// (stale/test state). The backend validates the local envelope is ours before acting.
+async function deleteMeshEnvelope(noteId,aid,eid){
+  if(!noteId||!aid||!eid)return;
+  if(!confirm('Delete this post?'))return;
+  await api.poke('noltbook','noltbook-action',{action:'delete-mesh-envelope',data:{noteId:noteId,aid:aid,eid:eid}});
+}
+// recompute a cover/gossip note's sidebar preview + author (or coverPreview) from the NEWEST
+// remaining local entry after a mesh deletion; clear both if none remain. Never resurrects
+// deleted content; deleting an older entry preserves a newer valid preview.
+function recomputeMeshPreview(noteId){
+  const cands=[];
+  for(const m of (state.messages[noteId]||[])){
+    if(m.text&&m.text.charCodeAt(0)===1)continue; // skip control/system lines
+    cands.push({ts:(m.timestamp||m.id||0),author:m.author,preview:(m.text||'')});
+  }
+  const tenvs=state.gossipEnvelopes[noteId]||{};
+  for(const k in tenvs){const e=tenvs[k];cands.push({ts:(e.timestamp||e.id||0),author:e.author,preview:'shared a post'});}
+  const aenvs=state.artifactEnvelopes[noteId]||{};
+  for(const k in aenvs){const e=aenvs[k];cands.push({ts:(e.timestamp||0),author:e.author,preview:(e.name||'shared a file')});}
+  for(const id in state.artifacts){const a=state.artifacts[id];if(a.noteId!==noteId)continue;const lv=(a.versions&&a.versions.length)?a.versions[a.versions.length-1]:null;cands.push({ts:(lv?lv.timestamp:0),author:a.creator,preview:(a.name||'shared a file')});}
+  let best=null;for(const c of cands){if(best===null||c.ts>best.ts)best=c;}
+  if(noteId==='cover'){
+    state.coverPreview=best?{author:best.author,preview:best.preview}:null;
+  }else{
+    const note=state.notes[noteId];
+    if(note){if(best){note.lastAuthor=best.author;note.lastPreview=best.preview;}else{note.lastAuthor=null;note.lastPreview=null;}}
+  }
 }
 // NOTE SEND source context (note/target/eid) captured when SEND is clicked from a
 // message/artifact action menu. null => wallet/DM SEND. Drives walletSend's branch.
 let _noteSendSource=null;
-function resolveNoteSendSource(nid,msgId,author){
+function resolveNoteSendSource(nid,msgId,author,eid){
   if(!nid||!msgId)return null;
+  eid=eid||null;
   const numId=Number(msgId);
   const msgs=state.messages[nid]||[];
-  const rm=(!isNaN(numId)&&(''+numId)===(''+msgId))?msgs.find(m=>m.id===numId):null;
-  if(rm)return{noteId:nid,targetKind:'message',legacyReplyTo:rm.id,eid:(rm.meta&&rm.meta.eid)||null,recipient:author};
+  // P1.3: message target — prefer the passed EID; else match by numeric id.
+  const rm=eid?(msgs.find(m=>m.meta&&m.meta.eid===eid)||null):((!isNaN(numId)&&(''+numId)===(''+msgId))?(msgs.find(m=>m.id===numId)||null):null);
+  if(rm)return{noteId:nid,targetKind:'message',legacyReplyTo:rm.id,eid:(rm.meta&&rm.meta.eid)||eid,recipient:author};
   const env=(state.artifactEnvelopes[nid]||{})[msgId];
   if(env&&env.meta&&env.meta.eid)return{noteId:nid,targetKind:'artifact-envelope',legacyReplyTo:null,eid:env.meta.eid,recipient:author};
-  const art=state.artifacts[msgId];
-  if(art&&art.meta&&art.meta.eid)return{noteId:nid,targetKind:'artifact',legacyReplyTo:null,eid:art.meta.eid,recipient:author};
+  // P1.2: resolve a full artifact OR a content-free reference (by aid) and carry its EID.
+  const ent=lookupEntry(msgId);
+  if(ent){const _e=entryEid(ent);if(_e)return{noteId:nid,targetKind:'artifact',legacyReplyTo:null,eid:_e,recipient:author}}
   return null;
 }
-function sendToUser(author,msgId){
+function sendToUser(author,msgId,eid){
+  // defensive: a post-directed SEND targets the post's author, so it must never be self —
+  // guard against stale DOM or a direct call initiating a self-payment.
+  if(isOwnPost(author)){return}
   if(!wallet.connected){toggleWallet();return}
   // capture NOTE SEND source (message or artifact target) for the payment reply
-  _noteSendSource=resolveNoteSendSource(state.currentNoteId,msgId,author);
+  _noteSendSource=resolveNoteSendSource(state.currentNoteId,msgId,author,eid);
   document.getElementById('sendTo').value=author;
   document.getElementById('sendAmount').value='';
   document.getElementById('sendModal').setAttribute('data-source-message',msgId||'');
@@ -4283,7 +4671,7 @@ function openSharePrompt(){
 }
 function showDmChoiceModal(noteId,targetShip){
   const existing=findDmRoot(targetShip);
-  const hasContent=(state.messages[noteId]&&state.messages[noteId].length>0)||Object.values(state.artifacts).some(a=>a.noteId===noteId);
+  const hasContent=(state.messages[noteId]&&state.messages[noteId].length>0)||Object.values(state.artifacts).some(a=>a.noteId===noteId)||Object.values(state.artifactRefs).some(r=>r.noteId===noteId);
   const ov=document.createElement('div');
   ov.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999';
   const m=document.createElement('div');
@@ -4659,17 +5047,22 @@ function pluginNoteContextId(rec){
 }
 function pluginInitPayload(rec){
   const spec=rec.spec,art=spec.artifactId?state.artifacts[spec.artifactId]:null;
-  const desc=art?pluginArtifactDescriptor(art):null;
+  // P2.6: an ordinary-DM %app REFERENCE (readOnly) is driven by an ephemerally-fetched
+  // descriptor carried on the spec — never a durable state.artifacts entry. Such a frame
+  // is denied the update capability so it cannot mutate the creator's authoritative app.
+  const refDesc=spec.refDescriptor||null;
+  const desc=refDesc?refDesc:(art?pluginArtifactDescriptor(art):null);
+  const refArtifact=(refDesc)?{id:(spec.refAid||null),eid:(spec.refEid||null),name:(spec.refName||null),creator:(spec.refCreator||null),data:(refDesc.data===undefined?null:refDesc.data),ref:(pluginHasOwn(refDesc,'ref')?refDesc.ref:null),descriptor:refDesc}:null;
   return{
     mode:spec.mode,
     hostShip:'~'+api.ship,
     noteId:spec.noteId||null,
     replyToEid:spec.replyToEid||null,
     app:{desk:spec.desk,title:(rec.manifest.title||spec.desk),publisher:appPublisher(spec.desk)||null},
-    artifact:art&&desc?pluginArtifactPayload(art,desc):null,
+    artifact:refArtifact?refArtifact:(art&&desc?pluginArtifactPayload(art,desc):null),
     context:spec.context||null,
     sourceArtifact:spec.sourceArtifactId?{artifactId:spec.sourceArtifactId,noteId:spec.sourceNoteId||null,desk:spec.sourceDesk||null}:null,
-    capabilities:{publish:spec.mode==='private-tool',update:spec.mode==='note-artifact',request:true,resize:spec.mode!=='embedded-app',close:true,openApp:true,copyText:true,listNoteArtifacts:!!spec.noteId,updateSourceArtifact:spec.mode==='embedded-app'&&!!spec.sourceArtifactId,noteContext:!!pluginNoteContextId(rec)}
+    capabilities:{publish:spec.mode==='private-tool',update:(spec.mode==='note-artifact'&&!spec.readOnly),request:true,resize:spec.mode!=='embedded-app',close:true,openApp:true,copyText:true,listNoteArtifacts:!!spec.noteId,updateSourceArtifact:spec.mode==='embedded-app'&&!!spec.sourceArtifactId,noteContext:!!pluginNoteContextId(rec)}
   };
 }
 function pluginArtifactPayload(art,desc){
@@ -4815,7 +5208,9 @@ async function pluginEditArtifactById(rec,opts){
 async function updatePluginArtifact(rec,payload){
   const clientRequestId=pluginText(payload&&payload.requestId,128,'');
   const fail=function(message){sendPluginFrame(rec,'nb:update-artifact-result',{requestId:clientRequestId,ok:false,result:{message:message}})};
-  if(rec.spec.mode!=='note-artifact'||!rec.spec.artifactId){fail('updates are only available from artifact frames');return}
+  // P5: a read-only reference frame (an %app the counterparty does NOT own) has no
+  // artifactId AND is explicitly readOnly — reject any update outright.
+  if(rec.spec.mode!=='note-artifact'||!rec.spec.artifactId||rec.spec.readOnly){fail('updates are only available from editable artifact frames');return}
   const input=pluginDescriptorInput(payload);
   if(!pluginHasOwn(input,'data')&&!pluginHasOwn(input,'ref')){fail('data or ref required');return}
   pluginEditArtifactById(rec,{artifactId:rec.spec.artifactId,desk:rec.spec.desk,nextDescriptor:input,resultType:'nb:update-artifact-result',clientRequestId:clientRequestId});
@@ -5183,7 +5578,9 @@ function openPluginAppFromFrame(rec,payload){
   const title=(typeof payload.title==='string'&&payload.title)?payload.title:'';
   // when launched from a note-artifact frame, remember the source artifact so the embedded app
   // can later update ONLY that artifact via nb:update-source-artifact.
-  const source=(rec.spec.mode==='note-artifact'&&rec.spec.artifactId)
+  // P5: a read-only reference frame never confers a source artifact (so the embedded app
+  // gets no updateSourceArtifact capability against the creator's authoritative artifact).
+  const source=(rec.spec.mode==='note-artifact'&&rec.spec.artifactId&&!rec.spec.readOnly)
     ?{artifactId:rec.spec.artifactId,noteId:rec.spec.noteId||null,desk:rec.spec.desk}:null;
   try{openEmbeddedApp(safe,desk,title,{width:payload.width,height:payload.height},context,source)}
   catch(e){return fail((e&&e.message)?e.message:'failed to open app')}
@@ -7440,6 +7837,12 @@ async function walletSend(){
   if(!to.startsWith('~')){
     const found=resolveDisplayNameToShip(to);
     if(found)resolvedShip=found;
+  }
+  // defensive: a POST-directed send (source note/thread context is set) must never pay
+  // oneself — abort before initiating the transaction. The standalone/manual wallet-send
+  // flow (no _noteSendSource) is intentionally left unchanged.
+  if(_noteSendSource&&_noteSendSource.noteId&&resolvedShip===meShip()){
+    alert('Cannot send $NOCK to your own post.');_noteSendSource=null;return;
   }
   let recipientPkh=resolvedShip;
   let recipientName=resolvedShip;

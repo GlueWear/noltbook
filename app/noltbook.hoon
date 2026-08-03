@@ -1300,6 +1300,396 @@
       user-actor-contacts=(set actor-ref:noltbook)
       app-notifications=(map [@tas @t] app-notification:noltbook)
   ==
+::  state-67: ordinary-DM artifact origin-hosting FOUNDATION. All state-66 fields are
+::  carried forward byte-for-byte; five new maps are appended, all empty in this phase.
+::  No transport is active and no existing artifact is converted yet.
++$  state-67
+  $:  %67
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      actor-by-eid=(map @uv actor:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      actor-registry=(map [@tas @t] actor-record:noltbook)
+      note-actor-owners=(map @ta actor-owner:noltbook)
+      actor-profiles=(map [@tas @t] actor-profile:noltbook)
+      actor-contacts=(map [@tas @t] (set identity-ref:noltbook))
+      actor-preferences=(map [@tas @t] actor-preferences:noltbook)
+      actor-note-roster=(map @ta (set actor-ref:noltbook))
+      remote-actor-profiles=(map [host=@p desk=@tas id=@t] [profile=actor-public-profile:noltbook fetched-at=@da])
+      actor-dm-notes=(map @ta actor-dm-meta:noltbook)
+      actor-note-read=(map [@tas @t] (map @ta @da))
+      actor-notifications=(map [@tas @t] (list actor-notification:noltbook))
+      note-unread-activity=(map @ta @da)
+      user-muted-actors=(set actor-ref:noltbook)
+      user-blocked-actors=(set actor-ref:noltbook)
+      note-members=(map @ta (set @p))
+      actor-join-requests=(map @ta (set actor-ref:noltbook))
+      note-actor-muted=(map @ta (set actor-ref:noltbook))
+      user-actor-contacts=(set actor-ref:noltbook)
+      app-notifications=(map [@tas @t] app-notification:noltbook)
+      ::  Phase 0 additions — ordinary-DM origin-hosting (all empty until activation):
+      dm-artifact-refs=(map @uv dm-artifact-ref:noltbook)
+      dm-artifact-tombs=(map @uv dm-artifact-tomb:noltbook)
+      dm-msg-tombs=(map dm-message-key:noltbook @da)
+      peer-proto=(map @p @ud)
+      pending-dm-fetches=(map @ta pending-dm-fetch:noltbook)
+  ==
+::  state-68: host-authoritative shared-note (%group/%notebook) artifact deletion. All
+::  state-67 fields carried forward byte-for-byte; ONE map appended, keyed by aid, holding
+::  terminal artifact tombstones so a replayed create/update can never resurrect a deleted
+::  shared-note artifact. Empty on migration; DM artifact tombstones remain in
+::  dm-artifact-tombs (this map is shared-note only).
++$  state-68
+  $:  %68
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      actor-by-eid=(map @uv actor:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      actor-registry=(map [@tas @t] actor-record:noltbook)
+      note-actor-owners=(map @ta actor-owner:noltbook)
+      actor-profiles=(map [@tas @t] actor-profile:noltbook)
+      actor-contacts=(map [@tas @t] (set identity-ref:noltbook))
+      actor-preferences=(map [@tas @t] actor-preferences:noltbook)
+      actor-note-roster=(map @ta (set actor-ref:noltbook))
+      remote-actor-profiles=(map [host=@p desk=@tas id=@t] [profile=actor-public-profile:noltbook fetched-at=@da])
+      actor-dm-notes=(map @ta actor-dm-meta:noltbook)
+      actor-note-read=(map [@tas @t] (map @ta @da))
+      actor-notifications=(map [@tas @t] (list actor-notification:noltbook))
+      note-unread-activity=(map @ta @da)
+      user-muted-actors=(set actor-ref:noltbook)
+      user-blocked-actors=(set actor-ref:noltbook)
+      note-members=(map @ta (set @p))
+      actor-join-requests=(map @ta (set actor-ref:noltbook))
+      note-actor-muted=(map @ta (set actor-ref:noltbook))
+      user-actor-contacts=(set actor-ref:noltbook)
+      app-notifications=(map [@tas @t] app-notification:noltbook)
+      dm-artifact-refs=(map @uv dm-artifact-ref:noltbook)
+      dm-artifact-tombs=(map @uv dm-artifact-tomb:noltbook)
+      dm-msg-tombs=(map dm-message-key:noltbook @da)
+      peer-proto=(map @p @ud)
+      pending-dm-fetches=(map @ta pending-dm-fetch:noltbook)
+      ::  state-68 addition — shared-note artifact tombstones (aid-keyed):
+      note-artifact-tombs=(map @ta note-artifact-tomb:noltbook)
+  ==
+::  state-69: cover/ordinary-gossip origin-authoritative deletion. All state-68 fields carried
+::  forward byte-for-byte; ONE set appended holding terminal tombstone EIDs for deleted
+::  cover/gossip entries (text OR artifact) so late/replayed envelope, content, or snapshot
+::  delivery can never resurrect them. Empty on migration.
++$  state-69
+  $:  %69
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      actor-by-eid=(map @uv actor:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      actor-registry=(map [@tas @t] actor-record:noltbook)
+      note-actor-owners=(map @ta actor-owner:noltbook)
+      actor-profiles=(map [@tas @t] actor-profile:noltbook)
+      actor-contacts=(map [@tas @t] (set identity-ref:noltbook))
+      actor-preferences=(map [@tas @t] actor-preferences:noltbook)
+      actor-note-roster=(map @ta (set actor-ref:noltbook))
+      remote-actor-profiles=(map [host=@p desk=@tas id=@t] [profile=actor-public-profile:noltbook fetched-at=@da])
+      actor-dm-notes=(map @ta actor-dm-meta:noltbook)
+      actor-note-read=(map [@tas @t] (map @ta @da))
+      actor-notifications=(map [@tas @t] (list actor-notification:noltbook))
+      note-unread-activity=(map @ta @da)
+      user-muted-actors=(set actor-ref:noltbook)
+      user-blocked-actors=(set actor-ref:noltbook)
+      note-members=(map @ta (set @p))
+      actor-join-requests=(map @ta (set actor-ref:noltbook))
+      note-actor-muted=(map @ta (set actor-ref:noltbook))
+      user-actor-contacts=(set actor-ref:noltbook)
+      app-notifications=(map [@tas @t] app-notification:noltbook)
+      dm-artifact-refs=(map @uv dm-artifact-ref:noltbook)
+      dm-artifact-tombs=(map @uv dm-artifact-tomb:noltbook)
+      dm-msg-tombs=(map dm-message-key:noltbook @da)
+      peer-proto=(map @p @ud)
+      pending-dm-fetches=(map @ta pending-dm-fetch:noltbook)
+      note-artifact-tombs=(map @ta note-artifact-tomb:noltbook)
+      ::  state-69 addition — cover/gossip terminal deletion tombstones (eid-keyed):
+      mesh-tombs=(set @uv)
+  ==
+::  state-70: cover/ordinary-gossip deletion gains a CANONICAL author-stored record so
+::  verification never echoes untrusted requester fields. All state-69 fields carried forward
+::  byte-for-byte; ONE map appended, keyed by eid, holding the origin's canonical mesh-tomb.
+::  mesh-tombs (the terminal eid set) is retained for the fast idempotency early-out. Empty on
+::  migration; the author populates it atomically with each new deletion.
++$  state-70
+  $:  %70
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      actor-by-eid=(map @uv actor:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      actor-registry=(map [@tas @t] actor-record:noltbook)
+      note-actor-owners=(map @ta actor-owner:noltbook)
+      actor-profiles=(map [@tas @t] actor-profile:noltbook)
+      actor-contacts=(map [@tas @t] (set identity-ref:noltbook))
+      actor-preferences=(map [@tas @t] actor-preferences:noltbook)
+      actor-note-roster=(map @ta (set actor-ref:noltbook))
+      remote-actor-profiles=(map [host=@p desk=@tas id=@t] [profile=actor-public-profile:noltbook fetched-at=@da])
+      actor-dm-notes=(map @ta actor-dm-meta:noltbook)
+      actor-note-read=(map [@tas @t] (map @ta @da))
+      actor-notifications=(map [@tas @t] (list actor-notification:noltbook))
+      note-unread-activity=(map @ta @da)
+      user-muted-actors=(set actor-ref:noltbook)
+      user-blocked-actors=(set actor-ref:noltbook)
+      note-members=(map @ta (set @p))
+      actor-join-requests=(map @ta (set actor-ref:noltbook))
+      note-actor-muted=(map @ta (set actor-ref:noltbook))
+      user-actor-contacts=(set actor-ref:noltbook)
+      app-notifications=(map [@tas @t] app-notification:noltbook)
+      dm-artifact-refs=(map @uv dm-artifact-ref:noltbook)
+      dm-artifact-tombs=(map @uv dm-artifact-tomb:noltbook)
+      dm-msg-tombs=(map dm-message-key:noltbook @da)
+      peer-proto=(map @p @ud)
+      pending-dm-fetches=(map @ta pending-dm-fetch:noltbook)
+      note-artifact-tombs=(map @ta note-artifact-tomb:noltbook)
+      mesh-tombs=(set @uv)
+      ::  state-70 addition — origin's canonical cover/gossip deletion records (eid-keyed):
+      mesh-tomb-meta=(map @uv mesh-tomb:noltbook)
+  ==
+::  state-71: local external-DM import provenance. Imports are keyed by deterministic
+::  EID and retained after local removal for permanent idempotency. import-only-dms
+::  marks locally-created DM shells that have never participated in Noltbook transport.
++$  state-71
+  $:  %71
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      actor-by-eid=(map @uv actor:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      actor-registry=(map [@tas @t] actor-record:noltbook)
+      note-actor-owners=(map @ta actor-owner:noltbook)
+      actor-profiles=(map [@tas @t] actor-profile:noltbook)
+      actor-contacts=(map [@tas @t] (set identity-ref:noltbook))
+      actor-preferences=(map [@tas @t] actor-preferences:noltbook)
+      actor-note-roster=(map @ta (set actor-ref:noltbook))
+      remote-actor-profiles=(map [host=@p desk=@tas id=@t] [profile=actor-public-profile:noltbook fetched-at=@da])
+      actor-dm-notes=(map @ta actor-dm-meta:noltbook)
+      actor-note-read=(map [@tas @t] (map @ta @da))
+      actor-notifications=(map [@tas @t] (list actor-notification:noltbook))
+      note-unread-activity=(map @ta @da)
+      user-muted-actors=(set actor-ref:noltbook)
+      user-blocked-actors=(set actor-ref:noltbook)
+      note-members=(map @ta (set @p))
+      actor-join-requests=(map @ta (set actor-ref:noltbook))
+      note-actor-muted=(map @ta (set actor-ref:noltbook))
+      user-actor-contacts=(set actor-ref:noltbook)
+      app-notifications=(map [@tas @t] app-notification:noltbook)
+      dm-artifact-refs=(map @uv dm-artifact-ref:noltbook)
+      dm-artifact-tombs=(map @uv dm-artifact-tomb:noltbook)
+      dm-msg-tombs=(map dm-message-key:noltbook @da)
+      peer-proto=(map @p @ud)
+      pending-dm-fetches=(map @ta pending-dm-fetch:noltbook)
+      note-artifact-tombs=(map @ta note-artifact-tomb:noltbook)
+      mesh-tombs=(set @uv)
+      mesh-tomb-meta=(map @uv mesh-tomb:noltbook)
+      dm-imports=(map @uv dm-import:noltbook)
+      import-only-dms=(set @ta)
+  ==
 +$  state-65
   $:  %65
       notes=(map @ta note:noltbook)
@@ -4077,7 +4467,9 @@
 ::  `our` because upgrade arms have no bowl and the roster ref needs the host @p.
 ++  upgrade-64-to-65
   |=  [our=@p s=state-64]
-  ^-  state-66
+  ::  the ladder terminates at the live state-71, so every on-load
+  ::  branch that lands here finalizes directly on the current state type.
+  ^-  state-71
   %-  upgrade-65-to-66
   :*  %65
       notes.s  messages.s  artifacts.s  profiles.s
@@ -4131,7 +4523,10 @@
 ::  state is carried forward and no notifications are inferred retroactively.
 ++  upgrade-65-to-66
   |=  s=state-65
-  ^-  state-66
+  ::  chains through 66-to-67 -> 67-to-68 -> 68-to-69 -> 69-to-70 so the whole ladder
+  ::  terminates at the active state-71 (like upgrade-64-to-65 chains into 65-to-66).
+  ^-  state-71
+  %-  upgrade-66-to-67
   :*  %66
       notes.s  messages.s  artifacts.s  profiles.s
       transactions.s  current-note.s  peers.s  has-avatar.s
@@ -4180,6 +4575,297 @@
       note-actor-muted.s
       user-actor-contacts.s
       `(map [@tas @t] app-notification:noltbook)`~
+  ==
+::  upgrade-66-to-67: ordinary-DM origin-hosting FOUNDATION. Pure + behavior-preserving:
+::  every state-66 field is carried forward byte-for-byte and the five new maps are
+::  initialized empty. It does NOT scan/convert/copy/remove artifacts, messages, notes,
+::  actor state, or Clay. Existing remote-owned DM artifacts are converted only in a later
+::  activation phase, once transport + frontend support exist.
+++  upgrade-66-to-67
+  |=  s=state-66
+  ::  on-load ladder link: builds state-67 then chains through 67-to-68 -> 68-to-69 ->
+  ::  69-to-70 so callers land on the live state type. Carry-forward is byte-for-byte.
+  ^-  state-71
+  %-  upgrade-67-to-68
+  ^-  state-67
+  :*  %67
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      fork-parent-version.s
+      host-checks.s
+      notification-acks.s
+      note-activity.s
+      note-read.s
+      attention.s
+      cleared-mentions.s
+      via-by-eid.s
+      note-pins.s
+      note-apps.s
+      note-active.s
+      actor-by-eid.s
+      app-grants.s
+      actor-registry.s
+      note-actor-owners.s
+      actor-profiles.s
+      actor-contacts.s
+      actor-preferences.s
+      actor-note-roster.s
+      remote-actor-profiles.s
+      actor-dm-notes.s
+      actor-note-read.s
+      actor-notifications.s
+      note-unread-activity.s
+      user-muted-actors.s
+      user-blocked-actors.s
+      note-members.s
+      actor-join-requests.s
+      note-actor-muted.s
+      user-actor-contacts.s
+      app-notifications.s
+      ::  Phase 0 new fields — all empty; nothing derived from existing state yet.
+      `(map @uv dm-artifact-ref:noltbook)`~
+      `(map @uv dm-artifact-tomb:noltbook)`~
+      `(map dm-message-key:noltbook @da)`~
+      `(map @p @ud)`~
+      `(map @ta pending-dm-fetch:noltbook)`~
+  ==
+::  upgrade-67-to-68: every state-67 field carried forward byte-for-byte; the single new
+::  aid-keyed shared-note artifact tombstone map is initialized empty. No artifact,
+::  message, note, pin, or Clay state is scanned or converted.
+++  upgrade-67-to-68
+  |=  s=state-67
+  ::  builds state-68 then chains onward (68->69->70) so the ladder lands on the live state.
+  ^-  state-71
+  %-  upgrade-68-to-69
+  ^-  state-68
+  :*  %68
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      fork-parent-version.s
+      host-checks.s
+      notification-acks.s
+      note-activity.s
+      note-read.s
+      attention.s
+      cleared-mentions.s
+      via-by-eid.s
+      note-pins.s
+      note-apps.s
+      note-active.s
+      actor-by-eid.s
+      app-grants.s
+      actor-registry.s
+      note-actor-owners.s
+      actor-profiles.s
+      actor-contacts.s
+      actor-preferences.s
+      actor-note-roster.s
+      remote-actor-profiles.s
+      actor-dm-notes.s
+      actor-note-read.s
+      actor-notifications.s
+      note-unread-activity.s
+      user-muted-actors.s
+      user-blocked-actors.s
+      note-members.s
+      actor-join-requests.s
+      note-actor-muted.s
+      user-actor-contacts.s
+      app-notifications.s
+      dm-artifact-refs.s
+      dm-artifact-tombs.s
+      dm-msg-tombs.s
+      peer-proto.s
+      pending-dm-fetches.s
+      ::  state-68 new field — empty; nothing derived from existing state.
+      `(map @ta note-artifact-tomb:noltbook)`~
+  ==
+::  upgrade-68-to-69: every state-68 field carried forward byte-for-byte; the eid-keyed
+::  cover/gossip tombstone set is initialized empty. Chains into upgrade-69-to-70.
+++  upgrade-68-to-69
+  |=  s=state-68
+  ^-  state-71
+  %-  upgrade-69-to-70
+  ^-  state-69
+  :*  %69
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      fork-parent-version.s
+      host-checks.s
+      notification-acks.s
+      note-activity.s
+      note-read.s
+      attention.s
+      cleared-mentions.s
+      via-by-eid.s
+      note-pins.s
+      note-apps.s
+      note-active.s
+      actor-by-eid.s
+      app-grants.s
+      actor-registry.s
+      note-actor-owners.s
+      actor-profiles.s
+      actor-contacts.s
+      actor-preferences.s
+      actor-note-roster.s
+      remote-actor-profiles.s
+      actor-dm-notes.s
+      actor-note-read.s
+      actor-notifications.s
+      note-unread-activity.s
+      user-muted-actors.s
+      user-blocked-actors.s
+      note-members.s
+      actor-join-requests.s
+      note-actor-muted.s
+      user-actor-contacts.s
+      app-notifications.s
+      dm-artifact-refs.s
+      dm-artifact-tombs.s
+      dm-msg-tombs.s
+      peer-proto.s
+      pending-dm-fetches.s
+      note-artifact-tombs.s
+      ::  state-69 new field — empty; nothing derived from existing state.
+      `(set @uv)`~
+  ==
+::  upgrade-69-to-70: every state-69 field carried forward byte-for-byte; the new eid-keyed
+::  canonical mesh-tomb record map is initialized empty, then chains to state-71.
+++  upgrade-69-to-70
+  |=  s=state-69
+  ^-  state-71
+  %-  upgrade-70-to-71
+  ^-  state-70
+  :*  %70
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s
+      blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s
+      seq-counters.s  join-requests.s
+      note-admins.s  note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      fork-parent-version.s
+      host-checks.s
+      notification-acks.s
+      note-activity.s
+      note-read.s
+      attention.s
+      cleared-mentions.s
+      via-by-eid.s
+      note-pins.s
+      note-apps.s
+      note-active.s
+      actor-by-eid.s
+      app-grants.s
+      actor-registry.s
+      note-actor-owners.s
+      actor-profiles.s
+      actor-contacts.s
+      actor-preferences.s
+      actor-note-roster.s
+      remote-actor-profiles.s
+      actor-dm-notes.s
+      actor-note-read.s
+      actor-notifications.s
+      note-unread-activity.s
+      user-muted-actors.s
+      user-blocked-actors.s
+      note-members.s
+      actor-join-requests.s
+      note-actor-muted.s
+      user-actor-contacts.s
+      app-notifications.s
+      dm-artifact-refs.s
+      dm-artifact-tombs.s
+      dm-msg-tombs.s
+      peer-proto.s
+      pending-dm-fetches.s
+      note-artifact-tombs.s
+      mesh-tombs.s
+      ::  state-70 new field — empty; the author populates it per new deletion.
+      `(map @uv mesh-tomb:noltbook)`~
+  ==
+::  upgrade-70-to-71: additive import state only; no existing DM is classified as
+::  import-only and no historical message is inferred to be imported.
+++  upgrade-70-to-71
+  |=  s=state-70
+  ^-  state-71
+  :*  %71
+      notes.s  messages.s  artifacts.s  profiles.s
+      transactions.s  current-note.s  peers.s  has-avatar.s
+      pal-outgoing.s  pal-incoming.s  pal-blocked.s  blocked-by.s
+      dial.s  gossip-hops.s  mentions.s  active-calls.s
+      gossip-envelopes.s  headlines.s  seq-counters.s
+      join-requests.s  note-admins.s  note-muted.s  artifact-envelopes.s
+      host-status.s  fork-origin.s  fork-version.s  fork-of.s
+      pending-fork-invites.s  fork-invitees.s  contacts.s  dm-prefs.s
+      member-revs.s  fork-parent-version.s  host-checks.s
+      notification-acks.s  note-activity.s  note-read.s  attention.s
+      cleared-mentions.s  via-by-eid.s  note-pins.s  note-apps.s
+      note-active.s  actor-by-eid.s  app-grants.s  actor-registry.s
+      note-actor-owners.s  actor-profiles.s  actor-contacts.s
+      actor-preferences.s  actor-note-roster.s  remote-actor-profiles.s
+      actor-dm-notes.s  actor-note-read.s  actor-notifications.s
+      note-unread-activity.s  user-muted-actors.s  user-blocked-actors.s
+      note-members.s  actor-join-requests.s  note-actor-muted.s
+      user-actor-contacts.s  app-notifications.s  dm-artifact-refs.s
+      dm-artifact-tombs.s  dm-msg-tombs.s  peer-proto.s
+      pending-dm-fetches.s  note-artifact-tombs.s  mesh-tombs.s
+      mesh-tomb-meta.s
+      `(map @uv dm-import:noltbook)`~
+      `(set @ta)`~
   ==
 ::  roster-from-participation: each local [desk,id] participation row -> a full actor-ref
 ::  [our,desk,id] roster row. Drops empty sets. Phase 1A migration only.
@@ -5765,6 +6451,25 @@
   ^-  (unit [@uv actor:noltbook])
   =/  a  (~(get by amap) e)
   ?~(a ~ `[e u.a])
+::  dm-import-snapshot: expose only provenance rows referenced by this message page.
+++  dm-import-snapshot
+  |=  [msgs=(list message:noltbook) imap=(map @uv dm-import:noltbook)]
+  ^-  (map @uv dm-import:noltbook)
+  %-  ~(gas by *(map @uv dm-import:noltbook))
+  %+  murn  msgs
+  |=  m=message:noltbook
+  ^-  (unit [@uv dm-import:noltbook])
+  ?~  meta.m  ~
+  =/  row  (~(get by imap) eid.u.meta.m)
+  ?~(row ~ `[eid.u.meta.m u.row])
+::  Strip imported rows from any snapshot served to another ship. This is the
+::  transport backstop for the local-only import invariant.
+++  dm-import-free-messages
+  |=  [msgs=(list message:noltbook) imap=(map @uv dm-import:noltbook)]
+  ^-  (list message:noltbook)
+  %+  skip  msgs
+  |=  m=message:noltbook
+  ?~(meta.m %.n (~(has by imap) eid.u.meta.m))
 ::  gate-actor (Actor Control Phase A): host governance for a well-formed actor
 ::  on an allowed note. Returns the stamped actor + updated registry on success,
 ::  or a rejection code. Local apps only (host == our). Rules:
@@ -6459,8 +7164,27 @@
   %+  turn  ~(tap in member-set)
   |=  ref=actor-ref:noltbook
   (api-actor-ref-json ref 'member' (~(has in mset) ref) registry)
+++  api-dm-import-json
+  |=  [eid=(unit @uv) imap=(map @uv dm-import:noltbook)]  ^-  json
+  ?~  eid  ~
+  =/  di  (~(get by imap) u.eid)
+  ?~  di  ~
+  =/  app-json=json
+    %-  pairs:enjs:format
+    :~  ['desk' s+(scot %tas desk.importer.u.di)]
+        ['title' ?~(title.importer.u.di ~ s+u.title.importer.u.di)]
+        ['publisher' ?~(publisher.importer.u.di ~ s+(scot %p u.publisher.importer.u.di))]
+        ['ship' s+(scot %p ship.importer.u.di)]
+    ==
+  %-  pairs:enjs:format
+  :~  ['app' app-json]
+      ['source' s+(scot %tas source.u.di)]
+      ['sentAt' (numb:enjs:format (api-da-ms sent-at.u.di))]
+      ['receivedAt' (numb:enjs:format (api-da-ms received-at.u.di))]
+      ['removedAt' ?~(removed-at.u.di ~ (numb:enjs:format (api-da-ms u.removed-at.u.di)))]
+  ==
 ++  api-msg-json
-  |=  [m=message:noltbook vmap=via-map:noltbook amap=actor-map:noltbook]  ^-  json
+  |=  [m=message:noltbook vmap=via-map:noltbook amap=actor-map:noltbook imap=(map @uv dm-import:noltbook)]  ^-  json
   %-  pairs:enjs:format
   :~  ['id' (numb:enjs:format (api-da-ms id.m))]
       ['msgId' s+(scot %da id.m)]
@@ -6472,6 +7196,7 @@
       ['replyToEid' ?~(meta.m ~ ?~(reply-to-eid.u.meta.m ~ s+(scot %uv u.reply-to-eid.u.meta.m)))]
       ['via' (api-via-json ?~(meta.m ~ `eid.u.meta.m) vmap)]
       ['actor' (api-actor-json ?~(meta.m ~ `eid.u.meta.m) amap)]
+      ['import' (api-dm-import-json ?~(meta.m ~ `eid.u.meta.m) imap)]
   ==
 ++  api-art-version-json
   |=  v=artifact-version:noltbook  ^-  json
@@ -6761,11 +7486,17 @@
   ?.  =(%dm type.n)  n
   =/  cp=(unit @p)  (dm-counterparty users.n me)
   ?~  cp  n
+  ::  establish clean LOCAL defaults before any pref overlay: the durable DM name is the
+  ::  local counterparty's @p (the profile display name is derived live in the frontend),
+  ::  and the icon is cleared. Incoming DM metadata may carry the sender's own title/icon,
+  ::  and a converted notebook may retain a stale name/icon — neither should become our
+  ::  presentation. Actor DMs are secret %group notes, so the %dm gate already excludes them.
+  =/  base=note:noltbook  n(name (scot %p u.cp), icon-url ~)
   =/  pref=(unit dm-pref)  (~(get by prefs) u.cp)
-  ?~  pref  n
+  ?~  pref  base
   =/  with-name=note:noltbook
-    ?~  name.u.pref  n
-    n(name u.name.u.pref)
+    ?~  name.u.pref  base
+    base(name u.name.u.pref)
   ?~  icon-url.u.pref  with-name
   with-name(icon-url icon-url.u.pref)
 ::  root-uniqueness helpers
@@ -6789,6 +7520,27 @@
     &(?=(~ parent.n) =(users.n us) =(%dm type.n))
   ?~  hits  ~
   `i.hits
+::  dm-edit-extends: single-writer validation for a DM %app-artifact edit. TRUE iff
+::  `new` is a strict, author-consistent extension of `old`: strictly longer, `old` an
+::  exact prefix of `new`, and every added (suffix) version has a sequential version
+::  number (starting at +(old-len)), editor == `who`, and valid app content. Pure; used
+::  by the %remote-dm-app-artifact-edit receiver. Adds no Gall door arm.
+++  dm-edit-extends
+  |=  [old=(list artifact-version:noltbook) new=(list artifact-version:noltbook) who=@p]
+  ^-  ?
+  =/  old-len=@  (lent old)
+  ?.  (gth (lent new) old-len)  %.n
+  ?.  =(old (scag old-len new))  %.n
+  =/  added=(list artifact-version:noltbook)  (slag old-len new)
+  =|  expect=@ud
+  =.  expect  +(old-len)
+  |-  ^-  ?
+  ?~  added  %.y
+  ?&  =(version.i.added expect)
+      =(who editor.i.added)
+      (valid-app-artifact-content content.i.added)
+      $(added t.added, expect +(expect))
+  ==
 ::  append-child-if-missing: snoc a child id onto a children list only if
 ::  not already present, preserving order.
 ++  append-child-if-missing
@@ -6846,6 +7598,383 @@
   ^-  ?
   ?.  =(cr.a cr.b)  (lth `@`cr.a `@`cr.b)
   (lth `@`id.a `@`id.b)
+::  ===== Phase 0 pure helpers for ordinary-DM origin-hosting =====
+::  Defined now for LATER phases; they mutate nothing and are intentionally unused this
+::  phase. Kept total + defensive against legacy/malformed data.
+::  dm-artifact-eid: the stable cross-ship identity — artifact.meta.eid when present,
+::  else the deterministic (sham [creator id]).
+++  dm-artifact-eid
+  |=  a=artifact:noltbook
+  ^-  @uv
+  ?^  meta.a  eid.u.meta.a
+  (sham [creator.a id.a])
+::  dm-artifact-rev: the authoritative revision going forward — the latest
+::  artifact-version.version. An empty/malformed version list falls back to 0.
+++  dm-artifact-rev
+  |=  a=artifact:noltbook
+  ^-  @ud
+  ?~  versions.a  0
+  version:(rear versions.a)
+::  dm-message-key-of: collision-safe tombstone key — %eid when the message carries an
+::  entry-meta eid, else %legacy [author id].
+++  dm-message-key-of
+  |=  m=message:noltbook
+  ^-  dm-message-key:noltbook
+  ?^  meta.m  [%eid eid.u.meta.m]
+  [%legacy author.m id.m]
+::  ===== Phase 1 ordinary-DM correctness helpers (outer core; pure) =====
+::  is-ordinary-dm: an ordinary two-human %dm — NOT an actor DM (those are %group).
+++  is-ordinary-dm
+  |=  [n=note:noltbook adm=(map @ta actor-dm-meta:noltbook)]
+  ^-  ?
+  ?&  =(%dm type.n)
+      =(2 ~(wyt in users.n))
+      !(~(has by adm) id.n)
+  ==
+::  dm-key-tombed: is a message key terminally tombstoned?
+++  dm-key-tombed
+  |=  [k=dm-message-key:noltbook tombs=(map dm-message-key:noltbook @da)]
+  ^-  ?
+  (~(has by tombs) k)
+::  dm-add-msg-tomb: idempotently record a terminal message tombstone (retained forever).
+++  dm-add-msg-tomb
+  |=  [k=dm-message-key:noltbook t=@da tombs=(map dm-message-key:noltbook @da)]
+  ^-  (map dm-message-key:noltbook @da)
+  ?:  (~(has by tombs) k)  tombs
+  (~(put by tombs) k t)
+::  dm-find-msg: locate a DM target message. EID-first (rem eid); legacy fallback is by
+::  [author=who id], never a bare @da across authors. `who` is the authenticated author.
+++  dm-find-msg
+  |=  [msgs=(list message:noltbook) eid=(unit @uv) mid=@da who=@p]
+  ^-  (unit message:noltbook)
+  ?^  eid
+    =/  by-eid  (skim msgs |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.eid))))
+    ?^  by-eid  `i.by-eid
+    =/  by-leg  (skim msgs |=(m=message:noltbook &(?=(~ meta.m) =(author.m who) =(id.m mid))))
+    ?~  by-leg  ~
+    `i.by-leg
+  =/  by-leg  (skim msgs |=(m=message:noltbook &(=(author.m who) =(id.m mid))))
+  ?~  by-leg  ~
+  `i.by-leg
+::  dm-msg-winner: pick the surviving copy of two same-key messages — higher meta.rev,
+::  then higher meta.updated, then a deterministic (sham) tie-break.
+++  dm-msg-winner
+  |=  [a=message:noltbook b=message:noltbook]
+  ^-  message:noltbook
+  =/  ra=@ud  ?~(meta.a 0 rev.u.meta.a)
+  =/  rb=@ud  ?~(meta.b 0 rev.u.meta.b)
+  ?:  (gth ra rb)  a
+  ?:  (gth rb ra)  b
+  =/  ua=@da  ?~(meta.a `@da`0 updated.u.meta.a)
+  =/  ub=@da  ?~(meta.b `@da`0 updated.u.meta.b)
+  ?:  (gth ua ub)  a
+  ?:  (gth ub ua)  b
+  ?:  (gth (sham a) (sham b))  a
+  b
+::  dm-merge-timeline: merge two DM message lists for a note rekeyed to `win`. Identity is
+::  EID-first (legacy [author id]); tombstoned keys dropped; same-key collisions keep
+::  dm-msg-winner; every retained message's note-id is rewritten to `win`; ordered by
+::  meta.created (fallback id). Never deduplicates by bare @da id across authors.
+++  dm-merge-timeline
+  |=  $:  win=@ta
+          a=(list message:noltbook)
+          b=(list message:noltbook)
+          tombs=(map dm-message-key:noltbook @da)
+      ==
+  ^-  (list message:noltbook)
+  =|  acc=(map dm-message-key:noltbook message:noltbook)
+  =.  acc
+    =/  all=(list message:noltbook)  (weld a b)
+    |-  ^-  (map dm-message-key:noltbook message:noltbook)
+    ?~  all  acc
+    =/  m=message:noltbook  i.all(note-id win)
+    =/  k=dm-message-key:noltbook  (dm-message-key-of m)
+    ?:  (~(has by tombs) k)  $(all t.all)
+    =/  ex  (~(get by acc) k)
+    =/  keep=message:noltbook  ?~(ex m (dm-msg-winner u.ex m))
+    $(all t.all, acc (~(put by acc) k keep))
+  %+  sort  ~(val by acc)
+  |=  [x=message:noltbook y=message:noltbook]
+  ^-  ?
+  =/  cx=@da  ?~(meta.x id.x created.u.meta.x)
+  =/  cy=@da  ?~(meta.y id.y created.u.meta.y)
+  ?.  =(cx cy)  (lth cx cy)
+  ::  Part 1C: created ties break on id, then a stable message-key hash — never on
+  ::  map iteration or sort stability.
+  ?.  =(id.x id.y)  (lth id.x id.y)
+  (lth (sham (dm-message-key-of x)) (sham (dm-message-key-of y)))
+::  dm-merge-mentions / -cleared / -attention: dedup-merge note-scoped lists during
+::  reconciliation. W's entries are kept first; later duplicates drop by durable token.
+++  dm-merge-mentions
+  |=  [a=(list [id=@da eid=(unit @uv) author=@p]) b=(list [id=@da eid=(unit @uv) author=@p])]
+  ^-  (list [id=@da eid=(unit @uv) author=@p])
+  =|  seen=(set @uv)
+  =|  out=(list [id=@da eid=(unit @uv) author=@p])
+  =/  all  (weld a b)
+  |-
+  ?~  all  (flop out)
+  =/  tok=@uv  ?^(eid.i.all u.eid.i.all (sham author.i.all id.i.all))
+  ?:  (~(has in seen) tok)  $(all t.all)
+  $(all t.all, seen (~(put in seen) tok), out [i.all out])
+++  dm-merge-cleared
+  |=  [a=(list [id=@da eid=(unit @uv)]) b=(list [id=@da eid=(unit @uv)])]
+  ^-  (list [id=@da eid=(unit @uv)])
+  =|  seen=(set @uv)
+  =|  out=(list [id=@da eid=(unit @uv)])
+  =/  all  (weld a b)
+  |-
+  ?~  all  (flop out)
+  =/  tok=@uv  ?^(eid.i.all u.eid.i.all (sham id.i.all))
+  ?:  (~(has in seen) tok)  $(all t.all)
+  $(all t.all, seen (~(put in seen) tok), out [i.all out])
+++  dm-merge-attention
+  |=  [a=(list attention-item:noltbook) b=(list attention-item:noltbook)]
+  ^-  (list attention-item:noltbook)
+  =|  seen=(set @uv)
+  =|  out=(list attention-item:noltbook)
+  =/  all  (weld a b)
+  |-
+  ?~  all  (flop out)
+  =/  it  i.all
+  =/  tok=@uv
+    ?^  eid.it     u.eid.it
+    ?^  msg-id.it  (sham %m u.msg-id.it)
+    ?^  aid.it     (sham %a u.aid.it)
+    (sham %k kind.it author.it when.it)
+  ?:  (~(has in seen) tok)  $(all t.all)
+  $(all t.all, seen (~(put in seen) tok), out [it out])
+::  reconcile-dm-roots: lossless ordinary-DM root reconciliation. `lose`=losing local id,
+::  `win`=winning local id, `cn`=canonical winning note (dm-pref already applied). Merges
+::  the losing timeline into the winner (EID-first, tombstoned dropped, note-id rewritten)
+::  and rekeys EVERY note-id-keyed state-67 field L->W. Never wipes the winner or drops
+::  the loser's data. Only touches L/W keys, so unrelated notes are untouched. No-op if
+::  lose==win. Actor/group/fork/gossip-only fields hold no ordinary-DM data and are left
+::  alone; pending-dm-fetches/dm-msg-tombs key by entry identity (not note-id).
+++  reconcile-dm-roots
+  |=  [st=state-71 lose=@ta win=@ta cn=note:noltbook]
+  ^-  state-71
+  ?:  =(lose win)  st
+  =*  s  st
+  ::  notes: install canonical winner, drop loser
+  =.  notes.s  (~(put by (~(del by notes.s) lose)) win cn)
+  ::  messages: merge loser timeline into winner (lossless), drop loser key
+  =.  messages.s
+    =/  aw=(list message:noltbook)  (fall (~(get by messages.s) win) ~)
+    =/  al=(list message:noltbook)  (fall (~(get by messages.s) lose) ~)
+    (~(put by (~(del by messages.s) lose)) win (dm-merge-timeline win aw al dm-msg-tombs.s))
+  ::  artifacts: rewrite embedded note-id L->W (keyed by aid; keys unchanged)
+  =.  artifacts.s
+    %-  ~(run by artifacts.s)
+    |=(a=artifact:noltbook ?.(=(note-id.a lose) a a(note-id win)))
+  ::  dm-artifact-refs: rewrite embedded note-id; drop any whose eid is tombstoned
+  =.  dm-artifact-refs.s
+    %-  ~(gas by *(map @uv dm-artifact-ref:noltbook))
+    %+  murn  ~(tap by dm-artifact-refs.s)
+    |=  [e=@uv r=dm-artifact-ref:noltbook]
+    ^-  (unit [@uv dm-artifact-ref:noltbook])
+    ?:  (~(has by dm-artifact-tombs.s) e)  ~
+    ?.  =(note-id.r lose)  `[e r]
+    `[e r(note-id win)]
+  ::  dm-artifact-tombs: rewrite embedded note-id (terminal; preserved)
+  =.  dm-artifact-tombs.s
+    %-  ~(run by dm-artifact-tombs.s)
+    |=(t=dm-artifact-tomb:noltbook ?.(=(note-id.t lose) t t(note-id win)))
+  ::  mentions: merge+dedup, drop loser
+  =.  mentions.s
+    =/  mw  (fall (~(get by mentions.s) win) ~)
+    =/  ml  (fall (~(get by mentions.s) lose) ~)
+    (~(put by (~(del by mentions.s) lose)) win (dm-merge-mentions mw ml))
+  ::  cleared-mentions: merge+dedup, drop loser
+  =.  cleared-mentions.s
+    =/  cw  (fall (~(get by cleared-mentions.s) win) ~)
+    =/  cl  (fall (~(get by cleared-mentions.s) lose) ~)
+    (~(put by (~(del by cleared-mentions.s) lose)) win (dm-merge-cleared cw cl))
+  ::  attention: merge+dedup by durable target identity, drop loser
+  =.  attention.s
+    =/  aw  (fall (~(get by attention.s) win) ~)
+    =/  al  (fall (~(get by attention.s) lose) ~)
+    (~(put by (~(del by attention.s) lose)) win (dm-merge-attention aw al))
+  ::  seq-counters: keep max, drop loser
+  =.  seq-counters.s
+    =/  lv  (~(get by seq-counters.s) lose)
+    ?~  lv  seq-counters.s
+    =/  wv=@ud  (fall (~(get by seq-counters.s) win) `@ud`0)
+    (~(put by (~(del by seq-counters.s) lose)) win ?:((gth u.lv wv) u.lv wv))
+  ::  note-activity: keep max, drop loser
+  =.  note-activity.s
+    =/  lv  (~(get by note-activity.s) lose)
+    ?~  lv  note-activity.s
+    =/  wv=@da  (fall (~(get by note-activity.s) win) `@da`0)
+    (~(put by (~(del by note-activity.s) lose)) win ?:((gth u.lv wv) u.lv wv))
+  ::  note-unread-activity: keep max, drop loser
+  =.  note-unread-activity.s
+    =/  lv  (~(get by note-unread-activity.s) lose)
+    ?~  lv  note-unread-activity.s
+    =/  wv=@da  (fall (~(get by note-unread-activity.s) win) `@da`0)
+    (~(put by (~(del by note-unread-activity.s) lose)) win ?:((gth u.lv wv) u.lv wv))
+  ::  note-read: keep max, drop loser
+  =.  note-read.s
+    =/  lv  (~(get by note-read.s) lose)
+    ?~  lv  note-read.s
+    =/  wv=@da  (fall (~(get by note-read.s) win) `@da`0)
+    (~(put by (~(del by note-read.s) lose)) win ?:((gth u.lv wv) u.lv wv))
+  ::  note-pins: prefer W; else move L to W; drop loser
+  =.  note-pins.s
+    ?:  (~(has by note-pins.s) win)  (~(del by note-pins.s) lose)
+    =/  lp  (~(get by note-pins.s) lose)
+    ?~  lp  note-pins.s
+    (~(put by (~(del by note-pins.s) lose)) win u.lp)
+  ::  active-calls: prefer W; else move L, rewriting call-info.note-id
+  =.  active-calls.s
+    ?:  (~(has by active-calls.s) win)  (~(del by active-calls.s) lose)
+    =/  lc  (~(get by active-calls.s) lose)
+    ?~  lc  active-calls.s
+    (~(put by (~(del by active-calls.s) lose)) win u.lc(note-id win))
+  ::  note-members: union, drop loser
+  =.  note-members.s
+    =/  mw  (fall (~(get by note-members.s) win) ~)
+    =/  ml  (fall (~(get by note-members.s) lose) ~)
+    (~(put by (~(del by note-members.s) lose)) win (~(uni in mw) ml))
+  ::  notification-acks: rewrite [kind lose] -> [kind win], set re-inserts (dedup)
+  =.  notification-acks.s
+    %-  ~(gas in *(set durable-notification-ack:noltbook))
+    %+  turn  ~(tap in notification-acks.s)
+    |=(x=durable-notification-ack:noltbook ?.(=(note-id.x lose) x x(note-id win)))
+  ::  headlines: prefer W; else move L
+  =.  headlines.s
+    ?:  (~(has by headlines.s) win)  (~(del by headlines.s) lose)
+    =/  lh  (~(get by headlines.s) lose)
+    ?~  lh  headlines.s
+    (~(put by (~(del by headlines.s) lose)) win u.lh)
+  ::  note-apps: prefer W; else move L
+  =.  note-apps.s
+    ?:  (~(has by note-apps.s) win)  (~(del by note-apps.s) lose)
+    =/  la  (~(get by note-apps.s) lose)
+    ?~  la  note-apps.s
+    (~(put by (~(del by note-apps.s) lose)) win u.la)
+  ::  note-active: drop the loser's stale heartbeat (winner's own value, if any, stands)
+  =.  note-active.s  (~(del by note-active.s) lose)
+  ::  current-note: retarget L -> W
+  =.  current-note.s  ?:(=(current-note.s lose) win current-note.s)
+  ::  app-notifications: rewrite optional inner note-id L -> W
+  =.  app-notifications.s
+    %-  ~(run by app-notifications.s)
+    |=  an=app-notification:noltbook
+    ?.  =(note-id.an `lose)  an
+    an(note-id `win)
+  ::  imported-message provenance embeds the local canonical DM note id.
+  =.  dm-imports.s
+    %-  ~(run by dm-imports.s)
+    |=(di=dm-import:noltbook ?.(=(note-id.di lose) di di(note-id win)))
+  ::  if either reconciled shell was import-only, carry the marker to the winner.
+  =.  import-only-dms.s
+    =/  had=?  |((~(has in import-only-dms.s) lose) (~(has in import-only-dms.s) win))
+    =/  clean  (~(del in (~(del in import-only-dms.s) lose)) win)
+    ?:(had (~(put in clean) win) clean)
+  s
+::  ===== Phase 2 ordinary-DM %file origin-hosting helpers (outer core; pure) =====
+::  dm-proto-vers: the single current ordinary-DM artifact protocol version.
+++  dm-proto-vers  ^-(@ud 1)
+::  parse-dm-file-meta: parse a Clay-backed %file metadata blob
+::  {"storage":"clay","mime":..,"kind":..,"size":..} into a content-free dm-file-meta.
+::  ~ unless it is a clay-backed descriptor (rejects inline dataUrl/mimeType blobs).
+++  parse-dm-file-meta
+  |=  content=@t
+  ^-  (unit dm-file-meta:noltbook)
+  =/  jon=(unit json)  (de:json:html content)
+  ?~  jon  ~
+  ?.  ?=([%o *] u.jon)  ~
+  =/  obj  p.u.jon
+  =/  st  (~(get by obj) 'storage')
+  ?.  ?&(?=(^ st) ?=([%s *] u.st) =('clay' p.u.st))  ~
+  =/  mj  (~(get by obj) 'mime')
+  =/  kj  (~(get by obj) 'kind')
+  =/  sj  (~(get by obj) 'size')
+  =/  mime=@t  ?:(?&(?=(^ mj) ?=([%s *] u.mj)) p.u.mj 'application/octet-stream')
+  =/  kind=@t  ?:(?&(?=(^ kj) ?=([%s *] u.kj)) p.u.kj 'file')
+  =/  size=@ud  ?:(?&(?=(^ sj) ?=([%n *] u.sj)) (fall (rush p.u.sj dem) 0) 0)
+  `[mime kind size]
+::  dm-ref-of: build a content-free dm-artifact-ref from a creator-owned ordinary-DM
+::  artifact (%file OR %app), the receiver's local canonical note id, and a content hash
+::  (unit; ~ = unknown, used only during pure on-load migration when content must not be
+::  read). eid = artifact.meta.eid or (sham [creator id]); rev = latest
+::  artifact-version.version (never meta.rev). %file carries file-meta parsed from the clay
+::  descriptor; %app carries file-meta=~ and NEVER the descriptor/data/version history.
+::  %code is refused.
+++  dm-ref-of
+  |=  [a=artifact:noltbook lnid=@ta chash=(unit @uv)]
+  ^-  (unit dm-artifact-ref:noltbook)
+  ?~  versions.a  ~
+  =/  lastv=artifact-version:noltbook  (rear versions.a)
+  =/  eid=@uv  (dm-artifact-eid a)
+  =/  rev=@ud  (dm-artifact-rev a)
+  =/  created=@da  ?~(meta.a timestamp.lastv created.u.meta.a)
+  =/  rte=(unit @uv)  ?~(meta.a ~ reply-to-eid.u.meta.a)
+  ?:  =(%file type.a)
+    =/  fm=(unit dm-file-meta:noltbook)  (parse-dm-file-meta content.lastv)
+    ?~  fm  ~
+    `[eid id.a creator.a lnid %file name.a rev chash fm created timestamp.lastv rte]
+  ?:  =(%app type.a)
+    `[eid id.a creator.a lnid %app name.a rev chash ~ created timestamp.lastv rte]
+  ~
+::  migrate-dm-artifacts: idempotent normalization. Convert every remote-owned
+::  (creator != our) ordinary-DM %file OR %app artifact into a content-free reference
+::  (content-hash=~; NO content read) and remove the full artifact from `artifacts`, so a
+::  noncreator never holds an editable/serveable copy. Skips creator-owned, %code, actor
+::  DMs, and non-DM notes. Terminally-tombstoned eids are dropped, not referenced.
+::  Re-runnable: once the full artifact is gone there is nothing left to convert.
+++  migrate-dm-artifacts
+  |=  [our=@p st=state-71]
+  ^-  state-71
+  =*  s  st
+  =/  targets=(list [aid=@ta a=artifact:noltbook])
+    %+  murn  ~(tap by artifacts.s)
+    |=  [aid=@ta a=artifact:noltbook]
+    ^-  (unit [@ta artifact:noltbook])
+    ?.  ?|(=(%file type.a) =(%app type.a))  ~
+    ?:  =(our creator.a)  ~
+    =/  nt  (~(get by notes.s) note-id.a)
+    ?~  nt  ~
+    ?.  (is-ordinary-dm u.nt actor-dm-notes.s)  ~
+    `[aid a]
+  |-  ^-  state-71
+  ?~  targets  s
+  =/  a=artifact:noltbook  a.i.targets
+  =/  eid=@uv  (dm-artifact-eid a)
+  ::  drop the remote-owned full artifact regardless (never editable/serveable by us)
+  =.  artifacts.s  (~(del by artifacts.s) aid.i.targets)
+  ?:  (~(has by dm-artifact-tombs.s) eid)  $(targets t.targets)
+  =/  ref=(unit dm-artifact-ref:noltbook)  (dm-ref-of a note-id.a ~)
+  ?~  ref  $(targets t.targets)
+  =?  dm-artifact-refs.s  !(~(has by dm-artifact-refs.s) eid)
+    (~(put by dm-artifact-refs.s) eid u.ref)
+  $(targets t.targets)
+::  dm-refs-for-note: the (live) references attached to a note, for %dm-ref-list snapshots.
+::  Refs are removed on tombstone, so the map holds only live entries.
+++  dm-refs-for-note
+  |=  [nid=@ta refs=(map @uv dm-artifact-ref:noltbook)]
+  ^-  (list dm-artifact-ref:noltbook)
+  %+  skim  ~(val by refs)
+  |=(r=dm-artifact-ref:noltbook =(note-id.r nid))
+::  flush-pending-for-eid: complete EVERY held HTTP request pending on `eid` with 404 and
+::  drop it (used when a tombstone lands). Later content responses + timeout wakes for the
+::  removed eyre-ids are then no-ops. Returns the 404 cards + the pruned pending map.
+++  flush-pending-for-eid
+  |=  [eid=@uv pend=(map @ta pending-dm-fetch:noltbook)]
+  ^-  [(list card:agent:gall) (map @ta pending-dm-fetch:noltbook)]
+  =/  hits=(list @ta)
+    %+  murn  ~(tap by pend)
+    |=([k=@ta p=pending-dm-fetch:noltbook] ?:(=(eid.p eid) `k ~))
+  =/  cards=(list card:agent:gall)
+    %-  zing
+    %+  turn  hits
+    |=(k=@ta (give-simple-payload:app:server k `simple-payload:http`[[404 ~] ~]))
+  =/  pruned=(map @ta pending-dm-fetch:noltbook)  pend
+  =.  pruned
+    |-  ^-  (map @ta pending-dm-fetch:noltbook)
+    ?~  hits  pruned
+    $(hits t.hits, pruned (~(del by pruned) i.hits))
+  [cards pruned]
 ::  parse-mime-path: split 'image/png' into knot list [%image %png ~]
 ++  parse-mime-path
   |=  m=@t
@@ -7043,6 +8172,167 @@
   |=  [creator=@p aid=@ta when=@da reply-eid=(unit @uv)]
   ^-  entry-meta:noltbook
   [(sham [creator aid]) 0 0 when when reply-eid]
+::  ===== artifact byte storage abstraction =====
+::  Artifact (%file/image) bytes live on the CREATOR ship in a SEPARATE, non-running Clay
+::  desk — NOT the live %noltbook desk — so a %c %info commit never goads/reloads the billed
+::  %noltbook agent (the Kelvin-408 write-to-live-desk stall). The desk name and Clay layout
+::  are encapsulated ENTIRELY here: no sur/mark/frontend/shared reference knows them, so this
+::  backend can later be swapped for S3 or an Urbit-native blob service without touching the
+::  browser endpoints (/apps/noltbook/artifact/<aid>, /apps/noltbook/dm-artifact/<eid>).
+::  Avatars, note icons, %app packages, and the served frontend stay on q.byk.bowl (unchanged).
+::  Provisioning invariant: %noltbook-data must be a SEPARATE, DEAD (suspended, no desk.bill)
+::  desk and must be UNMOUNTED after provisioning — it holds bytes only, never runs an agent,
+::  and needs no Unix mirror. See setup note in the upload handler.
+++  art-store-desk  `desk`%noltbook-data
+::  file spur WITHIN the data desk: /artifacts/<aid>/mime (mark = mime).
+++  art-store-spur
+  |=  aid=@ta
+  ^-  path
+  /artifacts/[aid]/mime
+::  full Clay beam-tail for scrying an artifact's bytes in the data desk.
+++  art-store-path
+  |=  [our=@p now=@da aid=@ta]
+  ^-  path
+  (weld ~[(scot %p our) art-store-desk (scot %da now)] (art-store-spur aid))
+::  is the data desk provisioned + ready on this ship? Two checks, both must pass, else the
+::  caller fails safe (upload rejected; read yields ~) and NEVER touches the live %noltbook
+::  desk. (1) %cd desk-list membership (a %cy root scry is NOT a valid existence test — Clay
+::  returns an empty arch for a nonexistent desk; follows base/lib/hood/kiln.hoon). (2) %cu
+::  readiness for the files required to store/read %mime cages: /sys/kelvin and /mar/mime/hoon.
+++  art-store-exists
+  |=  [our=@p now=@da]
+  ^-  ?
+  =/  desks-res
+    (mule |.(.^((set desk) %cd ~[(scot %p our) %$ (scot %da now)])))
+  ?.  ?=(%& -.desks-res)  %.n
+  ?.  (~(has in p.desks-res) art-store-desk)  %.n
+  =/  kel=path  ~[(scot %p our) art-store-desk (scot %da now) %sys %kelvin]
+  =/  mim=path  ~[(scot %p our) art-store-desk (scot %da now) %mar %mime %hoon]
+  =/  ready-res  (mule |.(&(.^(? %cu kel) .^(? %cu mim))))
+  ?:(?=(%| -.ready-res) %.n p.ready-res)
+::  read an artifact's current bytes from the data desk; ~ on any failure. Nonblocking for a
+::  missing file: %cu existence FIRST, and only then the typed %cx. Never reads
+::  /lib/noltbook/artifacts or q.byk.bowl, and never falls back to the old live-desk path.
+++  art-store-read
+  |=  [our=@p now=@da aid=@ta]
+  ^-  (unit mime)
+  =/  fpath=path  (art-store-path our now aid)
+  =/  ex-res  (mule |.(.^(? %cu fpath)))
+  ?.  ?=(%& -.ex-res)  ~
+  ?.  p.ex-res  ~
+  =/  res  (mule |.(.^(mime %cx fpath)))
+  ?:(?=(%| -.res) ~ `p.res)
+::  build the %c %info card that writes an artifact's bytes to the data desk (never to
+::  q.byk.bowl). Callers MUST gate on art-store-exists first so a missing desk fails safe.
+++  art-store-write-card
+  |=  [wire=path aid=@ta m=mime]
+  ^-  card
+  =/  art-cage=cage  [%mime !>(m)]
+  =/  nori  [%& ~[[(art-store-spur aid) [%ins art-cage]]]]
+  [%pass wire %arvo %c %info art-store-desk nori]
+::  ensure-data-desk: self-provision the local artifact-byte desk on first install/load.
+::  Mirrors the shipped |new-desk seed construction, adding %mime for artifact cages.
+::  The desk has no desk.bill, runs no agent, is not mounted, and has no remote sync.
+::  An existing desk is never recreated or overwritten; art-store-exists remains the
+::  fail-safe readiness check if an existing desk is incomplete.
+++  ensure-data-desk
+  |=  =bowl:gall
+  ^-  (list card)
+  =/  desks=(set desk)
+    .^((set desk) %cd ~[(scot %p our.bowl) %$ (scot %da now.bowl)])
+  ?:  (~(has in desks) art-store-desk)  ~
+  =/  seeds=(list path)
+    :~  /mar/noun/hoon
+        /mar/hoon/hoon
+        /mar/txt/hoon
+        /mar/kelvin/hoon
+        /mar/mime/hoon
+        /sys/kelvin
+    ==
+  =/  files=(map path page:clay)
+    %-  ~(gas by *(map path page:clay))
+    %+  turn  seeds
+    |=  =path
+    ^-  [^path page:clay]
+    :-  path
+    :-  (rear path)
+    .^  *
+      %cx
+      (scot %p our.bowl)
+      q.byk.bowl
+      (scot %da now.bowl)
+      path
+    ==
+  ~[[%pass /data-desk-create %arvo (new-desk:cloy art-store-desk ~ files)]]
+::  ===== cover/ordinary-gossip hostless deletion helpers =====
+::  is-mesh-note: a %cover or ordinary %gossip note (the hostless envelope meshes) whose
+::  entries are origin-authoritative. EXCLUDES %ars-rumors (anonymous; out of scope) and
+::  every hosted type (%group/%notebook/%dm — those have their own deletion authority).
+++  is-mesh-note
+  |=  [nid=@ta nt=note:noltbook]
+  ^-  ?
+  ?&  ?|(?=(%cover type.nt) ?=(%gossip type.nt))
+      !=(%ars-rumors nid)
+  ==
+::  mesh-delete-targets: the peers a deletion must reach, matching the EXACT envelope route
+::  the entry used, keyed on kind (is-art). Text (cover AND gossip) rode pal-incoming; a
+::  cover artifact rode pal-outgoing; a gossip artifact rode note.users. Always excludes self.
+++  mesh-delete-targets
+  |=  [nt=note:noltbook is-art=? our=@p pin=(set @p) pout=(set @p)]
+  ^-  (list @p)
+  =/  raw=(set @p)
+    ?.  is-art  pin
+    ?:(?=(%cover type.nt) pout users.nt)
+  (skip ~(tap in raw) |=(p=@p =(p our)))
+::  recompute-mesh-note: after a cover/gossip deletion, set the note's last-author/last-preview
+::  to the NEWEST remaining locally-available entry (text message / artifact envelope / text
+::  envelope), or clear BOTH atomically if none remain — never leaving deleted content as the
+::  preview. Cover is pinned (its sidebar preview is frontend-derived), so it is returned
+::  unchanged. A remaining text envelope with no persisted text gets a neutral preview.
+++  recompute-mesh-note
+  |=  $:  nt=note:noltbook
+          msgs=(list message:noltbook)
+          tenvs=(map @da envelope:noltbook)
+          aenvs=(map @ta artifact-envelope:noltbook)
+      ==
+  ^-  note:noltbook
+  ?:  ?=(%cover type.nt)  nt
+  =/  cands=(list [when=@da author=@p preview=@t])
+    ;:  weld
+      (turn msgs |=(m=message:noltbook [timestamp.m author.m text.m]))
+      (turn ~(val by aenvs) |=(e=artifact-envelope:noltbook [timestamp.e author.e (art-env-preview e)]))
+      (turn ~(val by tenvs) |=(e=envelope:noltbook [timestamp.e author.e 'shared a post']))
+    ==
+  ?~  cands  nt(last-author ~, last-preview ~)
+  =/  best=[when=@da author=@p preview=@t]
+    %+  roll  t.cands
+    |=  [c=[when=@da author=@p preview=@t] acc=_i.cands]
+    ?:((gth when.c when.acc) c acc)
+  nt(last-author `author.best, last-preview `preview.best)
+::  mesh-{text,art}-tombed: canonical replay guard. The origin's mesh-tomb-meta record (NEVER
+::  the bare mesh-tombs set) must EXACTLY match this incoming entry to block it. A tomb for a
+::  different author/note/kind/msg-id/aid, or a state-69 bare-set eid with no canonical record,
+::  never blocks a legitimate entry.
+++  mesh-text-tombed
+  |=  [meta=(map @uv mesh-tomb:noltbook) eid=@uv nid=@ta author=@p mid=@da]
+  ^-  ?
+  =/  rec  (~(get by meta) eid)
+  ?~  rec  %.n
+  ?&  ?=(%text kind.u.rec)
+      =(note-id.u.rec nid)
+      =(author.u.rec author)
+      =(msg-id.u.rec `mid)
+  ==
+++  mesh-art-tombed
+  |=  [meta=(map @uv mesh-tomb:noltbook) eid=@uv nid=@ta author=@p aid=@ta]
+  ^-  ?
+  =/  rec  (~(get by meta) eid)
+  ?~  rec  %.n
+  ?&  ?=(%artifact kind.u.rec)
+      =(note-id.u.rec nid)
+      =(author.u.rec author)
+      =(aid.u.rec `aid)
+  ==
 ::  find-aid-in-envelopes: scan all per-note envelope maps for an aid
 ++  find-aid-in-envelopes
   |=  [aid=@ta envs=(map @ta (map @ta artifact-envelope:noltbook))]
@@ -7175,13 +8465,13 @@
   (rpoke /pal-sync/(scot %p target) target `remote:noltbook`[%remote-pal-sync out inc blk])
 ++  rem-handle
   ::  Option-1: the whole %noltbook-remote dispatch moved OUT of the on-poke battery.
-  ::  =| / =* / =. re-expose state-66 faces exactly like the door, so handler bodies are
+  ::  =| / =* / =. re-expose state-67 faces exactly like the door, so handler bodies are
   ::  unchanged except this->state. on-poke delegates: =^ cards state (rem-handle bowl rem state).
-  |=  [=bowl:gall rem=remote:noltbook sin=state-66]
-  =|  state-66
+  |=  [=bowl:gall rem=remote:noltbook sin=state-71]
+  =|  state-71
   =*  state  -
   =.  state  sin
-  ^-  (quip card state-66)
+  ^-  (quip card state-71)
     ?-  -.rem
     ::
         %remote-invite
@@ -7220,10 +8510,8 @@
                   !>(`remote:noltbook`[%remote-root-exists note-id.rem u.dup])
               ==
           ==
-        ::  remote wins; drop local root, adopt incoming
+        ::  remote wins; losslessly reconcile our losing local root into the incoming one
         =/  old-id=@ta  id.u.dup
-        =/  trimmed=(map @ta note:noltbook)  (~(del by notes) old-id)
-        =/  trimmed-msgs=(map @ta (list message:noltbook))  (~(del by messages) old-id)
         =/  redir=update:noltbook  [%note-redirect old-id note-id.rem]
         =/  new-peers=(set @p)  (~(put in peers) creator.rem)
         =/  is-new-peer=?  !(~(has in peers) creator.rem)
@@ -7240,9 +8528,10 @@
               (activity-fact note-id.rem now.bowl)
               (unread-activity-fact note-id.rem now.bowl)
           ==
+        ::  Part 5: merge timeline + rekey every note-id-keyed field (lossless), then
+        ::  apply peer + recency updates. reconcile installs the canonical winner.
+        =.  state  (reconcile-dm-roots state old-id note-id.rem new-note)
         :_  %=  state
-              notes  (~(put by trimmed) note-id.rem new-note)
-              messages  (~(put by trimmed-msgs) note-id.rem ~)
               peers  new-peers
               note-activity  (put-activity note-activity note-id.rem now.bowl)
               note-unread-activity  (put-unread-activity note-unread-activity note-id.rem now.bowl)
@@ -7320,6 +8609,11 @@
       ?.  =(src.bowl author.msg.rem)  `state
       ::  resolve canonical local nid for this pair (handles re-creation
       ::  after leave, and possible nid collision via root-wins).
+      ::  Part 4: a delayed delivery of an already-deleted message is a terminal no-op —
+      ::  it must not reinsert the message nor recreate a locally-removed DM. A genuinely
+      ::  new message (new key) may still recreate the DM (current product behavior).
+      =/  in-key=dm-message-key:noltbook  (dm-message-key-of msg.rem)
+      ?:  (dm-key-tombed in-key dm-msg-tombs)  `state
       =/  existing=(unit note:noltbook)  (find-dm-root notes users.note.rem)
       =/  install-fresh=note:noltbook  (apply-dm-pref note.rem dm-prefs our.bowl)
       =/  target-nid=@ta
@@ -7328,42 +8622,36 @@
         ?:  (root-wins [creator.u.existing id.u.existing] [creator.note.rem id.note.rem])
           id.u.existing
         id.note.rem
-      =/  staged-notes=(map @ta note:noltbook)
-        ?~  existing
-          (~(put by notes) target-nid install-fresh)
-        ?:  =(id.u.existing target-nid)  notes
-        ::  remote wins: drop local, install incoming
-        (~(put by (~(del by notes) id.u.existing)) target-nid install-fresh)
-      =/  staged-msgs=(map @ta (list message:noltbook))
-        ?~  existing
-          (~(put by messages) target-nid ~)
-        ?:  =(id.u.existing target-nid)  messages
-        (~(put by (~(del by messages) id.u.existing)) target-nid ~)
-      =/  note-cards=(list card)
-        ?~  existing
-          ~[(gf-notes `update:noltbook`[%note-created install-fresh])]
+      ::  Part 5: when our local root LOSES to the remote root, losslessly reconcile
+      ::  (merge timeline + rekey every note-id-keyed field) instead of wiping history.
+      =/  redir-cards=(list card)
+        ?~  existing  ~
         ?:  =(id.u.existing target-nid)  ~
-        :~  (gf-notes `update:noltbook`[%note-redirect id.u.existing target-nid])
-            (gf-notes `update:noltbook`[%note-created install-fresh])
-        ==
-      ::  dedup message on target nid
-      =/  cur=(list message:noltbook)  (fall (~(get by staged-msgs) target-nid) ~)
-      =/  msg-eid=(unit @uv)  ?~(meta.msg.rem ~ `eid.u.meta.msg.rem)
-      =/  dup=?
-        ?|  (lien cur |=(m=message:noltbook =(id.m id.msg.rem)))
-            ?&  ?=(^ msg-eid)
-                (lien cur |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m u.msg-eid))))
-            ==
-        ==
+        ~[(gf-notes `update:noltbook`[%note-redirect id.u.existing target-nid])]
+      ::  the =? test narrows `existing` to non-null inside the value below.
+      =?  state  ?&(?=(^ existing) !=(id.u.existing target-nid))
+        (reconcile-dm-roots state id.u.existing target-nid install-fresh)
+      ::  ensure the winning DM note exists locally (fresh create / recreate after leave)
+      =/  had-note=?  (~(has by notes) target-nid)
+      =?  notes     !had-note  (~(put by notes) target-nid install-fresh)
+      =?  messages  !had-note  (~(put by messages) target-nid ~)
+      =/  note-cards=(list card)
+        ?:  had-note  redir-cards
+        (weld redir-cards ~[(gf-notes `update:noltbook`[%note-created install-fresh])])
+      ::  Part 1B: EID-first dedup. A modern message duplicates ONLY by matching eid; a
+      ::  legacy message duplicates ONLY by [author id]. Two messages with the same @da id
+      ::  but different eids both survive. (in-key already derived from msg.rem above.)
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) target-nid) ~)
+      =/  dup=?  (lien cur |=(m=message:noltbook =(in-key (dm-message-key-of m))))
       ?:  dup
-        :_  state(notes staged-notes, messages staged-msgs)
+        :_  state
         note-cards
       ::  The remote ship may know this DM under a different root id. Store
       ::  and emit the message under our resolved local DM id so the frontend
       ::  does not route it to the stale/remote id.
       =/  local-msg=message:noltbook  msg.rem(note-id target-nid)
       =/  new-cur=(list message:noltbook)  (snoc cur local-msg)
-      =/  target-note=note:noltbook  (~(got by staged-notes) target-nid)
+      =/  target-note=note:noltbook  (~(got by notes) target-nid)
       =/  upd-note=note:noltbook
         target-note(last-author `src.bowl, last-preview `text.local-msg)
       ::  Phase ACTOR-1: trust the incoming actor only if its host == the
@@ -7381,86 +8669,25 @@
         ?.  =(desk.u.actor.rem desk.u.via.rem)  ~
         actor.rem
       ::  Phase 11B: DM recipient records the sender's via against the message eid.
-      =/  new-msg-upd=update:noltbook  [%new-message local-msg ~ via.rem dm-actor]
+      =/  new-msg-upd=update:noltbook  [%new-message local-msg ~ via.rem dm-actor ~]
       =/  msg-cards=(list card)
         :~  (gf-paths ~[/notes/[target-nid]] new-msg-upd)
             (gf-notes new-msg-upd)
         ==
       =.  via-by-eid  (api-via-put via-by-eid via.rem local-msg)
       =.  actor-by-eid  (api-actor-put actor-by-eid dm-actor local-msg)
-      :_  state(notes (~(put by staged-notes) target-nid upd-note), messages (~(put by staged-msgs) target-nid new-cur), note-activity (put-activity note-activity target-nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity target-nid now.bowl))
+      :_  state(notes (~(put by notes) target-nid upd-note), messages (~(put by messages) target-nid new-cur), note-activity (put-activity note-activity target-nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity target-nid now.bowl), import-only-dms (~(del in import-only-dms) target-nid))
       :(weld note-cards msg-cards ~[(activity-fact target-nid now.bowl) (unread-activity-fact target-nid now.bowl)])
     ::
-        %remote-dm-app-artifact-create
-      ::  Phase 1: symmetric peer-authoritative %app-artifact creation in an ordinary
-      ::  2-person DM. No subscription — the sender pokes us directly; we resolve OUR
-      ::  canonical local DM id (peers may differ), validate, dedup, store, and relay.
-      ::  Missing local DM is silently rejected (no recreate this phase). Any malformed
-      ::  or duplicate poke is a silent no-op, never a bail.
-      ?:  (~(has in pal-blocked) src.bowl)  `state
-      =/  pnote=note:noltbook      note.rem
-      =/  part=artifact:noltbook   artifact.rem
-      ::  payload note: ordinary 2-person DM whose users are exactly us + src, none removed.
-      ?.  =(%dm type.pnote)  `state
-      ?.  =(2 ~(wyt in users.pnote))  `state
-      ?.  (~(has in users.pnote) our.bowl)  `state
-      ?.  (~(has in users.pnote) src.bowl)  `state
-      ?.  =(~ removed.pnote)  `state
-      ::  artifact: %app, authored by the sender, exactly one version by the sender,
-      ::  note-id matching the payload note (pre-canonicalization), valid descriptor.
-      ?.  =(%app type.part)  `state
-      ?.  =(src.bowl creator.part)  `state
-      ?.  =(id.pnote note-id.part)  `state
-      ?.  ?=([* ~] versions.part)  `state
-      ?.  =(src.bowl editor.i.versions.part)  `state
-      ?.  (valid-app-artifact-content content.i.versions.part)  `state
-      ::  resolve OUR local canonical DM for this pair; must already exist and be an
-      ::  ordinary (non-actor) DM with neither party removed locally.
-      =/  local=(unit note:noltbook)  (find-dm-root notes users.pnote)
-      ?~  local  `state
-      =/  lnid=@ta  id.u.local
-      ?:  (~(has by actor-dm-notes) lnid)  `state
-      ?.  =(~ removed.u.local)  `state
-      ::  dedup: artifact id OR matching eid already present => silent no-op.
-      =/  part-eid=(unit @uv)  ?~(meta.part ~ `eid.u.meta.part)
-      ?:  ?|  (~(has by artifacts) id.part)
-              ?&  ?=(^ part-eid)
-                  %+  lien  ~(val by artifacts)
-                  |=(a=artifact:noltbook ?&(?=(^ meta.a) =(eid.u.meta.a u.part-eid)))
-              ==
-          ==
-        `state
-      ::  rewrite note-id to OUR local canonical id, store, and relay to the frontend.
-      =/  stored=artifact:noltbook  part(note-id lnid)
-      =/  upd=update:noltbook  [%artifact-created stored]
-      =/  prev=@t  (artifact-preview stored)
-      =/  upd-note=note:noltbook  u.local(last-author `src.bowl, last-preview `prev)
-      ::  reply-attention parity with %remote-dm-artifact: if this artifact replies to an
-      ::  immediate parent owned by us, add reply attention. Uses the canonicalized
-      ::  artifact + our local DM id + current local msgs/arts/envs. Runs AFTER the dedup
-      ::  above, so a replayed create mutates no attention.
-      ::  read artifact fields off `part` (narrowed to a 1-version list above); `stored`
-      ::  differs only in note-id, which attention never uses.
-      =/  art-eid=(unit @uv)  ?~(meta.part ~ `eid.u.meta.part)
-      =/  art-rte=(unit @uv)  ?~(meta.part ~ reply-to-eid.u.meta.part)
-      =/  art-when=@da  timestamp.i.versions.part
-      =/  cur-msgs=(list message:noltbook)  (fall (~(get by messages) lnid) ~)
-      =/  note-arts=(list artifact:noltbook)
-        (skim ~(val by artifacts) |=(a=artifact:noltbook =(note-id.a lnid)))
-      =/  note-aenvs=(list artifact-envelope:noltbook)
-        ~(val by (fall (~(get by artifact-envelopes) lnid) *(map @ta artifact-envelope:noltbook)))
-      =/  par-owner=(unit @p)  (attn-parent-owner art-rte ~ cur-msgs note-arts note-aenvs)
-      =/  rtarget=attention-item:noltbook  [%reply %artifact art-eid ~ `id.part creator.part art-when]
-      =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
-        (add-reply-attn attention lnid our.bowl (host-self creator.part ~ our.bowl) par-owner rtarget)
-      :_  state(notes (~(put by notes) lnid upd-note), artifacts (~(put by artifacts) id.part stored), attention na.ar, note-activity (put-activity note-activity lnid now.bowl), note-unread-activity (put-unread-activity note-unread-activity lnid now.bowl))
-      :*  (gf-paths ~[/notes/[lnid]] upd)
-          (gf-notes upd)
-          (activity-fact lnid now.bowl)
-          (unread-activity-fact lnid now.bowl)
-          (sidebar-signal lnid src.bowl `prev %artifact now.bowl)
-          ac.ar
-      ==
+        %remote-dm-app-artifact-create  `state
+    ::
+        %remote-dm-app-artifact-edit  `state
+    ::
+    ::  Phase 3: legacy ordinary-DM %app artifact transport is RETIRED. No sender emits
+    ::  these wires; the receivers are inert so there is exactly one authoritative path
+    ::  (origin-hosted references via %remote-dm-ref-upsert / -ref-delete). A forged/old
+    ::  poke can no longer create a duplicate full %app artifact on the counterparty.
+        %remote-dm-app-artifact-delete  `state
     ::
         %remote-message
       ::  a remote user sent a message to a note we host
@@ -7537,7 +8764,7 @@
         actor.rem
       ::  Phase 11B: carry the sender's via on the host rebroadcast so members
       ::  record it against the host-assigned eid (stamped), keeping ship=sender.
-      =/  upd=update:noltbook  [%new-message stamped directed-kind.rem via.rem rem-actor]
+      =/  upd=update:noltbook  [%new-message stamped directed-kind.rem via.rem rem-actor ~]
       =/  pax=path  ~[%notes note-id.rem]
       =/  upd-note=note:noltbook  u.old(last-author `author.msg.rem, last-preview `text.msg.rem)
       ::  Phase B: real-user mute/block of the (guarded) sender actor suppresses host
@@ -7616,6 +8843,9 @@
         (fall (~(get by gossip-envelopes) %cover) *(map @da envelope:noltbook))
       =/  cur=(list message:noltbook)  (fall (~(get by messages) %cover) ~)
       =/  meid=(unit @uv)  ?~(meta.msg.rem ~ `eid.u.meta.msg.rem)
+      ::  canonical replay guard: block only when the origin's canonical record matches THIS
+      ::  entry (eid+kind+note+author+msg-id) — never a bare-set eid.
+      ?:  ?&(?=(^ meid) (mesh-text-tombed mesh-tomb-meta u.meid %cover author.msg.rem id.msg.rem))  `state
       ::  dedup: eid-first (stable identity), fall back to msg-id (compat)
       ?:  ?|  (lien cur |=(m=message:noltbook =(id.m id.msg.rem)))
               ?&  ?=(^ meid)
@@ -7665,6 +8895,8 @@
         (fall (~(get by gossip-envelopes) %cover) *(map @da envelope:noltbook))
       ::  dedup: eid-first (stable identity), fall back to msg-id (compat)
       =/  env-eid=(unit @uv)  ?~(meta.env ~ `eid.u.meta.env)
+      ::  canonical replay guard: block only when the canonical record matches THIS envelope.
+      ?:  ?&(?=(^ env-eid) (mesh-text-tombed mesh-tomb-meta u.env-eid %cover author.env msg-id.env))  `state
       ?:  ?|  (~(has by cenv) msg-id.env)
               ?&  ?=(^ env-eid)
                   (lien ~(val by cenv) |=(e=envelope:noltbook ?~(meta.e %.n =(eid.u.meta.e u.env-eid))))
@@ -7732,6 +8964,8 @@
         (fall (~(get by gossip-envelopes) %cover) *(map @da envelope:noltbook))
       =/  cur=(list message:noltbook)  (fall (~(get by messages) %cover) ~)
       =/  reply-eid=(unit @uv)  ?~(meta.msg ~ `eid.u.meta.msg)
+      ::  canonical replay guard: block only when the canonical record matches THIS content.
+      ?:  ?&(?=(^ reply-eid) (mesh-text-tombed mesh-tomb-meta u.reply-eid %cover author.msg id.msg))  `state
       ::  dedup: eid-first, fall back to msg-id
       ?:  ?|  (lien cur |=(m=message:noltbook =(id.m id.msg)))
               ?&  ?=(^ reply-eid)
@@ -7784,6 +9018,8 @@
         (fall (~(get by gossip-envelopes) nid) *(map @da envelope:noltbook))
       ::  dedup: eid-first (stable identity), fall back to msg-id (compat)
       =/  env-eid=(unit @uv)  ?~(meta.env ~ `eid.u.meta.env)
+      ::  canonical replay guard: block only when the canonical record matches THIS envelope.
+      ?:  ?&(?=(^ env-eid) (mesh-text-tombed mesh-tomb-meta u.env-eid nid author.env msg-id.env))  `state
       ?:  ?|  (~(has by nenv) msg-id.env)
               ?&  ?=(^ env-eid)
                   (lien ~(val by nenv) |=(e=envelope:noltbook ?~(meta.e %.n =(eid.u.meta.e u.env-eid))))
@@ -7857,6 +9093,8 @@
         (fall (~(get by gossip-envelopes) nid) *(map @da envelope:noltbook))
       =/  cur=(list message:noltbook)  (fall (~(get by messages) nid) ~)
       =/  reply-eid=(unit @uv)  ?~(meta.msg ~ `eid.u.meta.msg)
+      ::  canonical replay guard: block only when the canonical record matches THIS content.
+      ?:  ?&(?=(^ reply-eid) (mesh-text-tombed mesh-tomb-meta u.reply-eid nid author.msg id.msg))  `state
       ::  dedup: eid-first, fall back to msg-id
       ?:  ?|  (lien cur |=(m=message:noltbook =(id.m id.msg)))
               ?&  ?=(^ reply-eid)
@@ -8335,6 +9573,48 @@
         %remote-edit-msg
       ::  remote user editing their own message in a note we host (or DM peer)
       ?:  (~(has in pal-blocked) src.bowl)  `state
+      ::  Part 3: ordinary-DM pair resolution first. The authenticated pair {our,src} is
+      ::  the DM identity; never trust note-id.rem as our local id. Use the DM path ONLY
+      ::  when that DM actually holds the target (EID-first, legacy [src id]).
+      =/  dm=(unit note:noltbook)  (find-dm-root notes (sy ~[our.bowl src.bowl]))
+      =/  dm-hit=(unit [nid=@ta m=message:noltbook])
+        ?~  dm  ~
+        ?.  (is-ordinary-dm u.dm actor-dm-notes)  ~
+        ?.  (~(has in users.u.dm) our.bowl)  ~
+        ?.  (~(has in users.u.dm) src.bowl)  ~
+        =/  msgs=(list message:noltbook)  (fall (~(get by messages) id.u.dm) ~)
+        =/  hit  (dm-find-msg msgs eid.rem msg-id.rem src.bowl)
+        ?~  hit  ~
+        `[id.u.dm u.hit]
+      ?^  dm-hit
+        =/  lnid=@ta  nid.u.dm-hit
+        =/  tgt=message:noltbook  m.u.dm-hit
+        ::  Imported history is local-only and cannot be mutated by a forged/colliding
+        ::  remote ordinary-DM event, even though its displayed author is the peer.
+        ?:  ?&(?=(^ meta.tgt) (~(has by dm-imports) eid.u.meta.tgt))  `state
+        ::  Part 4: a delayed edit for a tombstoned message is a no-op (no resurrection).
+        ?:  (dm-key-tombed (dm-message-key-of tgt) dm-msg-tombs)  `state
+        ::  author-only (backend authoritative against forged pokes)
+        ?.  =(src.bowl author.tgt)  `state
+        =/  cur=(list message:noltbook)  (fall (~(get by messages) lnid) ~)
+        =/  new-meta=(unit entry-meta:noltbook)
+          ?~  meta.tgt  ~
+          `u.meta.tgt(rev +(rev.u.meta.tgt), updated now.bowl)
+        ::  Part 1A: mutate ONLY the exact stored target, compared by full dm-message-key.
+        =/  target-key=dm-message-key:noltbook  (dm-message-key-of tgt)
+        =/  new-msgs=(list message:noltbook)
+          %+  turn  cur
+          |=  m=message:noltbook
+          ?.  =(target-key (dm-message-key-of m))  m
+          m(text text.rem, edited &, meta new-meta)
+        =/  edited=message:noltbook  tgt(text text.rem, edited &, meta new-meta)
+        =/  upd=update:noltbook  [%message-edited lnid edited]
+        =/  pax=path  ~[%notes lnid]
+        :_  state(messages (~(put by messages) lnid new-msgs))
+        :~  (gf-paths ~[pax] upd)
+            (gf-notes upd)
+        ==
+      ::  ---- exact-note (non-DM / same-id) path, unchanged ----
       =/  old  (~(get by notes) note-id.rem)
       ?~  old  `state
       ?.  ?|  =(our.bowl creator.u.old)
@@ -8425,6 +9705,58 @@
     ::
         %remote-delete-msg
       ::  remote user deleting their own message in a note we host (or DM peer)
+      ::  Part 3: ordinary-DM pair resolution first (never trust note-id.rem for a DM).
+      ::  Part 2: a DM delete writes a terminal tombstone derived from the STORED message.
+      =/  dm=(unit note:noltbook)  (find-dm-root notes (sy ~[our.bowl src.bowl]))
+      =/  dm-hit=(unit [nid=@ta m=message:noltbook])
+        ?~  dm  ~
+        ?.  (is-ordinary-dm u.dm actor-dm-notes)  ~
+        ?.  (~(has in users.u.dm) our.bowl)  ~
+        ?.  (~(has in users.u.dm) src.bowl)  ~
+        =/  msgs=(list message:noltbook)  (fall (~(get by messages) id.u.dm) ~)
+        =/  hit  (dm-find-msg msgs eid.rem msg-id.rem src.bowl)
+        ?~  hit  ~
+        `[id.u.dm u.hit]
+      ?^  dm-hit
+        =/  lnid=@ta  nid.u.dm-hit
+        =/  tgt=message:noltbook  m.u.dm-hit
+        ?:  ?&(?=(^ meta.tgt) (~(has by dm-imports) eid.u.meta.tgt))  `state
+        ::  author-only (backend authoritative against forged pokes)
+        ?.  =(src.bowl author.tgt)  `state
+        =/  tkey=dm-message-key:noltbook  (dm-message-key-of tgt)
+        =/  cur=(list message:noltbook)  (fall (~(get by messages) lnid) ~)
+        ::  Part 1A: remove ONLY the exact stored target, compared by full dm-message-key.
+        =/  target-id=@da  id.tgt
+        =/  kept=(list message:noltbook)
+          (skim cur |=(m=message:noltbook !=(tkey (dm-message-key-of m))))
+        =/  del-eid=(unit @uv)  ?~(meta.tgt ~ `eid.u.meta.tgt)
+        =/  upd=update:noltbook  [%message-deleted lnid target-id del-eid]
+        =/  pax=path  ~[%notes lnid]
+        =/  pin-hit=?
+          ?~  del-eid  %.n
+          =/  pn  (~(get by note-pins) lnid)
+          ?~  pn  %.n
+          &(=(%message kind.u.pn) =(u.del-eid target.u.pn))
+        =/  new-pins=(map @ta note-pin:noltbook)
+          ?:(pin-hit (~(del by note-pins) lnid) note-pins)
+        =/  pin-clear-cards=(list card)  ?:(pin-hit (pin-cards lnid ~) ~)
+        =?  via-by-eid    ?=(^ del-eid)  (~(del by via-by-eid) u.del-eid)
+        =?  actor-by-eid  ?=(^ del-eid)  (~(del by actor-by-eid) u.del-eid)
+        =/  old-notifs  actor-notifications
+        =?  actor-notifications  ?=(^ del-eid)
+          (actor-notif-del-eid actor-notifications u.del-eid)
+        =/  msgs-after  (~(put by messages) lnid kept)
+        =/  notif-cards=(list card)
+          (actor-notif-diff-cards old-notifs actor-notifications msgs-after actor-by-eid)
+        :_  state(messages msgs-after, note-pins new-pins, dm-msg-tombs (dm-add-msg-tomb tkey now.bowl dm-msg-tombs))
+        %+  weld  notif-cards
+        %+  weld
+          ^-  (list card)
+          :~  (gf-paths ~[pax] upd)
+              (gf-notes upd)
+          ==
+        pin-clear-cards
+      ::  ---- exact-note (non-DM / same-id) path, unchanged (no tombstone) ----
       =/  old  (~(get by notes) note-id.rem)
       ?~  old  `state
       ?.  ?|  =(our.bowl creator.u.old)
@@ -8539,29 +9871,41 @@
       :(weld base-cards admin-cards muted-cards desc-users-cards)
     ::
         %remote-root-exists
-      ::  we lost a root-uniqueness race; drop loser, adopt canonical
+      ::  we lost a root-uniqueness race; adopt canonical, losslessly reconciling our loser
       ::  protect system notes from root-exists manipulation
       ?:  |(=(losing-id.rem %cover) =(losing-id.rem %ars-rumors))  `state
       ::  sender must be the canonical's creator (authority on winner)
       ?.  =(src.bowl creator.canonical.rem)  `state
       =/  loser  (~(get by notes) losing-id.rem)
-      ::  only drop if we actually created it and it's root
-      =?  notes  ?=(^ loser)
-        ?:  &(=(our.bowl creator.u.loser) ?=(~ parent.u.loser))
-          (~(del by notes) losing-id.rem)
-        notes
-      =?  messages  ?=(^ loser)
-        ?:  &(=(our.bowl creator.u.loser) ?=(~ parent.u.loser))
-          (~(del by messages) losing-id.rem)
-        messages
-      ::  install canonical if we don't have it (apply DM prefs locally)
       =/  have-canonical=?  (~(has by notes) id.canonical.rem)
       =/  canon-local=note:noltbook  (apply-dm-pref canonical.rem dm-prefs our.bowl)
+      ::  Part 5: if we own the losing root and it is an ordinary %dm matching this exact
+      ::  {our,src} pair, reconcile losslessly (merge timeline + rekey every field). The
+      ::  system/non-DM/foreign cases fall back to the prior drop-our-losing-root behavior.
+      =/  can-reconcile=?
+        ?&  ?=(^ loser)
+            =(our.bowl creator.u.loser)
+            ?=(~ parent.u.loser)
+            (is-ordinary-dm u.loser actor-dm-notes)
+            =(%dm type.canonical.rem)
+            =(2 ~(wyt in users.canonical.rem))
+            =(users.u.loser users.canonical.rem)
+            =(`(set @p)`(sy ~[our.bowl src.bowl]) users.canonical.rem)
+            !=(losing-id.rem id.canonical.rem)
+        ==
+      =?  state  can-reconcile
+        (reconcile-dm-roots state losing-id.rem id.canonical.rem canon-local)
+      ::  legacy fallback (only when NOT reconciled): drop our own losing root
+      =?  notes  &(!can-reconcile ?=(^ loser) =(our.bowl creator.u.loser) ?=(~ parent.u.loser))
+        (~(del by notes) losing-id.rem)
+      =?  messages  &(!can-reconcile ?=(^ loser) =(our.bowl creator.u.loser) ?=(~ parent.u.loser))
+        (~(del by messages) losing-id.rem)
+      ::  install canonical if absent (reconcile already installed it when it ran)
       =.  notes
-        ?:  have-canonical  notes
+        ?:  (~(has by notes) id.canonical.rem)  notes
         (~(put by notes) id.canonical.rem canon-local)
       =.  messages
-        ?:  have-canonical  messages
+        ?:  (~(has by messages) id.canonical.rem)  messages
         (~(put by messages) id.canonical.rem ~)
       ::  subscribe to canonical creator for updates (skip if already or cover)
       =/  sub-cards=(list card)
@@ -8983,7 +10327,7 @@
           [now.bowl note-id.rem src.bowl (crip (weld "\01SYS:call-started:" (trip (scot %p src.bowl)))) now.bowl ~ %.n ~]
         =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
         =/  upd=update:noltbook  [%call-started note-id.rem cid src.bowl ~[src.bowl]]
-        =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
+        =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~ ~]
         =/  pax=path  ~[%notes note-id.rem]
         ::  broadcast to all members including the requester
         =/  broadcast=(list card)
@@ -9001,7 +10345,7 @@
         [now.bowl note-id.rem started-by.rem (crip (weld "\01SYS:call-started:" (trip (scot %p started-by.rem)))) now.bowl ~ %.n ~]
       =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
       =/  upd=update:noltbook  [%call-started note-id.rem call-id.rem started-by.rem ~[started-by.rem]]
-      =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
+      =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~ ~]
       =/  pax=path  ~[%notes note-id.rem]
       :_  state(active-calls (~(put by active-calls) note-id.rem ci), messages (~(put by messages) note-id.rem (snoc cur sys-msg)))
       :(weld ~[(gf-paths ~[pax] upd)] ~[(gf-notes upd)] ~[(gf-paths ~[pax] msg-upd)])
@@ -9022,7 +10366,7 @@
         [now.bowl note-id.rem ship.rem (crip (weld "\01SYS:call-joined:" (trip (scot %p ship.rem)))) now.bowl ~ %.n ~]
       =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
       =/  upd=update:noltbook  [%call-joined note-id.rem ship.rem]
-      =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
+      =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~ ~]
       =/  pax=path  ~[%notes note-id.rem]
       ::  creator only: relay the join DELTA to existing participants (media peer
       ::  setup) AND send the authoritative full call-state to ALL members (self-healing
@@ -9256,7 +10600,7 @@
         =/  sys-msg=message:noltbook  [now.bowl note-id.rem our.bowl sys-text now.bowl ~ %.n ~]
         =/  old-msgs=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
         =/  new-msgs=(list message:noltbook)  (snoc old-msgs sys-msg)
-        =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
+        =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~ ~]
         =/  clean-admins=(map @ta (set @p))
           =/  cur=(set @p)  (fall (~(get by note-admins) note-id.rem) ~)
           ?:  (~(has in cur) target.rem)
@@ -9497,18 +10841,12 @@
           ==
         :_  state
         ~[(rpoke /art-deny/(scot %p src.bowl)/[art-id.rem] src.bowl `remote:noltbook`[%remote-artifact-denied art-id.rem eyre-id.rem])]
-      ::  scry bytes from our clay
-      =/  art-clay=path
-        :*  (scot %p our.bowl)
-            q.byk.bowl
-            (scot %da now.bowl)
-            /lib/noltbook/artifacts/[art-id.rem]/mime
-        ==
-      =/  scry-res  (mule |.(.^(mime %cx art-clay)))
-      ?:  ?=(%| -.scry-res)
+      ::  read bytes from the separate %noltbook-data desk (never q.byk.bowl)
+      =/  scry-res  (art-store-read our.bowl now.bowl art-id.rem)
+      ?~  scry-res
         :_  state
         ~[(rpoke /art-deny/(scot %p src.bowl)/[art-id.rem] src.bowl `remote:noltbook`[%remote-artifact-denied art-id.rem eyre-id.rem])]
-      =/  mim=mime  p.scry-res
+      =/  mim=mime  u.scry-res
       ::  if requester sent expected-hash, validate before serving.
       ::  q.mim is octs [p=@ud q=@]; hash content == hash of byte atom (q.q.mim)
       ?:  ?&  ?=(^ expected-hash.rem)
@@ -9703,6 +11041,9 @@
         `state
       ::  reject id collision (don't overwrite local artifact)
       ?:  (~(has by artifacts) id.art)  `state
+      ::  terminal tombstone dominates: a replayed/late create must never revive a deleted
+      ::  shared-note artifact (aids are never reused; a replacement gets a fresh aid).
+      ?:  (~(has by note-artifact-tombs) id.art)  `state
       ::  store ref + broadcast group history; bytes stay on src.bowl
       =/  upd=update:noltbook  [%artifact-created art]
       =/  pax=path  ~[%notes nid]
@@ -9738,6 +11079,9 @@
       =/  old  (~(get by artifacts) art-id.rem)
       ?~  old  `state
       =/  nid=@ta  note-id.u.old
+      ::  terminal tombstone dominates: a replayed/late update must never revive a deleted
+      ::  shared-note artifact.
+      ?:  (~(has by note-artifact-tombs) art-id.rem)  `state
       =/  nt  (~(get by notes) nid)
       ?~  nt  `state
       ?.  =(our.bowl creator.u.nt)  `state
@@ -9759,60 +11103,58 @@
       :_  state(artifacts (~(put by artifacts) art-id.rem upd-art))
       ~[(gf-paths ~[/notes/[nid]] upd)]
     ::
+        %remote-artifact-delete
+      ::  member -> host: host-authoritative deletion of a shared-note artifact. The deleter
+      ::  is the authenticated Ames source (src.bowl); the helper re-validates that we host
+      ::  the note, the note is %group/%notebook, src.bowl is a current permitted participant,
+      ::  the artifact exists + belongs to the note, and src.bowl is the artifact creator,
+      ::  the note host, or a current admin. Unauthorized/duplicate/replayed requests are a
+      ::  harmless no-op (no state change, no marker). Same helper the host-local path uses.
+      =^  cards  state  (delete-note-artifact bowl src.bowl note-id.rem art-id.rem state)
+      [cards state]
+    ::
         %remote-dm-artifact
-      ::  counterparty shipped a DM artifact (metadata + bytes). Store both.
+      ::  Part 6: legacy old->new %file delivery. The old sender still ships bytes; we use
+      ::  them ONLY to compute a content hash, then discard. We store a content-free
+      ::  reference — never write Clay, never keep the full remote artifact. New senders
+      ::  never emit this wire. Non-ordinary-DM legacy paths are unaffected (this wire was
+      ::  only ever a DM wire).
+      ?:  (~(has in pal-blocked) src.bowl)  `state
       =/  art  artifact.rem
-      =/  nid=@ta  note-id.art
-      =/  nt  (~(get by notes) nid)
-      ?~  nt  `state
-      ?.  ?=(%dm type.u.nt)  `state
-      ::  both parties must be current, non-removed members
-      ?.  (~(has in users.u.nt) src.bowl)  `state
-      ?.  (~(has in users.u.nt) our.bowl)  `state
-      ?:  (~(has in removed.u.nt) src.bowl)  `state
-      ?:  (~(has in removed.u.nt) our.bowl)  `state
-      ::  artifact must originate from sender
-      ?.  =(src.bowl creator.art)  `state
       ?.  ?=(%file type.art)  `state
-      ::  versions: exactly one
+      ?.  =(src.bowl creator.art)  `state
       ?.  ?=([^ ~] versions.art)  `state
       =/  ver  i.versions.art
       =/  ctnt=tape  (trip content.ver)
       ?~  (find (trip '"storage":"clay"') ctnt)  `state
       ?^  (find (trip 'dataUrl') ctnt)  `state
       ?^  (find (trip 'mimeType') ctnt)  `state
-      ::  reject id collision
-      ?:  (~(has by artifacts) id.art)  `state
-      ::  write bytes to our Clay at the deterministic path
-      =/  mpath=(list @ta)  (parse-mime-path mime.rem)
-      =/  art-cage=cage  [%mime !>(`mime`[mpath bytes.rem])]
-      =/  nori  [%& ~[[/lib/noltbook/artifacts/[id.art]/mime [%ins art-cage]]]]
-      =/  clay-card=card  [%pass /art-dm-in/[id.art] %arvo %c %info q.byk.bowl nori]
-      =/  upd=update:noltbook  [%artifact-created art]
-      =/  pax=path  ~[%notes nid]
-      =/  prev=@t  (artifact-preview art)
-      =/  upd-note=note:noltbook  u.nt(last-author `creator.art, last-preview `prev)
-      ::  reply attention: DM artifact reply → notify the immediate parent owner if us
-      =/  art-eid=(unit @uv)  ?~(meta.art ~ `eid.u.meta.art)
-      =/  art-rte=(unit @uv)  ?~(meta.art ~ reply-to-eid.u.meta.art)
-      =/  art-when=@da  timestamp.i.versions.art
-      =/  cur-msgs=(list message:noltbook)  (fall (~(get by messages) nid) ~)
-      =/  note-arts=(list artifact:noltbook)
-        (skim ~(val by artifacts) |=(a=artifact:noltbook =(note-id.a nid)))
-      =/  note-aenvs=(list artifact-envelope:noltbook)
-        ~(val by (fall (~(get by artifact-envelopes) nid) *(map @ta artifact-envelope:noltbook)))
-      =/  par-owner=(unit @p)  (attn-parent-owner art-rte ~ cur-msgs note-arts note-aenvs)
-      =/  rtarget=attention-item:noltbook  [%reply %artifact art-eid ~ `id.art creator.art art-when]
-      =/  ar=[na=(map @ta (list attention-item:noltbook)) ac=(list card:agent:gall)]
-        (add-reply-attn attention nid our.bowl (host-self creator.art ~ our.bowl) par-owner rtarget)
-      :_  state(notes (~(put by notes) nid upd-note), artifacts (~(put by artifacts) id.art art), attention na.ar, note-activity (put-activity note-activity nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity nid now.bowl))
-      :*  clay-card
-          (gf-paths ~[pax] upd)
+      ::  resolve OUR local DM by the authenticated pair; never trust note-id.art. Drop
+      ::  safely if we have no local DM (legacy payload carries no note metadata to recreate).
+      =/  existing=(unit note:noltbook)  (find-dm-root notes (sy ~[our.bowl src.bowl]))
+      ?~  existing  `state
+      ?.  (is-ordinary-dm u.existing actor-dm-notes)  `state
+      ?.  =(~ removed.u.existing)  `state
+      =/  lnid=@ta  id.u.existing
+      =/  eid=@uv  (dm-artifact-eid art)
+      ::  terminal tombstone dominates
+      ?:  (~(has by dm-artifact-tombs) eid)  `state
+      ::  bytes used ONLY to compute the content hash (ephemeral), then discarded
+      =/  chash=@uv  (sham q.bytes.rem)
+      =/  ref=(unit dm-artifact-ref:noltbook)  (dm-ref-of art lnid `chash)
+      ?~  ref  `state
+      =/  cur-ref  (~(get by dm-artifact-refs) eid)
+      ::  reject only a STRICTLY older rev (same-rev enrichment / newer both proceed).
+      ?:  ?&(?=(^ cur-ref) (gth rev.u.cur-ref rev.u.ref))  `state
+      =/  prev=@t  'shared a file'
+      =/  upd-note=note:noltbook  u.existing(last-author `src.bowl, last-preview `prev)
+      =/  upd=update:noltbook  [%dm-ref-upserted u.ref]
+      :_  state(notes (~(put by notes) lnid upd-note), dm-artifact-refs (~(put by dm-artifact-refs) eid u.ref), note-activity (put-activity note-activity lnid now.bowl), note-unread-activity (put-unread-activity note-unread-activity lnid now.bowl))
+      :~  (gf-paths ~[/notes/[lnid]] upd)
           (gf-notes upd)
-          (activity-fact nid now.bowl)
-          (unread-activity-fact nid now.bowl)
-          (sidebar-signal nid creator.art `prev %artifact now.bowl)
-          ac.ar
+          (activity-fact lnid now.bowl)
+          (unread-activity-fact lnid now.bowl)
+          (sidebar-signal lnid src.bowl `prev %artifact now.bowl)
       ==
     ::
         %remote-artifact-envelope-ref
@@ -9836,6 +11178,9 @@
       ::  dedup by aid; skip if we already have it as a full artifact (own)
       ?:  (~(has by envs) aid.env.rem)  `state
       ?:  (~(has by artifacts) aid.env.rem)  `state
+      ::  canonical replay guard: block only when the canonical record matches THIS artifact
+      ::  envelope (eid+kind+note+author+aid) — never a bare-set eid.
+      ?:  ?&(?=(^ meta.env.rem) (mesh-art-tombed mesh-tomb-meta eid.u.meta.env.rem nid author.env.rem aid.env.rem))  `state
       =/  my-hops=@ud  (add hops.rem 1)
       =/  recipients=(list @p)
         ?:  ?=(%cover type.u.nt)
@@ -9878,6 +11223,392 @@
         (add-reply-attn attention nid our.bowl (host-self author.env.rem ~ our.bowl) par-owner rtarget)
       :_  state(notes new-notes, artifact-envelopes (~(put by artifact-envelopes) nid (cap-art-envs (~(put by envs) aid.env.rem env.rem))), attention na.ar, note-activity (put-activity note-activity nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity nid now.bowl))
       :(weld ~[(gf-paths ~[pax] upd)] relay act-cards sig-cards ac.ar)
+    ::
+        %remote-mesh-delete
+      ::  CANONICAL author-authenticated deletion. Applied ONLY when the authenticated
+      ::  src.bowl == author.tomb. ALL mutation + relay routing use the origin-built canonical
+      ::  record `tomb`, never anything a relay/requester supplied. Full-artifact and envelope
+      ::  are matched + removed INDEPENDENTLY. Tomb-before-entry installs only the terminal
+      ::  tombstone + record (no false removal). Block state never prevents this cleanup.
+      =/  t=mesh-tomb:noltbook  tomb.rem
+      ?.  =(src.bowl author.t)  `state
+      =/  nid=@ta  note-id.t
+      =/  nt  (~(get by notes) nid)
+      ?~  nt  `state
+      ?.  (is-mesh-note nid u.nt)  `state
+      ::  canonical record shape: %text => msg-id present, no aid; %artifact => aid, no msg-id
+      =/  shape-ok=?
+        ?-  kind.t
+          %text      &(?=(^ msg-id.t) ?=(~ aid.t))
+          %artifact  &(?=(^ aid.t) ?=(~ msg-id.t))
+        ==
+      ?.  shape-ok  `state
+      ::  idempotent + loop-terminating: no-op ONLY when the stored canonical record IS this
+      ::  exact authenticated record. A conflicting record (or a bare-set eid with no canonical
+      ::  record) must NOT block this legitimate authenticated deletion.
+      ?:  =(`t (~(get by mesh-tomb-meta) eid.t))  `state
+      =/  pax=path  ~[%notes nid]
+      =/  pin-hit=?
+        =/  pn  (~(get by note-pins) nid)
+        ?~  pn  %.n
+        =(eid.t target.u.pn)
+      =/  new-pins=(map @ta note-pin:noltbook)
+        ?:(pin-hit (~(del by note-pins) nid) note-pins)
+      =/  pin-clear-cards=(list card)  ?:(pin-hit (pin-cards nid ~) ~)
+      =/  is-art=?  ?=(%artifact kind.t)
+      =/  relay=(list card)
+        %+  murn  (mesh-delete-targets u.nt is-art our.bowl pal-incoming pal-outgoing)
+        |=  p=@p
+        ?:  =(p src.bowl)  ~
+        ?:  =(p author.t)  ~
+        %-  some
+        (rpoke /mesh-hint/(scot %p p) p `remote:noltbook`[%remote-mesh-delete-hint eid.t author.t])
+      =/  new-meta=(map @uv mesh-tomb:noltbook)  (~(put by mesh-tomb-meta) eid.t t)
+      =/  new-tombs=(set @uv)  (~(put in mesh-tombs) eid.t)
+      ?:  is-art
+        =/  aid=@ta  (need aid.t)
+        =/  full  (~(get by artifacts) aid)
+        =/  aenvs=(map @ta artifact-envelope:noltbook)
+          (fall (~(get by artifact-envelopes) nid) *(map @ta artifact-envelope:noltbook))
+        =/  env-a  (~(get by aenvs) aid)
+        ::  INDEPENDENT exact matches — one never authorizes removing the other structure.
+        =/  full-match=?
+          ?&  ?=(^ full)  =(note-id.u.full nid)  =(id.u.full aid)
+              ?=(^ meta.u.full)  =(eid.u.meta.u.full eid.t)  =(creator.u.full author.t)
+          ==
+        =/  env-match=?
+          ?&  ?=(^ env-a)  =(aid.u.env-a aid)
+              ?=(^ meta.u.env-a)  =(eid.u.meta.u.env-a eid.t)  =(author.u.env-a author.t)
+          ==
+        =/  new-arts=(map @ta artifact:noltbook)  ?:(full-match (~(del by artifacts) aid) artifacts)
+        =/  new-aenvs=(map @ta artifact-envelope:noltbook)  ?:(env-match (~(del by aenvs) aid) aenvs)
+        =/  removed=?  |(full-match env-match)
+        =/  new-notes=(map @ta note:noltbook)
+          ?.  removed  notes
+          %+  ~(put by notes)  nid
+          %:  recompute-mesh-note  u.nt
+            (fall (~(get by messages) nid) ~)
+            (fall (~(get by gossip-envelopes) nid) *(map @da envelope:noltbook))
+            new-aenvs
+          ==
+        =/  fe-cards=(list card)
+          ?.  removed  ~
+          =/  du=update:noltbook  [%mesh-entry-deleted nid `eid.t `aid ~]
+          ~[(gf-paths ~[pax] du) (gf-notes du)]
+        :_  state(mesh-tombs new-tombs, mesh-tomb-meta new-meta, artifacts new-arts, artifact-envelopes (~(put by artifact-envelopes) nid new-aenvs), notes new-notes, note-pins new-pins)
+        :(weld fe-cards pin-clear-cards relay)
+      ::  TEXT: remove local message/envelope by eid + author. The FE removal (msg-id from the
+      ::  canonical record) drops even ephemeral remote text that was never stored in messages.
+      =/  mid=@da  (need msg-id.t)
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) nid) ~)
+      =/  cenv=(map @da envelope:noltbook)
+        (fall (~(get by gossip-envelopes) nid) *(map @da envelope:noltbook))
+      =/  kept-msgs=(list message:noltbook)
+        (skip cur |=(m=message:noltbook ?&(?=(^ meta.m) =(eid.u.meta.m eid.t) =(author.m author.t))))
+      =/  new-cenv=(map @da envelope:noltbook)
+        %-  ~(gas by *(map @da envelope:noltbook))
+        %+  skip  ~(tap by cenv)
+        |=([k=@da e=envelope:noltbook] ?&(?=(^ meta.e) =(eid.u.meta.e eid.t) =(author.e author.t)))
+      =/  removed=?  |(!=((lent kept-msgs) (lent cur)) !=(~(wyt by new-cenv) ~(wyt by cenv)))
+      =/  new-notes=(map @ta note:noltbook)
+        ?.  removed  notes
+        %+  ~(put by notes)  nid
+        %:  recompute-mesh-note  u.nt  kept-msgs  new-cenv
+          (fall (~(get by artifact-envelopes) nid) *(map @ta artifact-envelope:noltbook))
+        ==
+      =/  fe-cards=(list card)
+        ?.  removed  ~
+        =/  du=update:noltbook  [%mesh-entry-deleted nid `eid.t ~ `mid]
+        ~[(gf-paths ~[pax] du) (gf-notes du)]
+      :_  state(mesh-tombs new-tombs, mesh-tomb-meta new-meta, messages (~(put by messages) nid kept-msgs), gossip-envelopes (~(put by gossip-envelopes) nid new-cenv), notes new-notes, note-pins new-pins)
+      :(weld fe-cards pin-clear-cards relay)
+    ::
+        %remote-mesh-delete-hint
+      ::  {eid, author} only — fully untrusted, can NEVER determine a mutation. Suppress the
+      ::  verify ONLY when we already hold the hinted author's OWN canonical record for this
+      ::  eid; an unrelated record (or a bare-set eid) must not suppress verification.
+      =/  hrec  (~(get by mesh-tomb-meta) eid.rem)
+      ?:  ?&(?=(^ hrec) =(author.u.hrec author.rem))  `state
+      ?:  =(author.rem our.bowl)  `state
+      :_  state
+      ~[(rpoke /mesh-verify/(scot %p author.rem) author.rem `remote:noltbook`[%remote-mesh-delete-verify eid.rem])]
+    ::
+        %remote-mesh-delete-verify
+      ::  EID only. We (the claimed author) confirm ONLY from our stored CANONICAL record —
+      ::  never echoing requester fields — replying with the authoritative record iff we hold
+      ::  it and we authored it. Block state is irrelevant to authenticated cleanup.
+      =/  rec  (~(get by mesh-tomb-meta) eid.rem)
+      ?~  rec  `state
+      ?.  =(author.u.rec our.bowl)  `state
+      :_  state
+      ~[(rpoke /mesh-confirm/(scot %p src.bowl) src.bowl `remote:noltbook`[%remote-mesh-delete u.rec])]
+    ::  ===== ordinary-DM origin-hosting wires =====
+    ::  Phase 3: protocol advertisement is inert. Both ships run the same build, so DM
+    ::  reference delivery is unconditional and never gated on a stored version. The wire
+    ::  variant + peer-proto field stay dormant (no state revision); nothing acts on them.
+        %remote-proto-advertise  `state
+    ::  receive a %file/%app reference (metadata only; no bytes, no descriptor, no Clay).
+    ::  local DM by the authenticated {our,src} pair; recreate it if missing.
+        %remote-dm-ref-upsert
+      ?:  (~(has in pal-blocked) src.bowl)  `state
+      =/  pnote=note:noltbook          note.rem
+      =/  r=dm-artifact-ref:noltbook   ref.rem
+      ::  %file OR %app only; shape must match type (file-meta present iff %file; an %app
+      ::  reference must never carry file-meta or any descriptor content).
+      ?.  ?|(=(%file type.r) =(%app type.r))  `state
+      ?:  &(=(%file type.r) ?=(~ file-meta.r))  `state
+      ?:  &(=(%app type.r) ?=(^ file-meta.r))  `state
+      ?.  =(src.bowl creator.r)  `state
+      ?.  =(eid.r (sham [creator.r aid.r]))  `state
+      ?.  =(%dm type.pnote)  `state
+      ?.  =(2 ~(wyt in users.pnote))  `state
+      ?.  (~(has in users.pnote) our.bowl)  `state
+      ?.  (~(has in users.pnote) src.bowl)  `state
+      ?.  =(~ removed.pnote)  `state
+      ?.  =(`(set @p)`(sy ~[our.bowl src.bowl]) users.pnote)  `state
+      ::  terminal tombstone dominates forever
+      ?:  (~(has by dm-artifact-tombs) eid.r)  `state
+      =/  existing=(unit note:noltbook)  (find-dm-root notes (sy ~[our.bowl src.bowl]))
+      ?:  ?&(?=(^ existing) (~(has by actor-dm-notes) id.u.existing))  `state
+      ?:  ?&(?=(^ existing) !=(~ removed.u.existing))  `state
+      =/  install-fresh=note:noltbook  (apply-dm-pref pnote dm-prefs our.bowl)
+      =/  lnid=@ta  ?~(existing id.pnote id.u.existing)
+      =/  had-note=?  (~(has by notes) lnid)
+      =/  note-cards=(list card)
+        ?:  had-note  ~
+        ~[(gf-notes `update:noltbook`[%note-created install-fresh])]
+      =/  cur-ref  (~(get by dm-artifact-refs) eid.r)
+      =/  stored=dm-artifact-ref:noltbook  r(note-id lnid)
+      ::  recreate a locally-left DM in EVERY outcome (never with activity/preview churn).
+      =?  notes     !had-note  (~(put by notes) lnid install-fresh)
+      =?  messages  !had-note  (~(put by messages) lnid ~)
+      ::  P1: idempotent revision semantics.
+      ::  - strictly OLDER incoming rev => reject (no ref/activity/fact change).
+      ::  - EQUAL rev + identical immutable identity + empty stored hash => silently fill the
+      ::    hash (hashless-migrated enrichment); NO activity/unread/sidebar/post facts.
+      ::  - EQUAL rev otherwise => complete no-op (never replace a known hash/immutable field).
+      ::  - NEW eid OR strictly NEWER rev => full accept (post behavior + facts).
+      ?:  ?&(?=(^ cur-ref) (gth rev.u.cur-ref rev.r))
+        :_  state  note-cards
+      ?:  ?&(?=(^ cur-ref) =(rev.u.cur-ref rev.r))
+        =/  c=dm-artifact-ref:noltbook  u.cur-ref
+        =/  id-ok=?
+          ?&  =(creator.c creator.r)  =(aid.c aid.r)  =(type.c type.r)
+              =(created.c created.r)  =(reply-to-eid.c reply-to-eid.r)
+          ==
+        ?:  ?&(id-ok ?=(~ content-hash.c) ?=(^ content-hash.r))
+          :_  state(dm-artifact-refs (~(put by dm-artifact-refs) eid.r c(content-hash content-hash.r)))
+          note-cards
+        :_  state  note-cards
+      ::  accept (fresh insert or strictly newer revision).
+      =/  base-note=note:noltbook  (~(got by notes) lnid)
+      =/  prev=@t  ?:(=(%app type.r) 'shared an app' 'shared a file')
+      =/  upd-note=note:noltbook  base-note(last-author `src.bowl, last-preview `prev)
+      =/  upd=update:noltbook  [%dm-ref-upserted stored]
+      :_  %=  state
+            notes     (~(put by notes) lnid upd-note)
+            dm-artifact-refs  (~(put by dm-artifact-refs) eid.r stored)
+            note-activity  (put-activity note-activity lnid now.bowl)
+            note-unread-activity  (put-unread-activity note-unread-activity lnid now.bowl)
+          ==
+      %+  weld  note-cards
+      :~  (gf-paths ~[/notes/[lnid]] upd)
+          (gf-notes upd)
+          (activity-fact lnid now.bowl)
+          (unread-activity-fact lnid now.bowl)
+      ==
+    ::  receive a terminal %file/%app deletion. The tombstone is terminal regardless of rev
+    ::  and blocks any future upsert/content response for this EID.
+        %remote-dm-ref-delete
+      =/  pnote=note:noltbook          note.rem
+      =/  t=dm-artifact-tomb:noltbook  tomb.rem
+      ?.  ?|(=(%file type.t) =(%app type.t))  `state
+      ?.  =(src.bowl creator.t)  `state
+      ?.  =(eid.t (sham [creator.t aid.t]))  `state
+      ?.  =(%dm type.pnote)  `state
+      ?.  =(2 ~(wyt in users.pnote))  `state
+      ?.  (~(has in users.pnote) our.bowl)  `state
+      ?.  (~(has in users.pnote) src.bowl)  `state
+      ?.  =(`(set @p)`(sy ~[our.bowl src.bowl]) users.pnote)  `state
+      =/  existing=(unit note:noltbook)  (find-dm-root notes (sy ~[our.bowl src.bowl]))
+      ?:  ?&(?=(^ existing) (~(has by actor-dm-notes) id.u.existing))  `state
+      =/  lnid=@ta  ?~(existing note-id.t id.u.existing)
+      =/  local-tomb=dm-artifact-tomb:noltbook  t(note-id lnid)
+      =/  pin-hit=?
+        =/  pn  (~(get by note-pins) lnid)
+        ?~  pn  %.n
+        &(=(%artifact kind.u.pn) =(eid.t target.u.pn))
+      =/  new-pins=(map @ta note-pin:noltbook)  ?:(pin-hit (~(del by note-pins) lnid) note-pins)
+      =/  pin-clear-cards=(list card)  ?:(pin-hit (pin-cards lnid ~) ~)
+      =/  upd=update:noltbook  [%dm-ref-deleted eid.t aid.t lnid]
+      ::  P2: complete any in-flight fetches for this EID with 404 now; their later content
+      ::  responses and timeout wakes become no-ops (pending entries removed).
+      =/  flushed  (flush-pending-for-eid eid.t pending-dm-fetches)
+      :_  state(dm-artifact-refs (~(del by dm-artifact-refs) eid.t), dm-artifact-tombs (~(put by dm-artifact-tombs) eid.t local-tomb), note-pins new-pins, pending-dm-fetches +.flushed)
+      %-  zing
+      :~  ~[(gf-paths ~[/notes/[lnid]] upd) (gf-notes upd)]
+          pin-clear-cards
+          -.flushed
+      ==
+    ::  creator: serve current %file bytes (Clay) or %app descriptor (state) ephemerally,
+    ::  or gone (tombstoned) / unavailable (missing/unreadable).
+        %remote-dm-content-fetch
+      =/  unavail=(list card)
+        ~[(rpoke /dm-unavail/(scot %p src.bowl)/[eyre-id.rem] src.bowl `remote:noltbook`[%remote-dm-content-unavailable eyre-id.rem eid.rem])]
+      ::  P2: identity + membership gate BEFORE any tombstone reveal, so an unrelated ship
+      ::  cannot probe arbitrary EIDs. The EID must be our own (sham [our aid]); the requester
+      ::  must be the other member of our ordinary DM (authenticated {our,src} pair).
+      ?.  =(eid.rem (sham [our.bowl aid.rem]))  `state
+      ?:  (~(has in pal-blocked) src.bowl)  `state
+      =/  pair-dm=(unit note:noltbook)  (find-dm-root notes (sy ~[our.bowl src.bowl]))
+      ?~  pair-dm  `state
+      ?.  (is-ordinary-dm u.pair-dm actor-dm-notes)  `state
+      ?:  (~(has by dm-artifact-tombs) eid.rem)
+        =/  t  (~(got by dm-artifact-tombs) eid.rem)
+        ?.  &(=(aid.t aid.rem) =(our.bowl creator.t))  `state
+        :_  state
+        ~[(rpoke /dm-gone/(scot %p src.bowl)/[eyre-id.rem] src.bowl `remote:noltbook`[%remote-dm-content-gone eyre-id.rem t])]
+      =/  art  (~(get by artifacts) aid.rem)
+      ::  missing authoritative artifact => unavailable now (not a silent wait to timeout)
+      ?~  art  [unavail state]
+      ?.  =(our.bowl creator.u.art)  `state
+      =/  nt  (~(get by notes) note-id.u.art)
+      ?~  nt  `state
+      ?.  (is-ordinary-dm u.nt actor-dm-notes)  `state
+      ?:  (~(has in pal-blocked) src.bowl)  `state
+      ?.  (~(has in users.u.nt) src.bowl)  `state
+      ?:  (~(has in removed.u.nt) src.bowl)  `state
+      ?.  (~(has in users.u.nt) our.bowl)  `state
+      ::  kind must match the artifact's actual type
+      ?.  =(kind.rem ?:(=(%app type.u.art) %app %file))  `state
+      ?:  =(%app type.u.art)
+        ::  %app: serve the current descriptor from the artifacts map (never Clay).
+        ?~  versions.u.art  [unavail state]
+        =/  content=@t  content:(rear versions.u.art)
+        ?.  (valid-app-artifact-content content)  [unavail state]
+        =/  ref=(unit dm-artifact-ref:noltbook)  (dm-ref-of u.art note-id.u.art `(sham content))
+        ?~  ref  [unavail state]
+        :_  state
+        ~[(rpoke /dm-content/(scot %p src.bowl)/[eyre-id.rem] src.bowl `remote:noltbook`[%remote-dm-app-content eyre-id.rem u.ref content])]
+      ::  %file: serve current bytes from the separate %noltbook-data desk (never q.byk.bowl)
+      =/  scry-res  (art-store-read our.bowl now.bowl aid.rem)
+      ?~  scry-res  [unavail state]
+      =/  mim=mime  u.scry-res
+      =/  mtype=@t  (rap 3 (join '/' p.mim))
+      =/  ref=(unit dm-artifact-ref:noltbook)  (dm-ref-of u.art note-id.u.art `(sham q.q.mim))
+      ?~  ref  [unavail state]
+      :_  state
+      ~[(rpoke /dm-content/(scot %p src.bowl)/[eyre-id.rem] src.bowl `remote:noltbook`[%remote-dm-file-content eyre-id.rem u.ref mtype q.mim])]
+    ::  requester: complete the held HTTP request with fetched %file bytes; never persist.
+    ::  P2: any authenticated-but-mismatched/stale/tombstoned response completes the held
+    ::  request with 404 (never hangs to timeout); a stranger's response is ignored.
+        %remote-dm-file-content
+      =/  pend  (~(get by pending-dm-fetches) eyre-id.rem)
+      ?~  pend  `state
+      ?.  =(src.bowl creator.u.pend)  `state
+      =/  fail-404
+        :_  state(pending-dm-fetches (~(del by pending-dm-fetches) eyre-id.rem))
+        (give-simple-payload:app:server eyre-id.rem `simple-payload:http`[[404 ~] ~])
+      ?.  ?=(%file kind.u.pend)  fail-404
+      ?.  =(eid.ref.rem eid.u.pend)  fail-404
+      ?.  =(aid.ref.rem aid.u.pend)  fail-404
+      ?.  =(%file type.ref.rem)  fail-404
+      ?.  =(src.bowl creator.ref.rem)  fail-404
+      ?.  =(eid.ref.rem (sham [creator.ref.rem aid.ref.rem]))  fail-404
+      ::  tombstoned while pending => 404, never the bytes.
+      ?:  (~(has by dm-artifact-tombs) eid.u.pend)  fail-404
+      ::  require a currently LIVE matching reference, not older than the response.
+      =/  cur-ref  (~(get by dm-artifact-refs) eid.u.pend)
+      ?~  cur-ref  fail-404
+      ?.  =(aid.u.cur-ref aid.ref.rem)  fail-404
+      ?:  (gth rev.u.cur-ref rev.ref.rem)  fail-404
+      ?~  content-hash.ref.rem  fail-404
+      ?.  =(u.content-hash.ref.rem (sham q.bytes.rem))  fail-404
+      ::  enrich the live ref (same-rev hash fill or newer); never downgrade.
+      =.  dm-artifact-refs
+        %+  ~(put by dm-artifact-refs)  eid.u.pend
+        u.cur-ref(rev rev.ref.rem, content-hash content-hash.ref.rem, file-meta file-meta.ref.rem, name name.ref.rem, updated updated.ref.rem)
+      =/  hdrs=(list [@t @t])
+        :~  ['content-type' mime.rem]
+            ['cache-control' 'no-store']
+        ==
+      =/  =simple-payload:http  [[200 hdrs] `bytes.rem]
+      :_  state(pending-dm-fetches (~(del by pending-dm-fetches) eyre-id.rem))
+      (give-simple-payload:app:server eyre-id.rem simple-payload)
+    ::  requester: complete the held HTTP request with the fetched %app descriptor; never
+    ::  persist it (no state.artifacts, no Clay, no durable cache — only the HTTP body).
+    ::  P2: mismatched/stale/tombstoned responses complete with 404; strangers are ignored.
+        %remote-dm-app-content
+      =/  pend  (~(get by pending-dm-fetches) eyre-id.rem)
+      ?~  pend  `state
+      ?.  =(src.bowl creator.u.pend)  `state
+      =/  fail-404
+        :_  state(pending-dm-fetches (~(del by pending-dm-fetches) eyre-id.rem))
+        (give-simple-payload:app:server eyre-id.rem `simple-payload:http`[[404 ~] ~])
+      ?.  ?=(%app kind.u.pend)  fail-404
+      ?.  =(eid.ref.rem eid.u.pend)  fail-404
+      ?.  =(aid.ref.rem aid.u.pend)  fail-404
+      ?.  =(%app type.ref.rem)  fail-404
+      ?.  =(src.bowl creator.ref.rem)  fail-404
+      ?.  =(eid.ref.rem (sham [creator.ref.rem aid.ref.rem]))  fail-404
+      ?:  (~(has by dm-artifact-tombs) eid.u.pend)  fail-404
+      =/  cur-ref  (~(get by dm-artifact-refs) eid.u.pend)
+      ?~  cur-ref  fail-404
+      ?.  =(aid.u.cur-ref aid.ref.rem)  fail-404
+      ?:  (gth rev.u.cur-ref rev.ref.rem)  fail-404
+      ?.  (valid-app-artifact-content content.rem)  fail-404
+      ?~  content-hash.ref.rem  fail-404
+      ?.  =(u.content-hash.ref.rem (sham content.rem))  fail-404
+      =.  dm-artifact-refs
+        %+  ~(put by dm-artifact-refs)  eid.u.pend
+        u.cur-ref(rev rev.ref.rem, content-hash content-hash.ref.rem, name name.ref.rem, updated updated.ref.rem)
+      =/  hdrs=(list [@t @t])
+        :~  ['content-type' 'application/json']
+            ['cache-control' 'no-store']
+        ==
+      =/  =simple-payload:http  [[200 hdrs] `(as-octs:mimes:html content.rem)]
+      :_  state(pending-dm-fetches (~(del by pending-dm-fetches) eyre-id.rem))
+      (give-simple-payload:app:server eyre-id.rem simple-payload)
+    ::  Part 9: content temporarily unavailable — 503, keep the live reference.
+        %remote-dm-content-unavailable
+      =/  pend  (~(get by pending-dm-fetches) eyre-id.rem)
+      ?~  pend  `state
+      ?.  =(src.bowl creator.u.pend)  `state
+      ?.  =(eid.rem eid.u.pend)  `state
+      :_  state(pending-dm-fetches (~(del by pending-dm-fetches) eyre-id.rem))
+      (give-simple-payload:app:server eyre-id.rem `simple-payload:http`[[503 ~] ~])
+    ::  Part 9: content authoritatively deleted — 404, store terminal tomb, drop ref.
+        %remote-dm-content-gone
+      =/  pend  (~(get by pending-dm-fetches) eyre-id.rem)
+      ?~  pend  `state
+      ?.  =(src.bowl creator.u.pend)  `state
+      =/  t=dm-artifact-tomb:noltbook  tomb.rem
+      ?.  =(eid.t eid.u.pend)  `state
+      ?.  =(src.bowl creator.t)  `state
+      ?.  =(eid.t (sham [creator.t aid.t]))  `state
+      =/  ex  (~(get by dm-artifact-refs) eid.t)
+      =/  lnid=@ta  ?~(ex note-id.t note-id.u.ex)
+      =/  local-tomb=dm-artifact-tomb:noltbook  t(note-id lnid)
+      =/  pin-hit=?
+        =/  pn  (~(get by note-pins) lnid)
+        ?~  pn  %.n
+        &(=(%artifact kind.u.pn) =(eid.t target.u.pn))
+      =/  new-pins=(map @ta note-pin:noltbook)  ?:(pin-hit (~(del by note-pins) lnid) note-pins)
+      =/  pin-clear-cards=(list card)  ?:(pin-hit (pin-cards lnid ~) ~)
+      =/  upd=update:noltbook  [%dm-ref-deleted eid.t aid.t lnid]
+      ::  P2: 404 EVERY pending fetch for this EID (incl. this eyre-id), then install the tomb.
+      =/  flushed  (flush-pending-for-eid eid.t pending-dm-fetches)
+      :_  %=  state
+            dm-artifact-refs    (~(del by dm-artifact-refs) eid.t)
+            dm-artifact-tombs   (~(put by dm-artifact-tombs) eid.t local-tomb)
+            note-pins           new-pins
+            pending-dm-fetches  +.flushed
+          ==
+      %-  zing
+      :~  -.flushed
+          ~[(gf-paths ~[/notes/[lnid]] upd) (gf-notes upd)]
+          pin-clear-cards
+      ==
     ==
 ::  action-vase: action:noltbook -> vase. One !> of the action type-noun lives here
 ::  so the API->action re-entries recurse through vase without re-embedding the cast 59x.
@@ -10016,6 +11747,96 @@
   ^-  (list card:agent:gall)
   ?:  (human-sees-note nid who nm owners nmap)  cards
   (drop-local-notes-facts cards)
+::  delete-note-artifact: the single authoritative shared-note (%group/%notebook) artifact
+::  deletion path. Callable by the host directly (sender=our.bowl) or via the host-bound
+::  %remote-artifact-delete wire (sender=src.bowl). WE must host the note. Validates the
+::  sender is a current permitted participant AND is the artifact creator, the note host,
+::  or a current admin. On success it installs a terminal aid-keyed tombstone (blocking any
+::  replayed create/update resurrection), removes the artifact + any pin targeting it,
+::  appends a durable \01SYS:art-delete control message carrying the deleter's role
+::  (author/host/admin, derived from the authenticated sender), and broadcasts both
+::  %artifact-deleted and the system %new-message on /notes/[nid]. Every validation failure
+::  — unknown/foreign note, not hosted here, wrong type, non-member, missing/foreign
+::  artifact, already-tombstoned, or unauthorized sender — is a harmless no-op ([~ st]), so
+::  duplicate and replayed requests neither mutate state nor emit a marker.
+++  delete-note-artifact
+  |=  [=bowl:gall sender=@p nid=@ta aid=@ta st=state-71]
+  ^-  [(list card:agent:gall) state-71]
+  =/  nt  (~(get by notes.st) nid)
+  ?~  nt  [~ st]
+  ::  we must host this note; shared %group/%notebook only
+  ?.  =(our.bowl creator.u.nt)  [~ st]
+  ?.  ?|(?=(%group type.u.nt) ?=(%notebook type.u.nt))  [~ st]
+  ::  actor DMs are represented as %group notes but are explicitly OUT of scope: never
+  ::  intercept them here. Their artifact deletion keeps its pre-change behavior.
+  ?:  (~(has by actor-dm-notes.st) nid)  [~ st]
+  ::  sender must be a current, non-removed participant
+  ?.  (~(has in users.u.nt) sender)  [~ st]
+  ?:  (~(has in removed.u.nt) sender)  [~ st]
+  ::  target artifact must exist AND belong to this note
+  =/  art  (~(get by artifacts.st) aid)
+  ?~  art  [~ st]
+  ?.  =(nid note-id.u.art)  [~ st]
+  ::  scope: only %file/%app artifacts. %code (and any other) falls through to its
+  ::  pre-change behavior — this path never touches it.
+  ?.  ?|(=(%file type.u.art) =(%app type.u.art))  [~ st]
+  ::  terminal tombstone already present => no-op (defensive; blocks dupes/races)
+  ?:  (~(has by note-artifact-tombs.st) aid)  [~ st]
+  ::  authority: artifact creator, note host, or current admin
+  =/  admins=(set @p)  (fall (~(get by note-admins.st) nid) ~)
+  =/  is-creator=?  =(sender creator.u.art)
+  =/  is-host=?     =(sender our.bowl)
+  =/  is-admin=?    (~(has in admins) sender)
+  ?.  ?|(is-creator is-host is-admin)  [~ st]
+  ::  role for the durable marker — creator-first, then host, then admin
+  =/  role=tape  ?:(is-creator "author" ?:(is-host "host" "admin"))
+  =/  eid=@uv  (dm-artifact-eid u.art)
+  ::  clear an active pin that targeted this artifact (host-authoritative)
+  =/  pin-hit=?
+    =/  pn  (~(get by note-pins.st) nid)
+    ?~  pn  %.n
+    &(=(%artifact kind.u.pn) =(eid target.u.pn))
+  =/  new-pins=(map @ta note-pin:noltbook)
+    ?:(pin-hit (~(del by note-pins.st) nid) note-pins.st)
+  =/  pin-clear-cards=(list card:agent:gall)  ?:(pin-hit (pin-cards nid ~) ~)
+  ::  terminal tombstone (aid-keyed), installed atomically with artifact removal
+  =/  tomb=note-artifact-tomb:noltbook  [aid eid creator.u.art nid sender now.bowl]
+  ::  durable deletion marker — reuse the \01SYS control-message mechanism (renders as a
+  ::  compact system line; no user-authored content, no edit/delete controls). It is a
+  ::  normal modern hosted-note entry: allocate the next per-note sequence and stamp
+  ::  entry-meta with a deterministic EID (over stable, authenticated deletion inputs),
+  ::  that sequence, rev 0, created/updated=now, reply-to-eid=~. author is the AUTHENTICATED
+  ::  sender (the deleter), so the deleter does not receive their own marker as unread.
+  =/  txt=@t
+    (crip ;:(weld "\01SYS:art-delete:" role ":" (trip (scot %p sender))))
+  =/  cur-seq=@ud  (fall (~(get by seq-counters.st) nid) 0)
+  =/  nxt-seq=@ud  +(cur-seq)
+  =/  marker-eid=@uv  (sham [%art-delete our.bowl nid aid sender now.bowl nxt-seq])
+  =/  em=(unit entry-meta:noltbook)
+    `[marker-eid nxt-seq 0 now.bowl now.bowl ~]
+  =/  sys-msg=message:noltbook  [now.bowl nid sender txt now.bowl ~ %.n em]
+  =/  old-msgs=(list message:noltbook)  (fall (~(get by messages.st) nid) ~)
+  =/  new-msgs=(list message:noltbook)  (snoc old-msgs sys-msg)
+  =/  del-upd=update:noltbook  [%artifact-deleted aid]
+  =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~ ~]
+  =/  pax=path  ~[%notes nid]
+  =/  st2=state-71
+    %=  st
+      artifacts             (~(del by artifacts.st) aid)
+      note-pins             new-pins
+      note-artifact-tombs   (~(put by note-artifact-tombs.st) aid tomb)
+      messages              (~(put by messages.st) nid new-msgs)
+      seq-counters          (~(put by seq-counters.st) nid nxt-seq)
+    ==
+  :_  st2
+  %:  human-note-cards  nid  our.bowl
+      note-members.st  note-actor-owners.st  notes.st
+    ;:  weld
+      ~[(gf-paths ~[pax] del-upd)]
+      ~[(gf-paths ~[pax] msg-upd)]
+      pin-clear-cards
+    ==
+  ==
 ::  drop-local-relay-facts (1B.3): for the on-agent SUBSCRIBER relay, the local browser
 ::  subscribes to BOTH ~[/notes] and ~[/notes/[nid]], so a transport-only carrier must
 ::  drop a single-path give-fact on EITHER (any path whose head is %notes). Preserves
@@ -10103,7 +11924,7 @@
   ~[(gf-paths paths `update:noltbook`[%app-notifications-updated ~(val by live)])]
 --
 %-  agent:dbug
-=|  state-66
+=|  state-71
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -10116,7 +11937,7 @@
   =/  cover=note:noltbook  [%cover 'ARS NOTORIA' %cover our.bowl (sy ~[our.bowl]) ~ ~ ~ ~ %secret ~ & ~ ~]
   =/  rumors=note:noltbook  [%ars-rumors 'RUMORS' %cover our.bowl (sy ~[our.bowl]) ~ ~ ~ ~ %secret ~ & ~ ~]
   :_  this(notes (~(put by (~(put by notes) %cover cover)) %ars-rumors rumors), messages (~(put by (~(put by messages) %cover *(list message:noltbook))) %ars-rumors *(list message:noltbook)))
-  ~[bind]
+  (weld ~[bind] (ensure-data-desk bowl))
 ++  on-save   !>(state)
 ++  on-load
   |=  old=vase
@@ -10187,21 +12008,41 @@
   ?:  ?=([%64 *] q.old)
     =/  s64  !<(state-64 old)
     $(old !>((upgrade-64-to-65 our.bowl s64)))
-  ?:  ?=([%66 *] q.old)
-    =/  loaded  !<(state-66 old)
-    =/  loaded=state-66
+  ?:  ?=([%67 *] q.old)
+    =/  s67  !<(state-67 old)
+    $(old !>((upgrade-67-to-68 s67)))
+  ?:  ?=([%68 *] q.old)
+    =/  s68  !<(state-68 old)
+    $(old !>((upgrade-68-to-69 s68)))
+  ?:  ?=([%69 *] q.old)
+    =/  s69  !<(state-69 old)
+    $(old !>((upgrade-69-to-70 s69)))
+  ?:  ?=([%70 *] q.old)
+    =/  s70  !<(state-70 old)
+    $(old !>((upgrade-70-to-71 s70)))
+  ?:  ?=([%71 *] q.old)
+    =/  loaded  !<(state-71 old)
+    =/  loaded=state-71
       %=  loaded
         active-calls       *(map @ta call-info:noltbook)
         note-members       (ensure-note-members note-members.loaded notes.loaded note-actor-owners.loaded)
         app-notifications  (app-notifications-live app-notifications.loaded now.bowl)
       ==
+    ::  idempotent normalization of remote-owned ordinary-DM %file/%app artifacts into
+    ::  content-free references (no content read/write; nothing serveable by a noncreator).
+    =/  loaded=state-71  (migrate-dm-artifacts our.bowl loaded)
     =/  prof  (fall (~(get by profiles.loaded) our.bowl) *profile:noltbook)
     =/  prof-cards=(list card)
       %+  turn  ~(tap in peers.loaded)
       |=  p=@p
       ^-  card
       (rpoke /prof-out/(scot %p p) p `remote:noltbook`[%remote-profile our.bowl prof])
-    [prof-cards this(state loaded)]
+    ::  Phase 3: no protocol advertisement — both ships run the same build. DM reference
+    ::  delivery is unconditional; peer-proto is left dormant (no state revision).
+    [(weld prof-cards (ensure-data-desk bowl)) this(state loaded)]
+  ?:  ?=([%66 *] q.old)
+    =/  s66  !<(state-66 old)
+    $(old !>((upgrade-66-to-67 s66)))
   ?:  ?=([%65 *] q.old)
     =/  loaded  !<(state-65 old)
     ::  fix: ensure cover note exists and is keyed as %cover
@@ -10683,10 +12524,12 @@
       [%api %results ~]
     ::  same-ship %noltbook-api clients observe per-request result facts here.
     ::  No backlog/initial state: results are only emitted live going forward.
+    ?>  =(src.bowl our.bowl)
     `this
   ::
       [%notes ~]
     ::  local frontend only
+    ?>  =(src.bowl our.bowl)
     =/  sys  (ensure-system-notes notes messages our.bowl)
     =/  notes-now=(map @ta note:noltbook)  notes.sys
     =/  messages-now=(map @ta (list message:noltbook))  messages.sys
@@ -10698,7 +12541,7 @@
       (visible-note-ids our.bowl note-members note-actor-owners notes-now)
     =/  note-list=(list note:noltbook)
       (skim ~(val by notes-now) |=(n=note:noltbook (~(has in vis-set) id.n)))
-    =/  upd=update:noltbook  [%note-list note-list]
+    =/  upd=update:noltbook  [%note-list note-list import-only-dms]
     =/  prof-list=(list [@p profile:noltbook])  ~(tap by profiles)
     =/  pupd=update:noltbook  [%profile-list prof-list]
     =/  pal-set=(set @p)
@@ -10918,8 +12761,19 @@
       =/  live  (live-actor-dm nid notes-now actor-dm-notes)
       ?~  live  ~
       `(gf-paths ~ `update:noltbook`[%actor-dm-updated nid `u.live])
+    ::  Part 11: authoritative per-DM %file reference snapshots (only DMs that have refs).
+    =/  dm-ref-cards=(list card)
+      %-  zing
+      %+  turn  ~(tap by notes-now)
+      |=  [nid=@ta n=note:noltbook]
+      ^-  (list card)
+      ?.  (~(has in vis-set) nid)  ~
+      ?.  (is-ordinary-dm n actor-dm-notes)  ~
+      =/  rl=(list dm-artifact-ref:noltbook)  (dm-refs-for-note nid dm-artifact-refs)
+      ?~  rl  ~
+      ~[(gf-paths ~ `update:noltbook`[%dm-ref-list nid rl])]
     :_  this(notes notes-now, messages messages-now, notification-acks pruned-acks, note-activity pruned-activity, note-unread-activity pruned-unread-activity, note-read pruned-read, app-notifications pruned-app-notifications)
-    :(weld init-cards pal-sync-cards mention-cards attention-cards call-cards active-cards jr-cards role-cards bb-cards hs-cards lineage-cards pfi-cards ack-cards activity-cards read-cards unread-activity-cards user-prefs-cards app-notification-cards actor-dm-cards)
+    :(weld init-cards pal-sync-cards mention-cards attention-cards call-cards active-cards jr-cards role-cards bb-cards hs-cards lineage-cards pfi-cards ack-cards activity-cards read-cards unread-activity-cards user-prefs-cards app-notification-cards actor-dm-cards dm-ref-cards)
   ::
       [%notes @ ~]
     =/  nid=@ta  i.t.path
@@ -10931,12 +12785,14 @@
     ?>  ?|  ?&  =(src.bowl our.bowl)
                 (human-sees-note nid our.bowl note-members note-actor-owners notes)
             ==
+            ?&  !(~(has in import-only-dms) nid)
+                =/  note  (~(get by notes) nid)
+                ?&  ?=(^ note)
+                    (~(has in users.u.note) src.bowl)
+                ==
+            ==
             =(nid %cover)
             =(nid %ars-rumors)
-            =/  note  (~(get by notes) nid)
-            ?&  ?=(^ note)
-                (~(has in users.u.note) src.bowl)
-            ==
         ==
     =/  msgs=(list message:noltbook)  (fall (~(get by messages) nid) ~)
     =/  arts=(list artifact:noltbook)
@@ -10953,7 +12809,9 @@
     =/  init-cards=(list card)
       ?.  is-gossip-note
         ::  non-gossip: always send full messages + the via rows for this snapshot
-        ~[(gf-paths ~ `update:noltbook`[%message-list nid msgs arts (api-via-snapshot msgs arts via-by-eid) (api-actor-snapshot msgs actor-by-eid)])]
+        =/  served-msgs=(list message:noltbook)
+          ?:(is-local msgs (dm-import-free-messages msgs dm-imports))
+        ~[(gf-paths ~ `update:noltbook`[%message-list nid served-msgs arts (api-via-snapshot served-msgs arts via-by-eid) (api-actor-snapshot served-msgs actor-by-eid) ?:(is-local (dm-import-snapshot served-msgs dm-imports) ~)])]
       ?:  is-local
         ::  local frontend: own-authored messages + all envelopes for re-fetch
         ::  Phase 11C hardening: hydrate stored envs' via before sending.
@@ -10961,7 +12819,7 @@
         =/  env-cards=(list card)
           ?~  all-envs  ~
           ~[(gf-paths ~ `update:noltbook`[%envelope-list nid all-envs])]
-        [(gf-paths ~ `update:noltbook`[%message-list nid msgs arts (api-via-snapshot msgs arts via-by-eid) (api-actor-snapshot msgs actor-by-eid)]) env-cards]
+        [(gf-paths ~ `update:noltbook`[%message-list nid msgs arts (api-via-snapshot msgs arts via-by-eid) (api-actor-snapshot msgs actor-by-eid) (dm-import-snapshot msgs dm-imports)]) env-cards]
       ::  remote peer: send envelopes for everything (own msgs as envelopes too).
       ::  Phase 11C: recover via from via-by-eid so a new remote subscriber's
       ::  envelope snapshot carries attribution.
@@ -11040,8 +12898,15 @@
       =/  aenvs  ~(val by aenv-map)
       ?~  aenvs  ~
       ~[(gf-paths ~ `update:noltbook`[%artifact-envelope-list nid aenvs])]
+    ::  Part 11: authoritative %file reference snapshot for a LOCAL ordinary-DM open
+    ::  (replacement semantics; an empty list clears any stale frontend refs).
+    =/  dm-ref-snapshot-cards=(list card)
+      ?.  is-local  ~
+      ?~  note-for-type  ~
+      ?.  (is-ordinary-dm u.note-for-type actor-dm-notes)  ~
+      ~[(gf-paths ~ `update:noltbook`[%dm-ref-list nid (dm-refs-for-note nid dm-artifact-refs)])]
     :_  this(peers new-peers)
-    :(weld init-cards ~[(gf-paths ~ pupd)] intro-cards call-cards note-role-cards pin-snapshot-cards active-snapshot-cards jr-admin-cards art-env-cards)
+    :(weld init-cards ~[(gf-paths ~ pupd)] intro-cards call-cards note-role-cards pin-snapshot-cards active-snapshot-cards jr-admin-cards art-env-cards dm-ref-snapshot-cards)
   ::
       [%http-response @ ~]
     `this
@@ -11330,7 +13195,7 @@
       :~  ['noteId' s+(crip (trip nid))]
           ['note' (api-actor-note-summary nt owned participant owner actor-registry (live-actor-dm nid notes actor-dm-notes) activity read ~(wyt in (logical-members-of nid note-members note-actor-owners notes)))]
           ['membership' membership]
-          ['messages' a+(turn msgs |=(m=message:noltbook (api-msg-json m via-by-eid actor-by-eid)))]
+          ['messages' a+(turn msgs |=(m=message:noltbook (api-msg-json m via-by-eid actor-by-eid dm-imports)))]
       ==
     ``[%json !>(jon)]
   ::
@@ -11343,7 +13208,7 @@
     =/  jon=json
       %-  pairs:enjs:format
       :~  ['noteId' s+(crip (trip nid))]
-          ['messages' a+(turn msgs |=(m=message:noltbook (api-msg-json m via-by-eid actor-by-eid)))]
+          ['messages' a+(turn msgs |=(m=message:noltbook (api-msg-json m via-by-eid actor-by-eid dm-imports)))]
           ['artifacts' a+(turn arts |=(a=artifact:noltbook (api-art-json a via-by-eid)))]
           ['app' (api-app-json (~(get by note-apps) nid))]
           ['pin' (api-pin-json (~(get by note-pins) nid) nid messages artifacts)]
@@ -11579,19 +13444,19 @@
     =/  note-list=(list note:noltbook)
       %+  skim  ~(val by notes)
       |=(n=note:noltbook (human-sees-note id.n our.bowl note-members note-actor-owners notes))
-    =/  upd=update:noltbook  [%note-list note-list]
+    =/  upd=update:noltbook  [%note-list note-list import-only-dms]
     ``[%noltbook-update !>(upd)]
   ::
       [%x %notes @ ~]
     =/  nid=@ta  i.t.t.path
     ::  1B.1: raw human per-note peek — a hidden note returns an empty message-list.
     ?.  (human-sees-note nid our.bowl note-members note-actor-owners notes)
-      ``[%noltbook-update !>(`update:noltbook`[%message-list nid ~ ~ ~ ~])]
+      ``[%noltbook-update !>(`update:noltbook`[%message-list nid ~ ~ ~ ~ ~])]
     =/  msgs=(list message:noltbook)  (fall (~(get by messages) nid) ~)
     =/  arts=(list artifact:noltbook)
       %+  skim  ~(val by artifacts)
       |=(a=artifact:noltbook =(note-id.a nid))
-    =/  upd=update:noltbook  [%message-list nid msgs arts (api-via-snapshot msgs arts via-by-eid) (api-actor-snapshot msgs actor-by-eid)]
+    =/  upd=update:noltbook  [%message-list nid msgs arts (api-via-snapshot msgs arts via-by-eid) (api-actor-snapshot msgs actor-by-eid) (dm-import-snapshot msgs dm-imports)]
     ``[%noltbook-update !>(upd)]
   ::
       [%x %peers ~]
@@ -12991,6 +14856,12 @@
       ::  validated here too, since the internal action now also accepts member %app edits.
       =/  gate-err=(unit [code=@tas msg=@t])
         ?:  ?=(%app type.art)
+          ::  ordinary DM %app is single-writer: creator-only. Notebook/group %app stays
+          ::  member-writable (host re-validates). Actor DMs keep member behaviour.
+          ?:  ?&(=(%dm type.nt) !(~(has by actor-dm-notes) note-id.art))
+            ?.  =(our.bowl creator.art)  `[%rejected 'only artifact creator can edit in a DM']
+            ?.  (valid-app-artifact-content content.aa)  `[%invalid 'invalid app descriptor']
+            ~
           ?.  (~(has in users.nt) our.bowl)  `[%rejected 'not a member of this note']
           ?.  (valid-app-artifact-content content.aa)  `[%invalid 'invalid app descriptor']
           ~
@@ -13044,6 +14915,105 @@
       ~[(gf-paths ~[/api/results] `update:noltbook`[%api-search-result u.request-id.aa query.aa hits.res capped.res])]
     ::
     ::  ---- Phase 14: find or create the canonical DM for {our, ship}. ----
+        %import-dm-message
+      ::  Gall cannot authenticate the calling local agent. As with the existing app
+      ::  governance surface, app.desk is cooperative attribution plus a revocable grant.
+      ?~  app.aa
+        :_  this
+        (api-result-card request-id.aa %.n %missing-app 'app attribution required' ~ ~ ~)
+      =/  grant  (~(get by app-grants) desk.u.app.aa)
+      ?~  grant
+        :_  this
+        (api-result-card request-id.aa %.n %app-not-granted 'app has no import grant' ~ ~ ~)
+      ?.  enabled.u.grant
+        :_  this
+        (api-result-card request-id.aa %.n %app-disabled 'app grant disabled' ~ ~ ~)
+      ?.  (~(has in caps.u.grant) %import-dm)
+        :_  this
+        (api-result-card request-id.aa %.n %cap-missing 'app lacks %import-dm' ~ ~ ~)
+      =/  peer-u=(unit @p)  (slaw %p peer.aa)
+      ?~  peer-u
+        :_  this
+        (api-result-card request-id.aa %.n %invalid-ship 'peer did not parse' ~ ~ ~)
+      =/  peer=@p  u.peer-u
+      ?:  =(peer our.bowl)
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'cannot import a self DM' ~ ~ ~)
+      ?:  (~(has in pal-blocked) peer)
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'peer is blocked' ~ ~ ~)
+      =/  src-tape=tape  (trip source.aa)
+      =/  src-bare=@t
+        ?:(?=([%'%' *] src-tape) (crip t.src-tape) source.aa)
+      =/  src-u=(unit @tas)  (rush src-bare sym)
+      ?~  src-u
+        :_  this
+        (api-result-card request-id.aa %.n %invalid-source 'source must be a term' ~ ~ ~)
+      ?:  ?|(=(0 (met 3 external-id.aa)) (gth (met 3 external-id.aa) 512))
+        :_  this
+        (api-result-card request-id.aa %.n %invalid-external-id 'externalId must be 1-512 bytes' ~ ~ ~)
+      ?:  ?|(=(0 (met 3 text.aa)) (gth (met 3 text.aa) 64.000))
+        :_  this
+        (api-result-card request-id.aa %.n %invalid-text 'text must be 1-64000 bytes' ~ ~ ~)
+      ?:  ?|((lth sent-at.aa ~1970.1.1) (gth sent-at.aa (add now.bowl ~d1)))
+        :_  this
+        (api-result-card request-id.aa %.n %invalid-time 'sentAt is outside the accepted range' ~ ~ ~)
+      =/  eid=@uv  (sham [%noltbook-dm-import our.bowl peer u.src-u external-id.aa])
+      =/  prior  (~(get by dm-imports) eid)
+      ?^  prior
+        ?:  ?&  =(peer.u.prior peer)
+                =(source.u.prior u.src-u)
+                =(external-id.u.prior external-id.aa)
+            ==
+          :_  this
+          (api-result-card request-id.aa %.y %duplicate 'message was already imported' `note-id.u.prior `received-at.u.prior `eid)
+        :_  this
+        (api-result-card request-id.aa %.n %identity-conflict 'derived import identity conflicts with stored provenance' ~ ~ `eid)
+      =/  eid-used=?
+        %+  lien  ~(val by messages)
+        |=  ml=(list message:noltbook)
+        (lien ml |=(m=message:noltbook ?~(meta.m %.n =(eid.u.meta.m eid))))
+      ?:  ?|(eid-used (~(has by dm-artifact-refs) eid) (~(has by dm-artifact-tombs) eid))
+        :_  this
+        (api-result-card request-id.aa %.n %identity-conflict 'derived import eid is already in use' ~ ~ `eid)
+      =/  target-users=(set @p)  (sy ~[our.bowl peer])
+      =/  existing=(unit note:noltbook)  (find-dm-root notes target-users)
+      =/  nid=@ta
+        ?^(existing id.u.existing (crip (weld "note-" (trip (scot %da now.bowl)))))
+      =/  base=note:noltbook
+        :*  nid  (scot %p peer)  %dm  peer  target-users
+            ~  ~  ~  ~  %secret  ~  %.y  ~  ~
+        ==
+      =/  fresh=note:noltbook  (apply-dm-pref base dm-prefs our.bowl)
+      =/  nt=note:noltbook  ?^(existing u.existing fresh)
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) nid) ~)
+      =/  seq=@ud  +((fall (~(get by seq-counters) nid) 0))
+      =/  meta=entry-meta:noltbook  [eid seq 0 now.bowl now.bowl ~]
+      =/  msg=message:noltbook  [now.bowl nid peer text.aa now.bowl ~ %.n `meta]
+      =/  importer=via-app:noltbook
+        [desk.u.app.aa title.u.app.aa publisher.u.app.aa our.bowl]
+      =/  row=dm-import:noltbook
+        [eid nid peer importer u.src-u external-id.aa sent-at.aa now.bowl ~]
+      =/  upd-note=note:noltbook  nt(last-author `peer, last-preview `text.aa)
+      =.  notes  (~(put by notes) nid upd-note)
+      =.  messages  (~(put by messages) nid (snoc cur msg))
+      =.  seq-counters  (~(put by seq-counters) nid seq)
+      =.  dm-imports  (~(put by dm-imports) eid row)
+      =?  import-only-dms  ?=(~ existing)
+        (~(put in import-only-dms) nid)
+      =.  note-activity  (put-activity note-activity nid now.bowl)
+      =.  note-unread-activity  (put-unread-activity note-unread-activity nid now.bowl)
+      =/  note-cards=(list card:agent:gall)
+        ?^(existing ~ ~[(gf-notes `update:noltbook`[%import-dm-note-created fresh])])
+      =/  mu=update:noltbook  [%new-message msg ~ ~ ~ `row]
+      =/  live-cards=(list card:agent:gall)
+        :~  (gf-notes mu)
+            (activity-fact nid now.bowl)
+            (unread-activity-fact nid now.bowl)
+        ==
+      :_  this
+      (weld note-cards (weld live-cards (api-result-card request-id.aa %.y %imported 'message imported locally' `nid `now.bowl `eid)))
+    ::
         %find-or-create-dm
       =/  who=(unit @p)  (slaw %p ship.aa)
       ?~  who
@@ -14573,6 +16543,50 @@
         (~(put by dm-prefs) u.cp cur(icon-url `new-url))
       :_  this(notes (~(put by notes) nid new-nt), dm-prefs new-prefs)
       :(weld http-cards ~[clay-card] meta-fact-cards)
+    ::  Part 9: ordinary-DM %file reference fetch — collision-safe, keyed by EID.
+    ::  GET /apps/noltbook/dm-artifact/<eid>. Holds the HTTP request, fetches current bytes
+    ::  ephemerally from the creator, and NEVER persists them. 503 on unavailable/timeout,
+    ::  404 on terminal deletion.
+    ?:  &(=(%'GET' method.request.inbound-request) =((scag 27 url-tape) "/apps/noltbook/dm-artifact/"))
+      =/  parts  (split-url-tail url-tape 27)
+      =/  eid-u=(unit @uv)  (slaw %uv path.parts)
+      ?~  eid-u
+        :_  this
+        (give-simple-payload:app:server eyre-id [[404 ~] ~])
+      =/  eid=@uv  u.eid-u
+      ::  terminally deleted references stay gone
+      ?:  (~(has by dm-artifact-tombs) eid)
+        :_  this
+        (give-simple-payload:app:server eyre-id [[404 ~] ~])
+      =/  rf  (~(get by dm-artifact-refs) eid)
+      ?~  rf
+        :_  this
+        (give-simple-payload:app:server eyre-id [[404 ~] ~])
+      ?.  ?|(=(%file type.u.rf) =(%app type.u.rf))
+        :_  this
+        (give-simple-payload:app:server eyre-id [[404 ~] ~])
+      ::  require current ordinary-DM membership (us + the ref creator, none removed)
+      =/  nt  (~(get by notes) note-id.u.rf)
+      ?:  ?|  ?=(~ nt)
+              !(is-ordinary-dm u.nt actor-dm-notes)
+              !(~(has in users.u.nt) our.bowl)
+              !(~(has in users.u.nt) creator.u.rf)
+              (~(has in removed.u.nt) our.bowl)
+          ==
+        :_  this
+        (give-simple-payload:app:server eyre-id [[404 ~] ~])
+      ::  hold the request; fetch current content (bytes for %file, descriptor for %app)
+      ::  from the creator + arm a 10s timeout.
+      =/  fkind=dm-fetch-kind:noltbook  ?:(=(%app type.u.rf) %app %file)
+      =/  known-rev=(unit @ud)  `rev.u.rf
+      =/  deadline=@da  (add now.bowl ~s10)
+      =/  pend=pending-dm-fetch:noltbook  [eyre-id eid aid.u.rf creator.u.rf fkind deadline]
+      =/  fetch-card=card
+        (rpoke /dm-fetch-out/[eyre-id] creator.u.rf `remote:noltbook`[%remote-dm-content-fetch eid aid.u.rf fkind eyre-id known-rev])
+      =/  timer-card=card
+        [%pass /dm-fetch-timeout/[eyre-id] %arvo %b %wait deadline]
+      :_  this(pending-dm-fetches (~(put by pending-dm-fetches) eyre-id pend))
+      ~[fetch-card timer-card]
     ::  artifact fetch endpoint — auth-gated
     ::  GET /apps/noltbook/artifact/<aid>?v=<v>&download=1
     ::  - on the byte host (=creator): serve local Clay (404 if bytes missing)
@@ -14609,24 +16623,15 @@
           ==
         :_  this
         ~[fetch-card]
-      ::  byte host serves local Clay. DM participants also hold a local copy
-      ::  by design (symmetric DM storage) and serve from local Clay too.
-      =/  nt-art  (~(get by notes) note-id.u.art)
-      =/  is-dm-member=?
-        ?&  ?=(^ nt-art)
-            ?=(%dm type.u.nt-art)
-            (~(has in users.u.nt-art) our.bowl)
-        ==
-      ?:  ?|(=(our.bowl creator.u.art) is-dm-member)
-        =/  art-clay=path
-          :*  (scot %p our.bowl)
-              q.byk.bowl
-              (scot %da now.bowl)
-              /lib/noltbook/artifacts/[aid]/mime
-          ==
-        =/  local-res  (mule |.(.^(mime %cx art-clay)))
-        ?:  ?=(%& -.local-res)
-          =/  art-data=mime  p.local-res
+      ::  Part 10: local Clay is served ONLY by the artifact creator. A noncreator (incl. a
+      ::  DM member) must never serve orphaned copied bytes; it always remote-fetches from
+      ::  the creator. Ordinary-DM %file bytes are fetched via /apps/noltbook/dm-artifact/<eid>
+      ::  instead (those refs are not in `artifacts`). Group/gossip creator + member behavior
+      ::  is unchanged.
+      ?:  =(our.bowl creator.u.art)
+        =/  local-res  (art-store-read our.bowl now.bowl aid)
+        ?^  local-res
+          =/  art-data=mime  u.local-res
           =/  ct=@t  (rap 3 (join '/' p.art-data))
           =/  qarg-dl  (query-arg q-args 'download')
           =/  hdrs=(list [@t @t])
@@ -14641,22 +16646,11 @@
           =/  =simple-payload:http
             [[200 hdrs] `q.art-data]
           [(give-simple-payload:app:server eyre-id simple-payload) this]
-        ::  byte host has no local bytes → 404; DM member falls through to
-        ::  remote fetch from the artifact creator (sender)
-        ?:  =(our.bowl creator.u.art)
-          :_  this
-          %+  give-simple-payload:app:server  eyre-id
-          [[404 ~] ~]
-        =/  fetch-card=card
-          :*  %pass
-              /art-fetch-out/[aid]/[eyre-id]
-              %agent  [creator.u.art %noltbook]
-              %poke   %noltbook-remote
-              !>(`remote:noltbook`[%remote-artifact-fetch aid eyre-id ~])
-          ==
+        ::  creator has no bytes → 404
         :_  this
-        ~[fetch-card]
-      ::  non-host, non-DM: never touch local Clay; always remote-fetch
+        %+  give-simple-payload:app:server  eyre-id
+        [[404 ~] ~]
+      ::  noncreator: never touch local Clay; always remote-fetch from the creator
       =/  fetch-card=card
         :*  %pass
             /art-fetch-out/[aid]/[eyre-id]
@@ -14730,6 +16724,13 @@
         :_  this
         %+  give-simple-payload:app:server  eyre-id
         [[413 ~] ~]
+      ::  artifact bytes are stored in the separate, locally self-provisioned %noltbook-data
+      ::  desk. If creation has not completed or an existing desk is incomplete, fail the
+      ::  upload safely (503) rather than writing into the live %noltbook desk.
+      ?.  (art-store-exists our.bowl now.bowl)
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[503 ~] ~]
       =/  qarg-name  (query-arg q-args 'name')
       =/  qarg-kind  (query-arg q-args 'kind')
       =/  qarg-mime  (query-arg q-args 'mime')
@@ -14745,9 +16746,9 @@
       =/  mtype=@t  (fall qarg-mime 'application/octet-stream')
       =/  mpath=(list @ta)  (parse-mime-path mtype)
       =/  aid=@ta  (crip (weld "art-" (trip (scot %da now.bowl))))
-      =/  art-cage=cage  [%mime !>(`mime`[mpath u.bod])]
-      =/  nori  [%& ~[[/lib/noltbook/artifacts/[aid]/mime [%ins art-cage]]]]
-      =/  clay-card=card  [%pass /art-write/[aid] %arvo %c %info q.byk.bowl nori]
+      ::  write bytes to the separate non-running %noltbook-data desk (never q.byk.bowl), so
+      ::  the commit does not goad/reload the live %noltbook agent.
+      =/  clay-card=card  (art-store-write-card /art-write/[aid] aid `mime`[mpath u.bod])
       =/  meta-content=@t  (art-meta-json mtype kind p.u.bod 1)
       =/  new-art=artifact:noltbook
         :*  aid  fname  %file  our.bowl  nid
@@ -14813,8 +16814,12 @@
           ==
         :(weld gossip-cards act-cards sig-cards)
       ?:  is-dm
-        ::  DM path: write own Clay, store metadata, broadcast locally, ship
-        ::  metadata + bytes to counterparty (symmetric duplication).
+        ::  Part 4: ordinary-DM %file origin hosting. The authoritative artifact + bytes
+        ::  stay on the creator (this ship, in Clay). Send ONLY a content-free reference,
+        ::  and ONLY to a v1 peer — NEVER %remote-dm-artifact, NEVER bytes. If the peer is
+        ::  old/unknown, keep the file creator-local (an explicit "peer must upgrade to
+        ::  view" UI indication is deferred: there is no existing non-destructive channel,
+        ::  and per spec we must not fabricate a shared text message).
         =/  others=(list @p)
           %+  skim  ~(tap in users.u.nt)
           |=(p=@p !=(p our.bowl))
@@ -14823,15 +16828,13 @@
         =/  pax=path  ~[%notes nid]
         =/  prev=@t  (artifact-preview new-art)
         =/  upd-note=note:noltbook  u.nt(last-author `our.bowl, last-preview `prev)
+        =/  chash=@uv  (sham q.u.bod)
+        =/  ref=(unit dm-artifact-ref:noltbook)  (dm-ref-of new-art nid `chash)
+        ::  Phase 3: always send the content-free reference directly (no protocol gate).
         =/  dm-card=(list card)
           ?:  =(counterparty our.bowl)  ~
-          :~  :*  %pass
-                  /art-dm-out/[aid]
-                  %agent  [counterparty %noltbook]
-                  %poke   %noltbook-remote
-                  !>(`remote:noltbook`[%remote-dm-artifact new-art mtype u.bod])
-              ==
-          ==
+          ?~  ref  ~
+          ~[(rpoke /dm-ref-out/[aid] counterparty `remote:noltbook`[%remote-dm-ref-upsert u.nt u.ref])]
         :_  this(notes (~(put by notes) nid upd-note), artifacts (~(put by artifacts) aid new-art), note-activity (put-activity note-activity nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity nid now.bowl), note-read (put-read note-read nid now.bowl))
         %+  weld  http-cards
         %+  weld
@@ -15396,7 +17399,7 @@
         ?:  (~(has in pal-blocked) other)  `this
         =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
         ::  DMs never carry the directed marker (no orange attention in DMs)
-        =/  upd=update:noltbook  [%new-message msg ~ via.act actor.act]
+        =/  upd=update:noltbook  [%new-message msg ~ via.act actor.act ~]
         =/  pax=path  ~[%notes note-id.act]
         =/  upd-note=note:noltbook  u.exists(last-author `our.bowl, last-preview `text.act)
         ::  atomic DM delivery: ONE poke carrying both note metadata and
@@ -15412,7 +17415,7 @@
         =.  via-by-eid  (api-via-put via-by-eid via.act msg)
         ::  Phase ACTOR-1: store the actor row for our local DM copy (direct path).
         =.  actor-by-eid  (api-actor-put actor-by-eid actor.act msg)
-        :_  this(notes (~(put by notes) note-id.act upd-note), messages (~(put by messages) note-id.act (snoc cur msg)), seq-counters ?:(is-regular (~(put by seq-counters) note-id.act nxt-seq) seq-counters), note-activity (put-activity note-activity note-id.act now.bowl), note-unread-activity (put-unread-activity note-unread-activity note-id.act now.bowl), note-read (put-read note-read note-id.act now.bowl))
+        :_  this(notes (~(put by notes) note-id.act upd-note), messages (~(put by messages) note-id.act (snoc cur msg)), seq-counters ?:(is-regular (~(put by seq-counters) note-id.act nxt-seq) seq-counters), note-activity (put-activity note-activity note-id.act now.bowl), note-unread-activity (put-unread-activity note-unread-activity note-id.act now.bowl), note-read (put-read note-read note-id.act now.bowl), import-only-dms (~(del in import-only-dms) note-id.act))
         :(weld ~[(gf-paths ~[pax] upd)] notes-cards peer-cards)
       ::  remote note: forward to creator
       ?.  =(our.bowl creator.u.exists)
@@ -15437,7 +17440,7 @@
       ::  local note: store and fan out (host posts own message). Carry the NOTE
       ::  SEND marker so member-recipients classify attention as %send.
       =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
-      =/  upd=update:noltbook  [%new-message msg directed-kind.act via.act actor.act]
+      =/  upd=update:noltbook  [%new-message msg directed-kind.act via.act actor.act ~]
       =/  pax=path  ~[%notes note-id.act]
       =/  upd-note=note:noltbook  u.exists(last-author `our.bowl, last-preview `text.act)
       =/  new-seq-counters=(map @ta @ud)
@@ -15534,11 +17537,13 @@
         =/  new-meta=(unit entry-meta:noltbook)
           ?~  meta.i.found  ~
           `u.meta.i.found(rev +(rev.u.meta.i.found), updated now.bowl)
-        =/  target-id=@da  id.i.found
+        ::  Part 1A: mutate ONLY the exact stored target, compared by full dm-message-key
+        ::  (modern %eid, else legacy [author id]) — never by bare @da id.
+        =/  target-key=dm-message-key:noltbook  (dm-message-key-of i.found)
         =/  new-msgs=(list message:noltbook)
           %+  turn  cur
           |=  m=message:noltbook
-          ?.  =(id.m target-id)  m
+          ?.  =(target-key (dm-message-key-of m))  m
           m(text text.act, edited &, meta new-meta)
         =/  edited=message:noltbook  i.found(text text.act, edited &, meta new-meta)
         =/  upd=update:noltbook  [%message-edited note-id.act edited]
@@ -15595,6 +17600,74 @@
       ?:  (is-write-blocked note-id.act host-status notes our.bowl)  `this
       =/  exists  (~(get by notes) note-id.act)
       ?~  exists  `this
+      ::  cover/ordinary-gossip: HOSTLESS origin-authoritative deletion. The poster deletes
+      ::  their OWN text; there is no note-creator authority (do NOT forward to note.creator).
+      ::  Remove the local message + its text envelope, install a terminal eid tombstone,
+      ::  propagate a compact %remote-mesh-delete through the same mesh, and emit FE removal.
+      ::  A legacy post with no modern eid is removed locally only (no tomb/propagation).
+      ?:  (is-mesh-note note-id.act u.exists)
+        =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
+        ::  EID-strict resolution: a supplied modern eid resolves ONLY that eid (owned by us)
+        ::  with NO msg-id fallback; a genuinely legacy delete (no eid supplied) resolves by
+        ::  [author, msg-id]. A mismatched/unowned/absent eid is a clean no-op.
+        =/  found=(list message:noltbook)
+          ?^  eid.act
+            (skim cur |=(m=message:noltbook ?&(?=(^ meta.m) =(eid.u.meta.m u.eid.act) =(author.m our.bowl))))
+          (skim cur |=(m=message:noltbook &(=(id.m msg-id.act) =(author.m our.bowl))))
+        ?~  found  `this
+        =/  target=message:noltbook  i.found
+        =/  target-id=@da  id.target
+        =/  del-eid=(unit @uv)  ?~(meta.target ~ `eid.u.meta.target)
+        ::  removal: MODERN => exact meta.eid + author; LEGACY (no eid) => [author, msg-id].
+        =/  kept=(list message:noltbook)
+          ?^  del-eid
+            (skip cur |=(m=message:noltbook ?&(?=(^ meta.m) =(eid.u.meta.m u.del-eid) =(author.m our.bowl))))
+          (skip cur |=(m=message:noltbook &(=(id.m target-id) =(author.m our.bowl))))
+        ::  text envelope removal: MODERN => independently by eid + author; LEGACY => msg-id + author.
+        =/  cenv=(map @da envelope:noltbook)
+          (fall (~(get by gossip-envelopes) note-id.act) *(map @da envelope:noltbook))
+        =/  new-cenv=(map @da envelope:noltbook)
+          %-  ~(gas by *(map @da envelope:noltbook))
+          %+  skip  ~(tap by cenv)
+          |=  [k=@da e=envelope:noltbook]
+          ?^  del-eid
+            ?&(?=(^ meta.e) =(eid.u.meta.e u.del-eid) =(author.e our.bowl))
+          &(=(k target-id) =(author.e our.bowl))
+        ::  clear an active pin that targeted this message
+        =/  pin-hit=?
+          ?~  del-eid  %.n
+          =/  pn  (~(get by note-pins) note-id.act)
+          ?~  pn  %.n
+          &(=(%message kind.u.pn) =(u.del-eid target.u.pn))
+        =/  new-pins=(map @ta note-pin:noltbook)
+          ?:(pin-hit (~(del by note-pins) note-id.act) note-pins)
+        =/  pin-clear-cards=(list card)  ?:(pin-hit (pin-cards note-id.act ~) ~)
+        ::  MODERN only: build + store the canonical tomb and propagate authoritatively. A
+        ::  genuine legacy no-eid entry is removed locally only (no tomb, no propagation).
+        =/  new-tombs=(set @uv)
+          ?~(del-eid mesh-tombs (~(put in mesh-tombs) u.del-eid))
+        =/  new-meta=(map @uv mesh-tomb:noltbook)
+          ?~  del-eid  mesh-tomb-meta
+          (~(put by mesh-tomb-meta) u.del-eid `mesh-tomb:noltbook`[u.del-eid note-id.act our.bowl %text `target-id ~])
+        =/  del-upd=update:noltbook  [%mesh-entry-deleted note-id.act del-eid ~ `target-id]
+        =/  pax=path  ~[%notes note-id.act]
+        =/  mesh-cards=(list card)
+          ?~  del-eid  ~
+          =/  tomb=mesh-tomb:noltbook  [u.del-eid note-id.act our.bowl %text `target-id ~]
+          =/  targets=(list @p)
+            (mesh-delete-targets u.exists %.n our.bowl pal-incoming pal-outgoing)
+          %+  turn  targets
+          |=  p=@p
+          ^-  card
+          (rpoke /mesh-del/(scot %p p) p `remote:noltbook`[%remote-mesh-delete tomb])
+        ::  recompute the note's sidebar preview from remaining entries (gossip; cover is FE).
+        =/  upd-note2=note:noltbook
+          %:  recompute-mesh-note  u.exists  kept  new-cenv
+            (fall (~(get by artifact-envelopes) note-id.act) *(map @ta artifact-envelope:noltbook))
+          ==
+        =/  fe-cards=(list card)  ~[(gf-paths ~[pax] del-upd) (gf-notes del-upd)]
+        :_  this(notes (~(put by notes) note-id.act upd-note2), messages (~(put by messages) note-id.act kept), gossip-envelopes (~(put by gossip-envelopes) note-id.act new-cenv), note-pins new-pins, mesh-tombs new-tombs, mesh-tomb-meta new-meta)
+        :(weld fe-cards pin-clear-cards mesh-cards)
       ::  DM: peer-authoritative — delete locally and replicate
       ?:  =(%dm type.u.exists)
         =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
@@ -15607,9 +17680,11 @@
           by-eid
         ?~  found  `this
         ?.  =(our.bowl author.i.found)  `this
+        ::  Part 1A: remove ONLY the exact stored target, compared by full dm-message-key.
         =/  target-id=@da  id.i.found
+        =/  target-key=dm-message-key:noltbook  (dm-message-key-of i.found)
         =/  kept=(list message:noltbook)
-          (skim cur |=(m=message:noltbook !=(id.m target-id)))
+          (skim cur |=(m=message:noltbook !=(target-key (dm-message-key-of m))))
         =/  del-eid=(unit @uv)
           ?~  meta.i.found  ~
           `eid.u.meta.i.found
@@ -15622,7 +17697,9 @@
         =/  peer-cards=(list card)
           ?:  =(other our.bowl)  ~
           ~[(rpoke /dm-del/[note-id.act] other `remote:noltbook`[%remote-delete-msg note-id.act msg-id.act eid.act])]
-        :_  this(messages (~(put by messages) note-id.act kept))
+        ::  Part 2: terminal tombstone derived from the actual stored message (not poke
+        ::  fields). Prevents any future create/edit/replay/merge from resurrecting it.
+        :_  this(messages (~(put by messages) note-id.act kept), dm-msg-tombs (dm-add-msg-tomb target-key now.bowl dm-msg-tombs))
         :(weld ~[(gf-paths ~[pax] del-upd)] ~[(gf-notes del-upd)] peer-cards)
       ::  non-creator forwards to creator
       ?.  =(our.bowl creator.u.exists)
@@ -15667,8 +17744,8 @@
           ==
         :~  (gf-paths ~[pax] del-upd)
             (gf-notes del-upd)
-            (gf-paths ~[pax] `update:noltbook`[%new-message u.sys-msg ~ ~ ~])
-            (gf-notes `update:noltbook`[%new-message u.sys-msg ~ ~ ~])
+            (gf-paths ~[pax] `update:noltbook`[%new-message u.sys-msg ~ ~ ~ ~])
+            (gf-notes `update:noltbook`[%new-message u.sys-msg ~ ~ ~ ~])
         ==
       ::  1B.1: keep /notes/[nid] transport facts; drop the local-human /notes facts when
       ::  the host human is not a logical member (actor delete stays invisible to it).
@@ -15696,6 +17773,92 @@
         (actor-notif-diff-cards old-notifs actor-notifications msgs-after actor-by-eid)
       :_  this(messages msgs-after, note-pins new-pins)
       (weld notif-cards (weld facts pin-clear-cards))
+    ::
+        %remove-dm-import
+      =/  row-u  (~(get by dm-imports) eid.act)
+      ?~  row-u  `this
+      ?:  ?|  ?=(^ removed-at.u.row-u)
+              !=(note-id.u.row-u note-id.act)
+          ==
+        `this
+      =/  nt-u  (~(get by notes) note-id.act)
+      ?~  nt-u  `this
+      ?.  =(%dm type.u.nt-u)  `this
+      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
+      =/  found=(list message:noltbook)
+        (skim cur |=(m=message:noltbook ?&(?=(^ meta.m) =(eid.u.meta.m eid.act))))
+      ?~  found  `this
+      ?.  =(peer.u.row-u author.i.found)  `this
+      =/  kept=(list message:noltbook)
+        (skip cur |=(m=message:noltbook ?&(?=(^ meta.m) =(eid.u.meta.m eid.act))))
+      =/  rev=(list message:noltbook)  (flop kept)
+      =/  nn=note:noltbook
+        ?~  rev
+          u.nt-u(last-author ~, last-preview ~)
+        u.nt-u(last-author `author.i.rev, last-preview `text.i.rev)
+      =/  row=dm-import:noltbook  u.row-u(removed-at `now.bowl)
+      =/  upd=update:noltbook  [%message-deleted note-id.act id.i.found `eid.act]
+      =.  notes  (~(put by notes) note-id.act nn)
+      =.  messages  (~(put by messages) note-id.act kept)
+      =.  dm-imports  (~(put by dm-imports) eid.act row)
+      =.  dm-msg-tombs  (dm-add-msg-tomb [%eid eid.act] now.bowl dm-msg-tombs)
+      :_  this
+      ~[(gf-notes upd)]
+    ::
+        %delete-mesh-envelope
+      ::  own cover/gossip artifact-ENVELOPE deletion when no full artifact record exists
+      ::  locally (stale/test state). Validate the LOCAL envelope is ours, then run the exact
+      ::  origin deletion: tombstone the eid, remove the envelope (+ full artifact if it does
+      ::  exist), emit live %mesh-entry-deleted, and propagate authoritative %remote-mesh-delete
+      ::  to the artifact mesh route. Never usable against another user's envelope.
+      =/  nid=@ta  note-id.act
+      =/  nt  (~(get by notes) nid)
+      ?~  nt  `this
+      ?.  (is-mesh-note nid u.nt)  `this
+      =/  aenvs=(map @ta artifact-envelope:noltbook)
+        (fall (~(get by artifact-envelopes) nid) *(map @ta artifact-envelope:noltbook))
+      =/  env  (~(get by aenvs) aid.act)
+      ?~  env  `this
+      ::  authority: the envelope must be OURS and carry the supplied eid
+      ?.  =(author.u.env our.bowl)  `this
+      ?.  ?&(?=(^ meta.u.env) =(eid.u.meta.u.env eid.act))  `this
+      =/  new-aenvs=(map @ta artifact-envelope:noltbook)  (~(del by aenvs) aid.act)
+      ::  drop a stray full artifact at this aid ONLY if it INDEPENDENTLY matches
+      ::  note/eid/aid/creator — never merely because it shares the AID.
+      =/  full  (~(get by artifacts) aid.act)
+      =/  full-match=?
+        ?&  ?=(^ full)  =(note-id.u.full nid)  =(id.u.full aid.act)
+            ?=(^ meta.u.full)  =(eid.u.meta.u.full eid.act)  =(creator.u.full our.bowl)
+        ==
+      =/  new-arts=(map @ta artifact:noltbook)
+        ?:(full-match (~(del by artifacts) aid.act) artifacts)
+      =/  pin-hit=?
+        =/  pn  (~(get by note-pins) nid)
+        ?~  pn  %.n
+        &(=(%artifact kind.u.pn) =(eid.act target.u.pn))
+      =/  new-pins=(map @ta note-pin:noltbook)
+        ?:(pin-hit (~(del by note-pins) nid) note-pins)
+      =/  pin-clear-cards=(list card)  ?:(pin-hit (pin-cards nid ~) ~)
+      =/  pax=path  ~[%notes nid]
+      =/  del-upd=update:noltbook  [%mesh-entry-deleted nid `eid.act `aid.act ~]
+      ::  canonical artifact tomb record (author=us)
+      =/  tomb=mesh-tomb:noltbook  [eid.act nid our.bowl %artifact ~ `aid.act]
+      =/  targets=(list @p)
+        (mesh-delete-targets u.nt %.y our.bowl pal-incoming pal-outgoing)
+      =/  mesh-cards=(list card)
+        %+  turn  targets
+        |=  p=@p
+        ^-  card
+        (rpoke /mesh-del/(scot %p p) p `remote:noltbook`[%remote-mesh-delete tomb])
+      =/  upd-note2=note:noltbook
+        (recompute-mesh-note u.nt (fall (~(get by messages) nid) ~) (fall (~(get by gossip-envelopes) nid) *(map @da envelope:noltbook)) new-aenvs)
+      :_  this(notes (~(put by notes) nid upd-note2), artifacts new-arts, artifact-envelopes (~(put by artifact-envelopes) nid new-aenvs), note-pins new-pins, mesh-tombs (~(put in mesh-tombs) eid.act), mesh-tomb-meta (~(put by mesh-tomb-meta) eid.act tomb))
+      ;:  weld
+        ~[(gf-paths ~[pax] del-upd)]
+        ~[(gf-notes del-upd)]
+        pin-clear-cards
+        mesh-cards
+      ==
     ::
         %set-note-meta
       ?:  (is-write-blocked id.act host-status notes our.bowl)  `this
@@ -16068,21 +18231,25 @@
       =/  pax=path  ~[%notes note-id.act]
       =/  prev=@t  (artifact-preview new-art)
       =/  upd-note=note:noltbook  u.exists(last-author `our.bowl, last-preview `prev)
-      ::  Phase 1: an %app artifact in an ordinary (non-actor) 2-person DM is peer-
-      ::  authoritative — also poke the sole counterparty directly (like %remote-dm-
-      ::  message), carrying the DM note metadata so they resolve their own canonical
-      ::  local id. Actor DMs keep no artifact wire; DM files use %remote-dm-artifact.
+      ::  Phase 3: an %app artifact in an ordinary (non-actor) 2-person DM is origin-hosted.
+      ::  The full artifact + descriptor stay here on the creator; the counterparty gets ONLY
+      ::  a content-free reference (%remote-dm-ref-upsert), never the descriptor or a full
+      ::  artifact payload. content-hash lets the counterparty validate the ephemeral fetch.
       =/  dm-cards=(list card:agent:gall)
         ?.  ?&  =(%dm type.u.exists)
                 =(%app type.act)
                 =(2 ~(wyt in users.u.exists))
                 !(~(has by actor-dm-notes) note-id.act)
+                =(~ removed.u.exists)
             ==
           ~
         =/  others=(list @p)  (skim ~(tap in users.u.exists) |=(p=@p !=(p our.bowl)))
         ?~  others  ~
         ?:  =(i.others our.bowl)  ~
-        ~[(rpoke /dm-art-out/[aid] i.others `remote:noltbook`[%remote-dm-app-artifact-create u.exists new-art])]
+        =/  dhash=@uv  (sham content:(rear versions.new-art))
+        =/  ref=(unit dm-artifact-ref:noltbook)  (dm-ref-of new-art note-id.act `dhash)
+        ?~  ref  ~
+        ~[(rpoke /dm-ref-out/[aid] i.others `remote:noltbook`[%remote-dm-ref-upsert u.exists u.ref])]
       :_  this(notes (~(put by notes) note-id.act upd-note), artifacts (~(put by artifacts) aid new-art), note-activity (put-activity note-activity note-id.act now.bowl), note-unread-activity (put-unread-activity note-unread-activity note-id.act now.bowl), note-read (put-read note-read note-id.act now.bowl))
       %+  weld  dm-cards
       ^-  (list card:agent:gall)
@@ -16111,6 +18278,15 @@
       ::  serializer — it moderates, applies, and broadcasts %artifact-updated back to all members
       ::  (reaching us via /remote-note). Do NOT store locally. Mirrors the create forward.
       =/  nt  (~(get by notes) note-id.u.old)
+      ::  ordinary DM: single-writer authority — only the artifact creator may edit ANY
+      ::  DM artifact (app/file/code). Non-creator edits are rejected outright (no local
+      ::  mutation, no propagation). Notebook/group/actor-DM behaviour is unchanged.
+      ?:  ?&  ?=(^ nt)
+              =(%dm type.u.nt)
+              !(~(has by actor-dm-notes) note-id.u.old)
+              !=(our.bowl creator.u.old)
+          ==
+        `this
       ?:  ?&  =(%app type.u.old)
               ?=(^ nt)
               !=(our.bowl creator.u.nt)
@@ -16124,8 +18300,29 @@
       =/  upd-art=artifact:noltbook  u.old(versions (snoc versions.u.old new-ver))
       =/  upd=update:noltbook  [%artifact-updated upd-art]
       =/  pax=path  ~[%notes note-id.upd-art]
+      ::  Phase 3: an %app artifact edit in an ordinary 2-person DM is origin-hosted. The
+      ::  new full version stays here on the creator; the counterparty gets ONLY a newer
+      ::  content-free reference (%remote-dm-ref-upsert). No descriptor or version history
+      ::  is transmitted. Single-writer authority is enforced above (non-creator rejected).
+      =/  dm-cards=(list card:agent:gall)
+        ?.  ?&  ?=(^ nt)
+                =(%dm type.u.nt)
+                =(%app type.u.old)
+                =(2 ~(wyt in users.u.nt))
+                !(~(has by actor-dm-notes) note-id.u.old)
+                (~(has in users.u.nt) our.bowl)
+                =(~ removed.u.nt)
+            ==
+          ~
+        =/  others=(list @p)  (skim ~(tap in users.u.nt) |=(p=@p !=(p our.bowl)))
+        ?~  others  ~
+        ?:  =(i.others our.bowl)  ~
+        =/  dhash=@uv  (sham content:(rear versions.upd-art))
+        =/  ref=(unit dm-artifact-ref:noltbook)  (dm-ref-of upd-art note-id.u.old `dhash)
+        ?~  ref  ~
+        ~[(rpoke /dm-ref-edit-out/[id.act] i.others `remote:noltbook`[%remote-dm-ref-upsert u.nt u.ref])]
       :_  this(artifacts (~(put by artifacts) id.act upd-art))
-      ~[(gf-paths ~[pax] upd)]
+      (weld dm-cards ~[(gf-paths ~[pax] upd)])
     ::
         %delete-artifact
       =/  old  (~(get by artifacts) id.act)
@@ -16134,6 +18331,82 @@
       =/  nid=@ta  note-id.u.old
       =/  upd=update:noltbook  [%artifact-deleted id.act]
       =/  pax=path  ~[%notes nid]
+      ::  Phase 3: an %app artifact delete in an ordinary 2-person DM is peer-authoritative
+      ::  — also poke the sole counterparty (like create/edit), carrying the DM note + the
+      ::  artifact id so they resolve their local id and drop their copy. Gated on both
+      ::  parties current + none removed; a removed peer => no propagation (local delete
+      ::  still applies).
+      =/  nt  (~(get by notes) nid)
+      ::  cover/ordinary-gossip: HOSTLESS origin-authoritative artifact deletion. Only the
+      ::  artifact creator may delete. Remove the full artifact + its local artifact-envelope,
+      ::  install a terminal eid tombstone, propagate %remote-mesh-delete through the mesh, and
+      ::  emit the FE %artifact-deleted removal. Bytes in %noltbook-data are NOT touched; the
+      ::  content endpoint becomes unavailable because the artifact + envelope are both gone.
+      ?:  ?&(?=(^ nt) (is-mesh-note nid u.nt))
+        ?.  =(our.bowl creator.u.old)  `this
+        =/  art-eid=@uv  (dm-artifact-eid u.old)
+        =/  aenvs=(map @ta artifact-envelope:noltbook)
+          (fall (~(get by artifact-envelopes) nid) *(map @ta artifact-envelope:noltbook))
+        =/  new-aenvs=(map @ta artifact-envelope:noltbook)  (~(del by aenvs) id.act)
+        =/  pin-hit=?
+          =/  pn  (~(get by note-pins) nid)
+          ?~  pn  %.n
+          &(=(%artifact kind.u.pn) =(art-eid target.u.pn))
+        =/  new-pins=(map @ta note-pin:noltbook)
+          ?:(pin-hit (~(del by note-pins) nid) note-pins)
+        =/  pin-clear-cards=(list card)  ?:(pin-hit (pin-cards nid ~) ~)
+        ::  build + store the CANONICAL artifact tomb record (author=us) atomically.
+        =/  tomb=mesh-tomb:noltbook  [art-eid nid our.bowl %artifact ~ `id.act]
+        ::  origin propagation: authoritative %remote-mesh-delete carrying the canonical record
+        ::  to the artifact's exact route (cover=pal-outgoing, gossip=note.users).
+        =/  targets=(list @p)
+          (mesh-delete-targets u.nt %.y our.bowl pal-incoming pal-outgoing)
+        =/  mesh-cards=(list card)
+          %+  turn  targets
+          |=  p=@p
+          ^-  card
+          (rpoke /mesh-del/(scot %p p) p `remote:noltbook`[%remote-mesh-delete tomb])
+        ::  recompute sidebar preview from remaining entries (gossip; cover is FE).
+        =/  upd-note2=note:noltbook
+          (recompute-mesh-note u.nt (fall (~(get by messages) nid) ~) (fall (~(get by gossip-envelopes) nid) *(map @da envelope:noltbook)) new-aenvs)
+        ::  note-scoped live removal (artifact: aid + eid)
+        =/  del-upd=update:noltbook  [%mesh-entry-deleted nid `art-eid `id.act ~]
+        :_  this(notes (~(put by notes) nid upd-note2), artifacts (~(del by artifacts) id.act), artifact-envelopes (~(put by artifact-envelopes) nid new-aenvs), note-pins new-pins, mesh-tombs (~(put in mesh-tombs) art-eid), mesh-tomb-meta (~(put by mesh-tomb-meta) art-eid tomb))
+        ;:  weld
+          ~[(gf-paths ~[pax] del-upd)]
+          ~[(gf-notes del-upd)]
+          pin-clear-cards
+          mesh-cards
+        ==
+      ::  shared-note (%group/%notebook) artifact deletion is HOST-AUTHORITATIVE. If we host
+      ::  the note, delete through the single authoritative helper (validates artifact
+      ::  creator/note host/current admin, installs a terminal tombstone, broadcasts the
+      ::  removal + a durable \01SYS:art-delete marker to every subscriber). If we are a
+      ::  non-host member, forward the intent to the host via %remote-artifact-delete and do
+      ::  NOT finalize locally — the artifact disappears only on the host's authoritative
+      ::  %artifact-deleted broadcast, so reloaded/snapshot state can never disagree.
+      ::  Scope: ONLY an ordinary human %group/%notebook (excluding actor DMs, which are
+      ::  %group notes) AND only %file/%app artifacts. Actor DMs and %code fall through to
+      ::  their exact pre-change local-delete behavior below.
+      ?:  ?&  ?=(^ nt)
+              ?|(?=(%group type.u.nt) ?=(%notebook type.u.nt))
+              !(~(has by actor-dm-notes) nid)
+              ?|(=(%file type.u.old) =(%app type.u.old))
+          ==
+        ?:  =(our.bowl creator.u.nt)
+          =^  cards  state  (delete-note-artifact bowl our.bowl nid id.act state)
+          [cards this]
+        :_  this
+        ~[(rpoke /art-del-out/[id.act] creator.u.nt `remote:noltbook`[%remote-artifact-delete nid id.act])]
+      ::  ordinary DM: single-writer authority — only the artifact creator may delete ANY
+      ::  DM artifact (app/file/code). Non-creator deletes are rejected outright (no local
+      ::  mutation, no propagation). Notebook/group/actor-DM + moderation is unchanged.
+      ?:  ?&  ?=(^ nt)
+              =(%dm type.u.nt)
+              !(~(has by actor-dm-notes) nid)
+              !=(our.bowl creator.u.old)
+          ==
+        `this
       ::  clear the pin if it (kind=%artifact) targeted this artifact (host-auth).
       =/  del-eid=(unit @uv)  ?~(meta.u.old ~ `eid.u.meta.u.old)
       =/  pin-hit=?
@@ -16144,8 +18417,40 @@
       =/  new-pins=(map @ta note-pin:noltbook)
         ?:(pin-hit (~(del by note-pins) nid) note-pins)
       =/  pin-clear-cards=(list card)  ?:(pin-hit (pin-cards nid ~) ~)
-      :_  this(artifacts (~(del by artifacts) id.act), note-pins new-pins)
+      ::  Phase 3: ordinary-DM %file OR %app deletion — write a TERMINAL tombstone
+      ::  (atomically with artifact removal), drop any local reference, and ALWAYS notify
+      ::  the counterparty via %remote-dm-ref-delete (no protocol gate; the legacy %app
+      ::  delete wire is retired). The EID is never reused, so no delayed create/edit/
+      ::  snapshot/content response can resurrect it.
+      =/  is-dm-art=?
+        ?&  ?=(^ nt)
+            =(%dm type.u.nt)
+            ?|(=(%file type.u.old) =(%app type.u.old))
+            !(~(has by actor-dm-notes) nid)
+            =(our.bowl creator.u.old)
+        ==
+      =/  art-eid=@uv  (dm-artifact-eid u.old)
+      =/  art-kind=dm-artifact-type:noltbook  ?:(=(%app type.u.old) %app %file)
+      =/  art-tomb=dm-artifact-tomb:noltbook
+        [art-eid id.u.old our.bowl nid art-kind (dm-artifact-rev u.old) now.bowl]
+      =/  new-tombs=(map @uv dm-artifact-tomb:noltbook)
+        ?.  is-dm-art  dm-artifact-tombs
+        (~(put by dm-artifact-tombs) art-eid art-tomb)
+      =/  new-refs=(map @uv dm-artifact-ref:noltbook)
+        ?.  is-dm-art  dm-artifact-refs
+        (~(del by dm-artifact-refs) art-eid)
+      =/  dm-del-cards=(list card)
+        ?.  is-dm-art  ~
+        ?.  ?=(^ nt)  ~
+        ?.  ?&(=(2 ~(wyt in users.u.nt)) (~(has in users.u.nt) our.bowl) =(~ removed.u.nt))  ~
+        =/  others=(list @p)  (skim ~(tap in users.u.nt) |=(p=@p !=(p our.bowl)))
+        ?~  others  ~
+        ?:  =(i.others our.bowl)  ~
+        ~[(rpoke /dm-ref-del-out/[id.act] i.others `remote:noltbook`[%remote-dm-ref-delete u.nt art-tomb])]
+      :_  this(artifacts (~(del by artifacts) id.act), note-pins new-pins, dm-artifact-refs new-refs, dm-artifact-tombs new-tombs)
       ::  1B.2: /notes/[nid] transport kept; any global pin-clear /notes fact dropped if hidden.
+      %+  weld  dm-del-cards
+      ^-  (list card:agent:gall)
       %:  human-note-cards  nid  our.bowl
           note-members  note-actor-owners  notes
         (weld ~[(gf-paths ~[pax] upd)] pin-clear-cards)
@@ -16155,6 +18460,15 @@
       =/  old  (~(get by artifacts) id.act)
       ?~  old  `this
       ?:  (is-write-blocked note-id.u.old host-status notes our.bowl)  `this
+      ::  ordinary DM: single-writer authority — only the artifact creator may overwrite a
+      ::  DM file artifact. Non-creator saves are rejected. Notebook/group/actor-DM unchanged.
+      =/  nt-fs  (~(get by notes) note-id.u.old)
+      ?:  ?&  ?=(^ nt-fs)
+              =(%dm type.u.nt-fs)
+              !(~(has by actor-dm-notes) note-id.u.old)
+              !=(our.bowl creator.u.old)
+          ==
+        `this
       =/  upd-art=artifact:noltbook
         u.old(versions ~[[1 data.act our.bowl now.bowl]])
       =/  upd=update:noltbook  [%artifact-updated upd-art]
@@ -16693,7 +19007,7 @@
       =/  new-revs=(map @ta @ud)
         (bump-member-revs [id.act group-descs] member-revs)
       =/  users-upd=update:noltbook  [%note-users-updated id.act type.u.old ~(tap in new-users) ~(tap in new-removed) (member-rev-of id.act new-revs)]
-      =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
+      =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~ ~]
       =/  desc-users-cards=(list card)
         ?:  =(~ group-descs)  ~
         (build-users-updated-cards group-descs notes-after new-revs)
@@ -17090,11 +19404,15 @@
       =/  dm-root  (find-dm-root notes target-users)
       ?^  dm-root  `this
       ::  convert in place: type->dm, add user, set name
-      =/  new-note=note:noltbook
-        u.old(type %dm, users target-users, name (scot %p ship.act))
+      ::  become an ordinary %dm, then localize defaults (name = counterparty @p, icon
+      ::  cleared) + overlay any saved local DM pref. The former notebook name/icon must
+      ::  not persist as DM presentation.
+      =/  base-note=note:noltbook
+        u.old(type %dm, users target-users)
+      =/  new-note=note:noltbook  (apply-dm-pref base-note dm-prefs our.bowl)
       =/  upd=update:noltbook  [%note-created new-note]
-      ::  invite remote
-      =/  rem=remote:noltbook  [%remote-invite id.act name.new-note %dm our.bowl target-users %secret &]
+      ::  invite remote with the DEFAULT counterparty name (do not leak local pref)
+      =/  rem=remote:noltbook  [%remote-invite id.act (scot %p ship.act) %dm our.bowl target-users %secret &]
       =/  poke-card=card
         (rpoke /invite/(scot %p ship.act)/[id.act] ship.act rem)
       ::  peer setup
@@ -17179,7 +19497,7 @@
         `[(sham [our.bowl new-id nxt-seq]) nxt-seq 0 new-id new-id ~]
       =/  new-msg=message:noltbook
         [new-id dm-id author.m text.m new-id ~ %.n em]
-      =/  msg-upd=update:noltbook  [%new-message new-msg ~ ~ ~]
+      =/  msg-upd=update:noltbook  [%new-message new-msg ~ ~ ~ ~]
       =/  pax=path  ~[%notes dm-id]
       %=  $
         src-msgs   t.src-msgs
@@ -17220,7 +19538,7 @@
         [now.bowl note-id.act our.bowl (crip (weld "\01SYS:call-started:" (trip (scot %p our.bowl)))) now.bowl ~ %.n ~]
       =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
       =/  upd=update:noltbook  [%call-started note-id.act cid our.bowl ~[our.bowl]]
-      =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
+      =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~ ~]
       =/  pax=path  ~[%notes note-id.act]
       ::  notify all other note members
       =/  broadcast=(list card)
@@ -17243,7 +19561,7 @@
         [now.bowl note-id.act our.bowl (crip (weld "\01SYS:call-joined:" (trip (scot %p our.bowl)))) now.bowl ~ %.n ~]
       =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
       =/  upd=update:noltbook  [%call-joined note-id.act our.bowl]
-      =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
+      =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~ ~]
       =/  pax=path  ~[%notes note-id.act]
       ::  notify: if creator, tell existing participants directly;
       ::  if non-creator, tell the host who relays
@@ -17301,7 +19619,7 @@
             `(rpoke /call-leave-relay/(scot %p p)/[note-id.act] p `remote:noltbook`[%remote-call-leave note-id.act our.bowl])
           (call-state-cards users.u.exists note-id.act new-ci our.bowl)
         ~[(rpoke /call-leave/(scot %p creator.u.exists)/[note-id.act] creator.u.exists `remote:noltbook`[%remote-call-leave note-id.act our.bowl])]
-      =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
+      =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~ ~]
       :_  this(active-calls (~(put by active-calls) note-id.act new-ci), messages (~(put by messages) note-id.act (snoc cur sys-msg)))
       :(weld ~[(gf-paths ~[pax] upd)] ~[(gf-notes upd)] ~[(gf-paths ~[pax] msg-upd)] broadcast)
     ::
@@ -17639,6 +19957,16 @@
     :~  (gf-notes upd)
         (gf-paths ~[/notes/[nid]] upd)
     ==
+  ::  Part 9: ordinary-DM %file fetch timeout. If the pending request is still open at the
+  ::  deadline, answer 503 and clear it. Late/duplicate responses after removal are no-ops;
+  ::  every held Eyre request is completed at most once.
+  ?:  ?=([%dm-fetch-timeout @ ~] wire)
+    ?.  ?=([%behn %wake *] sign-arvo)  `this
+    =/  eid-key=@ta  i.t.wire
+    =/  pend  (~(get by pending-dm-fetches) eid-key)
+    ?~  pend  `this
+    :_  this(pending-dm-fetches (~(del by pending-dm-fetches) eid-key))
+    (give-simple-payload:app:server eid-key `simple-payload:http`[[503 ~] ~])
   (on-arvo:def wire sign-arvo)
 ::
 ++  on-leave   on-leave:def
@@ -17999,7 +20327,14 @@
         ::  never reads as unread. Other actors / host / remote authors never advance.
         =?  actor-note-read  ?&(?=(^ actor.upd) =(host.u.actor.upd our.bowl))
           (actor-read-put actor-note-read desk.u.actor.upd id.u.actor.upd nid id.msg)
-        =?  notes  ?=(^ note)
+        ::  a shared-note artifact-deletion marker (\01SYS:art-delete:...) is stored in the
+        ::  timeline like any message, but a receiving member must NOT overwrite the note's
+        ::  sidebar last-author/last-preview with its raw control text — preserve the
+        ::  preceding preview/source. Ordinary messages update both fields exactly as before.
+        =/  is-art-del-marker=?
+          =/  pfx=tape  "\01SYS:art-delete:"
+          =(pfx (scag (lent pfx) (trip text.msg)))
+        =?  notes  ?&(?=(^ note) !is-art-del-marker)
           (~(put by notes) nid u.note(last-author `author.msg, last-preview `text.msg))
         ::  recency: a genuinely-new subscribed message bumps this note.
         =.  note-activity  (put-activity note-activity nid now.bowl)
@@ -18258,6 +20593,11 @@
         ==
       ::
           %artifact-updated
+        ::  DM %app edits arrive via the direct %remote-dm-app-artifact-edit wire, which is
+        ::  authoritative. Ignore any %app update arriving via the legacy DM subscription so
+        ::  it can neither duplicate the direct delivery nor bypass canonical-id rewriting.
+        ::  DM %file (no direct edit wire yet) + notebook/group updates are unaffected.
+        ?:  ?&(?=(^ note) =(%dm type.u.note) =(%app type.artifact.upd))  `this
         ::  host updated an artifact; store locally and relay to frontend
         ~&  [%nb-art-trace-art-upd our=our.bowl from=src.bowl note=nid artifact=id.artifact.upd versions=(lent versions.artifact.upd)]
         =.  artifacts  (~(put by artifacts) id.artifact.upd artifact.upd)
@@ -18265,6 +20605,17 @@
         ~[(gf-paths ~[/notes/[nid]] upd)]
       ::
           %artifact-deleted
+        ::  DM %app deletes arrive via the direct %remote-dm-app-artifact-delete wire. Ignore
+        ::  a delete arriving via the legacy DM subscription when the local target is missing
+        ::  (the direct wire already removed it) OR is an %app artifact. A first DM %file
+        ::  delete still processes (target exists + is %file); repeats are harmless no-ops.
+        ::  Notebook/group deletes are unaffected.
+        =/  del-tgt  (~(get by artifacts) id.upd)
+        ?:  ?&  ?=(^ note)
+                =(%dm type.u.note)
+                ?|(?=(~ del-tgt) =(%app type.u.del-tgt))
+            ==
+          `this
         ::  host deleted an artifact; drop locally and relay to frontend. If it was
         ::  this note's pinned artifact, self-prune note-pins here too (and emit a
         ::  local %note-pin-updated ~) in case the host's separate clear fact is
