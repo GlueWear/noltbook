@@ -246,6 +246,17 @@
       deadline=@da
       answered=?
   ==
+::  pending-profile-lookup: one in-flight %request-profile, keyed in state by req-id.
+::  `started` is the bowl time the remote poke went out; the reachability wake only
+::  counts Ames contact at or after it, so an old handshake cannot be read as evidence
+::  for this lookup. Deleting the row is what makes the outcome at-most-once: a %ok or
+::  a poke-nack removes it first, so the later wake finds nothing and cannot contradict
+::  them. Transient by design -- reload drops these rows and the unchanged 28s frontend
+::  timeout is the backstop.
++$  pending-profile-lookup
+  $:  ship=@p
+      started=@da
+  ==
 +$  dm-fetch-kind  ?(%file %app)
 +$  pending-dm-fetch
   $:  eyre-id=@ta
@@ -1231,8 +1242,19 @@
       [%search-result req-id=@ud query=@t hits=(list search-msg-hit) capped=?]
       ::  Phase 13: API-specific search result, emitted on /api/results.
       [%api-search-result request-id=@ud query=@t hits=(list search-msg-hit) capped=?]
-      ::  Phase 3 unknown-@p profile lookup outcome.
-      [%profile-lookup-result req-id=@ud ship=@p status=?(%ok %unreachable)]
+      ::  Phase 3 unknown-@p profile lookup outcome. %noltbook-unavailable and %reachable
+      ::  are ADDITIVE: %ok and %unreachable keep their exact meanings, and the mark
+      ::  serializes the status with `scot %tas`, so JSON consumers just see a new string.
+      ::
+      ::  %noltbook-unavailable (terminal): a packet was received from that ship during
+      ::  this lookup but no profile came back -- never why (absent / suspended /
+      ::  incompatible / silently blocking are deliberately indistinguishable).
+      ::
+      ::  %reachable (NON-TERMINAL, the only such status): a packet was received during
+      ::  this lookup while the profile is still pending. It is an observation about the
+      ::  current lookup only -- never stored presence -- and consumers must keep waiting
+      ::  for a terminal status after seeing it.
+      [%profile-lookup-result req-id=@ud ship=@p status=?(%ok %unreachable %noltbook-unavailable %reachable)]
       ::  durable acks for passive high-level condition notifications
       [%notification-acks acks=(list durable-notification-ack)]
       ::  durable per-note recency for sidebar ordering

@@ -250,6 +250,40 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .vp-btn.pal-requesting{border-color:#ffaa00;color:#ffaa00;background:rgba(255,170,0,.1)}
 .vp-btn.pal-requested{border-color:#3b82f6;color:#3b82f6;background:rgba(59,130,246,.1)}
 .vp-btn.pal-blocked{border-color:#ff4444;color:#ff4444;background:rgba(255,68,68,.1)}
+.vp-status{width:100%;box-sizing:border-box;font-size:.7rem;letter-spacing:.06em;text-align:center;padding:.4rem .5rem;border:1px solid var(--border2);color:var(--text-dim);background:transparent;overflow-wrap:anywhere}
+/* active progress reads clearly on its own, without the sidebar: larger text, more
+   padding, and a visible tinted border instead of the dim default. */
+.vp-status[data-state="looking"],.vp-status[data-state="reachable"]{font-size:.8rem;padding:.55rem .6rem;cursor:default}
+.vp-status[data-state="looking"]{border-color:#ffaa00;color:#ffaa00;background:rgba(255,170,0,.10)}
+.vp-status[data-state="reachable"]{border-color:#3b82f6;color:#7ab3ff;background:rgba(59,130,246,.14)}
+/* terminal states: the WHOLE banner is the retry control (no nested button) */
+.vp-status[data-state="noltbook-unavailable"]{border-color:#c8891f;color:#d9a13f;background:rgba(200,137,31,.10);cursor:pointer}
+.vp-status[data-state="noltbook-unavailable"]:hover{background:rgba(200,137,31,.20)}
+.vp-status[data-state="noltbook-unavailable"]:focus-visible{outline:1px solid #d9a13f;outline-offset:2px}
+.vp-status[data-state="unreachable"]{border-color:#ff4444;color:#ff4444;background:rgba(255,68,68,.10);cursor:pointer}
+.vp-status[data-state="unreachable"]:hover{background:rgba(255,68,68,.20)}
+.vp-status[data-state="unreachable"]:focus-visible{outline:1px solid #ff4444;outline-offset:2px}
+/* Animated searching dots: four equal 400ms stages over 1.6s, starting BLANK --
+   (none) -> . -> .. -> ... -> repeat. Each dot fades in at its own quarter and stays on
+   for the rest of the cycle, so dot N is visible from (N * 25%) onward.
+   All three dots ALWAYS occupy layout and only opacity animates, so the banner width
+   never changes and no ch/font-metric assumption is needed. steps(1,end) holds each
+   value for its whole interval, so the dots switch discretely instead of fading.
+   aria-hidden on the wrapper keeps the churn away from screen readers -- the banner
+   carries a stable aria-label instead. */
+.vp-dots{display:none}
+.vp-status[data-state="looking"] .vp-dots,.vp-status[data-state="reachable"] .vp-dots{display:inline}
+.vp-dots i{font-style:normal;opacity:1}
+/* animations are scoped to the two ACTIVE states, so neither terminal state animates */
+.vp-status[data-state="looking"] .vp-dots i:nth-child(1),.vp-status[data-state="reachable"] .vp-dots i:nth-child(1){animation:vp-dot1 1.6s steps(1,end) infinite}
+.vp-status[data-state="looking"] .vp-dots i:nth-child(2),.vp-status[data-state="reachable"] .vp-dots i:nth-child(2){animation:vp-dot2 1.6s steps(1,end) infinite}
+.vp-status[data-state="looking"] .vp-dots i:nth-child(3),.vp-status[data-state="reachable"] .vp-dots i:nth-child(3){animation:vp-dot3 1.6s steps(1,end) infinite}
+@keyframes vp-dot1{0%{opacity:0}25%,100%{opacity:1}}
+@keyframes vp-dot2{0%{opacity:0}50%,100%{opacity:1}}
+@keyframes vp-dot3{0%{opacity:0}75%,100%{opacity:1}}
+@media (prefers-reduced-motion:reduce){
+  .vp-dots i{animation:none!important;opacity:1}
+}
 .gossip-toggle{display:flex;align-items:center;gap:.4rem}
 .gossip-toggle label{font-size:.7rem;color:var(--text-dim);letter-spacing:.05em;cursor:pointer}
 .gossip-toggle input[type=checkbox]{accent-color:#ffaa00;cursor:pointer}
@@ -643,7 +677,6 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
         <span class="chat-note-name" id="chatNoteName" onclick="openCurrentNoteMenu(event)">Cover</span>
         <span id="actorDmContext" style="display:none;font-size:.7rem;margin-left:.5rem;vertical-align:middle"></span>
         <span id="readOnlyBadge" style="display:none;font-size:.6rem;padding:.1rem .4rem;border:1px solid #ff4444;color:#ff4444;letter-spacing:.06em;margin-left:.4rem;vertical-align:middle">READ ONLY</span>
-        <span id="lineageBadge" style="display:none;font-size:.6rem;padding:.1rem .4rem;border:1px solid #ffaa00;color:#ffaa00;letter-spacing:.06em;margin-left:.4rem;vertical-align:middle"></span>
         <span class="call-indicator" id="callIndicator" onclick="toggleCallRail()" style="cursor:pointer"><span class="call-dot"></span><span id="callParticipantCount">0</span> in call</span>
         <button class="share-btn" id="shareBtn" onclick="openSharePrompt()">SHARE</button>
         <button class="call-btn" id="callBtn" onclick="toggleCall()">CALL</button>
@@ -766,8 +799,8 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
       <div class="profile-row"><span class="profile-field-label">Sponsorship Chain:</span><span class="profile-sponsor-chain" id="profileSponsors"></span></div>
     </div>
     <div>
-      <span class="profile-section-label">Offline Azimuth</span>
-      <textarea class="profile-azimuth-input" id="profileAzimuth" placeholder="enter offline azimuth..." autocomplete="off"></textarea>
+      <span class="profile-section-label">BIO</span>
+      <textarea class="profile-azimuth-input" id="profileAzimuth" placeholder="say something about yourself..." autocomplete="off"></textarea>
     </div>
     <div>
       <span class="profile-section-label">Shared Notes</span>
@@ -1593,9 +1626,15 @@ function handleUpdate(upd){
   else if(upd['message-edited']){const{noteId,message}=upd['message-edited'];const msgs=state.messages[noteId]||[];const eid=message.meta&&message.meta.eid;const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===message.id);if(fi>=0){if(!message.actor&&msgs[fi]&&msgs[fi].actor)message.actor=msgs[fi].actor;msgs[fi]=message}if(state.currentNoteId===noteId)scheduleRender(noteId)}
   else if(upd['message-deleted']){const{noteId,msgId,eid}=upd['message-deleted'];const msgs=state.messages[noteId]||[];const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===msgId);const removed=fi>=0?msgs[fi]:null;if(fi>=0)msgs.splice(fi,1);if(removed&&removed.import&&state.notes[noteId]){let prior=null;for(let i=msgs.length-1;i>=0;i--){if(!isArtDeleteControl(msgs[i].text)){prior=msgs[i];break}}state.notes[noteId].lastAuthor=prior?prior.author:null;state.notes[noteId].lastPreview=prior?prior.text:null;scheduleNoteList()}if(state.currentNoteId===noteId){renderPinSurface(noteId);scheduleRender(noteId)}}
   else if(upd['search-result']){const{reqId,query,hits,capped}=upd['search-result'];if(reqId!==state.searchReqInFlight)return;if(String(query||'')!==state.searchQuery)return;state.searchMessageHits=Array.isArray(hits)?hits:[];state.searchMessageCapped=!!capped;if(state.searchQuery)renderSidebarSearchResults()}
-  else if(upd['profile-lookup-result']){const{reqId,ship,status}=upd['profile-lookup-result'];if(state.profileLookupInFlight[reqId]!==ship)return;delete state.profileLookupInFlight[reqId];if(state.profileLookupTimers[ship]){clearTimeout(state.profileLookupTimers[ship]);delete state.profileLookupTimers[ship]}if(status==='ok'){delete state.profileLookupStatus[ship];if(state._mentionLookups)state._mentionLookups.delete(ship);removeMentionLookupPopover(ship,0);if(state.searchQuery)renderSidebarSearchResults();viewProfile(ship)}else{state.profileLookupStatus[ship]='unreachable';if(state.searchQuery)renderSidebarSearchResults();if(state._mentionLookups&&state._mentionLookups.has(ship)){state._mentionLookups.delete(ship);if(_mentionLookupPopovers[ship]){showMentionLookupPopover(ship,"this user can't be reached",'#ff4444',null);removeMentionLookupPopover(ship,3000)}}}}
-  else if(upd['profile-list']){const _plNid=state.currentNoteId;const _plAu=_plNid?new Set((state.messages[_plNid]||[]).map(m=>m.author)):null;let _plDirty=false;let _plDmDirty=false;for(const entry of upd['profile-list']){const _plOld=state.profiles[entry.ship];const _plChanged=JSON.stringify(_plOld)!==JSON.stringify(entry.profile);if(_plAu&&_plAu.has(entry.ship)&&_plChanged)_plDirty=true;state.profiles[entry.ship]=entry.profile;clearDmProfileHydrating(entry.ship);const uav=entry.profile&&entry.profile.avatar&&entry.profile.avatar.type==='urbit';if(uav){if(!avatarRevisionByShip[entry.ship])avatarRevisionByShip[entry.ship]=Date.now()}else{delete avatarRevisionByShip[entry.ship]}if(_plChanged&&findDmRoot(entry.ship))_plDmDirty=true}const me=state.profiles['~'+api.ship];if(me){if(me.displayName)document.getElementById('shipDisplay').textContent=me.displayName;updateSidebarSigil()}if(state.palsView)renderPalsList();if(_plDmDirty){scheduleNoteList();const _cn=state.currentNoteId?state.notes[state.currentNoteId]:null;if(_cn&&_cn.type==='dm'){const _cp=dmCounterparty(_cn);if(_cp&&upd['profile-list'].some(e=>e.ship===_cp)){const _el=document.getElementById('chatNoteName');if(_el)_el.textContent=noteDisplayName(_cn)}}}if(_plDirty)scheduleRender()}
-  else if(upd['profile-updated']){const{ship,profile}=upd['profile-updated'];const _puOld=state.profiles[ship];state.profiles[ship]=profile;clearDmProfileHydrating(ship);const uav=profile&&profile.avatar&&profile.avatar.type==='urbit';if(uav){avatarRevisionByShip[ship]=Date.now()}else{delete avatarRevisionByShip[ship]}if(ship==='~'+api.ship&&!uav)clearOwnAvatarBlob();if(ship==='~'+api.ship){document.getElementById('shipDisplay').textContent=profile.displayName||'~'+api.ship;updateSidebarSigil()}if(state.palsView)renderPalsList();if(profileTouchesOpenNote(ship)&&JSON.stringify(_puOld)!==JSON.stringify(profile))scheduleRender();refreshActorDmPresentation()}
+  else if(upd['profile-lookup-result']){const{reqId,ship,status}=upd['profile-lookup-result'];if(state.profileLookupInFlight[reqId]!==ship)return;
+    // %reachable is the ONE non-terminal status: a packet was seen during this lookup but
+    // the profile is still pending. Keep the in-flight row AND the 28s timer alive, record
+    // the observation, repaint. No remote-note request, no mention-correlation change, no
+    // modal opened or recreated. The timer later resolves reachable -> noltbook-unavailable.
+    if(status==='reachable'){state.profileLookupStatus[ship]='reachable';if(state.searchQuery)renderSidebarSearchResults();refreshOpenProfileCard(ship);return}
+    delete state.profileLookupInFlight[reqId];if(state.profileLookupTimers[ship]){clearTimeout(state.profileLookupTimers[ship]);delete state.profileLookupTimers[ship]}const _plWasMention=!!(state._mentionLookups&&state._mentionLookups.has(ship));const _plCardOpen=!!findOpenProfileOverlay(ship);if(status==='ok'){delete state.profileLookupStatus[ship];if(state._mentionLookups)state._mentionLookups.delete(ship);removeMentionLookupPopover(ship,0);if(state.searchQuery)renderSidebarSearchResults();if(_plCardOpen){requestProfileRemoteNotes(ship);refreshOpenProfileCard(ship)}else if(_plWasMention){viewProfile(ship)}}else{state.profileLookupStatus[ship]=(status==='noltbook-unavailable')?'noltbook-unavailable':'unreachable';if(state.searchQuery)renderSidebarSearchResults();refreshOpenProfileCard(ship);if(_plWasMention){state._mentionLookups.delete(ship);if(_mentionLookupPopovers[ship]){showMentionLookupPopover(ship,"this user can't be reached",'#ff4444',null);removeMentionLookupPopover(ship,3000)}}}}
+  else if(upd['profile-list']){const _plNid=state.currentNoteId;const _plAu=_plNid?new Set((state.messages[_plNid]||[]).map(m=>m.author)):null;let _plDirty=false;let _plDmDirty=false;let _plStale=false;for(const entry of upd['profile-list']){if(reconcileStaleLookupOnProfile(entry.ship))_plStale=true;const _plOld=state.profiles[entry.ship];const _plChanged=JSON.stringify(_plOld)!==JSON.stringify(entry.profile);if(_plAu&&_plAu.has(entry.ship)&&_plChanged)_plDirty=true;state.profiles[entry.ship]=entry.profile;clearDmProfileHydrating(entry.ship);const uav=entry.profile&&entry.profile.avatar&&entry.profile.avatar.type==='urbit';if(uav){if(!avatarRevisionByShip[entry.ship])avatarRevisionByShip[entry.ship]=Date.now()}else{delete avatarRevisionByShip[entry.ship]}if(_plChanged&&findDmRoot(entry.ship))_plDmDirty=true}const me=state.profiles['~'+api.ship];if(me){if(me.displayName)document.getElementById('shipDisplay').textContent=me.displayName;updateSidebarSigil()}if(state.palsView)renderPalsList();if(_plDmDirty){scheduleNoteList();const _cn=state.currentNoteId?state.notes[state.currentNoteId]:null;if(_cn&&_cn.type==='dm'){const _cp=dmCounterparty(_cn);if(_cp&&upd['profile-list'].some(e=>e.ship===_cp)){const _el=document.getElementById('chatNoteName');if(_el)_el.textContent=noteDisplayName(_cn)}}}if(_plDirty)scheduleRender();if(_plStale&&state.searchQuery)renderSidebarSearchResults();if(document.querySelector('.view-profile-overlay')){for(const entry of upd['profile-list'])refreshOpenProfileCard(entry.ship)}}
+  else if(upd['profile-updated']){const{ship,profile}=upd['profile-updated'];const _puOld=state.profiles[ship];state.profiles[ship]=profile;clearDmProfileHydrating(ship);const uav=profile&&profile.avatar&&profile.avatar.type==='urbit';if(uav){avatarRevisionByShip[ship]=Date.now()}else{delete avatarRevisionByShip[ship]}if(ship==='~'+api.ship&&!uav)clearOwnAvatarBlob();if(ship==='~'+api.ship){document.getElementById('shipDisplay').textContent=profile.displayName||'~'+api.ship;updateSidebarSigil()}if(state.palsView)renderPalsList();if(profileTouchesOpenNote(ship)&&JSON.stringify(_puOld)!==JSON.stringify(profile))scheduleRender();if(reconcileStaleLookupOnProfile(ship)&&state.searchQuery)renderSidebarSearchResults();refreshOpenProfileCard(ship);refreshActorDmPresentation()}
   else if(upd['remote-note-list']){const{ship,notes}=upd['remote-note-list'];Object.keys(state.discoveryNotes).forEach(k=>{if(state.discoveryNotes[k].creator===ship)delete state.discoveryNotes[k]});for(const n of notes)state.discoveryNotes[n.id]=n;const el=document.getElementById('viewProfileNotes');if(el&&state.viewingProfileShip===ship){el.innerHTML=renderProfileNotesHtml(ship,'none available')}if(state.pendingRefOpen&&state.pendingRefOpen.creator===ship){const _pnid=state.pendingRefOpen.noteId;clearTimeout(state.pendingRefOpen.timer);state.pendingRefOpen=null;if(state.discoveryNotes[_pnid]){openNoteDetailModal(_pnid)}else{showRefUnavailable(_pnid,'Note unavailable')}}}
   // Phase G4: async actor-profile resolution result. ok => cache + render; missing/
   // unreachable => keep the glyph fallback. Never reloads the message timeline.
@@ -1826,12 +1865,6 @@ function updateMuteUI(){
   }
   const roBadge=document.getElementById('readOnlyBadge');
   if(roBadge)roBadge.style.display=isReadOnly?'inline':'none';
-  const linBadge=document.getElementById('lineageBadge');
-  if(linBadge){
-    const txt=note?lineageMoniker(note):'';
-    if(txt){linBadge.textContent=txt;linBadge.style.display='inline'}
-    else linBadge.style.display='none';
-  }
 }
 function acceptForkInvite(rootId){
   // optimistic: mark pending invite as fetching so the banner shows progress
@@ -1857,12 +1890,30 @@ function declineForkInvite(rootId){
   api.poke('noltbook','noltbook-action',{action:'decline-fork-invite',data:{rootId}});
   refreshGrimoireIfOpen();
 }
-function lineageMoniker(note){
-  if(!note||note.type!=='group')return'';
+// Version identity for the Note Info heading. Same guard and same author-ship
+// resolution the old header badge used (creator, else the fork origin host) --
+// only the presentation changed. Returns null when the note carries no version
+// identity, so Note Info keeps its plain heading.
+function lineageVersionInfo(note){
+  if(!note||note.type!=='group')return null;
   const lin=state.noteLineage[note.id]||{};
-  const v=lin.forkVersion||1;
-  const host=note.creator||(lin.forkOf&&lin.forkOf.host)||'';
-  return'v'+v+(host?' '+host:'');
+  return{version:lin.forkVersion||1,author:note.creator||(lin.forkOf&&lin.forkOf.host)||''};
+}
+// Centered "VERSION 2 · Alice" heading, amber throughout (the plain NOTE INFO
+// heading stays dim). The author renders as its profile display name when cached
+// and falls back to the full @p; either way the title attribute carries the
+// complete @p, and long comet fallbacks wrap instead of overflowing.
+function lineageHeadingHtml(note){
+  const info=lineageVersionInfo(note);
+  if(!info)return'NOTE INFO';
+  let out='VERSION '+info.version;
+  if(info.author){
+    out+=' &middot; <span onclick="openGroupMembersModalClick(\''+escAttr(info.author)+'\',\''+escAttr(note.id)+'\')"'
+      +' title="'+escAttr(info.author)+'"'
+      +' style="color:#ffaa00;cursor:pointer;letter-spacing:normal;overflow-wrap:anywhere">'
+      +escHtml(displayName(info.author))+'</span>';
+  }
+  return'<span style="color:#ffaa00">'+out+'</span>';
 }
 function retryHost(noteId){
   if(!noteId)return;
@@ -2690,8 +2741,9 @@ function setSidebarSearch(q){
   // for the typed candidate so the row shows LOOK UP again. Active
   // 'looking' lookups are untouched so a click in flight survives input.
   const _candidate=normalizeShipCandidate(trimmed);
-  if(_candidate&&state.profileLookupStatus[_candidate]==='unreachable'){
-    delete state.profileLookupStatus[_candidate];
+  if(_candidate){
+    const _cs=state.profileLookupStatus[_candidate];
+    if(_cs==='unreachable'||_cs==='noltbook-unavailable')delete state.profileLookupStatus[_candidate];
   }
   const clearBtn=document.getElementById('sidebarSearchClear');
   if(clearBtn)clearBtn.style.display=trimmed?'':'none';
@@ -2879,8 +2931,18 @@ function normalizeShipCandidate(q){
   for(const p of parts)if(p.length!==3&&p.length!==6)return null;
   return candidate;
 }
-function lookupUnknownShip(ship){
-  if(state.profileLookupStatus[ship]==='looking')return;
+// opts.openShell (sidebar search only) opens/refreshes the profile card immediately
+// instead of waiting for %ok. Default false so the mention path is unchanged.
+function lookupUnknownShip(ship,opts){
+  const openShell=!!(opts&&opts.openShell);
+  // 'reachable' is still an ACTIVE lookup (in-flight row + 28s timer alive), so it reuses
+  // the current request exactly like 'looking' — reopening the shell must never allocate
+  // a second request id.
+  const _active=state.profileLookupStatus[ship];
+  if(_active==='looking'||_active==='reachable'){
+    if(openShell)viewProfile(ship);
+    return;
+  }
   state.profileLookupReqCounter+=1;
   const reqId=state.profileLookupReqCounter;
   state.profileLookupInFlight[reqId]=ship;
@@ -2890,12 +2952,18 @@ function lookupUnknownShip(ship){
     delete state.profileLookupTimers[ship];
     if(state.profileLookupInFlight[reqId]===ship){
       delete state.profileLookupInFlight[reqId];
-      state.profileLookupStatus[ship]='unreachable';
+      // interim reachability observed during this lookup => the ship answered but Noltbook
+      // did not; otherwise nothing was ever heard.
+      state.profileLookupStatus[ship]=(state.profileLookupStatus[ship]==='reachable')?'noltbook-unavailable':'unreachable';
       if(state.searchQuery)renderSidebarSearchResults();
+      refreshOpenProfileCard(ship);   // strip -> retry; Shared Notes leaves 'loading...'
       if(state._mentionLookups&&state._mentionLookups.has(ship)){state._mentionLookups.delete(ship);if(_mentionLookupPopovers[ship]){showMentionLookupPopover(ship,"couldn't reach — tap again to retry",'#ffaa00',null);removeMentionLookupPopover(ship,4000)}}
     }
   },28000);  // two cold Ames hops (request + response) can exceed a short timeout on first contact
   api.poke('noltbook','noltbook-action',{action:'request-profile',data:{ship,reqId}});
+  // status is already 'looking', so the shell renders LOOKING… and defers remote notes
+  if(openShell)viewProfile(ship);
+  else refreshOpenProfileCard(ship);   // retry from an already-open card
   if(state.searchQuery)renderSidebarSearchResults();
 }
 // Quiet, deduplicated profile hydration for ordinary-DM counterparties. Unlike
@@ -2931,13 +2999,24 @@ function makeSearchUnknownPersonResult(ship){
   const status=state.profileLookupStatus[ship];
   let statusText='LOOK UP';
   let statusColor='#ffaa00';
-  let clickable=true;
-  if(status==='looking'){statusText='LOOKING… (first contact can take ~20s)';statusColor='#3b82f6';clickable=false}
+  // Stays clickable while looking: the card shell can be closed during the 28s
+  // window, and this row is the only way back to it. lookupUnknownShip's own
+  // 'looking' guard reopens/refreshes the shell without starting a second lookup
+  // or allocating another request id, and viewProfile never stacks a duplicate.
+  if(status==='looking'){statusText='LOOKING… (first contact can take ~20s)';statusColor='#3b82f6'}
+  else if(status==='reachable'){statusText='ONLINE · LOOKING FOR NOLTBOOK…';statusColor='#4aba8a'}
   else if(status==='unreachable'){statusText="couldn't reach — tap to retry";statusColor='#ffaa00'}
+  else if(status==='noltbook-unavailable'){statusText='ONLINE · NOLTBOOK NOT AVAILABLE';statusColor='#ffaa00'}
   const av=avatarHtml(ship);
   div.innerHTML=`<div class="contact-avatar">${av}</div><div class="contact-info"><span class="contact-name">${escHtml(ship)}</span><span class="contact-ship" style="color:${statusColor}">${escHtml(statusText)}</span></div>`;
-  if(clickable)div.onclick=()=>lookupUnknownShip(ship);
-  else div.style.cursor='default';
+  // 'noltbook-unavailable' rows only OPEN the card — retrying is an explicit action on
+  // the card's RETRY button, since re-poking a ship with no Noltbook just waits 27s again.
+  // Every other state keeps the existing behavior (LOOK UP starts, unreachable retries,
+  // looking reopens the shell without allocating a new request).
+  div.onclick=()=>{
+    if(state.profileLookupStatus[ship]==='noltbook-unavailable')viewProfile(ship);
+    else lookupUnknownShip(ship,{openShell:true});
+  };
   return div;
 }
 // Phase: clickable rendered mentions. Known ship -> open profile directly.
@@ -5892,19 +5971,146 @@ function renderProfileNotesHtml(ship,fallback){
     return '<div class="profile-note-entry" data-note-id="'+escAttr(n.id)+'" onclick="openNoteDetailModal(\''+escAttr(n.id)+'\')"><div class="profile-note-icon">'+ic+'</div><div class="profile-note-text"><span class="profile-note-name">'+escHtml(n.name)+'</span><span class="profile-note-vis">'+vis+'</span></div>'+(badge?'<div data-badge="1" style="margin-left:auto">'+badge+'</div>':'')+'</div>';
   }).join('');
 }
+// ===== real-user profile card: stable handle + in-place refresh =====
+// The overlay carries data-ship, so a second viewProfile() for the SAME ship
+// refreshes the open card instead of stacking a duplicate modal over it.
+function findOpenProfileOverlay(ship){
+  const els=document.querySelectorAll('.view-profile-overlay');
+  for(let i=0;i<els.length;i++){if(els[i].dataset.ship===ship)return els[i]}
+  return null;
+}
+// Shared by first render and refresh so a late avatar can't diverge from the shell.
+function vpAvatarContent(ship,sc){
+  const sigil=(function(){const svg=getSigilSvg(ship);return svg||'<span style="color:'+sc+';font-size:1.5rem">'+ship.slice(1,3)+'</span>'})();
+  const url=resolveAvatarUrl(ship);
+  if(!url)return sigil;
+  return '<img src="'+escAttr(url)+'" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'">'+sigil;
+}
+// Bio row markup (stored field is still azimuthAddress — UI label only).
+function vpBioHtml(p){
+  if(!p||!p.azimuthAddress)return '';
+  return '<span class="profile-field-label">Bio:</span> <span style="color:var(--text)">'+escHtml(p.azimuthAddress)+'</span>';
+}
+// Status strip above the bottom action row. Hidden (so the flex gap collapses with
+// it) unless a lookup is running or failed. 'unreachable' is a real button: click,
+// Enter and Space all retry, in place, without recreating the card.
+function updateViewProfileStatus(ship){
+  const ov=findOpenProfileOverlay(ship);
+  if(!ov)return;
+  const el=ov.querySelector('[data-vp="status"]');
+  if(!el)return;
+  const lb=el.querySelector('[data-vp="status-label"]');
+  const dt=el.querySelector('[data-vp="status-dots"]');
+  const st=state.profileLookupStatus[ship];
+  // dot CHARACTERS exist only while searching: display:none would still leave them in
+  // textContent, so a terminal banner would read "...NOT AVAILABLE..." to anything
+  // reading text rather than pixels.
+  function setDots(on){
+    if(!dt)return;
+    dt.hidden=!on;
+    for(const i of dt.children)i.textContent=on?'.':'';
+  }
+  // Two ACTIVE states ('looking', 'reachable'): non-interactive (no role, no tabindex,
+  // aria-busy="true"). Their label carries NO trailing dots -- setDots turns on the
+  // aria-hidden .vp-dots span and CSS animates it, so the accessible name stays stable
+  // via aria-label while the visible dots cycle.
+  // Two TERMINAL states ('unreachable', 'noltbook-unavailable'): both are whole-banner
+  // retry controls. There is no nested button in either; the banner itself takes
+  // role="button" + tabindex="0", and viewProfile's click/keydown pair on `el` handles
+  // mouse, Enter and Space for both of them.
+  function active(name,label,aria){
+    el.hidden=false;el.dataset.state=name;lb.textContent=label;setDots(true);
+    el.setAttribute('aria-busy','true');el.setAttribute('aria-label',aria);
+    el.removeAttribute('role');el.removeAttribute('tabindex');
+  }
+  function terminal(name,label){
+    el.hidden=false;el.dataset.state=name;lb.textContent=label;setDots(false);
+    el.removeAttribute('aria-busy');el.setAttribute('aria-label',label);
+    el.setAttribute('role','button');el.setAttribute('tabindex','0');
+  }
+  if(st==='looking'){
+    active('looking','LOOKING FOR NOLTBOOK','Looking for Noltbook');
+  }else if(st==='reachable'){
+    // non-terminal: a packet was seen, the profile is still pending. Non-interactive.
+    active('reachable','ONLINE · LOOKING FOR NOLTBOOK','Online, looking for Noltbook');
+  }else if(st==='unreachable'){
+    terminal('unreachable',"COULDN'T REACH · TAP TO RETRY");
+  }else if(st==='noltbook-unavailable'){
+    // Wording is about availability TO THIS USER; it never says why (absent, suspended,
+    // incompatible, crashed, or silently blocking are deliberately indistinguishable).
+    terminal('noltbook-unavailable','ONLINE · NOLTBOOK NOT AVAILABLE');
+  }else{
+    el.hidden=true;lb.textContent='';setDots(false);el.removeAttribute('data-state');
+    el.removeAttribute('aria-busy');el.removeAttribute('aria-label');
+    el.removeAttribute('role');el.removeAttribute('tabindex');
+  }
+}
+function retryProfileLookup(ship){
+  const _s=state.profileLookupStatus[ship];
+  if(_s==='looking'||_s==='reachable')return;   // a lookup is still running
+  lookupUnknownShip(ship,{openShell:true});
+}
+// One remote-note request per open card. Suppressed while a lookup is still in
+// flight (the shell now opens before %ok, so an early request would be wasted);
+// the %ok branch drives it instead.
+function requestProfileRemoteNotes(ship){
+  const ov=findOpenProfileOverlay(ship);
+  if(!ov)return;
+  if(ov.dataset.notesRequested==='1')return;
+  ov.dataset.notesRequested='1';
+  api.poke('noltbook','noltbook-action',{action:'request-remote-notes',data:{ship}});
+}
+// Real profile data proves the earlier 'unreachable' verdict wrong: the frontend
+// timeout had already dropped the request from profileLookupInFlight, so a late
+// %profile-updated / %profile-list would otherwise populate the card while the strip
+// still read COULDN'T REACH. Clears only that stale verdict — an active 'looking'
+// state and all request correlation are left alone. Returns true when it cleared
+// something, so callers can re-render the sidebar once per batch.
+function reconcileStaleLookupOnProfile(ship){
+  const _st=state.profileLookupStatus[ship];
+  // both negative verdicts are refuted by real profile data; 'looking' is left alone
+  if(_st!=='unreachable'&&_st!=='noltbook-unavailable')return false;
+  delete state.profileLookupStatus[ship];
+  if(findOpenProfileOverlay(ship))requestProfileRemoteNotes(ship);
+  return true;
+}
+// Repaint the open card from current state. No overlay replacement, no focus change.
+// No-op when the card has already been closed, so late facts cannot touch stale DOM.
+function refreshOpenProfileCard(ship){
+  const ov=findOpenProfileOverlay(ship);
+  if(!ov)return;
+  const p=state.profiles[ship]||{};
+  const sc=shipColor(ship);
+  const nm=ov.querySelector('[data-vp="name"]');
+  if(nm)nm.textContent=p.displayName||ship;
+  const av=ov.querySelector('[data-vp="avatar"]');
+  if(av)av.innerHTML=vpAvatarContent(ship,sc);
+  const bio=ov.querySelector('[data-vp="bio"]');
+  if(bio){const h=vpBioHtml(p);bio.innerHTML=h;bio.hidden=!h}
+  const notes=ov.querySelector('#viewProfileNotes');
+  if(notes){
+    // 'loading...' only while something is actually pending; a failed lookup must
+    // never leave Shared Notes stuck on it.
+    const _ls=state.profileLookupStatus[ship];
+    const pending=_ls==='looking'||_ls==='reachable'||ov.dataset.notesRequested==='1';
+    notes.innerHTML=renderProfileNotesHtml(ship,pending?'loading...':'none available');
+  }
+  updateViewProfileTags(ship);
+  updateViewProfileStatus(ship);
+}
 async function viewProfile(ship){
   const isMe=ship==='~'+api.ship;
   if(isMe){openProfileModal();return}
+  // already open for this ship => refresh in place, never stack a second modal
+  if(findOpenProfileOverlay(ship)){refreshOpenProfileCard(ship);return}
   const p=state.profiles[ship]||{};
   const sc=shipColor(ship);
   const overlay=document.createElement('div');
-  overlay.className='modal-overlay open profile-flow-modal';
+  overlay.className='modal-overlay open profile-flow-modal view-profile-overlay';
+  overlay.dataset.ship=ship;
   const modal=document.createElement('div');
   modal.className='profile-modal';
-  const viewUrl=resolveAvatarUrl(ship);
-  const avatarContent=viewUrl
-    ?'<img src="'+escAttr(viewUrl)+'" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'">'+(function(){const svg=getSigilSvg(ship);return svg||'<span style="color:'+sc+';font-size:1.5rem">'+ship.slice(1,3)+'</span>'})()
-    :(function(){const svg=getSigilSvg(ship);return svg||'<span style="color:'+sc+';font-size:1.5rem">'+ship.slice(1,3)+'</span>'})();
+  const avatarContent=vpAvatarContent(ship,sc);
   const dn=p.displayName||ship;
   const pt=shipToPoint(ship);
   const notesHtml=renderProfileNotesHtml(ship,'loading...');
@@ -5912,15 +6118,15 @@ async function viewProfile(ship){
     <div style="display:flex;gap:1rem">
       <div style="flex:1;display:flex;flex-direction:column;gap:.75rem">
         <div class="profile-top">
-          <div class="profile-sigil"><div class="profile-sigil-inner">${avatarContent}</div></div>
+          <div class="profile-sigil"><div class="profile-sigil-inner" data-vp="avatar">${avatarContent}</div></div>
           <div class="profile-info">
-            <div class="profile-row"><span class="profile-field-label">User Name:</span><span style="color:${sc}">${escHtml(dn)}</span></div>
+            <div class="profile-row"><span class="profile-field-label">User Name:</span><span data-vp="name" style="color:${sc}">${escHtml(dn)}</span></div>
             <div class="profile-row"><span class="profile-field-label">Urbit ID:</span><span style="color:${sc}">${escHtml(ship)}</span></div>
             <div class="profile-row"><span class="profile-field-label">Point #:</span><span style="color:${sc}">${pt>=0?pt:''}</span></div>
           </div>
         </div>
         <div class="profile-row"><span class="profile-field-label">Sponsors:</span><span id="viewProfileSponsors" style="color:var(--dim)">loading...</span></div>
-        ${p.azimuthAddress?'<div><span class="profile-field-label">Offline Azimuth:</span> <span style="color:var(--text)">'+escHtml(p.azimuthAddress)+'</span></div>':''}
+        <div data-vp="bio"${p.azimuthAddress?'':' hidden'}>${vpBioHtml(p)}</div>
         <div>
           <span class="profile-section-label">Shared Notes</span>
           <div class="profile-notes-list" id="viewProfileNotes">${notesHtml}</div>
@@ -5934,6 +6140,7 @@ async function viewProfile(ship){
         <button class="vp-btn" id="viewProfileContact" onclick="viewProfileToggleContact('${escAttr(ship)}')" hidden></button>
       </div>
     </div>
+    <div class="vp-status" data-vp="status" hidden><span data-vp="status-label"></span><span class="vp-dots" data-vp="status-dots" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></div>
     <div class="modal-actions">
       <button class="modal-btn amber-hover" id="viewProfileClose">CLOSE</button>
     </div>`;
@@ -5952,7 +6159,27 @@ async function viewProfile(ship){
   overlay.addEventListener('click',function(e){if(e.target===overlay)_closeProfile()});
   document.body.appendChild(overlay);
   overlay.querySelector('#viewProfileClose').addEventListener('click',_closeProfile);
+  const _st=overlay.querySelector('[data-vp="status"]');
+  if(_st){
+    // The whole banner is the retry control for BOTH terminal states. There is no nested
+    // button, so nothing can bubble into a second retry. A role=button div does not
+    // synthesize a click from Enter/Space (unlike a real <button>), so handling keydown
+    // here is exactly one activation per interaction.
+    const _terminal=function(){const s=_st.dataset.state;return s==='unreachable'||s==='noltbook-unavailable'};
+    _st.addEventListener('click',function(){if(_terminal())retryProfileLookup(ship)});
+    _st.addEventListener('keydown',function(e){
+      if(!_terminal())return;
+      if(e.key==='Enter'||e.key===' '||e.key==='Spacebar'){e.preventDefault();retryProfileLookup(ship)}
+    });
+  }
   updateViewProfileTags(ship);
+  updateViewProfileStatus(ship);
+  // Remote notes: only when this ship carries NO lookup status at all. That covers the
+  // in-flight shell ('looking'), a failed lookup ('unreachable'), and an unavailable
+  // Noltbook ('noltbook-unavailable') — none of which can serve notes. Every pre-existing
+  // caller (cached profile, member row, mention %ok) has no status, so their immediate
+  // request is unchanged; the %ok branch requests explicitly after clearing the status.
+  if(!state.profileLookupStatus[ship])requestProfileRemoteNotes(ship);
   try{
     const res=await api.scry('noltbook','/sponsors/'+ship);
     let chain=(res['sponsor-chain']||[]).reverse();
@@ -5960,8 +6187,6 @@ async function viewProfile(ship){
     const el=overlay.querySelector('#viewProfileSponsors');
     if(el)el.innerHTML=chain.map(s=>'<span style="color:'+shipColor(s)+'">'+s+'</span>').join('&nbsp;&nbsp;')||'none';
   }catch(e){console.warn('[sponsors]',e);const el=overlay.querySelector('#viewProfileSponsors');if(el)el.textContent='unavailable'}
-  // fetch remote notes
-  api.poke('noltbook','noltbook-action',{action:'request-remote-notes',data:{ship}});
 }
 // ===== Phase G4: actor profile modal (NOT the host's ship profile) =====
 // Shows the actor's avatar/initial, current display name, kind, "%desk on ~host",
@@ -6060,7 +6285,19 @@ async function openProfileModal(){
     sponsorEl.innerHTML=chain.map(s=>`<span style="color:${shipColor(s)}">${s}</span>`).join('&nbsp;&nbsp;')||'none';
   }catch(e){console.warn('[sponsors]',e);sponsorEl.textContent='unavailable'}
 }
-function closeProfileModal(){document.getElementById('profileModal').classList.remove('open')}
+function closeProfileModal(){
+  document.getElementById('profileModal').classList.remove('open');
+  // Own-profile arm of the Note Info -> profile -> Note Info return flow. viewProfile
+  // short-circuits to this modal for our own ship, so its _closeProfile (which owns
+  // the other-user arm) never runs. Without this the flag would also leak into the
+  // next unrelated profile close.
+  const retId=state.returnToNoteInfo;
+  if(retId){
+    state.returnToNoteInfo=null;
+    const n=state.notes[retId];
+    if(n)openNoteInfoModal(n);
+  }
+}
 function updateNoteDescription(input){const id=input.dataset.noteId;const headline=input.value.trim();api.poke('noltbook','noltbook-action',{action:'set-headline',data:{id,headline}})}
 async function saveProfile(){
   const dn=document.getElementById('profileDisplayName').value.trim()||null;
@@ -7313,9 +7550,9 @@ function openNoteInfoModal(note){
   const descRo=(isCreator&&!isGossipNote)?'':'readonly';
   const descVal=note.headline||'';
   const memberRows=isGossipNote?'':renderNoteInfoMemberRows(note,'');
-  const lineageBadge=lineageMoniker(note);
+  const lineageHeading=lineageHeadingHtml(note);
   modal.innerHTML=`
-    <div style="font-size:.75rem;color:var(--text-dim);letter-spacing:.1em">NOTE INFO${lineageBadge?' <span style="color:#ffaa00;margin-left:.5rem">'+lineageBadge+'</span>':''}</div>
+    <div style="font-size:.75rem;color:var(--text-dim);letter-spacing:.1em;text-align:center;overflow-wrap:anywhere">${lineageHeading}</div>
     <div class="modal-field">
       <label class="modal-label" style="font-size:.65rem">TITLE</label>
       <input class="modal-input" id="noteInfoTitle" value="${escAttr(note.name)}" ${titleRo} style="font-size:.85rem">

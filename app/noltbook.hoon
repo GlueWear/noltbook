@@ -1698,6 +1698,90 @@
       pending-icon-fetches=(map @ta pending-icon-fetch:noltbook)
       pending-img-writes=(map @ta pending-img-write:noltbook)
   ==
+::  state-74: adds pending-profile-lookups, the in-flight %request-profile rows the
+::  reachability wake correlates against. Purely additive -- state-73 is left frozen
+::  above and every one of its fields is carried across verbatim by upgrade-73-to-74.
+::  The map starts (and after any reload becomes) empty: an in-flight lookup cannot
+::  survive a reload, and the unchanged 28s frontend timeout already covers that.
++$  state-74
+  $:  %74
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      active-calls=(map @ta call-info:noltbook)
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      actor-by-eid=(map @uv actor:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      actor-registry=(map [@tas @t] actor-record:noltbook)
+      note-actor-owners=(map @ta actor-owner:noltbook)
+      actor-profiles=(map [@tas @t] actor-profile:noltbook)
+      actor-contacts=(map [@tas @t] (set identity-ref:noltbook))
+      actor-preferences=(map [@tas @t] actor-preferences:noltbook)
+      actor-note-roster=(map @ta (set actor-ref:noltbook))
+      remote-actor-profiles=(map [host=@p desk=@tas id=@t] [profile=actor-public-profile:noltbook fetched-at=@da])
+      actor-dm-notes=(map @ta actor-dm-meta:noltbook)
+      actor-note-read=(map [@tas @t] (map @ta @da))
+      actor-notifications=(map [@tas @t] (list actor-notification:noltbook))
+      note-unread-activity=(map @ta @da)
+      user-muted-actors=(set actor-ref:noltbook)
+      user-blocked-actors=(set actor-ref:noltbook)
+      note-members=(map @ta (set @p))
+      actor-join-requests=(map @ta (set actor-ref:noltbook))
+      note-actor-muted=(map @ta (set actor-ref:noltbook))
+      user-actor-contacts=(set actor-ref:noltbook)
+      app-notifications=(map [@tas @t] app-notification:noltbook)
+      dm-artifact-refs=(map @uv dm-artifact-ref:noltbook)
+      dm-artifact-tombs=(map @uv dm-artifact-tomb:noltbook)
+      dm-msg-tombs=(map dm-message-key:noltbook @da)
+      peer-proto=(map @p @ud)
+      pending-dm-fetches=(map @ta pending-dm-fetch:noltbook)
+      note-artifact-tombs=(map @ta note-artifact-tomb:noltbook)
+      mesh-tombs=(set @uv)
+      mesh-tomb-meta=(map @uv mesh-tomb:noltbook)
+      dm-imports=(map @uv dm-import:noltbook)
+      import-only-dms=(set @ta)
+      pending-icon-fetches=(map @ta pending-icon-fetch:noltbook)
+      pending-img-writes=(map @ta pending-img-write:noltbook)
+      pending-profile-lookups=(map @ud pending-profile-lookup:noltbook)
+  ==
 ::  pending-img-write-72: frozen pre-state-73 shape (state-72 load only). state-73
 ::  adds `answered`; this keeps the old stored map nesting during upgrade.
 +$  pending-img-write-72
@@ -5003,6 +5087,91 @@
       ::  state-70 new field — empty; the author populates it per new deletion.
       `(map @uv mesh-tomb:noltbook)`~
   ==
+::  upgrade-73-to-74: additive only. Every state-73 field is carried across
+::  verbatim; pending-profile-lookups starts empty because an in-flight lookup
+::  cannot survive a reload (its Behn wake and the browser request are both gone)
+::  and the unchanged 28s frontend timeout is already the backstop for that.
+++  upgrade-73-to-74
+  |=  s=state-73
+  ^-  state-74
+  :*  %74
+      notes.s
+      messages.s
+      artifacts.s
+      profiles.s
+      transactions.s
+      current-note.s
+      peers.s
+      has-avatar.s
+      pal-outgoing.s
+      pal-incoming.s
+      pal-blocked.s
+      blocked-by.s
+      dial.s
+      gossip-hops.s
+      mentions.s
+      active-calls.s
+      gossip-envelopes.s
+      headlines.s
+      seq-counters.s
+      join-requests.s
+      note-admins.s
+      note-muted.s
+      artifact-envelopes.s
+      host-status.s
+      fork-origin.s
+      fork-version.s
+      fork-of.s
+      pending-fork-invites.s
+      fork-invitees.s
+      contacts.s
+      dm-prefs.s
+      member-revs.s
+      fork-parent-version.s
+      host-checks.s
+      notification-acks.s
+      note-activity.s
+      note-read.s
+      attention.s
+      cleared-mentions.s
+      via-by-eid.s
+      note-pins.s
+      note-apps.s
+      note-active.s
+      actor-by-eid.s
+      app-grants.s
+      actor-registry.s
+      note-actor-owners.s
+      actor-profiles.s
+      actor-contacts.s
+      actor-preferences.s
+      actor-note-roster.s
+      remote-actor-profiles.s
+      actor-dm-notes.s
+      actor-note-read.s
+      actor-notifications.s
+      note-unread-activity.s
+      user-muted-actors.s
+      user-blocked-actors.s
+      note-members.s
+      actor-join-requests.s
+      note-actor-muted.s
+      user-actor-contacts.s
+      app-notifications.s
+      dm-artifact-refs.s
+      dm-artifact-tombs.s
+      dm-msg-tombs.s
+      peer-proto.s
+      pending-dm-fetches.s
+      note-artifact-tombs.s
+      mesh-tombs.s
+      mesh-tomb-meta.s
+      dm-imports.s
+      import-only-dms.s
+      pending-icon-fetches.s
+      pending-img-writes.s
+      `(map @ud pending-profile-lookup:noltbook)`~
+  ==
 ::  upgrade-72-to-73: retypes pending-img-writes only. In-flight upload rows cannot
 ::  survive an agent reload (their Eyre requests are gone), so the map starts empty;
 ::  all other state is carried across verbatim.
@@ -8086,8 +8255,8 @@
 ::  lose==win. Actor/group/fork/gossip-only fields hold no ordinary-DM data and are left
 ::  alone; pending-dm-fetches/dm-msg-tombs key by entry identity (not note-id).
 ++  reconcile-dm-roots
-  |=  [st=state-73 lose=@ta win=@ta cn=note:noltbook]
-  ^-  state-73
+  |=  [st=state-74 lose=@ta win=@ta cn=note:noltbook]
+  ^-  state-74
   ?:  =(lose win)  st
   =*  s  st
   ::  notes: install canonical winner, drop loser
@@ -8259,8 +8428,8 @@
 ::  DMs, and non-DM notes. Terminally-tombstoned eids are dropped, not referenced.
 ::  Re-runnable: once the full artifact is gone there is nothing left to convert.
 ++  migrate-dm-artifacts
-  |=  [our=@p st=state-73]
-  ^-  state-73
+  |=  [our=@p st=state-74]
+  ^-  state-74
   =*  s  st
   =/  targets=(list [aid=@ta a=artifact:noltbook])
     %+  murn  ~(tap by artifacts.s)
@@ -8272,7 +8441,7 @@
     ?~  nt  ~
     ?.  (is-ordinary-dm u.nt actor-dm-notes.s)  ~
     `[aid a]
-  |-  ^-  state-73
+  |-  ^-  state-74
   ?~  targets  s
   =/  a=artifact:noltbook  a.i.targets
   =/  eid=@uv  (dm-artifact-eid a)
@@ -8784,7 +8953,7 @@
 ::  than relying on that. See FUTURE(cleanup-scope) above for why these exclusions are
 ::  a group and must be relaxed together, never individually.
 ++  notebook-subtree-private
-  |=  [our=@p ids=(list @ta) st=state-73]
+  |=  [our=@p ids=(list @ta) st=state-74]
   ^-  ?
   ::  an empty subtree proves nothing.
   ?~  ids  %.n
@@ -9158,15 +9327,59 @@
   =/  inc=?  (~(has in incoming) target)
   =/  blk=?  (~(has in blocked) target)
   (rpoke /pal-sync/(scot %p target) target `remote:noltbook`[%remote-pal-sync out inc blk])
+::  ames-contact-since: did we RECEIVE anything from `who` at or after `since`?
+::
+::    App-independent reachability, read from Ames' own per-peer QoS. No second probe:
+::    the %request-profile poke we already sent is what makes Ames attempt contact, and
+::    any packet coming back (an ack, or the %flub boon a ship sends when the target
+::    agent isn't running) sets qos to %live and stamps last-contact.
+::
+::    %live and %dead BOTH qualify. Ames records a receive that arrived with no direct
+::    lane -- the normal case for sponsor-forwarded or NAT-ed contact -- as %dead with a
+::    FRESH last-contact (ames.hoon ~9937: `=? ev-core ?=(~ lane.per) (ev-update-qos %dead
+::    last-contact=now)`, carrying the comment "XX this happens after first (forwarded)
+::    contact"). A genuinely reachable ship is therefore often %dead, and requiring %live
+::    misclassified it as unreachable. %dead only ever means "no traffic for ~s30".
+::
+::    %unborn is the one tag that MUST be rejected: it is the only state whose last-contact
+::    was not written by a receive. Peer creation sets [%unborn now] (lull: "last-contact:
+::    last time we heard from peer, or if %unborn, when we first started tracking time"),
+::    so accepting it would report a ship we have never heard from as freshly contacted.
+::    That is also why /peers/[ship]/last-contact is never read on its own.
+::
+::    `~` means "cannot tell" (read failed, or shape not as expected) and the caller emits
+::    nothing, leaving the unchanged 28s frontend timeout as the backstop. `[~ %.n]` is a
+::    positive proof of no qualifying contact. This never claims durable presence: the
+::    answer is scoped to this lookup's window by `since`.
+++  ames-contact-since
+  |=  [our=@p now=@da who=@p since=@da]
+  ^-  (unit ?)
+  =/  res=(each (unit ?) tang)
+    %-  mule
+    |.
+    ^-  (unit ?)
+    ::  gate on the peers map first: scrying an absent peer crashes, and %alien means no
+    ::  completed contact -- both resolve to a definite %.n rather than an unknown.
+    =/  pez=(map ship ?(%alien %known))
+      .^((map ship ?(%alien %known)) %ax /(scot %p our)//(scot %da now)/peers)
+    ?.  =(`%known (~(get by pez) who))  `%.n
+    =/  ss=ship-state:ames
+      .^(ship-state:ames %ax /(scot %p our)//(scot %da now)/peers/(scot %p who))
+    ?.  ?=(%known -.ss)  `%.n
+    ::  accept %live or %dead (both are written by a real receive); reject %unborn.
+    ?.  ?=(?(%live %dead) -.qos.ss)  `%.n
+    `(gte last-contact.qos.ss since)
+  ?:  ?=(%| -.res)  ~
+  p.res
 ++  rem-handle
   ::  Option-1: the whole %noltbook-remote dispatch moved OUT of the on-poke battery.
   ::  =| / =* / =. re-expose state-67 faces exactly like the door, so handler bodies are
   ::  unchanged except this->state. on-poke delegates: =^ cards state (rem-handle bowl rem state).
-  |=  [=bowl:gall rem=remote:noltbook sin=state-73]
-  =|  state-73
+  |=  [=bowl:gall rem=remote:noltbook sin=state-74]
+  =|  state-74
   =*  state  -
   =.  state  sin
-  ^-  (quip card state-73)
+  ^-  (quip card state-74)
     ?-  -.rem
     ::
         %remote-invite
@@ -9892,9 +10105,19 @@
         %remote-profile-response
       ::  Phase 3: peer replied to our lookup. Hydrate profile, then emit a
       ::  %profile-lookup-result %ok so the sidebar can open the modal.
+      ::  The pending row is deleted FIRST: the 27s reachability wake requires an exact
+      ::  matching row, so removing it here is what stops a later wake from emitting
+      ::  %noltbook-unavailable on top of this %ok. Only drop the row when it really is
+      ::  this ship's lookup, so a stale/forged req-id cannot cancel someone else's.
+      =/  drop-pend=?
+        =/  p  (~(get by pending-profile-lookups) req-id.rem)
+        ?~(p %.n =(src.bowl ship.u.p))
       =/  pupd=update:noltbook  [%profile-updated src.bowl profile.rem]
       =/  rupd=update:noltbook  [%profile-lookup-result req-id.rem src.bowl %ok]
-      :_  state(profiles (~(put by profiles) src.bowl profile.rem))
+      =/  new-pend=(map @ud pending-profile-lookup:noltbook)
+        ?.  drop-pend  pending-profile-lookups
+        (~(del by pending-profile-lookups) req-id.rem)
+      :_  state(profiles (~(put by profiles) src.bowl profile.rem), pending-profile-lookups new-pend)
       :~  (gf-notes pupd)
           (gf-notes rupd)
       ==
@@ -12562,8 +12785,8 @@
 ::  artifact, already-tombstoned, or unauthorized sender — is a harmless no-op ([~ st]), so
 ::  duplicate and replayed requests neither mutate state nor emit a marker.
 ++  delete-note-artifact
-  |=  [=bowl:gall sender=@p nid=@ta aid=@ta st=state-73]
-  ^-  [(list card:agent:gall) state-73]
+  |=  [=bowl:gall sender=@p nid=@ta aid=@ta st=state-74]
+  ^-  [(list card:agent:gall) state-74]
   =/  nt  (~(get by notes.st) nid)
   ?~  nt  [~ st]
   ::  we must host this note; shared %group/%notebook only
@@ -12622,7 +12845,7 @@
   =/  del-upd=update:noltbook  [%artifact-deleted aid]
   =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~ ~]
   =/  pax=path  ~[%notes nid]
-  =/  st2=state-73
+  =/  st2=state-74
     %=  st
       artifacts             (~(del by artifacts.st) aid)
       note-pins             new-pins
@@ -12734,7 +12957,7 @@
   ~[(gf-paths paths `update:noltbook`[%app-notifications-updated ~(val by live)])]
 --
 %-  agent:dbug
-=|  state-73
+=|  state-74
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -12836,17 +13059,24 @@
   ?:  ?=([%72 *] q.old)
     =/  s72  !<(state-72 old)
     $(old !>((upgrade-72-to-73 s72)))
+  ::  %73 is no longer the terminus: convert forward and re-enter. The older upgrade-*
+  ::  wrappers still legitimately produce state-73, so none of them needed to change.
   ?:  ?=([%73 *] q.old)
-    =/  loaded  !<(state-73 old)
-    =/  loaded=state-73
+    =/  s73  !<(state-73 old)
+    $(old !>((upgrade-73-to-74 s73)))
+  ?:  ?=([%74 *] q.old)
+    =/  loaded  !<(state-74 old)
+    =/  loaded=state-74
       %=  loaded
         active-calls       *(map @ta call-info:noltbook)
         note-members       (ensure-note-members note-members.loaded notes.loaded note-actor-owners.loaded)
         app-notifications  (app-notifications-live app-notifications.loaded now.bowl)
+        ::  in-flight lookups cannot survive a reload; the 28s frontend timeout covers it
+        pending-profile-lookups  *(map @ud pending-profile-lookup:noltbook)
       ==
     ::  idempotent normalization of remote-owned ordinary-DM %file/%app artifacts into
     ::  content-free references (no content read/write; nothing serveable by a noncreator).
-    =/  loaded=state-73  (migrate-dm-artifacts our.bowl loaded)
+    =/  loaded=state-74  (migrate-dm-artifacts our.bowl loaded)
     =/  prof  (fall (~(get by profiles.loaded) our.bowl) *profile:noltbook)
     =/  prof-cards=(list card)
       %+  turn  ~(tap in peers.loaded)
@@ -12985,7 +13215,7 @@
       |=  p=@p
       ^-  card
       (rpoke /prof-out/(scot %p p) p `remote:noltbook`[%remote-profile our.bowl prof])
-    [prof-cards this(state (upgrade-65-to-66 loaded(active-calls *(map @ta call-info:noltbook))))]
+    [prof-cards this(state (upgrade-73-to-74 (upgrade-65-to-66 loaded(active-calls *(map @ta call-info:noltbook)))))]
   ?:  ?=([%42 *] q.old)
     =/  s42  !<(state-42 old)
     $(old !>((upgrade-42-to-43 s42)))
@@ -13061,7 +13291,7 @@
       |=  p=@p
       ^-  card
       (rpoke /prof-out/(scot %p p) p `remote:noltbook`[%remote-profile our.bowl prof])
-    [prof-cards this(state (upgrade-64-to-65 our.bowl loaded(active-calls *(map @ta call-info:noltbook))))]
+    [prof-cards this(state (upgrade-73-to-74 (upgrade-64-to-65 our.bowl loaded(active-calls *(map @ta call-info:noltbook)))))]
   ?:  ?=([%19 *] q.old)
     =/  s19  !<(state-19 old)
     =/  loaded  (upgrade-19-to-20 s19)
@@ -13071,7 +13301,7 @@
       |=  p=@p
       ^-  card
       (rpoke /prof-out/(scot %p p) p `remote:noltbook`[%remote-profile our.bowl prof])
-    [prof-cards this(state (upgrade-64-to-65 our.bowl loaded(active-calls *(map @ta call-info:noltbook))))]
+    [prof-cards this(state (upgrade-73-to-74 (upgrade-64-to-65 our.bowl loaded(active-calls *(map @ta call-info:noltbook)))))]
   ?:  ?=([%18 *] q.old)
     =/  s18  !<(state-18 old)
     =/  loaded  (upgrade-19-to-20 (upgrade-18-to-19 s18))
@@ -13081,7 +13311,7 @@
       |=  p=@p
       ^-  card
       (rpoke /prof-out/(scot %p p) p `remote:noltbook`[%remote-profile our.bowl prof])
-    [prof-cards this(state (upgrade-64-to-65 our.bowl loaded(active-calls *(map @ta call-info:noltbook))))]
+    [prof-cards this(state (upgrade-73-to-74 (upgrade-64-to-65 our.bowl loaded(active-calls *(map @ta call-info:noltbook)))))]
   ?:  ?=([%17 *] q.old)
     =/  s17  !<(state-17 old)
     ::  fix: ensure cover note exists and is keyed as %cover (note-17 shape)
@@ -13120,7 +13350,7 @@
       |=  p=@p
       ^-  card
       (rpoke /prof-out/(scot %p p) p `remote:noltbook`[%remote-profile our.bowl prof])
-    [prof-cards this(state (upgrade-64-to-65 our.bowl loaded(active-calls *(map @ta call-info:noltbook))))]
+    [prof-cards this(state (upgrade-73-to-74 (upgrade-64-to-65 our.bowl loaded(active-calls *(map @ta call-info:noltbook)))))]
   ?:  ?=([%16 *] q.old)
     =/  s16  !<(state-16 old)
     =/  s17  (upgrade-16-to-17 s16)
@@ -13174,7 +13404,7 @@
       |=  p=@p
       ^-  card
       (rpoke /prof-out/(scot %p p) p `remote:noltbook`[%remote-profile our.bowl prof])
-    [prof-cards this(state (upgrade-64-to-65 our.bowl loaded(active-calls *(map @ta call-info:noltbook))))]
+    [prof-cards this(state (upgrade-73-to-74 (upgrade-64-to-65 our.bowl loaded(active-calls *(map @ta call-info:noltbook)))))]
   ?:  ?=([%15 *] q.old)
     =/  loaded  !<(state-15 old)
     =/  s16=state-16
@@ -13191,10 +13421,10 @@
       |=  p=@p
       ^-  card
       (rpoke /prof-out/(scot %p p) p `remote:noltbook`[%remote-profile our.bowl prof])
-    [prof-cards this(state (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 s16))))))]
+    [prof-cards this(state (upgrade-73-to-74 (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 s16)))))))]
   ?:  ?=([%14 *] q.old)
     =/  loaded  !<(state-14 old)
-    `this(state (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 loaded))))))))
+    `this(state (upgrade-73-to-74 (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 loaded)))))))))
   ?:  ?=([%13 *] q.old)
     =/  loaded  !<(state-13 old)
     =/  s15  (upgrade-14-to-15 (upgrade-13-to-14 loaded))
@@ -13202,7 +13432,7 @@
       =/  rumors=note-17  [%ars-rumors 'RUMORS' %cover our.bowl (sy ~[our.bowl]) ~ ~ ~ ~ %secret ~ & ~]
       s15(notes (~(put by notes.s15) %ars-rumors rumors), messages (~(put by messages.s15) %ars-rumors *(list message-18)))
     s15
-    `this(state (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 s15)))))))
+    `this(state (upgrade-73-to-74 (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 s15))))))))
   ::  state-12 → state-20
   ?:  ?=([%12 *] q.old)
     =/  s12  !<(state-12 old)
@@ -13213,35 +13443,35 @@
       s15(notes (~(put by notes.s15) %ars-rumors rumors), messages (~(put by messages.s15) %ars-rumors *(list message-18)))
     s15
     =/  s19  (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 s15)))))
-    `this(state (upgrade-64-to-65 our.bowl s19))
+    `this(state (upgrade-73-to-74 (upgrade-64-to-65 our.bowl s19)))
   ::  state-11 → state-19
   ?:  ?=([%11 *] q.old)
     =/  s11  !<(state-11 old)
     =/  s19  (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 s11)))))))))
-    `this(state (upgrade-64-to-65 our.bowl s19))
+    `this(state (upgrade-73-to-74 (upgrade-64-to-65 our.bowl s19)))
   ::  state-10 → ... → state-19
   ?:  ?=([%10 *] q.old)
     =/  s10  !<(state-10 old)
-    `this(state (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 s10))))))))))))
+    `this(state (upgrade-73-to-74 (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 s10)))))))))))))
   ::  state-9 → ... → state-19
   ?:  ?=([%9 *] q.old)
     =/  s9  !<(state-9 old)
-    `this(state (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 s9)))))))))))))
+    `this(state (upgrade-73-to-74 (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 s9))))))))))))))
   ::  state-8 → ... → state-20
   ?:  ?=([%8 *] q.old)
-    `this(state (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 !<(state-8 old)))))))))))))))
+    `this(state (upgrade-73-to-74 (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 !<(state-8 old))))))))))))))))
   ::  state-7 → ... → state-20
   ?:  ?=([%7 *] q.old)
     =/  s7  !<(state-7 old)
     =/  s8=state-8
       [%8 notes.s7 messages.s7 artifacts.s7 profiles.s7 transactions.s7 current-note.s7 peers.s7 has-avatar.s7 pal-outgoing.s7 pal-incoming.s7 pal-blocked.s7 0 ~]
-    `this(state (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))))))))))
+    `this(state (upgrade-73-to-74 (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))))))))
   ::  state-6 → ... → state-19
   ?:  ?=([%6 *] q.old)
     =/  s6  !<(state-6 old)
     =/  s8=state-8
       [%8 notes.s6 messages.s6 artifacts.s6 profiles.s6 transactions.s6 current-note.s6 peers.s6 has-avatar.s6 peers.s6 ~ ~ 0 ~]
-    `this(state (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))))))))))
+    `this(state (upgrade-73-to-74 (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))))))))
   ?:  ?=([%5 *] q.old)
     =/  s5  !<(state-5 old)
     =/  new-profiles=(map @p profile:noltbook)
@@ -13251,7 +13481,7 @@
       [display-name.p ~ wallet-address.p azimuth-address.p]
     =/  s8=state-8
       [%8 notes.s5 messages.s5 artifacts.s5 new-profiles transactions.s5 current-note.s5 peers.s5 %.n ~ ~ ~ 0 ~]
-    `this(state (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))))))))))
+    `this(state (upgrade-73-to-74 (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))))))))
   ?:  ?=([%4 *] q.old)
     =/  s4  !<(state-4 old)
     =/  init-peers=(set @p)
@@ -13266,7 +13496,7 @@
       [display-name.p ~ wallet-address.p azimuth-address.p]
     =/  s8=state-8
       [%8 notes.s4 messages.s4 artifacts.s4 new-profiles transactions.s4 current-note.s4 init-peers %.n ~ ~ ~ 0 ~]
-    `this(state (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))))))))))
+    `this(state (upgrade-73-to-74 (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))))))))
   ?:  ?=([%3 *] q.old)
     =/  s3  !<(state-3 old)
     =/  new-notes=(map @ta note-4)
@@ -13281,7 +13511,7 @@
       [display-name.p ~ wallet-address.p azimuth-address.p]
     =/  s8=state-8
       [%8 new-notes messages.s3 artifacts.s3 new-profiles transactions.s3 current-note.s3 ~ %.n ~ ~ ~ 0 ~]
-    `this(state (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))))))))))
+    `this(state (upgrade-73-to-74 (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))))))))
   ?:  ?=([%2 *] q.old)
     =/  s2  !<(state-2 old)
     =/  new-arts=(map @ta artifact-pre40:noltbook)
@@ -13304,7 +13534,7 @@
       [display-name.p ~ wallet-address.p azimuth-address.p]
     =/  s8=state-8
       [%8 new-notes messages.s2 new-arts new-profiles transactions.s2 current-note.s2 ~ %.n ~ ~ ~ 0 ~]
-    `this(state (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))))))))))
+    `this(state (upgrade-73-to-74 (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))))))))
   =/  s1  !<(state-1 old)
   =/  cov  (~(get by notes.s1) %cover)
   =/  fixed-notes=(map @ta note-3:noltbook)
@@ -13331,7 +13561,7 @@
     [id.n name.n type.n creator.n users.n children.n parent.n last-author.n last-preview.n %secret ~ &]
   =/  s8=state-8
     [%8 new-notes messages.s1 new-arts new-profiles transactions.s1 current-note.s1 ~ %.n ~ ~ ~ 0 ~]
-  `this(state (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8))))))))))))))
+  `this(state (upgrade-73-to-74 (upgrade-64-to-65 our.bowl (upgrade-19-to-20 (upgrade-18-to-19 (upgrade-17-to-18 (upgrade-16-to-17 (upgrade-15-to-16 (upgrade-14-to-15 (upgrade-13-to-14 (upgrade-12-to-13 (upgrade-11-to-12 (upgrade-10-to-11 (upgrade-9-to-10 (upgrade-8-to-9 s8)))))))))))))))
 ::
 ++  on-watch
   |=  =path
@@ -19516,8 +19746,21 @@
             (gf-notes rupd)
         ==
       =/  req=remote:noltbook  [%remote-profile-request req-id.act]
-      :_  this
-      ~[(rpoke /profile-lookup/(scot %p ship.act)/(scot %ud req-id.act) ship.act req)]
+      ::  record the lookup so every wake can tell "we heard from them during THIS lookup"
+      ::  from an older handshake. Two wakes are armed now: the first EARLY check at ~1s
+      ::  (which chains 1s -> 3s -> 7s -> 15s until contact is observed) and the FINAL
+      ::  classifier at 27s -- just inside the unchanged 28s frontend backstop.
+      ::  Both wires carry phase/req-id/ship/started so a stale wake from a previous
+      ::  session cannot match a reused request id. Early checks are local scries only:
+      ::  no extra network traffic is ever sent.
+      =/  pend=pending-profile-lookup:noltbook  [ship.act now.bowl]
+      =/  corr=path
+        /(scot %ud req-id.act)/(scot %p ship.act)/(scot %da now.bowl)
+      :_  this(pending-profile-lookups (~(put by pending-profile-lookups) req-id.act pend))
+      :~  (rpoke /profile-lookup/(scot %p ship.act)/(scot %ud req-id.act) ship.act req)
+          [%pass (weld /prof-early/(scot %ud 1) corr) %arvo %b %wait (add now.bowl ~s1)]
+          [%pass (weld /prof-reach corr) %arvo %b %wait (add now.bowl ~s27)]
+      ==
     ::
         %request-actor-profile
       ::  Phase G4: resolve an actor public profile. Local host => answer now from
@@ -21031,6 +21274,63 @@
     :_  this(notes (~(put by notes) nid new-nt), dm-prefs new-prefs, pending-img-writes dropped)
     (weld ok-http meta-fact-cards)
   ::
+  ::  EARLY reachability check: /prof-early/[phase]/[req-id]/[ship]/[started]. Local Ames
+  ::  scry only -- never any extra network traffic. On observed contact it emits the
+  ::  NON-TERMINAL %reachable and stops chaining; otherwise it arms the next phase
+  ::  (1s -> 3s -> 7s -> 15s) and after 15s falls through to the already-armed 27s wake.
+  ::  All three of req-id, ship and started must match the pending row, so a stale wake
+  ::  from a previous session cannot match even if its request id has been reused.
+  ::  Never deletes the pending row: only a terminal outcome may do that.
+  ?:  ?=([%prof-early @ @ @ @ ~] wire)
+    ?.  ?=([%behn %wake *] sign-arvo)  `this
+    =/  phase=@ud   (slav %ud i.t.wire)
+    =/  rid=@ud     (slav %ud i.t.t.wire)
+    =/  who=@p      (slav %p i.t.t.t.wire)
+    =/  started=@da  (slav %da i.t.t.t.t.wire)
+    =/  pend  (~(get by pending-profile-lookups) rid)
+    ?~  pend  `this
+    ?.  ?&(=(who ship.u.pend) =(started started.u.pend))  `this
+    =/  seen=(unit ?)  (ames-contact-since our.bowl now.bowl who started)
+    ?:  =(`%.y seen)
+      ::  contact observed: interim fact, stop chaining, leave the row for the 27s wake.
+      :_  this
+      ~[(gf-notes `update:noltbook`[%profile-lookup-result rid who %reachable])]
+    ::  not observed (or inconclusive): schedule the next early phase, if any.
+    =/  nxt=(unit [p=@ud d=@dr])
+      ?+  phase  ~
+        %1  `[2 ~s2]
+        %2  `[3 ~s4]
+        %3  `[4 ~s8]
+      ==
+    ?~  nxt  `this
+    :_  this
+    :~  :*  %pass
+            /prof-early/(scot %ud p.u.nxt)/(scot %ud rid)/(scot %p who)/(scot %da started)
+            %arvo  %b  %wait  (add now.bowl d.u.nxt)
+        ==
+    ==
+  ::  FINAL profile-lookup verdict, 27s after the request went out (just inside the 28s
+  ::  frontend backstop). Requires an EXACT pending row -- req-id, ship AND started -- which
+  ::  is what makes this at-most-once: %ok and the poke-nack both delete the row first, so a
+  ::  duplicate or late wake finds nothing and no-ops without emitting. The row is deleted
+  ::  before any terminal fact, so the same wake can never resolve twice.
+  ?:  ?=([%prof-reach @ @ @ ~] wire)
+    ?.  ?=([%behn %wake *] sign-arvo)  `this
+    =/  rid=@ud      (slav %ud i.t.wire)
+    =/  who=@p       (slav %p i.t.t.wire)
+    =/  started=@da  (slav %da i.t.t.t.wire)
+    =/  pend  (~(get by pending-profile-lookups) rid)
+    ?~  pend  `this
+    ?.  ?&(=(who ship.u.pend) =(started started.u.pend))  `this
+    =/  seen=(unit ?)  (ames-contact-since our.bowl now.bowl who started)
+    ::  cannot tell => emit nothing; the frontend timeout decides (reachable-so-far =>
+    ::  noltbook-unavailable, otherwise unreachable).
+    ?~  seen  `this(pending-profile-lookups (~(del by pending-profile-lookups) rid))
+    =/  status=?(%ok %unreachable %noltbook-unavailable %reachable)
+      ?:(u.seen %noltbook-unavailable %unreachable)
+    =/  upd=update:noltbook  [%profile-lookup-result rid who status]
+    :_  this(pending-profile-lookups (~(del by pending-profile-lookups) rid))
+    ~[(gf-notes upd)]
   ::  artifact-byte deletion read-back. %c %info does not acknowledge, so this
   ::  next-event wake re-scries the data desk. Purely diagnostic: metadata and the
   ::  tombstone are already authoritative, so a failed removal is logged and nothing is
@@ -22147,18 +22447,35 @@
     ==
   ::
       [%profile-lookup @ @ ~]
-    ::  Phase 3: a profile-lookup poke to a remote ship returned. Failure =>
-    ::  emit %profile-lookup-result %unreachable so the sidebar row can flip
-    ::  to "this user can't be reached". Success = wait for the actual
-    ::  %remote-profile-response; do nothing here.
+    ::  Phase 3: a profile-lookup poke to a remote ship returned.
+    ::
+    ::    A NEGATIVE ack is a packet we received back from that ship, so it proves the
+    ::    ship is reachable and something there rejected the poke => %noltbook-unavailable,
+    ::    not %unreachable. (Note an ABSENT or suspended remote agent does NOT nack: Gall
+    ::    flubs the plea and Ames sends no ack at all, which is silence and is handled by
+    ::    the 27s reachability wake instead.) The pending row is dropped first so the wake
+    ::    cannot then contradict this.
+    ::
+    ::    A POSITIVE ack is not profile success and stays unused. The early Ames checks
+    ::    already supply the reachability state, so nothing is gained by surfacing it. Note
+    ::    the honest scope of this design: it MAY surface generic reachability (a blocking
+    ::    ship still returns packets, so it can read as reachable) but it never surfaces WHY
+    ::    Noltbook did not answer -- absent, suspended, incompatible, crashed and silently
+    ::    blocking are deliberately indistinguishable. Success is signalled only by a real
+    ::    %remote-profile-response.
     =/  who=@p   (slav %p i.t.wire)
     =/  rid=@ud  (slav %ud i.t.t.wire)
     ?+  -.sign  `this
         %poke-ack
       ?~  p.sign  `this
+      ::  require an exact pending row (req-id + ship) BEFORE deleting or emitting, so a
+      ::  stale or duplicate nack cannot cancel a live lookup or contradict a settled one.
+      =/  pend  (~(get by pending-profile-lookups) rid)
+      ?~  pend  `this
+      ?.  =(who ship.u.pend)  `this
       ~&  [%profile-lookup-failed wire u.p.sign]
-      =/  upd=update:noltbook  [%profile-lookup-result rid who %unreachable]
-      :_  this
+      =/  upd=update:noltbook  [%profile-lookup-result rid who %noltbook-unavailable]
+      :_  this(pending-profile-lookups (~(del by pending-profile-lookups) rid))
       ~[(gf-notes upd)]
     ==
   ::
