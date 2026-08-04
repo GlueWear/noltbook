@@ -8723,6 +8723,120 @@
   =/  cag=cage  [%mime !>(m)]
   =/  miso  ?:((data-file-exists fpath) [%mut cag] [%ins cag])
   [%pass wire %arvo %c %info art-store-desk [%& ~[[spur miso]]]]
+::  art-store-del-cards: physically remove ONE artifact's bytes from %noltbook-data.
+::  Scope is exactly /artifacts/<aid>/mime in the data desk -- never the live %noltbook
+::  desk, never any other path. Callers must already have established that WE own the
+::  bytes (we are the artifact creator) and that the deletion is authoritative.
+::  Returns ~ (a safe no-op) when the data desk is not ready or the file is already
+::  absent, so a duplicate, replayed or late deletion costs nothing.
+::  %c %info does not acknowledge (clay.hoon emits %mere only from the merge core), so a
+::  next-event Behn wake re-scries and logs if the removal did not take. Cleanup is
+::  best-effort by design: the semantic deletion and its tombstone are already
+::  authoritative, and no HTTP request or UI ever waits on this.
+++  art-store-del-cards
+  |=  [our=@p now=@da aid=@ta]
+  ^-  (list card)
+  ?.  (art-store-exists our now)  ~
+  ?.  (data-file-exists (art-store-path our now aid))  ~
+  :~  :*  %pass  /art-del/[aid]  %arvo  %c  %info
+          art-store-desk  [%& ~[[(art-store-spur aid) [%del ~]]]]
+      ==
+      [%pass /art-del-verify/[aid] %arvo %b %wait +(now)]
+  ==
+::  icon-store-del-cards: physically remove ONE note icon's bytes from %noltbook-data.
+::  Scope is exactly /icons/<nid>/mime in the data desk -- never the live %noltbook desk,
+::  never any other path. Mirrors art-store-del-cards: readiness + existence are checked
+::  first, so a missing desk or an already-absent file is a harmless no-op and a repeat
+::  costs nothing. %c %info does not acknowledge (clay.hoon emits %mere only from the
+::  merge core), so a next-event Behn wake re-scries and logs. Best-effort by design:
+::  nothing user-visible ever waits on it.
+::
+::  FUTURE(cleanup-scope): this helper has NO call site yet. Its first consumer will be
+::  %delete-note, and that consumer will deliberately be limited to a subtree proven to
+::  be ENTIRELY: locally owned (creator == our.bowl), %notebook, %secret, self-only
+::  (users == {our.bowl}), unremoved, non-actor (no actor owner, no actor DM), non-forked
+::  (no fork-of / fork-origin / fork-version / fork-parent-version / fork-invitees /
+::  pending-fork-invites row) and not host-deleted (no host-status row).
+::  Those exclusions are CONSERVATIVE RELEASE SAFETY BOUNDARIES, not permanent product
+::  limitations. Cleaning up more aggressively would first require separately defining
+::  ownership and retention rules for shared descendants, forks, retained copies,
+::  host-deleted archives, foreign-created artifacts and %leave-note. Those conditions
+::  interlock: review and relax them AS A GROUP, never one at a time.
+++  icon-store-del-cards
+  |=  [our=@p now=@da nid=@ta]
+  ^-  (list card)
+  ?.  (art-store-exists our now)  ~
+  ?.  (data-file-exists ~[(scot %p our) art-store-desk (scot %da now) %icons nid %mime])  ~
+  :~  :*  %pass  /icon-del/[nid]  %arvo  %c  %info
+          art-store-desk  [%& ~[[(icon-data-spur nid) [%del ~]]]]
+      ==
+      [%pass /icon-del-verify/[nid] %arvo %b %wait +(now)]
+  ==
+::  notebook-subtree-private: is EVERY note in a proposed deletion subtree strictly
+::  local and unshared, so its locally stored bytes are safe to remove? PURE -- returns
+::  only ?, emits no cards, performs no scries, mutates no state, logs nothing. Every
+::  missing or malformed row fails CLOSED (%.n).
+::  Eligibility is deliberately ALL-OR-NOTHING over the complete root+descendants list:
+::  one ineligible note disqualifies the entire subtree and we never clean up "the safe
+::  half". The %notebook type is already a strong structural invariant (sharing and
+::  publishing convert to %group, %group never demotes back, and %fork-note requires
+::  %group) -- but every other condition is kept as explicit defense in depth rather
+::  than relying on that. See FUTURE(cleanup-scope) above for why these exclusions are
+::  a group and must be relaxed together, never individually.
+++  notebook-subtree-private
+  |=  [our=@p ids=(list @ta) st=state-73]
+  ^-  ?
+  ::  an empty subtree proves nothing.
+  ?~  ids  %.n
+  ::  Fork lineage can name a note in a VALUE as well as in a key, so gather every note
+  ::  id mentioned ANYWHERE in the fork structures and treat all of them as
+  ::  disqualifying. Keys: all six maps. Values: fork-of carries the source nid, and a
+  ::  pending invite carries both root-id and source-root-id. fork-origin (@uv),
+  ::  fork-version / fork-parent-version (@ud) and fork-invitees ((set @p)) hold no note
+  ::  ids in their values, so keys alone suffice for those three.
+  =/  fork-touched=(set @ta)
+    ::  value-side note ids, gathered into fresh sets and then unioned in (a
+    ::  ~(rep by) accumulator starts from its own bunt, never from an outer face).
+    =/  of-vals=(set @ta)
+      %-  ~(rep by fork-of.st)
+      |=  [[k=@ta v=[host=@p nid=@ta]] a=(set @ta)]
+      ^-  (set @ta)
+      (~(put in a) nid.v)
+    =/  inv-vals=(set @ta)
+      %-  ~(rep by pending-fork-invites.st)
+      |=  [[k=@ta v=pending-fork-invite:noltbook] a=(set @ta)]
+      ^-  (set @ta)
+      (~(put in (~(put in a) root-id.v)) source-root-id.v)
+    ::  keys of all six fork maps, plus the value-side ids above.
+    =/  s=(set @ta)  ~(key by fork-of.st)
+    =.  s  (~(uni in s) ~(key by fork-origin.st))
+    =.  s  (~(uni in s) ~(key by fork-version.st))
+    =.  s  (~(uni in s) ~(key by fork-parent-version.st))
+    =.  s  (~(uni in s) ~(key by fork-invitees.st))
+    =.  s  (~(uni in s) ~(key by pending-fork-invites.st))
+    =.  s  (~(uni in s) of-vals)
+    (~(uni in s) inv-vals)
+  ::  every id must satisfy every condition. levy is a pure conjunction, so a repeated
+  ::  id is evaluated identically each time and duplicates are harmless by construction.
+  ::  cast back to (list @ta): the ?~ above narrows ids to a lest, and levy's wet
+  ::  recursion cannot nest a possibly-empty tail into a lest sample.
+  %+  levy  `(list @ta)`ids
+  |=  nid=@ta
+  ^-  ?
+  =/  nt  (~(get by notes.st) nid)
+  ::  a missing note is unprovable, so it fails closed.
+  ?~  nt  %.n
+  ?&  =(%notebook type.u.nt)
+      =(our creator.u.nt)
+      =(%secret visibility.u.nt)
+      =(1 ~(wyt in users.u.nt))
+      (~(has in users.u.nt) our)
+      =(~ removed.u.nt)
+      !(~(has by note-actor-owners.st) nid)
+      !(~(has by actor-dm-notes.st) nid)
+      !(~(has by host-status.st) nid)
+      !(~(has in fork-touched) nid)
+  ==
 ::  ensure-data-desk: self-provision the local artifact-byte desk on first install/load.
 ::  Mirrors the shipped |new-desk seed construction, adding %mime for artifact cages.
 ::  The desk has no desk.bill, runs no agent, is not mounted, and has no remote sync.
@@ -12516,7 +12630,15 @@
       messages              (~(put by messages.st) nid new-msgs)
       seq-counters          (~(put by seq-counters.st) nid nxt-seq)
     ==
+  ::  physical cleanup: ONLY when we own the bytes. A host or admin deleting another
+  ::  member's %file artifact must not touch any local path -- the bytes live on the
+  ::  creator's ship, which cleans up when it sees the authoritative %artifact-deleted.
+  =/  byte-del=(list card:agent:gall)
+    ?.  ?&(=(%file type.u.art) =(our.bowl creator.u.art))  ~
+    (art-store-del-cards our.bowl now.bowl aid)
   :_  st2
+  %+  weld  byte-del
+  ^-  (list card:agent:gall)
   %:  human-note-cards  nid  our.bowl
       note-members.st  note-actor-owners.st  notes.st
     ;:  weld
@@ -17838,6 +17960,40 @@
       ::  Phase 4: collect entire subtree (root + descendants of any type)
       =/  descendants=(list @ta)  (collect-all-descendants id.act notes)
       =/  subtree-ids=(list @ta)  [id.act descendants]
+      ::  ===== physical file cleanup (best-effort, additive) =====
+      ::  Evaluated HERE, before any map below is rebuilt, so both the eligibility test
+      ::  and the target lists see the PRE-deletion notes/artifacts. Eligibility is
+      ::  all-or-nothing across root+descendants: if the subtree is not provably private
+      ::  we emit no cleanup cards at all and never clean "the safe portion". Everything
+      ::  below this block is unchanged, and the semantic deletion never waits on Clay
+      ::  or on the verification wakes.
+      =/  cleanup-cards=(list card)
+        ?.  (notebook-subtree-private our.bowl subtree-ids state)  ~
+        =/  drop=(set @ta)  (sy subtree-ids)
+        ::  artifacts: only %file bytes WE created inside the deleted subtree. %app and
+        ::  %code carry no stored bytes, and a foreign creator's bytes are not ours.
+        =/  art-cards=(list card)
+          %-  zing
+          %+  turn  ~(tap by artifacts)
+          |=  [aid=@ta a=artifact:noltbook]
+          ^-  (list card)
+          ?.  (~(has in drop) note-id.a)  ~
+          ?.  =(%file type.a)  ~
+          ?.  =(our.bowl creator.a)  ~
+          (art-store-del-cards our.bowl now.bowl aid)
+        ::  icons: only when the PRE-deletion record's icon-url is exactly this note's
+        ::  own internal pointer. External URLs, embedded data URLs, absent icons and
+        ::  mismatched internal pointers all produce nothing.
+        =/  icon-cards=(list card)
+          %-  zing
+          %+  turn  `(list @ta)`subtree-ids
+          |=  nid=@ta
+          ^-  (list card)
+          =/  nt  (~(get by notes) nid)
+          ?~  nt  ~
+          ?.  (note-icon-is-internal nid icon-url.u.nt)  ~
+          (icon-store-del-cards our.bowl now.bowl nid)
+        (weld art-cards icon-cards)
       ::  detach root from parent's children list (descendants are also
       ::  deleted, so their entries in their parent's children are dropped
       ::  along with the parent — no separate trim needed)
@@ -17988,7 +18144,7 @@
             actor-dm-notes  new-actor-dm-notes
           ==
       ^-  (list card)
-      :(weld delete-updates delete-remote-cards actor-dm-clear-cards notif-diff-cards)
+      :(weld cleanup-cards delete-updates delete-remote-cards actor-dm-clear-cards notif-diff-cards)
     ::
         %create-note
       ::  no parent: personal root note — created as %notebook
@@ -18644,8 +18800,23 @@
         (rpoke /mesh-del/(scot %p p) p `remote:noltbook`[%remote-mesh-delete tomb])
       =/  upd-note2=note:noltbook
         (recompute-mesh-note u.nt (fall (~(get by messages) nid) ~) (fall (~(get by gossip-envelopes) nid) *(map @da envelope:noltbook)) new-aenvs)
+      ::  This handler serves TWO cases:
+      ::    1. the NORMAL frontend deletion path for a locally authored Cover/gossip post.
+      ::       The UI renders those posts from artifact envelopes and deletes through here
+      ::       even when the backend still holds the complete local artifact record.
+      ::    2. a fallback for envelope-only stale state, where no full record exists.
+      ::  Only case 1 can safely drop bytes, because only there does an INDEPENDENTLY
+      ::  matched full record prove the bytes belong to this exact local %file artifact.
+      ::  full-match already verifies note id, artifact id, eid and creator == our.bowl.
+      ::  In case 2 cleanup stays a silent no-op -- never a loose AID-only delete.
+      =/  byte-del=(list card)
+        ?.  full-match  ~
+        ?.  ?=(^ full)  ~
+        ?.  =(%file type.u.full)  ~
+        (art-store-del-cards our.bowl now.bowl aid.act)
       :_  this(notes (~(put by notes) nid upd-note2), artifacts new-arts, artifact-envelopes (~(put by artifact-envelopes) nid new-aenvs), note-pins new-pins, mesh-tombs (~(put in mesh-tombs) eid.act), mesh-tomb-meta (~(put by mesh-tomb-meta) eid.act tomb))
       ;:  weld
+        byte-del
         ~[(gf-paths ~[pax] del-upd)]
         ~[(gf-notes del-upd)]
         pin-clear-cards
@@ -19166,8 +19337,16 @@
           (recompute-mesh-note u.nt (fall (~(get by messages) nid) ~) (fall (~(get by gossip-envelopes) nid) *(map @da envelope:noltbook)) new-aenvs)
         ::  note-scoped live removal (artifact: aid + eid)
         =/  del-upd=update:noltbook  [%mesh-entry-deleted nid `art-eid `id.act ~]
+        ::  after the canonical artifact removal + mesh tombstone above: delete our own
+        ::  %file bytes from %noltbook-data on a BEST-EFFORT basis (we are the creator,
+        ::  checked above). %app and %code artifacts have no stored file bytes to delete.
+        ::  The semantic deletion is already authoritative and never waits on this.
+        =/  byte-del=(list card)
+          ?.  =(%file type.u.old)  ~
+          (art-store-del-cards our.bowl now.bowl id.act)
         :_  this(notes (~(put by notes) nid upd-note2), artifacts (~(del by artifacts) id.act), artifact-envelopes (~(put by artifact-envelopes) nid new-aenvs), note-pins new-pins, mesh-tombs (~(put in mesh-tombs) art-eid), mesh-tomb-meta (~(put by mesh-tomb-meta) art-eid tomb))
         ;:  weld
+          byte-del
           ~[(gf-paths ~[pax] del-upd)]
           ~[(gf-notes del-upd)]
           pin-clear-cards
@@ -19242,8 +19421,16 @@
         ?~  others  ~
         ?:  =(i.others our.bowl)  ~
         ~[(rpoke /dm-ref-del-out/[id.act] i.others `remote:noltbook`[%remote-dm-ref-delete u.nt art-tomb])]
+      ::  ordinary-DM %file we created (is-dm-art requires creator == our.bowl) with the
+      ::  terminal tomb installed here. A counterparty holds only a content-free reference
+      ::  and never reaches this branch, so it can never attempt a local byte deletion.
+      =/  byte-del=(list card)
+        ?.  ?&(is-dm-art =(%file type.u.old))  ~
+        (art-store-del-cards our.bowl now.bowl id.act)
       :_  this(artifacts (~(del by artifacts) id.act), note-pins new-pins, dm-artifact-refs new-refs, dm-artifact-tombs new-tombs)
       ::  1B.2: /notes/[nid] transport kept; any global pin-clear /notes fact dropped if hidden.
+      %+  weld  byte-del
+      ^-  (list card)
       %+  weld  dm-del-cards
       ^-  (list card:agent:gall)
       %:  human-note-cards  nid  our.bowl
@@ -20817,6 +21004,26 @@
     :_  this(notes (~(put by notes) nid new-nt), dm-prefs new-prefs, pending-img-writes dropped)
     (weld ok-http meta-fact-cards)
   ::
+  ::  artifact-byte deletion read-back. %c %info does not acknowledge, so this
+  ::  next-event wake re-scries the data desk. Purely diagnostic: metadata and the
+  ::  tombstone are already authoritative, so a failed removal is logged and nothing is
+  ::  restored. No state change here, so duplicate or late wakes are harmless.
+  ?:  ?=([%art-del-verify @ ~] wire)
+    ?.  ?=([%behn %wake *] sign-arvo)  `this
+    =/  aid=@ta  i.t.wire
+    ?.  (data-file-exists (art-store-path our.bowl now.bowl aid))  `this
+    ~&  [%artifact-bytes-delete-failed aid]
+    `this
+  ::  note-icon byte deletion read-back, same contract as the artifact one above:
+  ::  diagnostic ONLY. Nothing is restored, nothing is retried, no user-visible state
+  ::  changes, and no state is written -- so duplicate or late wakes are harmless.
+  ?:  ?=([%icon-del-verify @ ~] wire)
+    ?.  ?=([%behn %wake *] sign-arvo)  `this
+    =/  nid=@ta  i.t.wire
+    ?.  (data-file-exists ~[(scot %p our.bowl) art-store-desk (scot %da now.bowl) %icons nid %mime])
+      `this
+    ~&  [%note-icon-bytes-delete-failed nid]
+    `this
   ?:  ?=([%icon-fetch-timeout @ ~] wire)
     ?.  ?=([%behn %wake *] sign-arvo)  `this
     =/  eid=@ta  i.t.wire
@@ -21500,6 +21707,14 @@
         ::  (the direct wire already removed it) OR is an %app artifact. A first DM %file
         ::  delete still processes (target exists + is %file); repeats are harmless no-ops.
         ::  Notebook/group deletes are unaffected.
+        ::  capture the artifact BEFORE metadata is dropped below: physical cleanup runs
+        ::  only when the host has accepted the deletion (this fact IS that acceptance),
+        ::  the artifact is %file, and WE created it -- i.e. our ship owns the bytes.
+        =/  pre-del  (~(get by artifacts) id.upd)
+        =/  byte-del=(list card)
+          ?.  ?=(^ pre-del)  ~
+          ?.  ?&(=(%file type.u.pre-del) =(our.bowl creator.u.pre-del))  ~
+          (art-store-del-cards our.bowl now.bowl id.upd)
         =/  del-tgt  (~(get by artifacts) id.upd)
         ?:  ?&  ?=(^ note)
                 =(%dm type.u.note)
@@ -21523,6 +21738,8 @@
         =.  artifacts  (~(del by artifacts) id.upd)
         =?  note-pins  pin-hit  (~(del by note-pins) nid)
         :_  this
+        %+  weld  byte-del
+        ^-  (list card)
         ?.  pin-hit
           ~[(gf-paths ~[/notes/[nid]] upd)]
         :~  (gf-paths ~[/notes/[nid]] upd)
