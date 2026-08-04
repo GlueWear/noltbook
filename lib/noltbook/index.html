@@ -1606,10 +1606,10 @@ function handleUpdate(upd){
   // => the marker was removed. The marker drives the G5B direct-conversation
   // presentation; refreshActorDmPresentation re-renders sidebar/header/controls.
   else if(upd['actor-dm-updated']){const{noteId,meta}=upd['actor-dm-updated'];if(meta){state.actorDms[noteId]=meta;if('~'+api.ship===meta.target)requestActorProfile(meta.host,meta.desk,meta.id)}else{delete state.actorDms[noteId]}refreshActorDmPresentation()}
-  else if(upd['pal-list']){for(const entry of upd['pal-list']){state.palStatus[entry.ship]=entry.status}if(state.palsView)renderPalsList();fetchVisibleEnvelopes()}
+  else if(upd['pal-list']){for(const entry of upd['pal-list']){state.palStatus[entry.ship]=entry.status}if(state.palsView)renderPalsList();fetchVisibleEnvelopes();if(state.viewingProfileShip)updateViewProfileTags(state.viewingProfileShip)}
   else if(upd['contact-list']){state.contacts=new Set(upd['contact-list']);if(state.palsView)renderPalsList();if(state.viewingProfileShip)updateViewProfileTags(state.viewingProfileShip)}
   else if(upd['pal-removed']){const{ship}=upd['pal-removed'];delete state.palStatus[ship];if(state.palsView)renderPalsList();if(state.viewingProfileShip===ship)updateViewProfileTags(ship)}
-  else if(upd['pal-update']){const{ship,status}=upd['pal-update'];const wasBlocked=state.palStatus[ship]==='blocked';state.palStatus[ship]=status;if(wasBlocked&&status!=='blocked'){Object.keys(state.removedFromNotes).forEach(nid=>{if(state.removedFromNotes[nid]===ship)delete state.removedFromNotes[nid]});api.poke('noltbook','noltbook-action',{action:'request-remote-notes',data:{ship}})}if(status!=='blocked')delete state.blockedBy[ship];if(state.palsView)renderPalsList();scheduleNoteList();fetchVisibleEnvelopes();if(isGossipNote(state.currentNoteId))scheduleRender(state.currentNoteId);if(state.currentNoteId){const cn=state.notes[state.currentNoteId];if(cn&&cn.type==='dm'){const cp=dmCounterparty(cn);if(cp===ship)updateMuteUI()}}}
+  else if(upd['pal-update']){const{ship,status}=upd['pal-update'];const wasBlocked=state.palStatus[ship]==='blocked';state.palStatus[ship]=status;if(wasBlocked&&status!=='blocked'){Object.keys(state.removedFromNotes).forEach(nid=>{if(state.removedFromNotes[nid]===ship)delete state.removedFromNotes[nid]});api.poke('noltbook','noltbook-action',{action:'request-remote-notes',data:{ship}})}if(status!=='blocked')delete state.blockedBy[ship];if(state.palsView)renderPalsList();if(state.viewingProfileShip===ship)updateViewProfileTags(ship);scheduleNoteList();fetchVisibleEnvelopes();if(isGossipNote(state.currentNoteId))scheduleRender(state.currentNoteId);if(state.currentNoteId){const cn=state.notes[state.currentNoteId];if(cn&&cn.type==='dm'){const cp=dmCounterparty(cn);if(cp===ship)updateMuteUI()}}}
   else if(upd['dial-update']){state.dial=upd['dial-update'];updateDialUI();if(isGossipNote(state.currentNoteId))scheduleRender(state.currentNoteId);scheduleNoteList();fetchVisibleEnvelopes()}
   else if(upd['note-users-updated']){const d=upd['note-users-updated'];const{id,type,users,removed}=d;const rev=d.rev||0;const localRev=state.noteMemberRevs[id]||0;if(rev<localRev){console.log('[note-users-updated:stale]',id,'incoming',rev,'<','local',localRev);return}state.noteMemberRevs[id]=rev;console.log('[note-users-updated]',id,type,users,removed,'rev',rev);if(state.notes[id]){const me='~'+api.ship;const vis=state.notes[id].visibility;const notifyVis=vis==='public'||vis==='private';if(state.notes[id].creator===me&&notifyVis){const oldU=state.notes[id].users||[];const newJ=users.filter(u=>!oldU.includes(u)&&u!==me);for(const j of newJ)state.blockNotifications.push({noteId:id,noteName:state.notes[id].name,from:j,time:Date.now(),type:'joined'});if(newJ.length>0)updateLogoBadge()}state.notes[id].users=users;state.notes[id].removed=removed||[];if(type)state.notes[id].type=type;if(!(removed||[]).includes(me))state.notificationAcks.delete(notifAckKey('removed-status',id));rebuildDurableNotifications();updateLogoBadge();scheduleNoteList();if(state.currentNoteId===id){scheduleRender(id);updateMuteUI();updateActorDmHeader(id);updateAttachMenu();const _n=state.notes[id];const _cn=document.getElementById('chatNoteName');if(_cn&&_n)_cn.textContent=noteDisplayName(_n);const _sb=document.getElementById('shareBtn');if(_sb&&_n)_sb.style.display=canShareNote(_n)?'block':'none'}refreshNoteInfoMembers(id)}}
   else if(upd['note-redirect']){const{oldId,newId}=upd['note-redirect'];console.log('[note-redirect]',oldId,'->',newId);
@@ -5930,8 +5930,8 @@ async function viewProfile(ship){
         <button class="vp-btn" id="viewProfilePal" onclick="viewProfileTogglePal('${escAttr(ship)}')"></button>
         <button class="vp-btn" onclick="viewProfileDm('${escAttr(ship)}')">DM</button>
         <button class="vp-btn send-hover" onclick="viewProfileSend('${escAttr(ship)}')">SEND</button>
-        <button class="vp-btn" id="viewProfileContact" onclick="viewProfileToggleContact('${escAttr(ship)}')"></button>
         <button class="vp-btn danger-hover" id="viewProfileBlock" onclick="viewProfileToggleBlock('${escAttr(ship)}')"></button>
+        <button class="vp-btn" id="viewProfileContact" onclick="viewProfileToggleContact('${escAttr(ship)}')" hidden></button>
       </div>
     </div>
     <div class="modal-actions">
@@ -6084,7 +6084,6 @@ function updateViewProfileTags(ship){
   const status=state.palStatus[ship]||'none';
   const isBlocked=status==='blocked';
   const isContact=state.contacts.has(ship);
-  const hasPalState=status!=='none';
   const pe=document.getElementById('viewProfilePal');const be=document.getElementById('viewProfileBlock');const ce=document.getElementById('viewProfileContact');
   if(pe){
     if(status==='mutual'){pe.className='vp-btn pal-mutual';pe.textContent='PALS'}
@@ -6098,9 +6097,15 @@ function updateViewProfileTags(ship){
     else{be.className='vp-btn danger-hover';be.textContent='BLOCK'}
   }
   if(ce){
-    if(isContact){ce.className='vp-btn danger-hover';ce.textContent='REMOVE CONTACT'}
-    else if(hasPalState){ce.className='vp-btn danger-hover';ce.textContent='REMOVE CONTACT'}
-    else{ce.className='vp-btn';ce.textContent='ADD CONTACT'}
+    // Contact is the last action button and only exists at status 'none': an active
+    // pal state is managed by the Pal button, and blocking by the Block button.
+    // Hiding the final child removes it from the flex column with no gap and without
+    // moving Pal/DM/Send/Block.
+    ce.hidden=status!=='none';
+    if(!ce.hidden){
+      if(isContact){ce.className='vp-btn danger-hover';ce.textContent='REMOVE CONTACT'}
+      else{ce.className='vp-btn';ce.textContent='ADD CONTACT'}
+    }
   }
 }
 function viewProfileTogglePal(ship){
@@ -6126,7 +6131,10 @@ function viewProfileToggleContact(ship){
   if(state.contacts.has(ship)||status!=='none'){
     if(status!=='none'&&status!=='blocked'){
       const name=displayName(ship);
-      if(!confirm('Removing '+name+' from Contacts will also remove them from your pals/requests.'))return;
+      const lines=['Remove '+name+' from Contacts?'];
+      if(status==='requesting'||status==='mutual')lines.push('Your outgoing pal relationship will also be removed.');
+      if(status==='requested'||status==='mutual')lines.push('Their incoming pal request will remain visible.');
+      if(!confirm(lines.join('\n\n')))return;
     }
     api.poke('noltbook','noltbook-action',{action:'remove-contact',data:{ship}});
   }else{

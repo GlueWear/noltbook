@@ -19576,6 +19576,10 @@
       ::  add to outgoing + peers bookkeeping, send %remote-hey + our profile
       =/  new-outgoing=(set @p)  (~(put in pal-outgoing) ship.act)
       =/  new-peers=(set @p)  (~(put in peers) ship.act)
+      ::  sending/reciprocating a pal request is a local choice: save them as an
+      ::  explicit contact so removing our outgoing later leaves the row intact.
+      ::  incoming requests (%remote-hey) never do this — only our own action.
+      =/  new-contacts=(set @p)  (~(put in contacts) ship.act)
       =/  hey-card=card
         (rpoke /pal-hey/(scot %p ship.act) ship.act `remote:noltbook`[%remote-hey ~])
       =/  prof  (fall (~(get by profiles) our.bowl) *profile:noltbook)
@@ -19585,16 +19589,30 @@
         ?:  (~(has in pal-incoming) ship.act)  %mutual
         %requesting
       =/  upd=update:noltbook  [%pal-update ship.act status]
-      :_  this(pal-outgoing new-outgoing, pal-blocked new-blocked, peers new-peers)
-      [hey-card prof-card (pal-sync-card ship.act new-outgoing pal-incoming new-blocked) (gf-notes upd) ~]
+      =/  cupd=update:noltbook  [%contact-list ~(tap in new-contacts)]
+      :_  this(pal-outgoing new-outgoing, pal-blocked new-blocked, peers new-peers, contacts new-contacts)
+      :~  hey-card
+          prof-card
+          (pal-sync-card ship.act new-outgoing pal-incoming new-blocked)
+          (gf-notes upd)
+          (gf-notes cupd)
+      ==
     ::
         %remove-pal
       ?:  =(ship.act our.bowl)  `this
+      =/  had-outgoing=?  (~(has in pal-outgoing) ship.act)
       =/  new-outgoing=(set @p)  (~(del in pal-outgoing) ship.act)
+      ::  backfill: a pal relationship created before %add-pal saved contacts has no
+      ::  contacts entry. Add it here so legacy and new state converge on removal --
+      ::  no on-load migration needed. Only when we actually had outgoing state:
+      ::  removing a pal we never followed must not invent a contact.
+      =/  new-contacts=(set @p)
+        ?.  had-outgoing  contacts
+        (~(put in contacts) ship.act)
       =/  bye-card=card
         (rpoke /pal-bye/(scot %p ship.act) ship.act `remote:noltbook`[%remote-bye ~])
       =/  still-visible=?
-        ?|  (~(has in contacts) ship.act)
+        ?|  (~(has in new-contacts) ship.act)
             (~(has in pal-incoming) ship.act)
             (~(has in pal-blocked) ship.act)
         ==
@@ -19604,8 +19622,13 @@
       =/  upd=update:noltbook
         ?:  still-visible  [%pal-update ship.act status]
         [%pal-removed ship.act]
-      :_  this(pal-outgoing new-outgoing)
-      [bye-card (pal-sync-card ship.act new-outgoing pal-incoming pal-blocked) (gf-notes upd) ~]
+      =/  cupd=update:noltbook  [%contact-list ~(tap in new-contacts)]
+      :_  this(pal-outgoing new-outgoing, contacts new-contacts)
+      :~  bye-card
+          (pal-sync-card ship.act new-outgoing pal-incoming pal-blocked)
+          (gf-notes upd)
+          (gf-notes cupd)
+      ==
     ::
         %dismiss-pal-request
       ?:  =(ship.act our.bowl)  `this
@@ -19746,23 +19769,27 @@
       ==
     ::
         %remove-contact
-      ::  remove from visible contacts. This clears explicit contact state
-      ::  plus local pal/request state, but does not touch block state.
+      ::  remove the explicit contact plus our own outgoing pal relationship.
+      ::  pal-incoming is THEIR outgoing choice, not ours: we cannot clear it here
+      ::  (a remote %remote-pal-sync would just restore it), so an incoming request
+      ::  stays visible. block state is untouched.
       ?:  =(ship.act our.bowl)  `this
       =/  new-contacts=(set @p)  (~(del in contacts) ship.act)
       =/  had-outgoing=?  (~(has in pal-outgoing) ship.act)
       =/  new-outgoing=(set @p)  (~(del in pal-outgoing) ship.act)
-      =/  new-incoming=(set @p)  (~(del in pal-incoming) ship.act)
       =/  bye-cards=(list card)
         ?.  had-outgoing  ~
         ~[(rpoke /pal-bye/(scot %p ship.act) ship.act `remote:noltbook`[%remote-bye ~])]
-      ::  blocked ships remain visible until explicitly unblocked.
+      ::  blocked ships, and ships with a live incoming request, remain visible.
       =/  still-visible=?
-        (~(has in pal-blocked) ship.act)
+        ?|  (~(has in pal-blocked) ship.act)
+            (~(has in pal-incoming) ship.act)
+        ==
       =/  status=pal-status:noltbook
         ?:  (~(has in pal-blocked) ship.act)  %blocked
+        ?:  (~(has in pal-incoming) ship.act)  %requested
         %none
-      ::  if no block state, emit %pal-removed so frontend drops row.
+      ::  if nothing keeps them visible, emit %pal-removed so frontend drops row.
       =/  upd=update:noltbook
         ?:  still-visible  [%pal-update ship.act status]
         [%pal-removed ship.act]
@@ -19771,7 +19798,7 @@
         :~  (gf-notes upd)
             (gf-notes cupd)
         ==
-      :_  this(contacts new-contacts, pal-outgoing new-outgoing, pal-incoming new-incoming)
+      :_  this(contacts new-contacts, pal-outgoing new-outgoing)
       (weld base-cards bye-cards)
     ::
         %clear-mentions
@@ -21134,7 +21161,6 @@
         ==
       =/  result=(quip card _this)
         =/  upd  !<(update:noltbook q.cage.sign)
-      ~&  [%nb-art-trace-rn-fact our=our.bowl from=src.bowl note=nid tag=-.upd]
       ::  cover is handled by [%ars @ ~], not here — skip to avoid gossip loops
       ?:  =(nid %cover)  `this
       ::  check if this is a gossip-type note (envelope model)
@@ -21696,7 +21722,6 @@
         ::  DM %file (no direct edit wire yet) + notebook/group updates are unaffected.
         ?:  ?&(?=(^ note) =(%dm type.u.note) =(%app type.artifact.upd))  `this
         ::  host updated an artifact; store locally and relay to frontend
-        ~&  [%nb-art-trace-art-upd our=our.bowl from=src.bowl note=nid artifact=id.artifact.upd versions=(lent versions.artifact.upd)]
         =.  artifacts  (~(put by artifacts) id.artifact.upd artifact.upd)
         :_  this
         ~[(gf-paths ~[/notes/[nid]] upd)]
