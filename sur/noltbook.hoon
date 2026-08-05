@@ -39,18 +39,6 @@
       headline=(unit @t)
   ==
 ::
-+$  note-3
-  $:  id=@ta
-      name=@t
-      type=note-type
-      creator=@p
-      users=(set @p)
-      children=(list @ta)
-      parent=(unit @ta)
-      last-author=(unit @p)
-      last-preview=(unit @t)
-  ==
-::
 +$  message
   $:  id=@da
       note-id=@ta
@@ -94,16 +82,6 @@
       ::  (sham [creator id]); reply-to-eid carries reply context. Threading
       ::  and top-100 use this later; byte-hosting is unchanged.
       meta=(unit entry-meta)
-  ==
-::  artifact-pre40: the pre-state-40 artifact shape (no meta). Used only for
-::  on-load typing of states <= 39; upgrade-39-to-40 appends meta=~.
-+$  artifact-pre40
-  $:  id=@ta
-      name=@t
-      type=artifact-type
-      creator=@p
-      note-id=@ta
-      versions=(list artifact-version)
   ==
 ::
 ::  artifact-envelope: small metadata propagated through cover/gossip mesh.
@@ -387,11 +365,11 @@
 ::  ship-to-ship remote pokes
 +$  remote
   $%  [%remote-invite note-id=@ta name=@t type=note-type creator=@p users=(set @p) visibility=note-visibility writable=?]
-      [%remote-message note-id=@ta msg=message directed-kind=(unit attention-kind) via=(unit via-app) actor=(unit actor)]
+      [%remote-message note-id=@ta msg=message directed-kind=(unit attention-kind) via=(unit via-app)]
       ::  atomic DM message: carries enough note metadata so the receiver
       ::  can recreate the DM locally if they previously left it. No
       ::  separate invite is sent; receiver does not subscribe.
-      [%remote-dm-message note=note msg=message via=(unit via-app) actor=(unit actor)]
+      [%remote-dm-message note=note msg=message via=(unit via-app)]
       [%remote-ars msg=message hops=@ud]
       [%remote-ars-ref env=envelope hops=@ud]
       [%remote-fetch-cover-msg requester=@p msg-id=@da eid=(unit @uv)]
@@ -410,15 +388,6 @@
       ::  with a specific click.
       [%remote-profile-request req-id=@ud]
       [%remote-profile-response req-id=@ud profile=profile]
-      ::  Phase G4: actor profile lookup. NEW variants (old peers cannot answer; the
-      ::  fallback is the message-carried name/kind + glyph). req-id echoed; the host is
-      ::  src.bowl on both sides, never carried in payload. profile=~ => no such actor.
-      [%remote-actor-profile-request req-id=@ud desk=@tas actor-id=@t]
-      [%remote-actor-profile-response req-id=@ud desk=@tas actor-id=@t profile=(unit actor-public-profile)]
-      ::  Phase G5A: tell the target ship that this group note is a direct actor
-      ::  conversation. NEW variant (not folded into %remote-invite). Sent AFTER the
-      ::  invite. Receiver verifies meta.owner.host == src.bowl and meta.target == our.
-      [%remote-actor-dm-meta note-id=@ta meta=actor-dm-meta]
       [%remote-note-request requester=@p]
       [%remote-note-list notes=(list note)]
       [%remote-hey ~]
@@ -488,7 +457,7 @@
       [%remote-artifact-denied art-id=@ta eyre-id=@ta]
       ::  main USER profile-picture bytes fetched over Ames (fetch-serve-forget, no
       ::  local persistence). The owner serves ONLY its own /lib/noltbook/avatar/mime;
-      ::  eyre-id correlates the held browser request. (Not for actor avatars.)
+      ::  eyre-id correlates the held browser request.
       ::  note-icon fetch-serve-forget (additive). The host reads its own uploaded icon
       ::  from %noltbook-data and streams the bytes back to the member's held HTTP
       ::  request; the member persists nothing. No mime rides the wire on purpose --
@@ -499,14 +468,6 @@
       [%remote-user-avatar-fetch eyre-id=@ta]
       [%remote-user-avatar-content eyre-id=@ta mime=@t bytes=octs]
       [%remote-user-avatar-denied eyre-id=@ta]
-      ::  actor/persona avatar bytes fetched over Ames (fetch-serve-forget, no local
-      ::  persistence). The owner serves ONLY its own /lib/noltbook/actor-avatars/
-      ::  <desk>/<slug>/mime for the requested [desk actor-id]; eyre-id correlates the
-      ::  held browser request. Presentation-only: serving does NOT require registry,
-      ::  roster, grants, or membership — the URL was already public in the profile.
-      [%remote-actor-avatar-fetch eyre-id=@ta desk=@tas actor-id=@t]
-      [%remote-actor-avatar-content eyre-id=@ta mime=@t bytes=octs]
-      [%remote-actor-avatar-denied eyre-id=@ta]
       ::  member -> note host: register artifact metadata; bytes stay on member
       [%remote-artifact-create =artifact]
       ::  member -> note host: update an existing %app artifact's descriptor content (shared
@@ -522,16 +483,16 @@
       ::  DM %app artifact create (Phase 1): symmetric peer-authoritative creation of an
       ::  interactive app artifact in an ordinary 2-person DM. Carries the DM note
       ::  metadata because peers may hold different canonical local note ids; no mime/
-      ::  bytes (app artifacts are descriptor-only). Actor DMs are excluded.
+      ::  bytes (app artifacts are descriptor-only).
       [%remote-dm-app-artifact-create =note =artifact]
       ::  DM %app artifact edit (Phase 2): symmetric peer-authoritative version bump of an
       ::  interactive app artifact in an ordinary 2-person DM. Carries the full updated
       ::  artifact (all versions) so the receiver is idempotent + order-tolerant, plus the
-      ::  DM note for canonical local-id resolution. Actor DMs excluded.
+      ::  DM note for canonical local-id resolution.
       [%remote-dm-app-artifact-edit =note =artifact]
       ::  DM %app artifact delete (Phase 3): symmetric peer-authoritative removal of an app
       ::  artifact in an ordinary 2-person DM. Carries the note (for canonical local-id
-      ::  resolution) and the artifact id. Actor DMs excluded.
+      ::  resolution) and the artifact id.
       [%remote-dm-app-artifact-delete =note art-id=@ta]
       ::  cover/gossip artifact envelope mesh propagation; bytes never travel
       [%remote-artifact-envelope-ref note-id=@ta env=artifact-envelope hops=@ud]
@@ -591,24 +552,11 @@
       [%request-gossip-note note-id=@ta from=@p]
       [%rename-note id=@ta name=@t]
       [%delete-note id=@ta]
-      ::  A1.3b: compact host + emergency actor management (the host's own UI pokes these
-      ::  directly; the API veneers reuse the same shared helpers). target is a full LOCAL
-      ::  actor-ref [our.bowl desk id]; remote targets are deferred to A3.
-      [%manage-note-actor note-id=@ta op=note-actor-op target=actor-ref]
-      [%emergency-manage-note-actor note-id=@ta op=emergency-actor-op target=actor-ref]
       [%switch-note id=@ta]
-      ::  Phase B: the REAL ship user's actor notification preferences, keyed by the
-      ::  full stable [host,desk,id]. mute/block independent; effective suppression =
-      ::  muted OR blocked. Real-user prefs — NOT app/actor actions (no grant/caps/status,
-      ::  no host pal/membership mutation). Internal form carries a typed actor-ref.
-      [%mute-actor ref=actor-ref]
-      [%unmute-actor ref=actor-ref]
-      [%block-actor ref=actor-ref]
-      [%unblock-actor ref=actor-ref]
       ::  directed-kind: explicit NOTE SEND marker (Phase C). %send => the
       ::  resulting reply attention is classified kind=%send instead of %reply.
       ::  Normal messages and wallet/DM SEND omit it (~).
-      [%send-message note-id=@ta text=@t reply-to=(unit @da) reply-to-eid=(unit @uv) directed-kind=(unit attention-kind) via=(unit via-app) actor=(unit actor)]
+      [%send-message note-id=@ta text=@t reply-to=(unit @da) reply-to-eid=(unit @uv) directed-kind=(unit attention-kind) via=(unit via-app)]
       [%edit-message note-id=@ta msg-id=@da eid=(unit @uv) text=@t]
       [%delete-message note-id=@ta msg-id=@da eid=(unit @uv)]
       ::  Local-only removal for externally imported DM history. Never emits Ames.
@@ -630,10 +578,6 @@
       [%request-remote-notes ship=@p]
       [%search-messages query=@t req-id=@ud limit=@ud]
       [%request-profile ship=@p req-id=@ud]
-      ::  Phase G4: actor profile resolution (frontend-internal). host = the actor's
-      ::  host ship. Local host resolves immediately; a fresh cache answers immediately;
-      ::  otherwise a %remote-actor-profile-request is sent. req-id correlates the result.
-      [%request-actor-profile host=@p desk=@tas actor-id=@t req-id=@ud]
       [%add-pal ship=@p]
       [%remove-pal ship=@p]
       [%dismiss-pal-request ship=@p]
@@ -719,39 +663,37 @@
       [%invalid ~]
   ==
 +$  via-app  [desk=@tas title=(unit @t) publisher=(unit @p) ship=@p]
-::  via-map: durable per-eid attribution rows, used by state-44 (defined in app).
+::  via-map: durable per-eid app-attribution rows (defined in app).
 +$  via-map  (map @uv via-app)
-::  actor (Phase ACTOR-1). App-scoped identity INSIDE via: "Rick via %skiff on
-::  ~zod". v1 is attribution/display only — never the Urbit author, never a
-::  permission/membership principal. api-actor is the client-supplied shape on a
-::  poke; actor is the durable record with host/desk stamped server-side (host is
-::  ALWAYS our.bowl on send and re-verified == src.bowl on remote receive, never
-::  trusted from the wire). Direct-note paths only: cover/gossip/ars-rumors never
-::  carry actor, on sender or peer.
-+$  api-actor  [id=@t name=@t kind=@tas]
-+$  actor  [host=@p desk=@tas id=@t name=@t kind=?(%user %bot %app)]
-::  actor-map: durable per-eid actor rows (state-51), parallel to via-map.
-+$  actor-map  (map @uv actor)
-::  Actor Control (Phase A, state-52). Host-controlled governance over which
-::  LOCAL apps may attribute actors and which actors are active. This is NOT
+::  App grants. Host-controlled governance over what a LOCAL app may do. This is NOT
 ::  hard isolation: Gall does not expose the calling agent, so app.desk is a
 ::  cooperative, app-supplied name — not an authenticated caller identity. The
 ::  grant layer gives the host revocation + audit, not protection from a
 ::  malicious local agent (real authority stays our.bowl either way).
-::  app-cap: capabilities a host grants an app (Phase C: action capabilities).
-::  %attribute = may attribute actors on posts; %manage-actors = may register/
-::  update its own actors; the rest gate specific actions. Not all are wired yet —
-::  the enum + parser carry them so the model is ready. An app grant is the CEILING;
-::  per-actor caps can only narrow within it.
+::  app-cap: FROZEN STORAGE MOLD -- DO NOT NARROW.
+::
+::    This union must keep all 22 labels because saved %75 state was written against
+::    it. `!<(state-75 old)` nests on the TYPE, not on the values: a saved vase typed
+::    with the 22-way union does not nest under a narrower one, even when every stored
+::    caps set actually contains nothing but %import-dm. Narrowing it broke on-load on
+::    both live ships (they rejected at !<(state-75 old) and Gall kept the old agent).
+::    Removing a label therefore requires a real state migration, not an edit here.
+::
+::    ONLY %import-dm is live. The other 21 labels are inert storage vocabulary: they
+::    cannot be granted (%set-app-grant accepts only %import-dm), cannot be read back
+::    (api-grant-json serializes only %import-dm), are stripped from every decoded row
+::    by clamp-app-grants, and gate no behavior anywhere -- nothing tests for them.
 +$  app-cap
-  $?  %attribute  %manage-actors
+  $?  %import-dm
+      ::  inert -- storage vocabulary only; never granted, returned, or tested
+      %attribute  %manage-actors
       %post-message  %edit-own-message  %delete-own-message
       %create-note  %configure-note  %delete-own-note  %manage-members
       %participate-note  %leave-note  %send-dm
       %update-own-profile  %manage-own-contacts
       %manage-own-preferences  %manage-own-notifications
       %create-artifact  %edit-own-artifact  %delete-own-artifact
-      %set-active  %pin-note  %import-dm
+      %set-active  %pin-note
   ==
 ::  app-grant: a host's grant to a single local app desk. enabled gates all
 ::  attribution; revoked-at records the last disable (audit, never cleared).
@@ -763,160 +705,6 @@
       granted-at=@da
       updated-at=@da
       revoked-at=(unit @da)
-  ==
-::  actor-status: host lifecycle for one registered actor. %active honors
-::  attribution; %suspended/%revoked reject it (history stays attributed).
-+$  actor-status  ?(%active %suspended %revoked)
-::  A1.3b: compact actor-management operation enums (host + emergency families share one
-::  op-tagged action each instead of many near-duplicate unions) + a STRICT three-state
-::  target desk so a malformed targetDesk can never silently default to the owner app desk.
-+$  note-actor-op  ?(%approve %deny %invite %remove %mute %unmute)
-+$  emergency-actor-op  ?(%remove %mute %unmute)
-+$  tdesk-spec  $@(?(%default %invalid) [%set desk=@tas])
-::  actor-record-52: frozen pre-Phase-C record shape (state-52 load only).
-+$  actor-record-52
-  $:  id=@t
-      name=@t
-      kind=?(%user %bot %app)
-      status=actor-status
-      created-at=@da
-      updated-at=@da
-      revoked-at=(unit @da)
-      last-seen=@da
-  ==
-::  actor-record: registry row for one [desk id] actor. name/kind are the last
-::  app-supplied display values; status is host-controlled. TOFU: first
-::  attributed post auto-creates an %active record. caps (Phase C, state-53):
-::  ~ = inherit the app grant's caps; [set] = narrow to this explicit subset
-::  (still bounded by the app grant). An actor can never exceed the app grant.
-+$  actor-record
-  $:  id=@t
-      name=@t
-      kind=?(%user %bot %app)
-      status=actor-status
-      created-at=@da
-      updated-at=@da
-      revoked-at=(unit @da)
-      last-seen=@da
-      caps=(unit (set app-cap))
-  ==
-::  actor-owner (Actor Notes Phase D, state-54): the durable actor owner of a note,
-::  keyed by note id. Authority is the STABLE [host, desk, id] — never the mutable
-::  display name/kind/status (those are resolved from actor-registry at read time).
-::  The note's real creator stays our.bowl; this is a separate ownership record,
-::  not conflated with note-apps (app metadata) or actor-by-eid (message attribution).
-+$  actor-owner  [host=@p desk=@tas id=@t]
-::  actor-ref (Phase B, state-64): the stable identity of ANY actor — local or remote —
-::  for the REAL ship user's notification preferences. Structurally like actor-owner but
-::  semantically distinct (a preference target, not a note's owner): keep them separate.
-::  Display name is never part of identity authority.
-+$  actor-ref  [host=@p desk=@tas id=@t]
-::  actor-profile (Actor Social Phase F1, state-55): user-facing presentation data
-::  the plugin renders. The canonical display NAME stays in actor-record.name (not
-::  duplicated here). actor-avatar-type excludes %urbit on purpose — an actor is
-::  not a native Urbit identity, so no sigil/ship avatar this phase. status-text is
-::  free-form profile text, NOT online presence and NOT the governance lifecycle
-::  status (actor-record.status).
-+$  actor-avatar-type  ?(%s3 %ipfs %external)
-+$  actor-avatar-ref   [type=actor-avatar-type url=@t]
-+$  actor-profile
-  $:  avatar=(unit actor-avatar-ref)
-      bio=(unit @t)
-      status-text=(unit @t)
-  ==
-::  actor-public-profile (Phase G4): the ONLY actor data that crosses ships / is cached
-::  for remote display — PRESENTATION ONLY. host is NOT in the type; it is stamped from
-::  src.bowl / our.bowl at the boundary (never trusted from payload). Excludes app
-::  grants, caps, contacts/preferences, and any private registry internals.
-+$  actor-public-profile
-  $:  desk=@tas
-      id=@t
-      display-name=@t
-      kind=?(%user %bot %app)
-      lifecycle-status=actor-status
-      avatar=(unit actor-avatar-ref)
-      bio=(unit @t)
-      status-text=(unit @t)
-  ==
-::  actor-dm-meta (Phase G5A): durable marker that a secret two-ship %group note is an
-::  actor DIRECT conversation — NOT a canonical %dm. owner is the actor that created/owns
-::  it (the snapshot carries a safe fallback name/kind for the remote ship; current
-::  profile still resolves via G4). target is the single remote ship. The host @p stays
-::  the real note.users member; isolation comes from the unique note id + message store.
-+$  actor-dm-meta
-  $:  owner=actor
-      target=@p
-      created-at=@da
-  ==
-::  api-actor-avatar (F1 hardening): four-state avatar arg mirroring api-prof-avatar
-::  so a malformed value (e.g. "avatar":"bad") is %invalid, NOT %clear. %set carries
-::  raw type/url strings; the handler validates type ∈ {s3,ipfs,external} + url.
-+$  api-actor-avatar
-  $%  [%keep ~]
-      [%clear ~]
-      [%set type=@t url=@t]
-      [%invalid ~]
-  ==
-::  identity-ref (Actor Social Phase F2): a stable reference an actor can hold in
-::  its contact book — a real ship, or another actor [host desk id]. Display name
-::  is never part of identity authority. Contacts grant NO trust/pal/membership.
-+$  identity-ref
-  $%  [%ship who=@p]
-      [%actor host=@p desk=@tas id=@t]
-  ==
-::  api-identity-ref: the raw parser-facing form (strings) so malformed input is
-::  %invalid rather than crashing or silently changing meaning; the backend
-::  validates @p/term/id and returns honest errors.
-+$  api-identity-ref
-  $%  [%ship ship=@t]
-      [%actor host=@t desk=@t id=@t]
-      [%invalid ~]
-  ==
-::  actor-preferences-57: frozen Phase-F3 shape (state-57 load only). The note-mute
-::  set (muted-notes) was dropped in state-58 — kept here solely so the migration can
-::  read old state and carry blocked/muted forward.
-+$  actor-preferences-57
-  $:  blocked=(set identity-ref)
-      muted=(set identity-ref)
-      muted-notes=(set @ta)
-  ==
-::  actor-preferences (Actor Social Phase F3, state-58): an actor's own private,
-::  STORED-ONLY identity mute/block preferences consumed by the plugin. Block = hide
-::  that identity's content in the plugin; mute = suppress its notifications/attention.
-::  The two sets are fully independent (block never adds/removes mute and vice versa).
-::  NONE of this ever touches host pal-blocked/blocked-by/contacts/note-muted/
-::  membership/attention; Noltbook does not filter reads or prevent posts. A
-::  blocked/muted target stays free to post.
-+$  actor-preferences
-  $:  blocked=(set identity-ref)
-      muted=(set identity-ref)
-  ==
-::  actor-notification (Actor Notifications Phase G6B, state-63): a COMPACT durable
-::  record of a directed reply to a message attributed to an actor. Stores ONLY the
-::  stable identity needed to re-resolve the replying message — author/actor/preview
-::  are resolved from messages + actor-by-eid at read/encode time (so edits show the
-::  current preview). kind is %reply only this phase (mentions/artifact replies are
-::  deferred). Keyed in state by the TARGET actor's [desk id]; the note id + eid are
-::  the dedup identity. created-at is when the notification was recorded.
-+$  actor-notification
-  $:  kind=?(%reply)
-      note-id=@ta
-      eid=@uv
-      msg-id=@da
-      created-at=@da
-  ==
-::  actor-notification-view: the RESOLVED presentation form used by the read route and
-::  the live %actor-notifications-updated event. author/actor/preview are joined from
-::  current state; the mar encoder mirrors api-actor-notif-json field-for-field.
-+$  actor-notification-view
-  $:  kind=?(%reply)
-      note-id=@ta
-      eid=@uv
-      msg-id=@da
-      author=@p
-      actor=(unit actor)
-      preview=@t
-      timestamp=@da
   ==
 ::  app-notification (state-66): durable high-level Grimoire notification owned by
 ::  a local app desk. The app supplies id/title/body/link hints; Noltbook stamps the
@@ -940,119 +728,11 @@
 +$  api-action
   $%  [%create-note request-id=(unit @ud) name=@t parent=(unit @ta)]
       [%find-or-create-note request-id=(unit @ud) name=@t parent=(unit @ta)]
-      ::  Actor Notes (Phase D): explicit actor-only note creation/configuration.
-      ::  Require top-level app + actor; a missing/invalid actor => actor-invalid
-      ::  (never falls back to a host action). v1: root %notebook only.
-      [%create-actor-note request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) name=@t]
-      [%configure-actor-note request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta name=(unit @t) visibility=(unit @t) writable=(unit ?) headline=(unit @t) icon-url=(unit @t)]
-      ::  Actor Notes (Phase G1): an actor deletes a note IT owns (exact [host desk id]
-      ::  via note-actor-owners). Requires app + actor + %attribute + %delete-own-note.
-      ::  Reuses the internal %delete-note; host stays the real @p creator.
-      [%delete-actor-note request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta]
-      ::  Actor Notes (Phase G2): durable actor participation on a regular note. join =
-      ::  the app associates its OWN active actor with an eligible locally-held note;
-      ::  add/remove-participant = the note's OWNER actor manages another same-desk
-      ::  actor's row. All require %attribute + %participate-note. Host @p stays the real
-      ::  note.users member; actors never enter note.users.
-      [%actor-join-note request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta]
-      ::  A1.3a/A1.3b: target-desk is the STRICT three-state tdesk-spec naming the full
-      ::  LOCAL ref [our.bowl desk target-id]: %default (absent) => owner app desk;
-      ::  [%set d] => d; %invalid (malformed) => actor-invalid (never silent default).
-      ::  Owner authority + %attribute + %manage-members; remote target hosts deferred to A3.
-      [%actor-add-participant request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta target-desk=tdesk-spec target-id=@t]
-      [%actor-remove-participant request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta target-desk=tdesk-spec target-id=@t]
-      ::  Actor Notes (Phase G3): an actor LEAVES a regular note it participates in —
-      ::  removes ONLY its own [app.desk, actor.id] participation row. Never calls the
-      ::  ship-level %leave-note: the host @p stays in note.users/subscribed and other
-      ::  actors are unaffected. Requires %attribute + %leave-note. Owner must delete.
-      [%actor-leave-note request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta]
-      ::  Phase A1: durable actor membership requests + note-level actor mute. The note's
-      ::  OWNER actor (via its governing app, %attribute + %manage-members) approves/denies
-      ::  a pending actor request and mutes/unmutes a participant actor. The target ref is
-      ::  [our.bowl target-desk target-id] (A1 is local-only; A3 adds remote). No host
-      ::  fallback; actors never become admins; actor-DM notes stay isolated.
-      ::  A1.3b: target-desk is the STRICT tdesk-spec; for these four a valid desk is
-      ::  REQUIRED — %default or %invalid both => actor-invalid (no silent default).
-      [%actor-approve-request request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta target-desk=tdesk-spec target-id=@t]
-      [%actor-deny-request request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta target-desk=tdesk-spec target-id=@t]
-      [%actor-mute-participant request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta target-desk=tdesk-spec target-id=@t]
-      [%actor-unmute-participant request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta target-desk=tdesk-spec target-id=@t]
-      ::  A1.3b: compact request-correlated API veneers for the ordinary-host and explicit
-      ::  emergency families. RAW fields (op/host/desk/id) are parsed + validated in the
-      ::  handler so malformed input returns an honest error, never a mark crash. host must
-      ::  == our.bowl; op is validated against the family's allowed operations.
-      [%manage-note-actor request-id=(unit @ud) note-id=@ta op=@t target-host=@t target-desk=tdesk-spec target-id=@t]
-      [%emergency-manage-note-actor request-id=(unit @ud) note-id=@ta op=@t target-host=@t target-desk=tdesk-spec target-id=@t]
-      ::  Actor DM (Phase G5A): a private actor-to-ship direct conversation modeled as a
-      ::  SECRET two-ship %group note (NOT a canonical %dm). find-or-create is idempotent
-      ::  per [owner, target]; adopt lets ONE local actor on the target host claim an
-      ::  incoming actor DM. Both gate %attribute + %send-dm.
-      [%find-or-create-actor-dm request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) ship=@t]
-      [%actor-adopt-dm request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta]
-      ::  Actor Notifications (Phase G6A): advance THIS actor's per-note read cursor to
-      ::  the newest stored message. Independent per actor; never touches host note-read.
-      ::  Gates %attribute + %manage-own-notifications + own/participate (actor-note-access).
-      [%actor-mark-note-read request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta]
-      ::  Actor Notifications (Phase G6B): clear directed reply notifications for THIS
-      ::  actor. clear-notification drops one row (note-id + eid); clear-notifications
-      ::  drops all. Both gate %attribute + %manage-own-notifications. Clearing never
-      ::  marks the note read and never touches host mentions/attention/note-read.
-      [%actor-clear-notification request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta eid=@uv]
-      [%actor-clear-notifications request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor)]
       ::  App Notifications: app-owned high-level Grimoire rows for plugins.
       ::  Requires top-level app attribution (desk stamped by Noltbook). id/title are
       ::  validated/capped in the handler; ttl seconds is optional.
       [%set-app-notification request-id=(unit @ud) app=(unit api-app) id=@t title=@t body=(unit @t) href=(unit @t) note-id=(unit @ta) artifact-id=(unit @ta) level=(unit @t) ttl=(unit @ud)]
       [%clear-app-notification request-id=(unit @ud) app=(unit api-app) id=@t]
-      ::  Phase B: REAL ship-user actor mute/block by full [host,desk,id]. Raw strings
-      ::  validated server-side (host=@p, desk=@tas, id<=128B). Not app/actor actions —
-      ::  no grant/caps/status; targets need NOT exist locally (remote actors valid).
-      [%mute-actor request-id=(unit @ud) host=@t desk=@t id=@t]
-      [%unmute-actor request-id=(unit @ud) host=@t desk=@t id=@t]
-      [%block-actor request-id=(unit @ud) host=@t desk=@t id=@t]
-      [%unblock-actor request-id=(unit @ud) host=@t desk=@t id=@t]
-      ::  Actor Member Management (Phase E): an actor manages REAL @p members of a
-      ::  note it owns. ship is raw text (parsed server-side). Require app + actor +
-      ::  exact ownership + %manage-members. No actor make-admin/deny-block.
-      [%actor-add-member request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta ship=@t]
-      [%actor-remove-member request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta ship=@t]
-      [%actor-approve-join request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta ship=@t]
-      [%actor-deny-join request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta ship=@t]
-      [%actor-mute-member request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta ship=@t]
-      [%actor-unmute-member request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta ship=@t]
-      ::  Actor Social (Phase F1): update an actor's own profile. Each field is
-      ::  three-state: ~ keep; [~ ~] clear/reset; [~ [~ v]] set. displayName lands
-      ::  in actor-record.name (canonical); avatar/bio/statusText in actor-profile.
-      ::  avatar carries raw type/url strings, validated server-side.
-      $:  %update-actor-profile
-          request-id=(unit @ud)
-          app=(unit api-app)
-          actor=(unit api-actor)
-          display-name=(unit (unit @t))
-          avatar=api-actor-avatar
-          bio=(unit (unit @t))
-          status-text=(unit (unit @t))
-      ==
-      ::  presentation-only avatar setter for app-authored/member-authorized personas.
-      ::  writes actor-profiles[[desk id]].avatar ONLY. no gate-actor-cap, no roster,
-      ::  no membership/grants — display attribution under local host authority.
-      [%set-actor-avatar request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) type=@t url=@t]
-      ::  Actor Social (Phase G4): developer-facing actor profile resolution. host/desk/
-      ::  id are raw text (parsed server-side). requestId is required for correlation;
-      ::  the async result arrives as %actor-profile-result on /api/results.
-      [%request-actor-profile request-id=(unit @ud) host=@t desk=@t id=@t]
-      ::  Actor Social (Phase F2): an actor's own contact book. ref is a tagged
-      ::  identity reference (ship or actor), validated server-side.
-      [%actor-add-contact request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) ref=api-identity-ref]
-      [%actor-remove-contact request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) ref=api-identity-ref]
-      ::  Actor Social (Phase F3): an actor's own STORED-ONLY identity mute/block
-      ::  preferences. Each carries a tagged ref (ship or actor). Every write needs
-      ::  %attribute + %manage-own-preferences. Block and mute are independent; nothing
-      ::  host-level (pals/contacts/note-muted) is touched. (Note-mute was removed.)
-      [%actor-block-identity request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) ref=api-identity-ref]
-      [%actor-unblock-identity request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) ref=api-identity-ref]
-      [%actor-mute-identity request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) ref=api-identity-ref]
-      [%actor-unmute-identity request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) ref=api-identity-ref]
       ::  create-artifact (Phase 12A): %code/%app only (no raw file upload). type is
       ::  raw text, validated server-side. app = optional attribution.
       [%create-artifact request-id=(unit @ud) app=(unit api-app) note-id=@ta name=@t type=@t content=@t reply-to-eid=(unit @uv)]
@@ -1088,31 +768,25 @@
       [%remove-pal request-id=(unit @ud) ship=@t]
       [%block-pal request-id=(unit @ud) ship=@t]
       [%unblock-pal request-id=(unit @ud) ship=@t]
-      [%post-message request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta text=@t reply-to-eid=(unit @uv)]
+      ::  the app-attributed post. `app` stamps via-app; authorship and every
+      ::  permission check stay with the real ship, so an app posts exactly where its
+      ::  user may already post. There is no actor/persona input: an explicitly
+      ::  supplied one is reported as %unsupported-input, never posted as the human.
+      [%post-message request-id=(unit @ud) app=(unit api-app) note-id=@ta text=@t reply-to-eid=(unit @uv)]
       ::  Dedicated local history import. The server stamps importer.ship and derives
       ::  the message EID from [peer source external-id]. It never sends to the peer.
       [%import-dm-message request-id=(unit @ud) app=(unit api-app) peer=@t source=@t external-id=@t sent-at=@da text=@t]
-      ::  app-authored post under MEMBER authority: actor-shaped display attribution
-      ::  only. author stays our.bowl; NO actor membership/registry/access. persona is
-      ::  reused api-actor (one actor system, not a second identity model).
-      [%post-app-message request-id=(unit @ud) app=(unit api-app) persona=(unit api-actor) note-id=@ta text=@t reply-to-eid=(unit @uv)]
-      [%post-app-ref request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta publisher=@t desk=@t name=@t]
-      ::  Actor Control (Phase A): host-only governance over local app actors.
-      ::  desk is a bare term; caps default to {%attribute} when absent. set-actor
-      ::  -status/update-actor address one [desk id]. These mutate grants/registry,
-      ::  never post content; the actor-bearing post path cannot reach them.
+      ::  app-reference post. Same authority rules as %post-message; no persona.
+      [%post-app-ref request-id=(unit @ud) app=(unit api-app) note-id=@ta publisher=@t desk=@t name=@t]
+      ::  Host-only app grant. desk is a bare term; caps is an optional string set,
+      ::  clamped server-side to the surviving capability set (%import-dm).
       [%set-app-grant request-id=(unit @ud) desk=@t enabled=? caps=(unit (set @t))]
-      [%set-actor-status request-id=(unit @ud) desk=@t id=@t status=@t]
-      ::  caps is three-state: ~ keep existing actor caps; [~ ~] clear (inherit app
-      ::  grant); [~ [~ set]] set explicit actor caps (raw strings, parsed/clamped).
-      [%update-actor request-id=(unit @ud) desk=@t id=@t name=@t kind=@t caps=(unit (unit (set @t)))]
+      ::  a withdrawn action, or an actor/persona field on a surviving one. Carries only
+      ::  the offending tag so the handler can answer %unsupported honestly. It exists so
+      ::  a retired attribution attempt can NEVER degrade into a human-authored post.
+      [%unsupported-input request-id=(unit @ud) tag=@t]
       [%edit-message request-id=(unit @ud) note-id=@ta eid=(unit @uv) msg-id=(unit @da) text=@t]
       [%delete-message request-id=(unit @ud) note-id=@ta eid=(unit @uv) msg-id=(unit @da)]
-      ::  Actor Tools (Phase B): an app actor edits/deletes ONLY messages it
-      ::  originally attributed (stored actor-by-eid matches [our desk id]).
-      ::  Require top-level app + actor; host-local only this phase.
-      [%edit-actor-message request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta eid=(unit @uv) msg-id=(unit @da) text=@t]
-      [%delete-actor-message request-id=(unit @ud) app=(unit api-app) actor=(unit api-actor) note-id=@ta eid=(unit @uv) msg-id=(unit @da)]
       ::  membership/admin mutations (Phase 9). ship/host are raw text, parsed in
       ::  the on-poke arm so a malformed value reports invalid-ship via a result.
       [%request-join request-id=(unit @ud) note-id=@ta host=@t]
@@ -1173,11 +847,11 @@
       [%fork-invite-received root-id=@ta source-name=@t source-version=@ud forker=@p]
       [%fork-invite-cleared root-id=@ta]
       [%fork-invite-accepted root-id=@ta]
-      [%message-list note-id=@ta messages=(list message) artifacts=(list artifact) via=(map @uv via-app) actor=(map @uv actor) imports=(map @uv dm-import)]
+      [%message-list note-id=@ta messages=(list message) artifacts=(list artifact) via=(map @uv via-app) imports=(map @uv dm-import)]
       ::  directed-kind: carries the NOTE SEND marker through host broadcasts so
       ::  non-host members classify reply attention as %send (Phase C). JSON shape
       ::  is unchanged (enjs emits the message directly); ~ for normal/sys/DM.
-      [%new-message msg=message directed-kind=(unit attention-kind) via=(unit via-app) actor=(unit actor) import=(unit dm-import)]
+      [%new-message msg=message directed-kind=(unit attention-kind) via=(unit via-app) import=(unit dm-import)]
       [%message-edited note-id=@ta msg=message]
       [%message-deleted note-id=@ta msg-id=@da eid=(unit @uv)]
       [%artifact-created artifact=artifact]
@@ -1267,39 +941,14 @@
       ::  full artifact/gossip content facts to global /notes. preview=~ means
       ::  dot-only (do not overwrite an existing preview).
       [%note-sidebar-signal note-id=@ta author=@p preview=(unit @t) kind=?(%message %artifact %gossip) time=@da]
-      ::  Phase G4: actor profile resolution result (async). Emitted on /notes (FE) and
-      ::  /api/results (dev) with ONE stable encoder. status=%ok carries the profile;
-      ::  %missing = no such actor; %unreachable = host poke nacked; %invalid-response =
-      ::  the host returned a profile whose desk/id did not match the request (NOT cached).
-      ::  host is authoritative (stamped from src.bowl/our.bowl, never the payload).
-      ::  fetched-at lets the FE reflect backend cache age: ~ for local / new-remote-now /
-      ::  negative results; [~ t] for a fresh-cache hit (the stored fetch time).
-      [%actor-profile-result req-id=@ud host=@p desk=@tas id=@t status=?(%ok %missing %unreachable %invalid-response) fetched-at=(unit @da) profile=(unit actor-public-profile)]
-      ::  Phase G4: a local actor profile changed — refresh the main FE immediately.
-      ::  Public profile only; host=our.bowl. NOT pushed to remotes (they refresh via TTL).
-      [%actor-profile-updated host=@p profile=actor-public-profile]
-      ::  Phase G5A: an actor-DM marker changed for note-id. meta=~ => the marker was
-      ::  removed (note deleted / no longer an actor DM). G5A is metadata-only; full
-      ::  DM-style presentation lands in G5B.
-      [%actor-dm-updated note-id=@ta meta=(unit actor-dm-meta)]
-      ::  Phase G6B: an actor's directed reply notifications changed. notifications are
-      ::  the RESOLVED views. full=%.n => delta (append the carried rows, typically one
-      ::  new reply); full=%.y => authoritative remaining list for [desk,id] (after a
-      ::  clear or lifecycle prune). Live-only on /api/results; the read route is the
-      ::  durable recovery surface after reconnect.
-      [%actor-notifications-updated desk=@tas id=@t notifications=(list actor-notification-view) full=?]
       ::  App Notifications: authoritative high-level plugin notification snapshot.
       ::  Replayed on /notes watch and emitted after set/clear; expired rows are omitted.
       [%app-notifications-updated notifications=(list app-notification)]
       ::  Phase B: durable UNREAD activity is a separate signal from recency. note-activity
       ::  still drives sidebar ordering; note-unread-activity drives the green-unread dot
-      ::  (durable unread = unread-activity > note-read). Muted/blocked actor messages
-      ::  advance note-activity (recency) but NOT note-unread-activity.
+      ::  (durable unread = unread-activity > note-read).
       [%note-unread-activity note-id=@ta activity=@da]
       [%note-unread-activity-list activities=(list [note-id=@ta activity=@da])]
-      ::  Phase B: ONE authoritative snapshot of the real user's actor mute/block prefs
-      ::  (full lists, not deltas), replayed on watch and after every mutation.
-      [%user-actor-preferences muted=(list actor-ref) blocked=(list actor-ref)]
       ::  ordinary-DM artifact references (Phase 0 — INACTIVE; nothing emits these yet).
       ::  authoritative replacement snapshot of one DM note's references.
       [%dm-ref-list note-id=@ta refs=(list dm-artifact-ref)]

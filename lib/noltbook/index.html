@@ -11,7 +11,7 @@
 *::-webkit-scrollbar{width:4px;height:4px}
 *::-webkit-scrollbar-thumb{background:#333;border-radius:2px}
 :root{
-  --urbit:#ffaa00;--visitor:#569CD6;--bot:#6A9955;--actor:#65a9e8;
+  --urbit:#ffaa00;--visitor:#569CD6;--bot:#6A9955;
   --bg:#181818;--bg2:#2a2a2a;--bg3:#242424;
   --border:#222;--border2:#2a2a2a;
   --text:#ddd;--text-dim:#666;--text-muted:#888;
@@ -129,16 +129,6 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .msg-author{font-size:1rem;font-weight:500}
 .msg-author.urbit{color:#ddd}
 .msg-author.visitor{color:var(--visitor)}
-/* app/bot actor identity (Phase 2): distinct from ship + visitor colors. */
-.msg-author.actor{color:var(--actor)}
-.msg-avatar.actor-avatar{background:#0d1b22;color:var(--actor);font-weight:600;font-size:1.1rem;border:1px solid var(--actor)}
-.actor-kind{font-size:.55rem;letter-spacing:.08em;color:var(--actor);border:1px solid var(--actor);border-radius:2px;padding:0 .25rem;text-transform:uppercase;align-self:center}
-.actor-sub{font-size:.7rem;color:var(--text-dim)}
-.blocked-actor-body{font-style:italic;color:var(--text-dim);opacity:.85}
-.blocked-actor-tag{font-style:normal;font-size:.6rem;letter-spacing:.06em;text-transform:uppercase;color:#ff6b6b;border:1px solid #ff6b6b;border-radius:2px;padding:0 .25rem;margin-right:.25rem}
-.blocked-actor-view{font-size:.6rem;letter-spacing:.06em;background:transparent;border:1px solid var(--actor);color:var(--actor);border-radius:2px;cursor:pointer;padding:0 .3rem;margin-left:.25rem}
-.actor-modal-pref-btn{font-size:.66rem;letter-spacing:.05em;background:transparent;border:1px solid var(--text-dim);color:var(--text);border-radius:3px;cursor:pointer;padding:.15rem .45rem}
-.actor-modal-pref-btn.on{border-color:#ff6b6b;color:#ff6b6b}
 .msg-time{font-size:.75rem;color:var(--text-dim)}
 .msg-text{font-family:var(--font);font-size:1rem;line-height:1.5;color:#ddd;word-break:break-word;white-space:pre-wrap}
 .msg:hover{background:rgba(255,255,255,.04)}
@@ -675,7 +665,6 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
     <section class="chat">
       <div class="chat-header">
         <span class="chat-note-name" id="chatNoteName" onclick="openCurrentNoteMenu(event)">Cover</span>
-        <span id="actorDmContext" style="display:none;font-size:.7rem;margin-left:.5rem;vertical-align:middle"></span>
         <span id="readOnlyBadge" style="display:none;font-size:.6rem;padding:.1rem .4rem;border:1px solid #ff4444;color:#ff4444;letter-spacing:.06em;margin-left:.4rem;vertical-align:middle">READ ONLY</span>
         <span class="call-indicator" id="callIndicator" onclick="toggleCallRail()" style="cursor:pointer"><span class="call-dot"></span><span id="callParticipantCount">0</span> in call</span>
         <button class="share-btn" id="shareBtn" onclick="openSharePrompt()">SHARE</button>
@@ -889,26 +878,18 @@ const api = {
     this.reconnecting=false;
   }
 };
-const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,editingEid:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,lastMsgActorSig:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteUnreadActivity:{},noteRead:{},userMutedActors:new Set(),userBlockedActors:new Set(),actorRevealed:new Set(),coverPreview:null,notePins:{},pinArtId:null,noteActive:{},actorProfiles:{},actorProfileInFlight:{},actorProfileTimers:{},actorProfileStatus:{},actorProfileReqCounter:0,actorProfileFetchedAt:{},actorProfileRetryAt:{},viewingActorKey:null,_actorModalArgs:null,actorDms:{},appNotifications:{},artifactRefs:{},pendingRedirect:null};
+const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,editingEid:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteUnreadActivity:{},noteRead:{},coverPreview:null,notePins:{},pinArtId:null,noteActive:{},appNotifications:{},artifactRefs:{},pendingRedirect:null};
 // Phase G4 freshness: resolved profiles are fresh for 10 min; negative results
 // (missing/invalid) cool down 5 min; unreachable cools down 2 min. Render cycles
 // poke only when fresh-expired AND past the cooldown (and not in flight).
-const ACTOR_PROFILE_TTL=600000, ACTOR_PROFILE_NEG_COOLDOWN=300000, ACTOR_PROFILE_UNREACHABLE_COOLDOWN=120000;
 // durable green sidebar unread: a non-pinned note is unread when its latest
 // activity time exceeds its last-read time. Both maps are replayed on boot.
 function isPinnedUnreadNote(id){return id==='cover'||(''+id).startsWith('ars-')}
 // the currently-open note is never unread — the user is reading it. This also
 // suppresses the transient dot while a mark-note-read poke is in flight.
-// Phase B: durable unread uses noteUnreadActivity (muted/blocked actor messages advance
+// Phase B: durable unread uses noteUnreadActivity (a message advances
 // noteActivity for recency but NOT noteUnreadActivity, so they never create the dot).
 function noteUnread(id){return !isPinnedUnreadNote(id)&&id!==state.currentNoteId&&(state.noteUnreadActivity[id]||0)>(state.noteRead[id]||0)}
-// ---- Phase B: real-user actor mute/block helpers (stable [host,desk,id]) ----
-function actorRefKey(host,desk,id){return host+'/'+desk+'/'+id}
-function actorMuted(a){return !!a&&state.userMutedActors.has(actorRefKey(a.host,a.desk,a.id))}
-function actorBlocked(a){return !!a&&state.userBlockedActors.has(actorRefKey(a.host,a.desk,a.id))}
-function actorSuppressed(a){return actorMuted(a)||actorBlocked(a)}
-function actorRevealed(a){return !!a&&state.actorRevealed.has(actorRefKey(a.host,a.desk,a.id))}
-// reconcile one non-pinned note's green dot from the durable maps
 function rederiveNoteUnread(id){
   if(isPinnedUnreadNote(id))return;
   if(noteUnread(id))state.notifications.add(id);else state.notifications.delete(id);
@@ -1522,9 +1503,9 @@ function handleUpdate(upd){
   if(upd['note-list']){console.log('[note-list]',JSON.stringify(upd['note-list']));mergeNoteListSnapshot(upd['note-list']);rebuildDurableNotifications();updateLogoBadge();scheduleNoteList()}
   else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));if(state.pendingRedirect&&state.pendingRedirect.to===n.id){state.notes[n.id]=n;if(!n.localImport)hydrateDmNoteProfile(n);state.pendingRedirect=null;if(state.currentNoteId===n.id)scheduleRender(n.id);scheduleNoteList();return;}const wasPendingJoin=!!state.pendingJoins[n.id];const wasAcceptedFork=state.acceptingForkRoots.has(n.id);if(wasAcceptedFork)state.acceptingForkRoots.delete(n.id);delete state.pendingJoins[n.id];delete state.removedFromNotes[n.id];state.notes[n.id]=n;if(!n.localImport)hydrateDmNoteProfile(n);if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id)}if(state.pendingWalletMsg&&n.type==='dm'){const pw=state.pendingWalletMsg;if(n.users&&n.users.length===2&&n.users.includes(pw.ship)){api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:n.id,text:pw.text}});state.pendingWalletMsg=null}}if(n.creator==='~'+api.ship){if(n.parent)state.expandedNotes.add(n.parent);openNote(n.id)}else if(wasAcceptedFork){if(state.palsView)switchView('notes');openNote(n.id)}else if(wasPendingJoin){document.querySelectorAll('.profile-flow-modal').forEach(el=>el.remove());state.viewingProfileShip=null;if(state.palsView)switchView('notes');if(n.visibility==='public'){openNote(n.id)}else{state.notifications.add(n.id)}}else if(state.pendingGossipFetch&&state.pendingGossipFetch.nid===n.id){clearTimeout(state.pendingGossipFetch.timer);state.pendingGossipFetch=null;if(state.palsView)switchView('notes');openNote(n.id)}else{if(state.palsView)switchView('notes');state.notifications.add(n.id)}scheduleNoteList()}
   else if(upd['note-renamed']){const{id,name}=upd['note-renamed'];if(state.notes[id]){state.notes[id].name=name;renderNoteList()}if(state.currentNoteId===id)document.getElementById('chatNoteName').textContent=state.notes[id]?noteDisplayName(state.notes[id]):name}
-  else if(upd['note-deleted']){const{id}=upd['note-deleted'];const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];delete state.noteAdmins[id];delete state.noteMuted[id];delete state.notePins[id];delete state.noteActive[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];delete state.attention[id];state.notifications.delete(id);state.notificationAcks.delete(notifAckKey('removed-status',id));state.notificationAcks.delete(notifAckKey('host-deleted-status',id));delete state.noteActivity[id];delete state.noteUnreadActivity[id];delete state.noteRead[id];delete state.actorDms[id];for(const _e in state.artifactRefs){if(state.artifactRefs[_e].noteId===id)delete state.artifactRefs[_e]}if(state.currentNoteId===id)openNote('cover');renderNoteList()}
-  else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];let maxSeq=0,revSum=0,actorAcc='',importAcc='';for(const m of messages){if(m.meta){if(m.meta.seq>maxSeq)maxSeq=m.meta.seq;revSum+=m.meta.rev}if(m.actor)actorAcc+=(m.meta&&m.meta.eid?m.meta.eid:m.id)+'='+actorSig(m)+';';if(m.import)importAcc+=(m.meta&&m.meta.eid?m.meta.eid:m.id)+'='+m.import.source+':'+m.import.sentAt+';'}const hash=noteId+':'+messages.length+':'+maxSeq+':'+revSum+':'+actorAcc+':'+importAcc;if(_lastMsgHash[noteId]===hash)return;_lastMsgHash[noteId]=hash;state.messages[noteId]=messages;requestActorProfilesFor(messages);for(const a of artifacts)state.artifacts[a.id]=a;if(state.currentNoteId===noteId){if(!ScrollCo.consumeOpenIntent(noteId))scheduleRender(noteId);renderPinSurface(noteId)}updateCoverPreview();scheduleNoteList()}
-  else if(upd['new-message']){const msg=upd['new-message'];if(!state.messages[msg.noteId])state.messages[msg.noteId]=[];/* Part 1B: EID-first dedup. A modern msg dups only by matching eid; a legacy msg only by [author,id]. Same @da id with different eids both survive. */if(state.messages[msg.noteId].some(m=>msgKeyOf(m)===msgKeyOf(msg)))return;state.messages[msg.noteId].push(msg);if(state.notes[msg.noteId]&&state.notes[msg.noteId].type==='dm'&&!msg.import){state.notes[msg.noteId].localImport=false;hydrateDmNoteProfile(state.notes[msg.noteId])}if(msg.actor)requestActorProfile(msg.actor.host,msg.actor.desk,msg.actor.id);/* correction 5: a \01SYS:art-delete deletion marker must never become the sidebar preview; preserve the preceding preview/source so live and reload agree (backend leaves note.last-preview untouched). */if(state.notes[msg.noteId]&&!isArtDeleteControl(msg.text)){state.notes[msg.noteId].lastAuthor=msg.author;state.notes[msg.noteId].lastPreview=msg.text}const suppressedActor=msg.actor&&actorSuppressed(msg.actor);/* Phase B: muted/blocked actor => no unread (divider/notification), but still rendered */if(state.currentNoteId===msg.noteId){const isOwn=msg.author===('~'+api.ship)&&!msg.actor;/* Phase A: an actor msg under our @p is a distinct sender (not own) for unread/divider behavior */if(!isOwn&&!suppressedActor){const _cmEl=document.getElementById('chatMessages');if(_cmEl&&!isNearBottom(_cmEl)&&!state.unreadDividers[msg.noteId]){const _ord=msgOrder(msg);if(typeof _ord==='number')state.unreadDividers[msg.noteId]={order:_ord,until:_ord}}}appendMessage(msg,isOwn)}else if(!suppressedActor)state.notifications.add(msg.noteId);updateCoverPreview();markOpenNoteReadSoon(msg.noteId);scheduleNoteList()}
+  else if(upd['note-deleted']){const{id}=upd['note-deleted'];const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];delete state.noteAdmins[id];delete state.noteMuted[id];delete state.notePins[id];delete state.noteActive[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];delete state.attention[id];state.notifications.delete(id);state.notificationAcks.delete(notifAckKey('removed-status',id));state.notificationAcks.delete(notifAckKey('host-deleted-status',id));delete state.noteActivity[id];delete state.noteUnreadActivity[id];delete state.noteRead[id];for(const _e in state.artifactRefs){if(state.artifactRefs[_e].noteId===id)delete state.artifactRefs[_e]}if(state.currentNoteId===id)openNote('cover');renderNoteList()}
+  else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];let maxSeq=0,revSum=0,importAcc='';for(const m of messages){if(m.meta){if(m.meta.seq>maxSeq)maxSeq=m.meta.seq;revSum+=m.meta.rev}if(m.import)importAcc+=(m.meta&&m.meta.eid?m.meta.eid:m.id)+'='+m.import.source+':'+m.import.sentAt+';'}const hash=noteId+':'+messages.length+':'+maxSeq+':'+revSum+':'+importAcc;if(_lastMsgHash[noteId]===hash)return;_lastMsgHash[noteId]=hash;state.messages[noteId]=messages;for(const a of artifacts)state.artifacts[a.id]=a;if(state.currentNoteId===noteId){if(!ScrollCo.consumeOpenIntent(noteId))scheduleRender(noteId);renderPinSurface(noteId)}updateCoverPreview();scheduleNoteList()}
+  else if(upd['new-message']){const msg=upd['new-message'];if(!state.messages[msg.noteId])state.messages[msg.noteId]=[];/* Part 1B: EID-first dedup. A modern msg dups only by matching eid; a legacy msg only by [author,id]. Same @da id with different eids both survive. */if(state.messages[msg.noteId].some(m=>msgKeyOf(m)===msgKeyOf(msg)))return;state.messages[msg.noteId].push(msg);if(state.notes[msg.noteId]&&state.notes[msg.noteId].type==='dm'&&!msg.import){state.notes[msg.noteId].localImport=false;hydrateDmNoteProfile(state.notes[msg.noteId])}/* correction 5: a \01SYS:art-delete deletion marker must never become the sidebar preview; preserve the preceding preview/source so live and reload agree (backend leaves note.last-preview untouched). */if(state.notes[msg.noteId]&&!isArtDeleteControl(msg.text)){state.notes[msg.noteId].lastAuthor=msg.author;state.notes[msg.noteId].lastPreview=msg.text}if(state.currentNoteId===msg.noteId){const isOwn=msg.author===('~'+api.ship);if(!isOwn){const _cmEl=document.getElementById('chatMessages');if(_cmEl&&!isNearBottom(_cmEl)&&!state.unreadDividers[msg.noteId]){const _ord=msgOrder(msg);if(typeof _ord==='number')state.unreadDividers[msg.noteId]={order:_ord,until:_ord}}}appendMessage(msg,isOwn)}else state.notifications.add(msg.noteId);updateCoverPreview();markOpenNoteReadSoon(msg.noteId);scheduleNoteList()}
   else if(upd['artifact-created']){const a=upd['artifact-created'];state.artifacts[a.id]=a;if((a.type==='app'||a.type==='file')&&a.noteId===state.currentNoteId){scheduleRender(a.noteId);renderPinSurface(a.noteId)}}
   else if(upd['artifact-updated']){
     const a=upd['artifact-updated'];state.artifacts[a.id]=a;
@@ -1623,7 +1604,7 @@ function handleUpdate(upd){
   else if(upd['headline-updated']){const d=upd['headline-updated'];const n=state.notes[d.id];if(n){n.headline=d.headline||null;renderNoteList()}}
   else if(upd['artifact-envelope']){const d=upd['artifact-envelope'];const nid=d.noteId;const env=d.envelope;if(!state.artifactEnvelopes[nid])state.artifactEnvelopes[nid]={};if(state.artifactEnvelopes[nid][env.aid])return;state.artifactEnvelopes[nid][env.aid]=env;state.artifactEnvHops[env.aid]=(typeof d.hops==='number')?d.hops:1;fetchTopWindowEnvelopes(nid);if(state.currentNoteId===nid)scheduleRender(nid);else if(artEnvVisible(env))state.notifications.add(nid);markOpenNoteReadSoon(nid);scheduleNoteList()}
   else if(upd['artifact-envelope-list']){const d=upd['artifact-envelope-list'];const nid=d.noteId;if(!state.artifactEnvelopes[nid])state.artifactEnvelopes[nid]={};let added=0;for(const e of d.envelopes||[]){if(state.artifactEnvelopes[nid][e.aid])continue;state.artifactEnvelopes[nid][e.aid]=e;if(state.artifactEnvHops[e.aid]===undefined)state.artifactEnvHops[e.aid]=1;added++}if(added)fetchTopWindowEnvelopes(nid);if(added&&state.currentNoteId===nid)scheduleRender(nid)}
-  else if(upd['message-edited']){const{noteId,message}=upd['message-edited'];const msgs=state.messages[noteId]||[];const eid=message.meta&&message.meta.eid;const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===message.id);if(fi>=0){if(!message.actor&&msgs[fi]&&msgs[fi].actor)message.actor=msgs[fi].actor;msgs[fi]=message}if(state.currentNoteId===noteId)scheduleRender(noteId)}
+  else if(upd['message-edited']){const{noteId,message}=upd['message-edited'];const msgs=state.messages[noteId]||[];const eid=message.meta&&message.meta.eid;const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===message.id);if(fi>=0){msgs[fi]=message}if(state.currentNoteId===noteId)scheduleRender(noteId)}
   else if(upd['message-deleted']){const{noteId,msgId,eid}=upd['message-deleted'];const msgs=state.messages[noteId]||[];const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===msgId);const removed=fi>=0?msgs[fi]:null;if(fi>=0)msgs.splice(fi,1);if(removed&&removed.import&&state.notes[noteId]){let prior=null;for(let i=msgs.length-1;i>=0;i--){if(!isArtDeleteControl(msgs[i].text)){prior=msgs[i];break}}state.notes[noteId].lastAuthor=prior?prior.author:null;state.notes[noteId].lastPreview=prior?prior.text:null;scheduleNoteList()}if(state.currentNoteId===noteId){renderPinSurface(noteId);scheduleRender(noteId)}}
   else if(upd['search-result']){const{reqId,query,hits,capped}=upd['search-result'];if(reqId!==state.searchReqInFlight)return;if(String(query||'')!==state.searchQuery)return;state.searchMessageHits=Array.isArray(hits)?hits:[];state.searchMessageCapped=!!capped;if(state.searchQuery)renderSidebarSearchResults()}
   else if(upd['profile-lookup-result']){const{reqId,ship,status}=upd['profile-lookup-result'];if(state.profileLookupInFlight[reqId]!==ship)return;
@@ -1634,23 +1615,14 @@ function handleUpdate(upd){
     if(status==='reachable'){state.profileLookupStatus[ship]='reachable';if(state.searchQuery)renderSidebarSearchResults();refreshOpenProfileCard(ship);return}
     delete state.profileLookupInFlight[reqId];if(state.profileLookupTimers[ship]){clearTimeout(state.profileLookupTimers[ship]);delete state.profileLookupTimers[ship]}const _plWasMention=!!(state._mentionLookups&&state._mentionLookups.has(ship));const _plCardOpen=!!findOpenProfileOverlay(ship);if(status==='ok'){delete state.profileLookupStatus[ship];if(state._mentionLookups)state._mentionLookups.delete(ship);removeMentionLookupPopover(ship,0);if(state.searchQuery)renderSidebarSearchResults();if(_plCardOpen){requestProfileRemoteNotes(ship);refreshOpenProfileCard(ship)}else if(_plWasMention){viewProfile(ship)}}else{state.profileLookupStatus[ship]=(status==='noltbook-unavailable')?'noltbook-unavailable':'unreachable';if(state.searchQuery)renderSidebarSearchResults();refreshOpenProfileCard(ship);if(_plWasMention){state._mentionLookups.delete(ship);if(_mentionLookupPopovers[ship]){showMentionLookupPopover(ship,"this user can't be reached",'#ff4444',null);removeMentionLookupPopover(ship,3000)}}}}
   else if(upd['profile-list']){const _plNid=state.currentNoteId;const _plAu=_plNid?new Set((state.messages[_plNid]||[]).map(m=>m.author)):null;let _plDirty=false;let _plDmDirty=false;let _plStale=false;for(const entry of upd['profile-list']){if(reconcileStaleLookupOnProfile(entry.ship))_plStale=true;const _plOld=state.profiles[entry.ship];const _plChanged=JSON.stringify(_plOld)!==JSON.stringify(entry.profile);if(_plAu&&_plAu.has(entry.ship)&&_plChanged)_plDirty=true;state.profiles[entry.ship]=entry.profile;clearDmProfileHydrating(entry.ship);const uav=entry.profile&&entry.profile.avatar&&entry.profile.avatar.type==='urbit';if(uav){if(!avatarRevisionByShip[entry.ship])avatarRevisionByShip[entry.ship]=Date.now()}else{delete avatarRevisionByShip[entry.ship]}if(_plChanged&&findDmRoot(entry.ship))_plDmDirty=true}const me=state.profiles['~'+api.ship];if(me){if(me.displayName)document.getElementById('shipDisplay').textContent=me.displayName;updateSidebarSigil()}if(state.palsView)renderPalsList();if(_plDmDirty){scheduleNoteList();const _cn=state.currentNoteId?state.notes[state.currentNoteId]:null;if(_cn&&_cn.type==='dm'){const _cp=dmCounterparty(_cn);if(_cp&&upd['profile-list'].some(e=>e.ship===_cp)){const _el=document.getElementById('chatNoteName');if(_el)_el.textContent=noteDisplayName(_cn)}}}if(_plDirty)scheduleRender();if(_plStale&&state.searchQuery)renderSidebarSearchResults();if(document.querySelector('.view-profile-overlay')){for(const entry of upd['profile-list'])refreshOpenProfileCard(entry.ship)}}
-  else if(upd['profile-updated']){const{ship,profile}=upd['profile-updated'];const _puOld=state.profiles[ship];state.profiles[ship]=profile;clearDmProfileHydrating(ship);const uav=profile&&profile.avatar&&profile.avatar.type==='urbit';if(uav){avatarRevisionByShip[ship]=Date.now()}else{delete avatarRevisionByShip[ship]}if(ship==='~'+api.ship&&!uav)clearOwnAvatarBlob();if(ship==='~'+api.ship){document.getElementById('shipDisplay').textContent=profile.displayName||'~'+api.ship;updateSidebarSigil()}if(state.palsView)renderPalsList();if(profileTouchesOpenNote(ship)&&JSON.stringify(_puOld)!==JSON.stringify(profile))scheduleRender();if(reconcileStaleLookupOnProfile(ship)&&state.searchQuery)renderSidebarSearchResults();refreshOpenProfileCard(ship);refreshActorDmPresentation()}
+  else if(upd['profile-updated']){const{ship,profile}=upd['profile-updated'];const _puOld=state.profiles[ship];state.profiles[ship]=profile;clearDmProfileHydrating(ship);const uav=profile&&profile.avatar&&profile.avatar.type==='urbit';if(uav){avatarRevisionByShip[ship]=Date.now()}else{delete avatarRevisionByShip[ship]}if(ship==='~'+api.ship&&!uav)clearOwnAvatarBlob();if(ship==='~'+api.ship){document.getElementById('shipDisplay').textContent=profile.displayName||'~'+api.ship;updateSidebarSigil()}if(state.palsView)renderPalsList();if(profileTouchesOpenNote(ship)&&JSON.stringify(_puOld)!==JSON.stringify(profile))scheduleRender();if(reconcileStaleLookupOnProfile(ship)&&state.searchQuery)renderSidebarSearchResults();refreshOpenProfileCard(ship);refreshNotePresentation()}
   else if(upd['remote-note-list']){const{ship,notes}=upd['remote-note-list'];Object.keys(state.discoveryNotes).forEach(k=>{if(state.discoveryNotes[k].creator===ship)delete state.discoveryNotes[k]});for(const n of notes)state.discoveryNotes[n.id]=n;const el=document.getElementById('viewProfileNotes');if(el&&state.viewingProfileShip===ship){el.innerHTML=renderProfileNotesHtml(ship,'none available')}if(state.pendingRefOpen&&state.pendingRefOpen.creator===ship){const _pnid=state.pendingRefOpen.noteId;clearTimeout(state.pendingRefOpen.timer);state.pendingRefOpen=null;if(state.discoveryNotes[_pnid]){openNoteDetailModal(_pnid)}else{showRefUnavailable(_pnid,'Note unavailable')}}}
-  // Phase G4: async actor-profile resolution result. ok => cache + render; missing/
-  // unreachable => keep the glyph fallback. Never reloads the message timeline.
-  else if(upd['actor-profile-result']){const r=upd['actor-profile-result'];const key=actorKey(r.host,r.desk,r.id);if(state.actorProfileTimers[key]){clearTimeout(state.actorProfileTimers[key]);delete state.actorProfileTimers[key]}if(state.actorProfileInFlight[key]===r.requestId)delete state.actorProfileInFlight[key];if(r.status==='ok'&&r.profile){state.actorProfiles[key]=r.profile;state.actorProfileFetchedAt[key]=(typeof r.fetchedAt==='number'?r.fetchedAt:Date.now());if(r.profile.avatar&&isHostedActorAvatar(r.profile.avatar.url)){actorAvatarRevision[key]=Date.now()}else{delete actorAvatarRevision[key]}delete state.actorProfileStatus[key];delete state.actorProfileRetryAt[key];refreshActorModal(key);if(state.currentNoteId)scheduleRender();refreshActorDmPresentation()}else{state.actorProfileStatus[key]=r.status;state.actorProfileRetryAt[key]=Date.now()+(r.status==='unreachable'?ACTOR_PROFILE_UNREACHABLE_COOLDOWN:ACTOR_PROFILE_NEG_COOLDOWN);refreshActorModal(key)}}
-  // Phase G4: a local actor profile changed — restamp cache + re-render immediately.
-  else if(upd['actor-profile-updated']){const p=upd['actor-profile-updated'];const key=actorKey(p.host,p.desk,p.id);state.actorProfiles[key]=p;state.actorProfileFetchedAt[key]=Date.now();if(p.avatar&&isHostedActorAvatar(p.avatar.url)){actorAvatarRevision[key]=Date.now()}else{delete actorAvatarRevision[key]}delete state.actorProfileRetryAt[key];delete state.actorProfileStatus[key];refreshActorModal(key);if(state.currentNoteId)scheduleRender();refreshActorDmPresentation()}
-  // Phase G5A/G5B: actor-DM marker hydration (live fact + on-watch snapshot). meta null
-  // => the marker was removed. The marker drives the G5B direct-conversation
-  // presentation; refreshActorDmPresentation re-renders sidebar/header/controls.
-  else if(upd['actor-dm-updated']){const{noteId,meta}=upd['actor-dm-updated'];if(meta){state.actorDms[noteId]=meta;if('~'+api.ship===meta.target)requestActorProfile(meta.host,meta.desk,meta.id)}else{delete state.actorDms[noteId]}refreshActorDmPresentation()}
   else if(upd['pal-list']){for(const entry of upd['pal-list']){state.palStatus[entry.ship]=entry.status}if(state.palsView)renderPalsList();fetchVisibleEnvelopes();if(state.viewingProfileShip)updateViewProfileTags(state.viewingProfileShip)}
   else if(upd['contact-list']){state.contacts=new Set(upd['contact-list']);if(state.palsView)renderPalsList();if(state.viewingProfileShip)updateViewProfileTags(state.viewingProfileShip)}
   else if(upd['pal-removed']){const{ship}=upd['pal-removed'];delete state.palStatus[ship];if(state.palsView)renderPalsList();if(state.viewingProfileShip===ship)updateViewProfileTags(ship)}
   else if(upd['pal-update']){const{ship,status}=upd['pal-update'];const wasBlocked=state.palStatus[ship]==='blocked';state.palStatus[ship]=status;if(wasBlocked&&status!=='blocked'){Object.keys(state.removedFromNotes).forEach(nid=>{if(state.removedFromNotes[nid]===ship)delete state.removedFromNotes[nid]});api.poke('noltbook','noltbook-action',{action:'request-remote-notes',data:{ship}})}if(status!=='blocked')delete state.blockedBy[ship];if(state.palsView)renderPalsList();if(state.viewingProfileShip===ship)updateViewProfileTags(ship);scheduleNoteList();fetchVisibleEnvelopes();if(isGossipNote(state.currentNoteId))scheduleRender(state.currentNoteId);if(state.currentNoteId){const cn=state.notes[state.currentNoteId];if(cn&&cn.type==='dm'){const cp=dmCounterparty(cn);if(cp===ship)updateMuteUI()}}}
   else if(upd['dial-update']){state.dial=upd['dial-update'];updateDialUI();if(isGossipNote(state.currentNoteId))scheduleRender(state.currentNoteId);scheduleNoteList();fetchVisibleEnvelopes()}
-  else if(upd['note-users-updated']){const d=upd['note-users-updated'];const{id,type,users,removed}=d;const rev=d.rev||0;const localRev=state.noteMemberRevs[id]||0;if(rev<localRev){console.log('[note-users-updated:stale]',id,'incoming',rev,'<','local',localRev);return}state.noteMemberRevs[id]=rev;console.log('[note-users-updated]',id,type,users,removed,'rev',rev);if(state.notes[id]){const me='~'+api.ship;const vis=state.notes[id].visibility;const notifyVis=vis==='public'||vis==='private';if(state.notes[id].creator===me&&notifyVis){const oldU=state.notes[id].users||[];const newJ=users.filter(u=>!oldU.includes(u)&&u!==me);for(const j of newJ)state.blockNotifications.push({noteId:id,noteName:state.notes[id].name,from:j,time:Date.now(),type:'joined'});if(newJ.length>0)updateLogoBadge()}state.notes[id].users=users;state.notes[id].removed=removed||[];if(type)state.notes[id].type=type;if(!(removed||[]).includes(me))state.notificationAcks.delete(notifAckKey('removed-status',id));rebuildDurableNotifications();updateLogoBadge();scheduleNoteList();if(state.currentNoteId===id){scheduleRender(id);updateMuteUI();updateActorDmHeader(id);updateAttachMenu();const _n=state.notes[id];const _cn=document.getElementById('chatNoteName');if(_cn&&_n)_cn.textContent=noteDisplayName(_n);const _sb=document.getElementById('shareBtn');if(_sb&&_n)_sb.style.display=canShareNote(_n)?'block':'none'}refreshNoteInfoMembers(id)}}
+  else if(upd['note-users-updated']){const d=upd['note-users-updated'];const{id,type,users,removed}=d;const rev=d.rev||0;const localRev=state.noteMemberRevs[id]||0;if(rev<localRev){console.log('[note-users-updated:stale]',id,'incoming',rev,'<','local',localRev);return}state.noteMemberRevs[id]=rev;console.log('[note-users-updated]',id,type,users,removed,'rev',rev);if(state.notes[id]){const me='~'+api.ship;const vis=state.notes[id].visibility;const notifyVis=vis==='public'||vis==='private';if(state.notes[id].creator===me&&notifyVis){const oldU=state.notes[id].users||[];const newJ=users.filter(u=>!oldU.includes(u)&&u!==me);for(const j of newJ)state.blockNotifications.push({noteId:id,noteName:state.notes[id].name,from:j,time:Date.now(),type:'joined'});if(newJ.length>0)updateLogoBadge()}state.notes[id].users=users;state.notes[id].removed=removed||[];if(type)state.notes[id].type=type;if(!(removed||[]).includes(me))state.notificationAcks.delete(notifAckKey('removed-status',id));rebuildDurableNotifications();updateLogoBadge();scheduleNoteList();if(state.currentNoteId===id){scheduleRender(id);updateMuteUI();updateAttachMenu();const _n=state.notes[id];const _cn=document.getElementById('chatNoteName');if(_cn&&_n)_cn.textContent=noteDisplayName(_n);const _sb=document.getElementById('shareBtn');if(_sb&&_n)_sb.style.display=canShareNote(_n)?'block':'none'}refreshNoteInfoMembers(id)}}
   else if(upd['note-redirect']){const{oldId,newId}=upd['note-redirect'];console.log('[note-redirect]',oldId,'->',newId);
     // Part 5: lossless client merge. A backend root reconciliation is lossless, so do NOT
     // discard the losing root's visible messages — merge them into the winning note
@@ -1722,8 +1694,6 @@ function handleUpdate(upd){
   // Phase B: durable UNREAD activity (drives the green dot; recency stays on noteActivity).
   else if(upd['note-unread-activity-list']){const list=upd['note-unread-activity-list']||[];state.noteUnreadActivity={};for(const a of list)state.noteUnreadActivity[a.noteId]=a.activity;rebuildSidebarUnread();scheduleNoteList()}
   else if(upd['note-unread-activity']){const d=upd['note-unread-activity'];const cur=state.noteUnreadActivity[d.noteId]||0;if(d.activity>cur)state.noteUnreadActivity[d.noteId]=d.activity;rederiveNoteUnread(d.noteId);scheduleNoteList()}
-  // Phase B: authoritative real-user actor mute/block snapshot — refresh hidden content + sidebar.
-  else if(upd['user-actor-preferences']){const d=upd['user-actor-preferences'];state.userMutedActors=new Set((d.muted||[]).map(r=>actorRefKey(r.host,r.desk,r.id)));state.userBlockedActors=new Set((d.blocked||[]).map(r=>actorRefKey(r.host,r.desk,r.id)));if(state.currentNoteId)scheduleRender(state.currentNoteId);renderPinSurface(state.currentNoteId);if(state.viewingActorKey)refreshActorModal(state.viewingActorKey);scheduleNoteList()}
   else if(upd['note-sidebar-signal']){const{noteId,author,preview,kind,time}=upd['note-sidebar-signal'];if(noteId==='cover'){if(preview!==null)state.coverPreview={author:author,preview:preview};scheduleNoteList()}else{if(preview!==null&&state.notes[noteId]){state.notes[noteId].lastAuthor=author;state.notes[noteId].lastPreview=preview}if(state.currentNoteId===noteId){state.notifications.delete(noteId);markOpenNoteReadSoon(noteId)}else if(author!==('~'+api.ship)){state.notifications.add(noteId)}scheduleNoteList()}}
 }
 function revealNoteInTree(id){
@@ -1774,7 +1744,6 @@ async function openNote(id){
   if(state.notes[id]){state.expandedNotes.add(id)}
   if(state.notes[id]&&!state.notes[id].localImport)hydrateDmNoteProfile(state.notes[id]);
   document.getElementById('chatNoteName').textContent=id==='cover'?'Cover':id==='ars-rumors'?'%Rumors':(state.notes[id]?noteDisplayName(state.notes[id]):id);
-  updateActorDmHeader(id);
   document.getElementById('shareBtn').style.display=canShareNote(state.notes[id])?'block':'none';
   const _dw=document.getElementById('dialWrap');if(_dw)_dw.style.display=isGossipNote(id)?'':'none';
   const chatMessages=document.getElementById('chatMessages');destroyPluginFramesWithin(chatMessages);chatMessages.innerHTML='';
@@ -1859,8 +1828,7 @@ function updateMuteUI(){
   } else {
     inp.style.display='';inp.disabled=false;inp.placeholder='message...';
     if(sendBtn)sendBtn.style.display='';
-    // Phase G5B: an unlocked actor DM still hides the attach control (no artifacts).
-    if(attachWrap)attachWrap.style.display=(note&&actorDmView(note))?'none':'';
+    if(attachWrap)attachWrap.style.display='';
     if(lockBar)lockBar.style.display='none';
   }
   const roBadge=document.getElementById('readOnlyBadge');
@@ -2286,17 +2254,13 @@ function isNoteBlocked(note){
   const others=(note.users||[]).filter(u=>u&&u!==me);
   return others.some(u=>state.palStatus[u]==='blocked');
 }
-// ===== Phase G5B: actor-DM presentation =====
-// Resolve a note to a normalized actor-DM presentation object, or null. Requires the
-// durable marker AND the full membership invariant AND the current ship being a party.
-// A "two-person group" alone is NEVER an actor DM — the marker is mandatory.
 // Who may see/use the SHARE (invite) button. public group/notebook: any member;
 // private/secret: creator or admin only. gossip is left UNCHANGED this phase
 // (any participant keeps the button) and folds into these rules in the gossip phase.
 function canShareNote(note){
   if(!note)return false;
   if(note.id==='cover'||note.id==='ars-rumors')return false;
-  if(note.type==='dm'||actorDmView(note))return false;
+  if(note.type==='dm')return false;
   const me='~'+api.ship;
   if(note.creator===me)return true;
   if((state.noteAdmins[note.id]||[]).includes(me))return true;
@@ -2304,69 +2268,15 @@ function canShareNote(note){
   if(note.visibility==='public')return (note.users||[]).includes(me);
   return false;
 }
-function actorDmView(note){
-  if(!note)return null;
-  const m=state.actorDms[note.id];
-  if(!m)return null;
-  if(note.type!=='group'||note.visibility!=='secret')return null;
-  if(note.creator!==m.host)return null;                 // creator == owner host
-  const users=note.users||[];
-  if(users.length!==2||!users.includes(m.host)||!users.includes(m.target))return null;
-  const me='~'+api.ship;
-  let role;
-  if(me===m.host)role='owner-host';
-  else if(me===m.target)role='target-host';
-  else return null;
-  // resolve the owner actor's CURRENT display name from the G4 profile cache, falling
-  // back to the marker snapshot name, then the id. Used for both perspectives so a
-  // rename reflects everywhere (owner host included) after resolution / hard refresh.
-  const _prof=state.actorProfiles[actorKey(m.host,m.desk,m.id)];
-  const ownerName=(_prof&&_prof.displayName)||m.ownerName||m.id;
-  const ownerActor={host:m.host,desk:m.desk,id:m.id,name:ownerName,kind:m.ownerKind};
-  const counterpart=(role==='owner-host')?m.target:m.host;
-  let primaryName,contextText;
-  if(role==='owner-host'){
-    // the conversation is WITH the target ship; the actor is the local context.
-    primaryName=displayName(m.target);
-    contextText=ownerName+' via %'+m.desk;
-  }else{
-    // the conversation is WITH the owner actor.
-    primaryName=ownerName;
-    contextText='%'+m.desk+' on '+m.host;
-  }
-  return {role,ownerActor,target:m.target,counterpart,primaryName,contextText,marker:m};
-}
-// header context element (beside chatNoteName). Actor identity is clickable via the
-// existing delegated data-* actor-profile path; no actor value enters inline JS.
-function updateActorDmHeader(id){
-  const el=document.getElementById('actorDmContext');
-  if(!el)return;
-  const note=state.notes[id];
-  const adm=note?actorDmView(note):null;
-  if(!adm){el.style.display='none';el.innerHTML='';return}
-  const oa=adm.ownerActor;
-  // resolve the owner actor for BOTH perspectives (owner host needs the current name
-  // for its context line + data attrs after a rename / hard refresh).
-  requestActorProfile(oa.host,oa.desk,oa.id);
-  const label=(adm.role==='owner-host')
-    ?(escHtml(oa.name||oa.id)+' via %'+escHtml(oa.desk))
-    :('%'+escHtml(oa.desk)+' on '+escHtml(oa.host));
-  el.innerHTML='<span class="actor-click" style="color:var(--actor);cursor:pointer"'+actorDataAttrs(oa,oa.host)+'>'+label+'</span>';
-  el.style.display='';
-}
-// re-render sidebar + the open note's header/controls after any change that affects
-// actor-DM presentation (marker, owner/target profile, membership). If a marker became
-// missing/invalid, actorDmView returns null everywhere and the note reverts to ordinary
-// group presentation automatically.
-function refreshActorDmPresentation(){
+// re-render the sidebar + the open note's header/controls after a change that can alter
+// note presentation without changing the note itself -- e.g. a counterparty profile
+// update that renames an ordinary DM. updateMuteUI owns .attach-wrap (lock state);
+// updateAttachMenu sets the file button.
+function refreshNotePresentation(){
   renderNoteList();
   const id=state.currentNoteId;
   if(!id)return;
   const n=state.notes[id];
-  updateActorDmHeader(id);
-  // updateMuteUI owns .attach-wrap (lock + actor-DM); updateAttachMenu sets the file
-  // button. Running both keeps the attach control correct as a marker is added/cleared
-  // (clearing restores attachments for an ordinary eligible group unless a lock blocks).
   updateMuteUI();
   updateAttachMenu();
   if(!n)return;
@@ -2379,8 +2289,6 @@ function refreshActorDmPresentation(){
 function noteDisplayName(note){
   if(note.id==='cover')return'Cover';
   if(note.id==='ars-rumors')return'%Rumors';
-  const adm=actorDmView(note);
-  if(adm)return adm.primaryName;
   const cp=dmCounterparty(note);
   if(cp){
     // honor local rename; fall back to profile display when name is still default (@p)
@@ -2420,14 +2328,6 @@ function resolveNoteIconUrl(note){
   return note.iconUrl;
 }
 function noteDisplayIconHtml(note){
-  const adm=actorDmView(note);
-  if(adm){
-    // owner host: the target SHIP's avatar/sigil. target host: the OWNER ACTOR's
-    // avatar with first-letter fallback (never an Urbit sigil).
-    if(adm.role==='owner-host')return avatarHtml(adm.target);
-    requestActorProfile(adm.ownerActor.host,adm.ownerActor.desk,adm.ownerActor.id);
-    return actorAvatarHtml(adm.ownerActor);
-  }
   const cp=dmCounterparty(note);
   if(cp){
     const url=resolveNoteIconUrl(note);
@@ -2581,10 +2481,6 @@ function makeNoteItem(n,depth){
   div.className='note-item'+(n.id===state.currentNoteId?' active':'')+((hasNotif||hasMention)?' has-notif':'')+(hasCall?' has-call':'')+(active?' has-active':'')+(depth?` depth-${depth}`:'');
   div.setAttribute('data-note-id',n.id);
   const last=getLastMessage(n.id);
-  const _adm=actorDmView(n);
-  // resolve the owner actor for both perspectives so the sidebar name/context updates
-  // after a rename without a refresh.
-  if(_adm)requestActorProfile(_adm.ownerActor.host,_adm.ownerActor.desk,_adm.ownerActor.id);
   const iconContent=noteDisplayIconHtml(n);
   const displayNameStr=noteDisplayName(n);
   // correction: an artifact-deletion marker (\01SYS:art-delete:...) must never drive the
@@ -2603,17 +2499,15 @@ function makeNoteItem(n,depth){
     rawSource=n.lastAuthor||(last?last.author:'');
     rawPreview=n.lastPreview?n.lastPreview.replace(/\n/g,' '):((last&&last.text&&last.text.charCodeAt(0)!==1)?last.text.replace(/\n/g,' '):'');
   }
-  // actor DM: the source line carries the actor-DM identity context (actor color),
-  // not the ordinary group last-author source.
-  const source=_adm?_adm.contextText:(rawSource?displayName(rawSource):'');
+  const source=rawSource?displayName(rawSource):'';
   let previewHtml;
   const apN=hasMention?attentionPreviewHtml(n.id):null;
   if(apN){previewHtml=apN}
   else if(n.id!==state.currentNoteId&&rawPreview&&rawSource&&rawSource!=='~'+api.ship&&rawPreview.indexOf('@~'+api.ship)>=0){previewHtml='<span style="color:#ffaa00">@you:</span> '+escHtml(displayName(rawSource))}
   else{previewHtml=escHtml(rawPreview)}
   const chevron=hasChildren?`<span class="note-arrow ${isExpanded?'open':''}" onclick="event.stopPropagation();toggleNoteExpand('${n.id}')">&#9654;</span>`:`<span class="note-arrow" style="visibility:hidden">&#9654;</span>`;
-  const hasCustomIcon=!!n.iconUrl||!!dmCounterparty(n)||!!_adm;
-  const sourceColor=_adm?'#65a9e8':(rawSource?shipColor(rawSource):'');
+  const hasCustomIcon=!!n.iconUrl||!!dmCounterparty(n);
+  const sourceColor=rawSource?shipColor(rawSource):'';
   const dotColor=hasMention?'#ffaa00':'var(--bot)';
   const callBadge=hasCall?`<span class="note-call-badge"><span class="call-pip"></span>${state.activeCalls[n.id].participants.length}</span>`:'<span class="note-call-badge"></span>';
   // live/presence badge in the call slot: count only, or "live" when no count.
@@ -2882,11 +2776,10 @@ function makeSearchNoteResult(n){
   const div=document.createElement('div');
   div.className='note-item';
   div.setAttribute('data-note-id',n.id);
-  const _adm=actorDmView(n);
   const iconContent=noteDisplayIconHtml(n);
   const displayNameStr=noteDisplayName(n);
-  const hasCustomIcon=!!n.iconUrl||!!dmCounterparty(n)||!!_adm;
-  const typeLabel=_adm?'DM':(n.type==='dm'?'DM':(n.type==='group'?'GROUP':(n.type==='gossip'?'%GOSSIP':(n.type==='notebook'?'NOTE':''))));
+  const hasCustomIcon=!!n.iconUrl||!!dmCounterparty(n);
+  const typeLabel=n.type==='dm'?'DM':(n.type==='group'?'GROUP':(n.type==='gossip'?'%GOSSIP':(n.type==='notebook'?'NOTE':'')));
   div.innerHTML=`<span class="note-arrow" style="visibility:hidden">&#9654;</span><div class="note-icon" ${hasCustomIcon?'style="display:flex"':''}>${iconContent}</div><div class="note-text"><span class="note-name">${escHtml(displayNameStr)}</span><span class="note-source">${typeLabel}</span></div>`;
   div.onclick=()=>openNote(n.id);
   return div;
@@ -2985,8 +2878,7 @@ function hydrateDmProfile(ship){
   // clear on nack so a retry is possible; success waits for the %profile-updated fact
   api.poke('noltbook','noltbook-action',{action:'request-profile',data:{ship,reqId}}).catch(()=>_dmProfileHydrating.delete(ship));
 }
-// hydrate the counterparty of an ordinary (non-actor) %dm note if its profile is absent.
-// Actor DMs are secret %group notes, so type!=='dm' short-circuits them here.
+// hydrate the counterparty of an ordinary %dm note if its profile is absent.
 function hydrateDmNoteProfile(note){
   if(!note||note.type!=='dm')return;
   const cp=dmCounterparty(note);
@@ -3242,14 +3134,6 @@ function renderPinnedMessageHtml(msg){
   const msgDisplay=isNockSend(msg.text)?parseNockSend(msg.text):renderText(msg.text);
   const timeSource=msg.meta&&msg.meta.created?msg.meta.created:msg.id;
   const timeStr=new Date(timeSource).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-  // actor pin: app/bot glyph + actor header (no actions). Falls back to the
-  // normal ship header when the pinned message has no actor.
-  if(msg.actor){
-    const realTitle=escAttr('real author '+msg.author);
-    requestActorProfile(msg.actor.host,msg.actor.desk,msg.actor.id);
-    const pinBody=actorContentHidden(msg.actor)?blockedActorBodyHtml(msg.actor):`<div class="msg-text">${msgDisplay}</div>`;
-    return `<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar actor-avatar actor-click" style="cursor:pointer" title="${realTitle}"${actorDataAttrs(msg.actor,msg.author)}>${actorAvatarHtml(msg.actor)}</div><div class="msg-body">${actorHeaderHtml(msg.actor,msg.author,timeStr,'')}${pinBody}</div></div>`;
-  }
   return `<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar">${avatarHtml(msg.author)}</div><div class="msg-body">${pinCardHeaderHtml(msg.author,timeStr)}<div class="msg-text">${msgDisplay}</div></div></div>`;
 }
 // ===== pinned surface (Phase 2): one active pin per note =====
@@ -3368,7 +3252,6 @@ function renderPinSurface(noteId){
     state.pinArtId=art.id;
   }else{
     // message pin: render like a normal message post
-    if(msg&&msg.actor)requestActorProfile(msg.actor.host,msg.actor.desk,msg.actor.id);
     el.innerHTML=head+`<div class="pin-surface-body">${renderPinnedMessageHtml(msg)}</div>`;
     el.classList.add('has-pin');
     state.pinArtId=null;
@@ -3392,19 +3275,13 @@ function renderArtifactCard(el,art,depth,isThreadAnchor){
   // Part 12: in an ordinary %dm, DELETE shows only for the creator. In a shared
   // %group/%notebook note, DELETE shows only for the artifact creator, the note host, or a
   // current admin — matching the host-authoritative backend authority (which stays the
-  // final arbiter in every case). Actor DMs are %group notes but are OUT of scope: they
-  // keep their pre-change DELETE visibility exactly (detected via actorDmView). Other note
-  // types are unchanged.
+  // final arbiter in every case). Other note types are unchanged.
   const _acNote=state.notes[art.noteId]||{};
   const _acDm=_acNote.type==='dm';
-  const _acAdm=actorDmView(_acNote);
   const _acMe='~'+api.ship;
   let _acCanDelete;
   if(_acDm){
     _acCanDelete=(art.creator===_acMe);
-  }else if(_acAdm){
-    // actor DM (%group note): pre-change behavior preserved (out of scope)
-    _acCanDelete=true;
   }else if(_acNote.type==='group'||_acNote.type==='notebook'){
     const _acAdmins=state.noteAdmins[art.noteId]||[];
     _acCanDelete=(art.creator===_acMe||_acNote.creator===_acMe||_acAdmins.includes(_acMe));
@@ -3966,11 +3843,9 @@ function renderMsg(el,msg,depth,isThreadAnchor){
   }
   // Envelope placeholder: null text = not yet fetched
   if(msg.text===null)return;
-  // grouping is conservative: same ship AND same actor identity. Two posts from
-  // the same ship but different actors (or actor vs no-actor) never group.
-  const aSig=actorSig(msg);
-  const grouped=msg.author===state.lastMsgAuthor&&aSig===state.lastMsgActorSig&&depth===state.lastMsgDepth;
-  state.lastMsgAuthor=msg.author;state.lastMsgActorSig=aSig;state.lastMsgDepth=depth;
+  // grouping: same ship, same depth.
+  const grouped=msg.author===state.lastMsgAuthor&&depth===state.lastMsgDepth;
+  state.lastMsgAuthor=msg.author;state.lastMsgDepth=depth;
   const isUrbit=msg.author.startsWith('~');
   const timeSource=msg.import&&msg.import.sentAt?msg.import.sentAt:(msg.meta&&msg.meta.created?msg.meta.created:msg.id);
   const timeStr=new Date(timeSource).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
@@ -3980,14 +3855,12 @@ function renderMsg(el,msg,depth,isThreadAnchor){
   const isAuthor=msg.author===me;
   const isCreator=note.creator===me;
   const canEdit=isAuthor&&!msg.import;
-  // DELETE policy by EXPLICIT note type (never user-count). Actor DMs are %group notes but
-  // out of scope: detect them FIRST and keep their pre-change author-only behavior. Then:
+  // DELETE policy by EXPLICIT note type (never user-count):
   // cover/gossip/dm => author only (hostless origin authority); hosted group/notebook =>
   // author or note host (admins enforced host-side). A gossip note with 3+ users must NOT
   // grant its creator deletion of another author's post.
-  const canDelete=!msg.import&&(actorDmView(note)
-    ? isAuthor
-    : ((note.type==='group'||note.type==='notebook')?(isAuthor||isCreator):isAuthor));
+  const canDelete=!msg.import
+    &&((note.type==='group'||note.type==='notebook')?(isAuthor||isCreator):isAuthor);
   // P1.3: carry the message EID into every action so the exact stored entry is targeted,
   // never a same-id message from the other participant.
   const _mEid=(msg.meta&&msg.meta.eid)||'';
@@ -4008,25 +3881,13 @@ function renderMsg(el,msg,depth,isThreadAnchor){
   if(grouped){
     div.className='msg grouped'+depthClass;
     div.id=msgDomId(msg,msg.noteId)+idSuf;
-    // Phase B: a grouped (consecutive) blocked-actor message must ALSO hide its text
-    // behind the session-only VIEW placeholder — not just the first message of a run.
-    const groupedBody=actorContentHidden(msg.actor)?blockedActorBodyHtml(msg.actor):`<div class="msg-text${nockSendClass}" style="flex:1">${msgDisplay}${editedStamp}${importBadge}</div>`;
+    const groupedBody=`<div class="msg-text${nockSendClass}" style="flex:1">${msgDisplay}${editedStamp}${importBadge}</div>`;
     div.innerHTML=`<div style="display:flex;align-items:baseline;padding-left:calc(2.8rem + .6rem)">${groupedBody}${actions}</div>`;
   }else{
     div.className='msg'+depthClass;
     div.id=msgDomId(msg,msg.noteId)+idSuf;
     const authorColor=isUrbit?shipColor(msg.author):'var(--visitor)';
-    if(msg.actor){
-      // actor identity: app/bot glyph avatar (no sigil) + actor header. Avatar
-      // and name still open the REAL author's profile, and the title tooltip +
-      // "on ~host" subline keep the Urbit ship recoverable.
-      const realTitle=escAttr('real author '+msg.author);
-      // Phase B: a blocked actor's content is hidden behind a session-only VIEW placeholder.
-      const actorBody=actorContentHidden(msg.actor)?blockedActorBodyHtml(msg.actor):`<div class="msg-text${nockSendClass}">${msgDisplay}${editedStamp}${importBadge}</div>`;
-      div.innerHTML=`<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar actor-avatar actor-click" style="cursor:pointer" title="${realTitle}"${actorDataAttrs(msg.actor,msg.author)}>${actorAvatarHtml(msg.actor)}</div><div class="msg-body">${actorHeaderHtml(msg.actor,msg.author,timeStr,actions)}${actorBody}</div></div>`;
-    }else{
       div.innerHTML=`<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar" style="cursor:pointer" onclick="event.stopPropagation();viewProfile('${escAttr(msg.author)}')">${avatarHtml(msg.author)}</div><div class="msg-body"><div class="msg-header"><span class="msg-author" style="color:${authorColor};cursor:pointer" onclick="event.stopPropagation();viewProfile('${escAttr(msg.author)}')">${escHtml(displayName(msg.author))}</span><span class="msg-time">${timeStr}</span>${actions}</div><div class="msg-text${nockSendClass}">${msgDisplay}${editedStamp}${importBadge}</div></div></div>`;
-    }
   }
   el.appendChild(div);
 }
@@ -4159,141 +4020,6 @@ function sigilFallbackHtml(ship){
     return '<span style="color:'+shipColor(ship)+';font-size:.65rem">'+ship.slice(1,3)+'</span>';
   }
   return '<span style="color:var(--visitor)">'+ship[0].toUpperCase()+'</span>';
-}
-// ===== app/bot actor identity (Phase 2) =====
-// compact signature for grouping + snapshot-hash; '' when no actor.
-function actorSig(msg){const a=msg&&msg.actor;return a?(a.host+'|'+a.desk+'|'+a.id+'|'+a.kind):''}
-// avatar glyph: first letter of actor.name (never an Urbit sigil), '#' fallback.
-function actorInitial(name){const s=(''+(name||'')).trim();return s?s[0].toUpperCase():'#'}
-// header markup for an actor message: actor name (actor color) + kind chip +
-// "%desk on ~host" subline. The real author @p stays recoverable via the title
-// tooltip on every actor element and the ~host in the subline. timeStr+actions
-// optional (pin surface passes no actions). author = real Urbit ship.
-function actorHeaderHtml(av,author,timeStr,actions){
-  const realTitle=escAttr('real author '+author);
-  const kind=(''+(av.kind||'')).toUpperCase();
-  const sub=escHtml((av.desk?'%'+av.desk:'')+' on '+(av.host||author));
-  // clicking the actor name opens the ACTOR profile (not the host's ship profile).
-  // NO actor-controlled value is interpolated into JS — data-* attrs only; a delegated
-  // capture-phase listener reads dataset and calls viewActorProfile.
-  return `<div class="msg-header"><span class="msg-author actor actor-click" style="cursor:pointer" title="${realTitle}"${actorDataAttrs(av,author)}>${escHtml(av.name)}</span>`
-    +(kind?`<span class="actor-kind">${escHtml(kind)}</span>`:'')
-    +`<span class="actor-sub" title="${realTitle}">${sub}</span>`
-    +(timeStr?`<span class="msg-time">${timeStr}</span>`:'')
-    +(actions||'')+`</div>`;
-}
-// ===== Phase G4: actor profile resolution + avatar =====
-function actorKey(host,desk,id){return host+'|'+desk+'|'+id}
-function actorKeyOf(a){return a?actorKey(a.host,a.desk,a.id):''}
-// resolved avatar url for an actor (external/s3/ipfs only — NEVER an Urbit sigil).
-// per-actor revision for uploaded (host-scoped /actor-avatar/…) avatars. The served
-// URL is stable so browsers won't re-fetch after a change without a cache-buster.
-// Bumped on actor-profile-result/-updated when the avatar is a hosted actor-avatar URL.
-const actorAvatarRevision={};
-function isHostedActorAvatar(url){return typeof url==='string'&&url.indexOf('/apps/noltbook/actor-avatar/')===0}
-function resolveActorAvatarUrl(a){
-  if(!a)return null;
-  const key=actorKeyOf(a);
-  const p=state.actorProfiles[key];
-  if(!p||!p.avatar)return null;
-  const t=p.avatar.type;
-  if(t==='external'||t==='s3'||t==='ipfs'){
-    const url=p.avatar.url||null;
-    if(!url)return null;
-    // uploaded actor avatars ride a host-scoped Noltbook route; cache-bust those only.
-    // Arbitrary external/s3/ipfs public URLs are returned verbatim.
-    if(isHostedActorAvatar(url)){const rev=actorAvatarRevision[key];return rev?url+'?v='+rev:url}
-    return url;
-  }
-  return null;
-}
-// avatar markup: first-letter glyph from the message-stamped actor name underneath,
-// optional image overlay that hides itself on error. No sigil, ever.
-function actorAvatarHtml(a){
-  const glyph=escHtml(actorInitial(a&&a.name));
-  const url=resolveActorAvatarUrl(a);
-  if(url)return '<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center">'+glyph+'<img src="'+escAttr(url)+'" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;border-radius:3px" onerror="this.style.display=\'none\'"></div>';
-  return glyph;
-}
-// data-* attributes carrying the actor identity. These are READ via dataset by the
-// delegated handler and passed to viewActorProfile as ordinary args — they are NEVER
-// interpolated into an inline JS expression, so actor-controlled quotes can't escape.
-function actorDataAttrs(av,author){
-  return ' data-actor-profile="1"'
-    +' data-host="'+escAttr(av.host||author||'')+'"'
-    +' data-desk="'+escAttr(av.desk||'')+'"'
-    +' data-id="'+escAttr(av.id||'')+'"'
-    +' data-name="'+escAttr(av.name||'')+'"'
-    +' data-kind="'+escAttr(av.kind||'')+'"';
-}
-// delegated CAPTURE-phase click for any actor avatar/name (normal + pinned). Capture
-// + stopPropagation runs before the message's own bubble handlers, preserving the
-// previous stopPropagation behavior without any inline onclick.
-document.addEventListener('click',function(e){
-  const t=e.target.closest?e.target.closest('[data-actor-profile]'):null;
-  if(!t)return;
-  e.stopPropagation();
-  viewActorProfile(t.dataset.host,t.dataset.desk,t.dataset.id,t.dataset.name,t.dataset.kind);
-},true);
-// Phase B: session-only reveal of a blocked actor's content (no inline actor-controlled JS;
-// identity comes from data attributes). Reveal is per-session and not persisted.
-document.addEventListener('click',function(e){
-  const t=e.target.closest?e.target.closest('[data-actor-reveal]'):null;
-  if(!t)return;
-  e.stopPropagation();
-  state.actorRevealed.add(actorRefKey(t.dataset.rhost,t.dataset.rdesk,t.dataset.rid));
-  if(state.currentNoteId)scheduleRender(state.currentNoteId);renderPinSurface(state.currentNoteId);
-},true);
-// Phase B: blocked-actor placeholder — identifies an ACTOR block (not a blocked host ship)
-// and offers a session-only VIEW. Reuses the blocked-message visual pattern.
-function blockedActorBodyHtml(actor){
-  const who=escHtml((actor.name||actor.id)+' (%'+actor.desk+' on '+actor.host+')');
-  return `<div class="msg-text blocked-actor-body"><span class="blocked-actor-tag">blocked actor</span> ${who} `
-    +`<button class="blocked-actor-view" data-actor-reveal data-rhost="${escAttr(actor.host)}" data-rdesk="${escAttr(actor.desk)}" data-rid="${escAttr(actor.id)}">VIEW</button></div>`;
-}
-// should this actor message's content be hidden behind the blocked placeholder right now?
-function actorContentHidden(actor){return actorBlocked(actor)&&!actorRevealed(actor)}
-// request an actor profile with real freshness + cooldown gating. force=true (modal
-// RETRY) bypasses freshness/cooldown. In-flight dedup always applies; a resolved-fresh
-// profile is skipped; a stale profile is refreshed WHILE its data keeps displaying; a
-// missing/unreachable/invalid result is honored for its cooldown so render cycles never
-// re-poke a dead host. A timeout sets an unreachable cooldown (true remote silence the
-// backend can't confirm).
-function requestActorProfile(host,desk,id,force){
-  if(!host||!desk||!id)return;
-  const key=actorKey(host,desk,id);
-  if(state.actorProfileInFlight[key])return;
-  const now=Date.now();
-  if(!force){
-    const fa=state.actorProfileFetchedAt[key];
-    if(state.actorProfiles[key]&&fa&&(now-fa)<ACTOR_PROFILE_TTL)return;  // fresh
-    const ra=state.actorProfileRetryAt[key];
-    if(ra&&now<ra)return;                                               // in cooldown
-  }
-  state.actorProfileReqCounter+=1;
-  const reqId=state.actorProfileReqCounter;
-  state.actorProfileInFlight[key]=reqId;
-  if(state.actorProfileTimers[key])clearTimeout(state.actorProfileTimers[key]);
-  state.actorProfileTimers[key]=setTimeout(()=>{
-    delete state.actorProfileTimers[key];
-    if(state.actorProfileInFlight[key]===reqId){
-      delete state.actorProfileInFlight[key];
-      state.actorProfileRetryAt[key]=Date.now()+ACTOR_PROFILE_UNREACHABLE_COOLDOWN;
-      if(!state.actorProfiles[key])state.actorProfileStatus[key]='unreachable';
-    }
-  },8000);
-  api.poke('noltbook','noltbook-action',{action:'request-actor-profile',data:{host,desk,id,reqId}});
-}
-// request the unique unresolved actor profiles referenced by a batch of messages.
-function requestActorProfilesFor(messages){
-  if(!messages)return;
-  const seen={};
-  for(const m of messages){
-    if(!m.actor)continue;
-    const key=actorKeyOf(m.actor);
-    if(seen[key])continue;seen[key]=1;
-    requestActorProfile(m.actor.host,m.actor.desk,m.actor.id);
-  }
 }
 function avatarHtml(ship){
   const url=resolveAvatarUrl(ship);
@@ -4945,21 +4671,7 @@ function showNoteContextMenu(event,noteId){
   const delItem=isDm?'<div class="context-menu-item danger" data-action="leave">Leave</div>'
     :isCreator?'<div class="context-menu-item danger" data-action="delete">Delete</div>'
     :'<div class="context-menu-item danger" data-action="leave">Leave</div>';
-  // Phase G5B: a valid actor DM gets a DM-style menu (no group settings that would
-  // break the actor-DM structure). owner host: target ship Profile + Delete; target
-  // host: owner Actor Profile + Leave.
-  const adm=actorDmView(note);
-  if(adm){
-    if(adm.role==='owner-host'){
-      menu.innerHTML=`
-        <div class="context-menu-item" data-action="dm-target-profile">Profile (${escHtml(adm.target)})</div>
-        <div class="context-menu-item danger" data-action="delete">Delete</div>`;
-    }else{
-      menu.innerHTML=`
-        <div class="context-menu-item" data-action="dm-actor-profile">Actor Profile</div>
-        <div class="context-menu-item danger" data-action="leave">Leave</div>`;
-    }
-  }else if(isDm){
+  if(isDm){
     menu.innerHTML=`
       <div class="context-menu-item" data-action="profile">Profile</div>
       ${delItem}`;
@@ -5006,8 +4718,6 @@ function showNoteContextMenu(event,noteId){
     else if(action==='delete'){closeContextMenu();if(confirm('Delete "'+note.name+'"?'))api.poke('noltbook','noltbook-action',{action:'delete-note',data:{id:noteId}})}
     else if(action==='leave'){closeContextMenu();if(confirm('Leave "'+note.name+'"?'))api.poke('noltbook','noltbook-action',{action:'leave-note',data:{id:noteId}})}
     else if(action==='profile'){closeContextMenu();const cp=dmCounterparty(note);if(cp)viewProfile(cp)}
-    else if(action==='dm-target-profile'){closeContextMenu();if(adm)viewProfile(adm.target)}
-    else if(action==='dm-actor-profile'){closeContextMenu();if(adm){const o=adm.ownerActor;viewActorProfile(o.host,o.desk,o.id,o.name,o.kind)}}
   });
   document.body.appendChild(menu);
   const mr=menu.getBoundingClientRect();
@@ -5396,10 +5106,9 @@ function getNoteContext(rec,payload){
   const order=(mopt.order==='newest')?'newest':'oldest';
   // "recent" window = newest N of the chronological array; kept oldest->newest here.
   let mapped=msgs.slice(Math.max(0,msgs.length-limit)).map(function(m){
-    const out={id:m.id,eid:(m.meta&&m.meta.eid)||null,author:m.author,actor:null,via:null,
+    const out={id:m.id,eid:(m.meta&&m.meta.eid)||null,author:m.author,via:null,
       text:(typeof m.text==='string'?m.text:''),timestamp:(m.timestamp!=null?m.timestamp:null),
       replyToEid:(m.meta&&m.meta.replyToEid)||null};
-    if(m.actor&&typeof m.actor==='object')out.actor={host:m.actor.host||null,desk:m.actor.desk||null,id:m.actor.id||null,name:m.actor.name||null,kind:m.actor.kind||null};
     if(m.via&&typeof m.via==='object')out.via={desk:m.via.desk||null,title:m.via.title||null,publisher:m.via.publisher||null,ship:m.via.ship||null};
     return out;
   });
@@ -5485,7 +5194,7 @@ async function proxyPluginRequest(rec,payload){
 //              artifacts?:{ include?:'summaries' } } }
 //   result:  { type:'nb:get-note-context-result', payload:{ ok:true,
 //              note:{ id, name, type, visibility },
-//              messages:[ { id, eid, author, actor, via, text, timestamp, replyToEid } ],
+//              messages:[ { id, eid, author, via, text, timestamp, replyToEid } ],
 //              artifacts:[ { id, eid, name, creator, app, kind, summary, timestamp } ],
 //              truncated:<bool> } }
 //         or { ok:false, error:'no-note-context'|'not-allowed'|'note-not-loaded' }.
@@ -5537,7 +5246,7 @@ window.addEventListener('message',function(event){
   else if(d.type==='nb:close'){if(rec.spec.mode==='private-tool')closePluginTool();else if(rec.spec.mode==='embedded-app')closeEmbeddedApp();else destroyPluginFrame(rec.id,true)}
 });
 function canUsePluginArtifacts(){
-  const nid=state.currentNoteId,note=state.notes[nid],me='~'+api.ship;if(!note||actorDmView(note))return false;
+  const nid=state.currentNoteId,note=state.notes[nid],me='~'+api.ship;if(!note)return false;
   if(note.type!=='notebook'&&note.type!=='group'&&note.type!=='dm')return false;
   if(!(note.users||[]).includes(me)||(note.removed||[]).includes(me))return false;
   const admins=state.noteAdmins[nid]||[];return note.type==='dm'||note.writable!==false||note.creator===me||admins.includes(me);
@@ -5747,13 +5456,6 @@ function updateAttachMenu(){
   if(!nid){btn.style.display='none';return}
   const isCover=nid==='cover'||(note&&note.type==='cover');
   if(!note&&!isCover){btn.style.display='none';return}
-  // Phase G5B: actor DMs have NO artifact/file access (excluded by design). Hide the
-  // ENTIRE attach control (wrap + `+` button), and close the menu if it was open.
-  if(note&&actorDmView(note)){
-    const wrap=btn.closest('.attach-wrap');if(wrap)wrap.style.display='none';
-    const am=document.getElementById('attachMenu');if(am)am.classList.remove('open');
-    btn.style.display='none';return;
-  }
   const isDm=note&&note.type==='dm';
   const isGossip=note&&note.type==='gossip';
   const okType=isCover||isDm||isGossip||(note&&(note.type==='notebook'||note.type==='group'));
@@ -6187,72 +5889,6 @@ async function viewProfile(ship){
     const el=overlay.querySelector('#viewProfileSponsors');
     if(el)el.innerHTML=chain.map(s=>'<span style="color:'+shipColor(s)+'">'+s+'</span>').join('&nbsp;&nbsp;')||'none';
   }catch(e){console.warn('[sponsors]',e);const el=overlay.querySelector('#viewProfileSponsors');if(el)el.textContent='unavailable'}
-}
-// ===== Phase G4: actor profile modal (NOT the host's ship profile) =====
-// Shows the actor's avatar/initial, current display name, kind, "%desk on ~host",
-// lifecycle status, bio, status text, and a "View Host" action. No pal/contact/SEND/
-// block/wallet/sigil/DM. On failure it opens with the message-carried name/kind +
-// initial glyph; the host + app desk are always visible.
-function viewActorProfile(host,desk,id,fallbackName,fallbackKind){
-  const key=actorKey(host,desk,id);
-  state.viewingActorKey=key;
-  state._actorModalArgs=[host,desk,id,fallbackName,fallbackKind];
-  // Phase B: current real-user pref state for THIS [host,desk,id] (drives button labels).
-  const _refKey=actorRefKey(host,desk,id);
-  const _muted=state.userMutedActors.has(_refKey);
-  const _blocked=state.userBlockedActors.has(_refKey);
-  document.querySelectorAll('.actor-profile-modal').forEach(el=>el.remove());
-  const p=state.actorProfiles[key]||null;
-  const status=state.actorProfileStatus[key];
-  const dn=(p&&p.displayName)||fallbackName||id;
-  const kind=((p&&p.kind)||fallbackKind||'').toUpperCase();
-  const life=(p&&p.lifecycleStatus)||'';
-  const bio=(p&&p.bio)||'';
-  const st=(p&&p.statusText)||'';
-  const url=resolveActorAvatarUrl({host,desk,id});
-  // glyph ALWAYS underneath; the image overlays it and hides itself on error — never
-  // a blank avatar, never a sigil (matches actorAvatarHtml).
-  const glyph='<span style="color:var(--actor);font-size:1.8rem;font-weight:600">'+escHtml(actorInitial(dn))+'</span>';
-  const avatarContent=url
-    ?'<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center">'+glyph+'<img src="'+escAttr(url)+'" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;border-radius:3px" onerror="this.style.display=\'none\'"></div>'
-    :glyph;
-  const noteMsg=status==='unreachable'?'host unreachable — showing carried name/kind':(status==='missing'?'no such actor on host':(status==='invalid-response'?'host returned a mismatched profile (rejected)':'resolving…'));
-  const note=p?'':'<span style="color:'+(status?'#ff4444':'var(--dim)')+';font-size:.7rem">'+noteMsg+'</span>';
-  const overlay=document.createElement('div');
-  overlay.className='modal-overlay open profile-flow-modal actor-profile-modal';
-  const modal=document.createElement('div');
-  modal.className='profile-modal';
-  modal.innerHTML=`
-    <div style="display:flex;gap:1rem;align-items:flex-start">
-      <div class="profile-sigil" style="border-color:var(--actor)"><div class="profile-sigil-inner">${avatarContent}</div></div>
-      <div class="profile-info" style="flex:1">
-        <div class="profile-row"><span class="profile-field-label">Actor:</span><span style="color:var(--actor)">${escHtml(dn)}</span>${kind?' <span class="actor-kind">'+escHtml(kind)+'</span>':''}</div>
-        <div class="profile-row"><span class="profile-field-label">App / Host:</span><span class="actor-sub">${escHtml((desk?'%'+desk:'')+' on '+host)}</span></div>
-        ${life?'<div class="profile-row"><span class="profile-field-label">Status:</span><span style="color:var(--dim)">'+escHtml(life)+'</span></div>':''}
-        ${st?'<div class="profile-row"><span class="profile-field-label">Now:</span><span style="color:var(--text)">'+escHtml(st)+'</span></div>':''}
-        ${bio?'<div class="profile-row" style="align-items:flex-start"><span class="profile-field-label">Bio:</span><span style="color:var(--text)">'+escHtml(bio)+'</span></div>':''}
-        <div class="profile-row">${note}</div>
-      </div>
-    </div>
-    <div class="modal-actions">
-      <button class="modal-btn primary" id="actorViewHost">View Host (${escHtml(host)})</button>
-      <button class="modal-btn amber-hover" id="actorProfileClose">CLOSE</button>
-    </div>`;
-  overlay.appendChild(modal);
-  function _close(){state.viewingActorKey=null;state._actorModalArgs=null;overlay.remove()}
-  overlay.addEventListener('click',function(e){if(e.target===overlay)_close()});
-  document.body.appendChild(overlay);
-  modal.querySelector('#actorProfileClose').addEventListener('click',_close);
-  modal.querySelector('#actorViewHost').addEventListener('click',function(){_close();viewProfile(host)});
-  requestActorProfile(host,desk,id);
-}
-// Phase B: poke the real-user actor mute/block API by full [host,desk,id].
-function pokeActorPref(action,host,desk,id){
-  api.poke('noltbook','noltbook-api',{action:action,requestId:Date.now(),data:{host:host,desk:desk,id:id}});
-}
-function refreshActorModal(key){
-  if(state.viewingActorKey!==key||!state._actorModalArgs)return;
-  viewActorProfile.apply(null,state._actorModalArgs);
 }
 async function openProfileModal(){
   const ship='~'+api.ship;

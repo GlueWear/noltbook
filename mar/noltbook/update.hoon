@@ -118,12 +118,12 @@
       %+  frond  'message-list'
       %-  pairs
       :~  ['noteId' s+(crip (trip note-id.upd))]
-          ['messages' a+(turn messages.upd |=(m=message:noltbook (msg-list-context m actor.upd imports.upd)))]
+          ['messages' a+(turn messages.upd |=(m=message:noltbook (msg-list-context m imports.upd)))]
           ['artifacts' a+(turn artifacts.upd art-to-json)]
       ==
     ::
         %new-message
-      (frond 'new-message' (msg-json-context msg.upd actor.upd import.upd))
+      (frond 'new-message' (msg-json-context msg.upd import.upd))
     ::
         %message-edited
       %+  frond  'message-edited'
@@ -555,84 +555,7 @@
       :~  ['noteId' s+(crip (trip note-id))]
           ['activity' (numb (da-to-ms activity))]
       ==
-    ::
-    ::  Phase B: the real user's actor mute/block prefs (full authoritative snapshot).
-        %user-actor-preferences
-      %+  frond  'user-actor-preferences'
-      %-  pairs
-      :~  ['muted' a+(turn muted.upd actor-ref-json)]
-          ['blocked' a+(turn blocked.upd actor-ref-json)]
-      ==
-    ::
-    ::  Phase G4: actor profile resolution result (async) — same on /notes + /api/results.
-        %actor-profile-result
-      %+  frond  'actor-profile-result'
-      %-  pairs
-      :~  ['requestId' (numb req-id.upd)]
-          ['host' s+(scot %p host.upd)]
-          ['desk' s+(scot %tas desk.upd)]
-          ['id' s+id.upd]
-          ['status' s+(scot %tas status.upd)]
-          ['fetchedAt' ?~(fetched-at.upd ~ (numb (da-to-ms u.fetched-at.upd)))]
-          ['profile' ?~(profile.upd ~ (actor-pub-prof-json host.upd u.profile.upd))]
-      ==
-    ::
-    ::  Phase G4: local actor profile changed — public profile only (host=our.bowl).
-        %actor-profile-updated
-      (frond 'actor-profile-updated' (actor-pub-prof-json host.upd profile.upd))
-    ::
-    ::  Phase G5A: an actor-DM marker changed. meta=~ => removed.
-        %actor-dm-updated
-      %+  frond  'actor-dm-updated'
-      %-  pairs
-      :~  ['noteId' s+(crip (trip note-id.upd))]
-          ['meta' ?~(meta.upd ~ (actor-dm-meta-json u.meta.upd))]
-      ==
-    ::
-    ::  Phase G6B: an actor's directed reply notifications changed. full=%.n => delta
-    ::  (append carried rows); full=%.y => authoritative remaining list for [desk,id].
-        %actor-notifications-updated
-      %+  frond  'actor-notifications-updated'
-      %-  pairs
-      :~  ['desk' s+(scot %tas desk.upd)]
-          ['id' s+id.upd]
-          ['full' b+full.upd]
-          ['notifications' a+(turn notifications.upd actor-notif-json)]
-      ==
     ==
-    ::  Phase B: bare actor-ref [host,desk,id] encoder (real-user preference identity).
-    ++  actor-ref-json
-      |=  r=actor-ref:noltbook
-      ^-  ^json
-      %-  pairs
-      :~  ['host' s+(scot %p host.r)]
-          ['desk' s+(scot %tas desk.r)]
-          ['id' s+id.r]
-      ==
-    ::  Phase G6B: actor + notification-view encoders (mirror app field-for-field).
-    ++  actor-msg-ref-json
-      |=  a=actor:noltbook
-      ^-  ^json
-      %-  pairs
-      :~  ['host' s+(scot %p host.a)]
-          ['desk' s+(scot %tas desk.a)]
-          ['id' s+id.a]
-          ['name' s+name.a]
-          ['kind' s+(scot %tas kind.a)]
-      ==
-    ++  actor-notif-json
-      |=  v=actor-notification-view:noltbook
-      ^-  ^json
-      %-  pairs
-      :~  ['kind' s+(scot %tas kind.v)]
-          ['noteId' s+(crip (trip note-id.v))]
-          ['eid' s+(scot %uv eid.v)]
-          ['msgId' s+(scot %da msg-id.v)]
-          ['author' s+(scot %p author.v)]
-          ['actor' ?~(actor.v ~ (actor-msg-ref-json u.actor.v))]
-          ['preview' s+preview.v]
-          ['timestamp' (numb (da-to-ms timestamp.v))]
-      ==
     ++  app-notif-json
       |=  n=app-notification:noltbook
       ^-  ^json
@@ -651,36 +574,6 @@
           ['updatedAt' (numb (da-to-ms updated-at.n))]
           ['expiresAt' ?~(expires-at.n ~ (numb (da-to-ms u.expires-at.n)))]
       ==
-    ::  Phase G5A: actor-dm-meta encoder (mirrors api-actor-dm-json in app).
-    ++  actor-dm-meta-json
-      |=  m=actor-dm-meta:noltbook
-      ^-  ^json
-      %-  pairs
-      :~  ['host' s+(scot %p host.owner.m)]
-          ['desk' s+(scot %tas desk.owner.m)]
-          ['id' s+id.owner.m]
-          ['ownerName' s+name.owner.m]
-          ['ownerKind' s+(scot %tas kind.owner.m)]
-          ['target' s+(scot %p target.m)]
-          ['createdAt' (numb (da-to-ms created-at.m))]
-      ==
-    ::
-    ::  Phase G4: THE actor public-profile encoder (mirrors api-actor-pub-json in app).
-    ++  actor-pub-prof-json
-      |=  [host=@p p=actor-public-profile:noltbook]
-      ^-  ^json
-      %-  pairs
-      :~  ['host' s+(scot %p host)]
-          ['desk' s+(scot %tas desk.p)]
-          ['id' s+id.p]
-          ['displayName' s+display-name.p]
-          ['kind' s+(scot %tas kind.p)]
-          ['lifecycleStatus' s+(scot %tas lifecycle-status.p)]
-          ['avatar' ?~(avatar.p ~ (pairs ~[['type' s+(scot %tas type.u.avatar.p)] ['url' s+url.u.avatar.p]]))]
-          ['bio' ?~(bio.p ~ s+u.bio.p)]
-          ['statusText' ?~(status-text.p ~ s+u.status-text.p)]
-      ==
-    ::
     ++  call-to-json
       |=  c=call-info:noltbook
       %-  pairs
@@ -783,18 +676,6 @@
           ['edited' b+edited.m]
           ['meta' ?~(meta.m ~ (meta-to-json u.meta.m))]
       ==
-    ::  actor-to-json: (unit actor) -> null or {host,desk,id,name,kind}.
-    ++  actor-to-json
-      |=  a=(unit actor:noltbook)
-      ^-  ^json
-      ?~  a  ~
-      %-  pairs
-      :~  ['host' s+(scot %p host.u.a)]
-          ['desk' s+(scot %tas desk.u.a)]
-          ['id' s+id.u.a]
-          ['name' s+name.u.a]
-          ['kind' s+(scot %tas kind.u.a)]
-      ==
     ::  Browser-safe import provenance. external-id is deliberately not exposed.
     ++  import-to-json
       |=  di=(unit dm-import:noltbook)
@@ -814,34 +695,19 @@
           ['receivedAt' (numb (da-to-ms received-at.u.di))]
           ['removedAt' ?~(removed-at.u.di ~ (numb (da-to-ms u.removed-at.u.di)))]
       ==
-    ::  msg-json-actor: a message object with an added 'actor' field. For a live
-    ::  %new-message the actor is supplied directly; for %message-list it's joined
-    ::  from the per-eid actor map. Additive — never wraps/changes the message
-    ::  object shape, so existing frontend handlers keep working.
-    ++  msg-json-actor
-      |=  [m=message:noltbook a=(unit actor:noltbook)]
+    ::  msg-json-context: a message object with an added 'import' field. Additive —
+    ::  never wraps/changes the message object shape.
+    ++  msg-json-context
+      |=  [m=message:noltbook di=(unit dm-import:noltbook)]
       ^-  ^json
       =/  base=^json  (msg-to-json m)
       ?.  ?=([%o *] base)  base
-      [%o (~(put by p.base) 'actor' (actor-to-json a))]
-    ++  msg-json-context
-      |=  [m=message:noltbook a=(unit actor:noltbook) di=(unit dm-import:noltbook)]
-      ^-  ^json
-      =/  base=^json  (msg-json-actor m a)
-      ?.  ?=([%o *] base)  base
       [%o (~(put by p.base) 'import' (import-to-json di))]
-    ::  msg-list-actor: like msg-json-actor but pulls actor from a map by eid.
-    ++  msg-list-actor
-      |=  [m=message:noltbook amap=(map @uv actor:noltbook)]
-      ^-  ^json
-      =/  a=(unit actor:noltbook)  ?~(meta.m ~ (~(get by amap) eid.u.meta.m))
-      (msg-json-actor m a)
     ++  msg-list-context
-      |=  [m=message:noltbook amap=(map @uv actor:noltbook) imap=(map @uv dm-import:noltbook)]
+      |=  [m=message:noltbook imap=(map @uv dm-import:noltbook)]
       ^-  ^json
-      =/  a=(unit actor:noltbook)  ?~(meta.m ~ (~(get by amap) eid.u.meta.m))
       =/  di=(unit dm-import:noltbook)  ?~(meta.m ~ (~(get by imap) eid.u.meta.m))
-      (msg-json-context m a di)
+      (msg-json-context m di)
     ::
     ++  meta-to-json
       |=  m=entry-meta:noltbook

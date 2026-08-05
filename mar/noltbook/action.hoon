@@ -47,41 +47,6 @@
       =/  from-nd  (need (~(get by d) 'from'))
       ?>  ?=([%s *] from-nd)
       [%request-gossip-note `@ta`p.nid-nd (need (slaw %p p.from-nd))]
-    ::  A2: internal host + emergency actor management. Strict — a malformed host/desk/id/op
-    ::  fails mark conversion (need/?>/!!), never produces a wrong actor ref or op.
-    ?:  |(=('manage-note-actor' tag) =('emergency-manage-note-actor' tag))
-      =/  nid-nd  (need (~(get by d) 'noteId'))
-      ?>  ?=([%s *] nid-nd)
-      =/  op-nd  (need (~(get by d) 'op'))
-      ?>  ?=([%s *] op-nd)
-      =/  host-nd  (need (~(get by d) 'targetHost'))
-      ?>  ?=([%s *] host-nd)
-      =/  desk-nd  (need (~(get by d) 'targetDesk'))
-      ?>  ?=([%s *] desk-nd)
-      =/  id-nd  (need (~(get by d) 'targetId'))
-      ?>  ?=([%s *] id-nd)
-      =/  tref=actor-ref:noltbook
-        [(need (slaw %p p.host-nd)) (need (rush p.desk-nd sym)) p.id-nd]
-      =/  ops=@tas  (need (rush p.op-nd sym))
-      =/  nid=@ta  `@ta`p.nid-nd
-      ?:  =('manage-note-actor' tag)
-        =/  op=note-actor-op:noltbook
-          ?+  ops  ~|('bad host op' !!)
-            %approve  %approve
-            %deny     %deny
-            %invite   %invite
-            %remove   %remove
-            %mute     %mute
-            %unmute   %unmute
-          ==
-        [%manage-note-actor nid op tref]
-      =/  op=emergency-actor-op:noltbook
-        ?+  ops  ~|('bad emergency op' !!)
-          %remove  %remove
-          %mute    %mute
-          %unmute  %unmute
-        ==
-      [%emergency-manage-note-actor nid op tref]
     ::  rename-note
     ?:  =('rename-note' tag)
       =/  id-nd  (need (~(get by d) 'id'))
@@ -142,8 +107,8 @@
         ?.  ?=([%s *] u.dk-raw)  ~
         ?:  =('send' p.u.dk-raw)  `%send
         ~
-      ::  via/actor attribution is API-only; frontend sends are never attributed.
-      [%send-message `@ta`p.nid-nd p.txt-nd rt rte dk ~ ~]
+      ::  via attribution is API-only; frontend sends are never attributed.
+      [%send-message `@ta`p.nid-nd p.txt-nd rt rte dk ~]
     ::  edit-message
     ?:  =('edit-message' tag)
       =/  nid-nd  (need (~(get by d) 'noteId'))
@@ -353,17 +318,6 @@
       =/  req-nd  (need (~(get by d) 'reqId'))
       ?>  ?=([%n *] req-nd)
       [%request-profile (slav %p p.ship-nd) (rash p.req-nd dem)]
-    ::  request-actor-profile (Phase G4): frontend-internal actor profile lookup.
-    ?:  =('request-actor-profile' tag)
-      =/  host-nd  (need (~(get by d) 'host'))
-      ?>  ?=([%s *] host-nd)
-      =/  desk-nd  (need (~(get by d) 'desk'))
-      ?>  ?=([%s *] desk-nd)
-      =/  id-nd  (need (~(get by d) 'id'))
-      ?>  ?=([%s *] id-nd)
-      =/  req-nd  (need (~(get by d) 'reqId'))
-      ?>  ?=([%n *] req-nd)
-      [%request-actor-profile (slav %p p.host-nd) (rash p.desk-nd sym) p.id-nd (rash p.req-nd dem)]
     ::  nock-send-confirmed
     ?:  =('nock-send-confirmed' tag)
       =/  to-nd  (need (~(get by d) 'to'))
