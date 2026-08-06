@@ -35,9 +35,43 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .header-dial{display:flex;align-items:center;gap:.3rem;margin:0 auto}
 .header-dial .dial-label{font-size:.65rem;color:var(--text-dim);letter-spacing:.1em}
 .app-body{display:flex;flex:1;overflow:hidden}
-.sidebar{width:220px;min-width:150px;max-width:500px;background:var(--bg);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;position:relative}
-.sidebar-resize{position:absolute;top:0;right:0;width:4px;height:100%;cursor:col-resize;z-index:10}
+.sidebar{width:220px;min-width:204px;max-width:500px;background:var(--bg);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;position:relative}
+.sidebar-resize{position:absolute;top:0;right:0;width:6px;height:100%;cursor:col-resize;z-index:10;
+  touch-action:none;background:transparent;border:none;padding:0}
 .sidebar-resize:hover{background:rgba(255,170,0,.3)}
+/* focus treatment for a separator -- deliberately a thin bar, not a button */
+.sidebar-resize:focus-visible{background:rgba(255,170,0,.6);outline:none}
+.sidebar.dragging,.call-rail.dragging{transition:none}
+/* during an active drag the panel may be pulled below its resting minimum so the user
+   can drag it shut; the snap decision on release restores the normal bounds */
+.sidebar.dragging{min-width:0}
+/* rz-squeeze: the sidebar shrinks below its resting minimum while the pointer drives it.
+   Its children keep their full laid-out width, so the header controls are CLIPPED by the
+   shrinking viewport instead of being compressed. */
+.sidebar.rz-squeeze{min-width:0}
+.sidebar.rz-squeeze>*{min-width:var(--sb-keep,204px)}
+/* settling is the only animated part: a short ease to the endpoint after release.
+   Never applied while following the pointer -- that would lag behind the gesture. */
+.rz-settle{transition:width .12s ease-out!important}
+.sidebar.collapsed{width:0!important;min-width:0;border-right:none}
+.sidebar.collapsed .sidebar-resize{display:none}
+/* slim restore rail: a flex child of .app-body, so it can never be hidden with the sidebar */
+.sidebar-restore{display:none;flex:0 0 auto;width:18px;touch-action:none;background:var(--bg);
+  border-right:1px solid var(--border);color:var(--text-dim);font-family:var(--font);
+  font-size:.7rem;cursor:pointer;align-items:center;justify-content:center;padding:0;
+  writing-mode:vertical-rl;letter-spacing:.15em;transition:box-shadow .15s}
+.sidebar-restore.show{display:flex}
+.sidebar-restore:hover,.sidebar-restore:focus-visible{color:#ffaa00;box-shadow:0 0 8px currentColor}
+/* CALL VIEW restore handle: lives in .chat so the zero-width rail cannot take it away */
+.call-restore{display:none;position:absolute;right:0;top:50%;transform:translateY(-50%);touch-action:none;
+  z-index:20;font-family:var(--font);font-size:.7rem;letter-spacing:.1em;padding:.5rem .3rem;
+  background:var(--bg2);border:1px solid #00ff88;border-right:none;color:#00ff88;
+  cursor:pointer;writing-mode:vertical-rl;transition:box-shadow .15s}
+.call-restore.show{display:block}
+.call-restore:hover,.call-restore:focus-visible{box-shadow:0 0 10px currentColor;background:rgba(0,255,136,.12)}
+/* the participant-count indicator is a real button */
+.call-indicator{background:transparent;border:none;font-family:var(--font);padding:0}
+.call-indicator:focus-visible{outline:1px solid #00ff88;outline-offset:2px}
 .sidebar-top{padding:0 .75rem;height:42px;display:flex;align-items:center;gap:.5rem;border-bottom:1px solid var(--border);flex-shrink:0}
 .view-toggle{display:flex;height:1.7rem;flex-shrink:0}
 .view-toggle-opt{font-family:var(--font);font-size:.7rem;padding:0 .5rem;background:transparent;border:1px solid #444;color:#888;cursor:pointer;letter-spacing:.05em;display:flex;align-items:center}
@@ -105,7 +139,16 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .note-arrow{font-size:.55rem;color:var(--text-dim);width:.8rem;flex-shrink:0;cursor:pointer;transition:transform .15s}
 .note-arrow.open{transform:rotate(90deg)}
 .note-arrow:hover{color:var(--text-muted)}
-.chat{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.chat{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0;position:relative}
+/* theater-only: chat collapses to zero width. The element is never rebuilt, so messages,
+   scroll position, composer contents and subscription all survive untouched. */
+.chat.chat-collapsed{flex:0 0 0;width:0;min-width:0;border:none}
+.chat-restore{display:none;flex:0 0 auto;width:18px;background:var(--bg);
+  border-right:1px solid var(--border);color:var(--text-dim);font-family:var(--font);
+  font-size:.7rem;cursor:pointer;align-items:center;justify-content:center;padding:0;
+  writing-mode:vertical-rl;letter-spacing:.15em;touch-action:none;transition:box-shadow .15s}
+.chat-restore.show{display:flex}
+.chat-restore:hover,.chat-restore:focus-visible{color:#ffaa00;box-shadow:0 0 8px currentColor}
 .chat-header{display:flex;align-items:center;justify-content:space-between;padding:0 1rem;height:42px;border-bottom:1px solid var(--border);flex-shrink:0}
 .chat-note-name{font-size:1.1rem;color:#ffaa00;cursor:pointer;text-decoration:underline;padding:.2rem .4rem}
 .chat-note-name:hover{background:var(--bg2)}
@@ -530,25 +573,81 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 @keyframes callPulse{0%,100%{opacity:1}50%{opacity:.3}}
 .call-rail{width:0;border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:width .2s;flex-shrink:0}
 .call-rail.open{width:300px}
+/* session-only manual width from an edge drag; cleared on close and on theater entry */
+.call-rail.open.sized{width:var(--rail-w,300px)}
+/* The divider is a BOUNDARY element: a zero-width flex sibling sitting immediately
+   before the rail, so it tracks the real column edge whether the artifact panel is open
+   or closed. Its ::after hit strip straddles that edge (7px each side) and its z-index
+   clears the zero-width artifact panel, whose 1px border otherwise sits exactly on the
+   visible line and swallows the grab. ::before draws the single hairline. */
+.call-rail-resize{display:none;position:relative;flex:0 0 0;width:0;align-self:stretch;
+  z-index:40;touch-action:none;background:transparent;border:none;padding:0}
+.call-rail-resize.show{display:block}
+.call-rail-resize::after{content:'';position:absolute;left:-8px;top:0;width:17px;height:100%;
+  cursor:col-resize}
+.call-rail-resize::before{content:'';position:absolute;left:0;top:0;width:1px;height:100%;
+  background:transparent;transition:background .12s,box-shadow .12s;pointer-events:none}
+.call-rail-resize:hover::before,.call-rail-resize:focus-visible::before{
+  background:#ffaa00;box-shadow:0 0 6px rgba(255,170,0,.8)}
+.call-rail-resize:focus-visible{outline:none}
+.call-rail{position:relative}
 .call-rail-header{display:flex;align-items:center;justify-content:space-between;padding:0 .75rem;height:42px;border-bottom:1px solid var(--border);flex-shrink:0}
-.call-rail-title{font-size:.85rem;color:#00ff88;letter-spacing:.1em}
-.call-rail-close{background:none;border:none;color:var(--text-dim);cursor:pointer;font-family:var(--font);font-size:.9rem}
-.call-rail-close:hover{color:var(--text)}
+.call-rail-slot{display:inline-flex;align-items:center}
 .call-rail-body{flex:1;overflow-y:auto;padding:.75rem;display:flex;flex-direction:column;gap:.75rem}
 .call-participant{display:flex;align-items:center;gap:.5rem;padding:.4rem .5rem;background:var(--bg2);border:1px solid var(--border)}
 .call-participant-name{font-size:.85rem;color:var(--text);flex:1}
 .call-participant-status{font-size:.7rem;color:#00ff88}
-.call-participant .video-container{width:100%;aspect-ratio:4/3;background:#000;display:none;margin-top:.4rem;border:1px solid var(--border)}
-.call-participant .video-container.active{display:block}
-.call-participant .video-container video{width:100%;height:100%;object-fit:cover}
+.call-participant{flex-wrap:wrap}
+/* ---- theater mode: widen the rail in-flex; sidebar and chat stay usable ---- */
+.call-rail.theater{width:var(--theater-w,560px)}
+#callMedia{display:flex;flex-direction:column;gap:.4rem;width:100%;min-width:0}
+/* theater layout: one large stage, the rest as a thumbnail strip beneath it */
+#callMedia.theater{gap:.5rem}
+#callMedia.theater .media-tile.staged{width:100%;margin-top:0}
+#callMedia.theater .media-tile.thumb{width:132px;flex:0 0 auto;margin-top:0;opacity:.85}
+#callMedia.theater .media-tile.thumb:hover{opacity:1;border-color:#ffaa00}
+#callMedia.theater .media-tile.thumb.cam,#callMedia.theater .media-tile.thumb.screen{aspect-ratio:16/9}
+#callThumbStrip{display:flex;flex-direction:row;gap:.4rem;width:100%;overflow-x:auto;padding-bottom:.2rem}
+/* full-rail fullscreen (native or in-page fallback) keeps header + controls on screen */
+.call-rail:fullscreen,.call-rail:-webkit-full-screen{width:100vw;height:100vh;background:var(--bg)}
+.call-rail.rail-fs-fallback{position:fixed;inset:0;width:100vw;height:100vh;z-index:10000;
+  background:var(--bg);border-left:none}
+/* ---- media tiles: one per active camera / screen share, never rebuilt in place ---- */
+.media-tile{position:relative;width:100%;background:#000;border:1px solid var(--border);margin-top:.4rem}
+.media-tile.cam{aspect-ratio:4/3}
+.media-tile.screen{aspect-ratio:16/9}
+.media-tile video{width:100%;height:100%;display:block}
+/* fitting rules hold in the rail AND expanded */
+.media-tile.cam video{object-fit:cover}
+.media-tile.screen video{object-fit:contain}
+.media-tile-label{position:absolute;left:.3rem;bottom:.3rem;font-size:.6rem;letter-spacing:.05em;
+  color:#ddd;background:rgba(0,0,0,.55);padding:0 .25rem;pointer-events:none;max-width:70%;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.media-expand{position:absolute;top:.3rem;right:.3rem;font-family:var(--font);font-size:.7rem;
+  line-height:1;padding:.15rem .3rem;background:rgba(0,0,0,.55);border:1px solid #666;color:#ccc;
+  cursor:pointer;transition:box-shadow .15s}
+.media-expand:hover,.media-expand:focus-visible{box-shadow:0 0 8px currentColor;color:#fff}
+.media-fs{position:absolute;right:.3rem;bottom:.3rem;display:none;font-family:var(--font);
+  font-size:.7rem;line-height:1;padding:.15rem .3rem;background:rgba(0,0,0,.55);
+  border:1px solid #666;color:#ccc;cursor:pointer;transition:box-shadow .15s}
+.media-fs:hover,.media-fs:focus-visible{box-shadow:0 0 8px currentColor;color:#fff}
+/* only the staged theater tile offers fullscreen */
+.media-tile.staged .media-fs{display:block}
+/* native fullscreen: fill the screen, keep the per-kind fit */
+/* the staged tile grows with the rail; fitting rules below are never overridden */
+.call-rail:fullscreen #callMedia .media-tile.staged,
+.call-rail.rail-fs-fallback #callMedia .media-tile.staged{max-height:70vh}
 .call-controls{display:flex;gap:.5rem;padding:.75rem;border-top:1px solid var(--border);flex-shrink:0;justify-content:center}
-.call-ctrl-btn{font-family:var(--font);font-size:.7rem;padding:.35rem .6rem;background:transparent;cursor:pointer;letter-spacing:.05em;border:1px solid #666;color:#888;transition:all .15s}
-.call-ctrl-btn:hover{border-color:#ffaa00;color:#ffaa00;background:rgba(255,170,0,.1)}
-.call-ctrl-btn.active{border-color:#ffaa00;color:#ffaa00;box-shadow:0 0 8px rgba(255,170,0,.4),inset 0 0 6px rgba(255,170,0,.1)}
-.call-ctrl-btn.muted-state{color:#666;text-decoration:line-through}
-.call-ctrl-btn.muted-state:hover{border-color:#ffaa00;color:#ffaa00;text-decoration:none}
-.call-ctrl-btn.hang{border-color:#666;color:#888}
-.call-ctrl-btn.hang:hover{border-color:#ff4444;color:#ff4444;background:rgba(255,68,68,.15);box-shadow:0 0 8px rgba(255,68,68,.4)}
+.call-ctrl-btn{font-family:var(--font);font-size:.7rem;padding:.35rem .6rem;background:transparent;cursor:pointer;letter-spacing:.05em;transition:box-shadow .15s}
+/* explicit state classes -- exactly one of .on/.off/.idle is set by syncCallControls() */
+.call-ctrl-btn.on{border:1px solid #00ff88;color:#00ff88}
+.call-ctrl-btn.off{border:1px solid #ff4444;color:#ff4444}
+.call-ctrl-btn.idle{border:1px solid #666;color:#888}
+/* the muted slash is presentation only and must survive hover/focus */
+.call-ctrl-btn.muted-state{text-decoration:line-through}
+/* hover/focus adds a glow in the button's CURRENT colour and changes nothing else, so an
+   inactive control can never be mistaken for an active one and the slash never clears */
+.call-ctrl-btn:hover,.call-ctrl-btn:focus-visible{box-shadow:0 0 8px currentColor}
 .note-call-badge{display:none;align-items:center;gap:3px;margin-left:auto;flex-shrink:0;font-size:.65rem;color:#00ff88}
 .note-call-badge .call-pip{width:6px;height:6px;border-radius:50%;background:#00ff88;animation:callPulse 1.5s ease-in-out infinite}
 .note-item.has-call .note-call-badge{display:flex}
@@ -587,8 +686,12 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
     </div>
   </header>
   <div class="app-body">
+    <button class="sidebar-restore" id="sidebarRestore" type="button"
+      title="Show sidebar (drag right to size)" aria-label="Show sidebar" aria-expanded="false">NOTES ›</button>
     <aside class="sidebar" id="sidebar">
-      <div class="sidebar-resize" id="sidebarResize"></div>
+      <div class="sidebar-resize" id="sidebarResize" role="separator" tabindex="0"
+        aria-orientation="vertical" aria-label="Resize sidebar (Enter to hide)"
+        title="Drag to resize, drag left to hide"></div>
       <div class="sidebar-top">
         <div class="view-toggle">
           <button class="view-toggle-opt active" id="toggleNotes" onclick="switchView('notes')">NOTES</button>
@@ -666,12 +769,16 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
       <div class="chat-header">
         <span class="chat-note-name" id="chatNoteName" onclick="openCurrentNoteMenu(event)">Cover</span>
         <span id="readOnlyBadge" style="display:none;font-size:.6rem;padding:.1rem .4rem;border:1px solid #ff4444;color:#ff4444;letter-spacing:.06em;margin-left:.4rem;vertical-align:middle">READ ONLY</span>
-        <span class="call-indicator" id="callIndicator" onclick="toggleCallRail()" style="cursor:pointer"><span class="call-dot"></span><span id="callParticipantCount">0</span> in call</span>
+        <button class="call-indicator" id="callIndicator" type="button" onclick="toggleCallRail()"
+          style="cursor:pointer" title="Show call view" aria-label="Show call view"><span class="call-dot"></span><span id="callParticipantCount">0</span> in call</button>
         <button class="share-btn" id="shareBtn" onclick="openSharePrompt()">SHARE</button>
+        <span class="call-btn-slot" id="callBtnSlot"></span>
         <button class="call-btn" id="callBtn" onclick="toggleCall()">CALL</button>
       </div>
       <div class="pin-surface" id="pinSurface"></div>
       <div class="chat-messages" id="chatMessages"></div>
+      <button class="call-restore" id="callRestoreHandle" type="button"
+        title="Show call view (drag left to size)" aria-label="Show call view">CALL VIEW ›</button>
       <div class="chat-input-area" style="position:relative">
         <div class="mention-dropdown" id="mentionDropdown"></div>
         <div class="reply-bar" id="replyBar">
@@ -703,6 +810,8 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
         </div>
       </div>
     </section>
+    <button class="chat-restore" id="chatRestoreHandle" type="button"
+      title="Show chat" aria-label="Show chat" aria-expanded="false">CHAT ›</button>
     <aside class="artifact-panel" id="artifactPanel">
       <div class="artifact-header">
         <span class="artifact-title" id="artifactPanelTitle"></span>
@@ -711,10 +820,13 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
       <div class="artifact-body" id="artifactPanelBody"></div>
       <div class="artifact-meta" id="artifactPanelMeta"></div>
     </aside>
+    <div class="call-rail-resize" id="callRailResize" role="separator" tabindex="0"
+      aria-orientation="vertical" aria-label="Resize call view (Enter to hide)"
+      title="Drag to resize, drag right to hide"></div>
     <aside class="call-rail" id="callRail">
       <div class="call-rail-header">
-        <span class="call-rail-title">CALL</span>
-        <button class="call-rail-close" onclick="closeCallRail()">✕</button>
+        <!-- #callBtn is reparented here by placeCallBtn() while the rail is open -->
+        <span class="call-rail-slot" id="callRailSlot"></span>
       </div>
       <div class="call-rail-body" id="callRailBody">
         <div style="font-size:.8rem;color:var(--text-dim)">No active call</div>
@@ -723,7 +835,6 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
         <button class="call-ctrl-btn mute" id="muteBtn" onclick="toggleMute()">MIC</button>
         <button class="call-ctrl-btn video" id="videoBtn" onclick="toggleVideo()">CAM</button>
         <button class="call-ctrl-btn screen" id="screenBtn" onclick="toggleScreen()">SCREEN</button>
-        <button class="call-ctrl-btn hang" onclick="hangUp()">END</button>
       </div>
     </aside>
   </div>
@@ -1046,9 +1157,35 @@ function getSigilSvg(ship){
     return svg||null;
   }catch(e){console.warn('[sigil] error',ship,e);return null}
 }
+// ===== call-control system messages =====
+// The backend durably stores \x01SYS:call-started / -joined / -left / -ended markers.
+// They carry no user content and drive NO call state -- participants, signaling and the
+// CALL/JOIN/END lifecycle all come from state.activeCalls via the %call-* updates -- so
+// the product UI hides them completely. Flip this to true to surface the raw markers
+// again while debugging; nothing else needs to change.
+const SHOW_CALL_SYSTEM_MESSAGES=false;
+// isCallControl: exact match on the four call marker kinds. Deliberately narrow -- it
+// never matches SYS:host-delete or SYS:art-delete, which keep their system rendering.
+function isCallControl(text){
+  if(!text||text.charCodeAt(0)!==1)return false;
+  const p=text.slice(1).split(':');
+  if(p[0]!=='SYS')return false;
+  return p[1]==='call-started'||p[1]==='call-joined'||p[1]==='call-left'||p[1]==='call-ended';
+}
+// a stored message that must have no visible effect at all while the flag is off
+function isHiddenCallMsg(m){
+  return !SHOW_CALL_SYSTEM_MESSAGES&&!!m&&isCallControl(m.text);
+}
+// strip hidden call markers from a message array; identity when the flag is on.
+// state.messages is never mutated -- markers stay stored for diagnostics.
+function visibleMsgs(msgs){
+  if(!msgs)return [];
+  if(SHOW_CALL_SYSTEM_MESSAGES)return msgs;
+  return msgs.filter(m=>!isCallControl(m.text));
+}
 function getLastMessage(noteId){
-  let msgs=state.messages[noteId];
-  if(!msgs||!msgs.length)return null;
+  let msgs=visibleMsgs(state.messages[noteId]);
+  if(!msgs.length)return null;
   if(isGossipNote(noteId))msgs=msgs.filter(coverMsgVisible);
   if(!msgs.length)return null;
   return msgs[msgs.length-1];
@@ -1119,7 +1256,7 @@ function saveReadCursors(){
   },250);
 }
 function latestMsgOrder(noteId){
-  const msgs=state.messages[noteId]||[];
+  const msgs=visibleMsgs(state.messages[noteId]);
   let max=0;
   for(const m of msgs){const o=msgOrder(m);if(typeof o==='number'&&o>max)max=o}
   return max;
@@ -1127,7 +1264,7 @@ function latestMsgOrder(noteId){
 // durable backend unread signal (independent of the local read cursor).
 function noteHasDurableUnread(noteId){return (state.noteUnreadActivity[noteId]||0)>(state.noteRead[noteId]||0)}
 function oldestUnreadMessage(noteId){
-  const msgs=state.messages[noteId]||[];
+  const msgs=visibleMsgs(state.messages[noteId]);
   if(!msgs.length)return null;
   const cur=state.noteReadCursors[noteId];
   if(cur==null){
@@ -1464,7 +1601,9 @@ function scheduleNoteList(){if(_noteListTimer)clearTimeout(_noteListTimer);_note
 // (the jitter on an unrelated invite). Names/avatars elsewhere refresh on the next render.
 function profileTouchesOpenNote(ship){
   const nid=state.currentNoteId;if(!nid)return false;
-  const msgs=state.messages[nid];if(!msgs)return false;
+  // visible authors only: a ship that appears solely as the author of a hidden call
+  // marker must not make a profile change re-render (and remount) the timeline
+  const msgs=visibleMsgs(state.messages[nid]);if(!msgs.length)return false;
   for(let i=0;i<msgs.length;i++)if(msgs[i].author===ship)return true;
   return false;
 }
@@ -1504,8 +1643,29 @@ function handleUpdate(upd){
   else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));if(state.pendingRedirect&&state.pendingRedirect.to===n.id){state.notes[n.id]=n;if(!n.localImport)hydrateDmNoteProfile(n);state.pendingRedirect=null;if(state.currentNoteId===n.id)scheduleRender(n.id);scheduleNoteList();return;}const wasPendingJoin=!!state.pendingJoins[n.id];const wasAcceptedFork=state.acceptingForkRoots.has(n.id);if(wasAcceptedFork)state.acceptingForkRoots.delete(n.id);delete state.pendingJoins[n.id];delete state.removedFromNotes[n.id];state.notes[n.id]=n;if(!n.localImport)hydrateDmNoteProfile(n);if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id)}if(state.pendingWalletMsg&&n.type==='dm'){const pw=state.pendingWalletMsg;if(n.users&&n.users.length===2&&n.users.includes(pw.ship)){api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:n.id,text:pw.text}});state.pendingWalletMsg=null}}if(n.creator==='~'+api.ship){if(n.parent)state.expandedNotes.add(n.parent);openNote(n.id)}else if(wasAcceptedFork){if(state.palsView)switchView('notes');openNote(n.id)}else if(wasPendingJoin){document.querySelectorAll('.profile-flow-modal').forEach(el=>el.remove());state.viewingProfileShip=null;if(state.palsView)switchView('notes');if(n.visibility==='public'){openNote(n.id)}else{state.notifications.add(n.id)}}else if(state.pendingGossipFetch&&state.pendingGossipFetch.nid===n.id){clearTimeout(state.pendingGossipFetch.timer);state.pendingGossipFetch=null;if(state.palsView)switchView('notes');openNote(n.id)}else{if(state.palsView)switchView('notes');state.notifications.add(n.id)}scheduleNoteList()}
   else if(upd['note-renamed']){const{id,name}=upd['note-renamed'];if(state.notes[id]){state.notes[id].name=name;renderNoteList()}if(state.currentNoteId===id)document.getElementById('chatNoteName').textContent=state.notes[id]?noteDisplayName(state.notes[id]):name}
   else if(upd['note-deleted']){const{id}=upd['note-deleted'];const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];delete state.noteAdmins[id];delete state.noteMuted[id];delete state.notePins[id];delete state.noteActive[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];delete state.attention[id];state.notifications.delete(id);state.notificationAcks.delete(notifAckKey('removed-status',id));state.notificationAcks.delete(notifAckKey('host-deleted-status',id));delete state.noteActivity[id];delete state.noteUnreadActivity[id];delete state.noteRead[id];for(const _e in state.artifactRefs){if(state.artifactRefs[_e].noteId===id)delete state.artifactRefs[_e]}if(state.currentNoteId===id)openNote('cover');renderNoteList()}
-  else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];let maxSeq=0,revSum=0,importAcc='';for(const m of messages){if(m.meta){if(m.meta.seq>maxSeq)maxSeq=m.meta.seq;revSum+=m.meta.rev}if(m.import)importAcc+=(m.meta&&m.meta.eid?m.meta.eid:m.id)+'='+m.import.source+':'+m.import.sentAt+';'}const hash=noteId+':'+messages.length+':'+maxSeq+':'+revSum+':'+importAcc;if(_lastMsgHash[noteId]===hash)return;_lastMsgHash[noteId]=hash;state.messages[noteId]=messages;for(const a of artifacts)state.artifacts[a.id]=a;if(state.currentNoteId===noteId){if(!ScrollCo.consumeOpenIntent(noteId))scheduleRender(noteId);renderPinSurface(noteId)}updateCoverPreview();scheduleNoteList()}
-  else if(upd['new-message']){const msg=upd['new-message'];if(!state.messages[msg.noteId])state.messages[msg.noteId]=[];/* Part 1B: EID-first dedup. A modern msg dups only by matching eid; a legacy msg only by [author,id]. Same @da id with different eids both survive. */if(state.messages[msg.noteId].some(m=>msgKeyOf(m)===msgKeyOf(msg)))return;state.messages[msg.noteId].push(msg);if(state.notes[msg.noteId]&&state.notes[msg.noteId].type==='dm'&&!msg.import){state.notes[msg.noteId].localImport=false;hydrateDmNoteProfile(state.notes[msg.noteId])}/* correction 5: a \01SYS:art-delete deletion marker must never become the sidebar preview; preserve the preceding preview/source so live and reload agree (backend leaves note.last-preview untouched). */if(state.notes[msg.noteId]&&!isArtDeleteControl(msg.text)){state.notes[msg.noteId].lastAuthor=msg.author;state.notes[msg.noteId].lastPreview=msg.text}if(state.currentNoteId===msg.noteId){const isOwn=msg.author===('~'+api.ship);if(!isOwn){const _cmEl=document.getElementById('chatMessages');if(_cmEl&&!isNearBottom(_cmEl)&&!state.unreadDividers[msg.noteId]){const _ord=msgOrder(msg);if(typeof _ord==='number')state.unreadDividers[msg.noteId]={order:_ord,until:_ord}}}appendMessage(msg,isOwn)}else state.notifications.add(msg.noteId);updateCoverPreview();markOpenNoteReadSoon(msg.noteId);scheduleNoteList()}
+  else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];
+    /* Hash the VISIBLE timeline only. A snapshot that differs solely by hidden call
+       markers must not schedule a render, because a render destroys and remounts every
+       interactive artifact iframe. Iterating only visible messages also keeps revSum
+       finite: a marker with meta but no meta.rev would make it NaN and permanently stop
+       edits from registering. */
+    const _vis=visibleMsgs(messages);
+    let maxSeq=0,revSum=0,importAcc='';
+    for(const m of _vis){if(m.meta){if(m.meta.seq>maxSeq)maxSeq=m.meta.seq;revSum+=m.meta.rev}if(m.import)importAcc+=(m.meta&&m.meta.eid?m.meta.eid:m.id)+'='+m.import.source+':'+m.import.sentAt+';'}
+    const hash=noteId+':'+_vis.length+':'+maxSeq+':'+revSum+':'+importAcc;
+    if(_lastMsgHash[noteId]===hash){
+      /* The visible timeline is unchanged, so nothing below may run -- but the snapshot
+         may still carry NEW markers that have to be kept for diagnostics. Replace only
+         when this snapshot is a strict superset: identical visible content, more rows.
+         A locally appended message the snapshot has not caught up to raises our visible
+         count, fails the guard, and is never dropped. */
+      const _cur=state.messages[noteId];
+      if(!_cur||(visibleMsgs(_cur).length===_vis.length&&messages.length>_cur.length))
+        state.messages[noteId]=messages;
+      return;
+    }
+    _lastMsgHash[noteId]=hash;state.messages[noteId]=messages;for(const a of artifacts)state.artifacts[a.id]=a;if(state.currentNoteId===noteId){if(!ScrollCo.consumeOpenIntent(noteId))scheduleRender(noteId);renderPinSurface(noteId)}updateCoverPreview();scheduleNoteList()}
+  else if(upd['new-message']){const msg=upd['new-message'];if(!state.messages[msg.noteId])state.messages[msg.noteId]=[];/* Part 1B: EID-first dedup. A modern msg dups only by matching eid; a legacy msg only by [author,id]. Same @da id with different eids both survive. */if(state.messages[msg.noteId].some(m=>msgKeyOf(m)===msgKeyOf(msg)))return;state.messages[msg.noteId].push(msg);/* call markers stay stored but have no UI effect: no preview, no notification, no unread divider, no render */if(isHiddenCallMsg(msg))return;if(state.notes[msg.noteId]&&state.notes[msg.noteId].type==='dm'&&!msg.import){state.notes[msg.noteId].localImport=false;hydrateDmNoteProfile(state.notes[msg.noteId])}/* correction 5: a \01SYS:art-delete deletion marker must never become the sidebar preview; preserve the preceding preview/source so live and reload agree (backend leaves note.last-preview untouched). */if(state.notes[msg.noteId]&&!isArtDeleteControl(msg.text)){state.notes[msg.noteId].lastAuthor=msg.author;state.notes[msg.noteId].lastPreview=msg.text}if(state.currentNoteId===msg.noteId){const isOwn=msg.author===('~'+api.ship);if(!isOwn){const _cmEl=document.getElementById('chatMessages');if(_cmEl&&!isNearBottom(_cmEl)&&!state.unreadDividers[msg.noteId]){const _ord=msgOrder(msg);if(typeof _ord==='number')state.unreadDividers[msg.noteId]={order:_ord,until:_ord}}}appendMessage(msg,isOwn)}else state.notifications.add(msg.noteId);updateCoverPreview();markOpenNoteReadSoon(msg.noteId);scheduleNoteList()}
   else if(upd['artifact-created']){const a=upd['artifact-created'];state.artifacts[a.id]=a;if((a.type==='app'||a.type==='file')&&a.noteId===state.currentNoteId){scheduleRender(a.noteId);renderPinSurface(a.noteId)}}
   else if(upd['artifact-updated']){
     const a=upd['artifact-updated'];state.artifacts[a.id]=a;
@@ -1605,7 +1765,7 @@ function handleUpdate(upd){
   else if(upd['artifact-envelope']){const d=upd['artifact-envelope'];const nid=d.noteId;const env=d.envelope;if(!state.artifactEnvelopes[nid])state.artifactEnvelopes[nid]={};if(state.artifactEnvelopes[nid][env.aid])return;state.artifactEnvelopes[nid][env.aid]=env;state.artifactEnvHops[env.aid]=(typeof d.hops==='number')?d.hops:1;fetchTopWindowEnvelopes(nid);if(state.currentNoteId===nid)scheduleRender(nid);else if(artEnvVisible(env))state.notifications.add(nid);markOpenNoteReadSoon(nid);scheduleNoteList()}
   else if(upd['artifact-envelope-list']){const d=upd['artifact-envelope-list'];const nid=d.noteId;if(!state.artifactEnvelopes[nid])state.artifactEnvelopes[nid]={};let added=0;for(const e of d.envelopes||[]){if(state.artifactEnvelopes[nid][e.aid])continue;state.artifactEnvelopes[nid][e.aid]=e;if(state.artifactEnvHops[e.aid]===undefined)state.artifactEnvHops[e.aid]=1;added++}if(added)fetchTopWindowEnvelopes(nid);if(added&&state.currentNoteId===nid)scheduleRender(nid)}
   else if(upd['message-edited']){const{noteId,message}=upd['message-edited'];const msgs=state.messages[noteId]||[];const eid=message.meta&&message.meta.eid;const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===message.id);if(fi>=0){msgs[fi]=message}if(state.currentNoteId===noteId)scheduleRender(noteId)}
-  else if(upd['message-deleted']){const{noteId,msgId,eid}=upd['message-deleted'];const msgs=state.messages[noteId]||[];const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===msgId);const removed=fi>=0?msgs[fi]:null;if(fi>=0)msgs.splice(fi,1);if(removed&&removed.import&&state.notes[noteId]){let prior=null;for(let i=msgs.length-1;i>=0;i--){if(!isArtDeleteControl(msgs[i].text)){prior=msgs[i];break}}state.notes[noteId].lastAuthor=prior?prior.author:null;state.notes[noteId].lastPreview=prior?prior.text:null;scheduleNoteList()}if(state.currentNoteId===noteId){renderPinSurface(noteId);scheduleRender(noteId)}}
+  else if(upd['message-deleted']){const{noteId,msgId,eid}=upd['message-deleted'];const msgs=state.messages[noteId]||[];const idx=eid?msgs.findIndex(m=>m.meta&&m.meta.eid===eid):-1;const fi=idx>=0?idx:msgs.findIndex(m=>m.id===msgId);const removed=fi>=0?msgs[fi]:null;if(fi>=0)msgs.splice(fi,1);if(removed&&removed.import&&state.notes[noteId]){let prior=null;for(let i=msgs.length-1;i>=0;i--){if(!isArtDeleteControl(msgs[i].text)&&!isHiddenCallMsg(msgs[i])){prior=msgs[i];break}}state.notes[noteId].lastAuthor=prior?prior.author:null;state.notes[noteId].lastPreview=prior?prior.text:null;scheduleNoteList()}if(state.currentNoteId===noteId){renderPinSurface(noteId);scheduleRender(noteId)}}
   else if(upd['search-result']){const{reqId,query,hits,capped}=upd['search-result'];if(reqId!==state.searchReqInFlight)return;if(String(query||'')!==state.searchQuery)return;state.searchMessageHits=Array.isArray(hits)?hits:[];state.searchMessageCapped=!!capped;if(state.searchQuery)renderSidebarSearchResults()}
   else if(upd['profile-lookup-result']){const{reqId,ship,status}=upd['profile-lookup-result'];if(state.profileLookupInFlight[reqId]!==ship)return;
     // %reachable is the ONE non-terminal status: a packet was seen during this lookup but
@@ -1614,7 +1774,7 @@ function handleUpdate(upd){
     // modal opened or recreated. The timer later resolves reachable -> noltbook-unavailable.
     if(status==='reachable'){state.profileLookupStatus[ship]='reachable';if(state.searchQuery)renderSidebarSearchResults();refreshOpenProfileCard(ship);return}
     delete state.profileLookupInFlight[reqId];if(state.profileLookupTimers[ship]){clearTimeout(state.profileLookupTimers[ship]);delete state.profileLookupTimers[ship]}const _plWasMention=!!(state._mentionLookups&&state._mentionLookups.has(ship));const _plCardOpen=!!findOpenProfileOverlay(ship);if(status==='ok'){delete state.profileLookupStatus[ship];if(state._mentionLookups)state._mentionLookups.delete(ship);removeMentionLookupPopover(ship,0);if(state.searchQuery)renderSidebarSearchResults();if(_plCardOpen){requestProfileRemoteNotes(ship);refreshOpenProfileCard(ship)}else if(_plWasMention){viewProfile(ship)}}else{state.profileLookupStatus[ship]=(status==='noltbook-unavailable')?'noltbook-unavailable':'unreachable';if(state.searchQuery)renderSidebarSearchResults();refreshOpenProfileCard(ship);if(_plWasMention){state._mentionLookups.delete(ship);if(_mentionLookupPopovers[ship]){showMentionLookupPopover(ship,"this user can't be reached",'#ff4444',null);removeMentionLookupPopover(ship,3000)}}}}
-  else if(upd['profile-list']){const _plNid=state.currentNoteId;const _plAu=_plNid?new Set((state.messages[_plNid]||[]).map(m=>m.author)):null;let _plDirty=false;let _plDmDirty=false;let _plStale=false;for(const entry of upd['profile-list']){if(reconcileStaleLookupOnProfile(entry.ship))_plStale=true;const _plOld=state.profiles[entry.ship];const _plChanged=JSON.stringify(_plOld)!==JSON.stringify(entry.profile);if(_plAu&&_plAu.has(entry.ship)&&_plChanged)_plDirty=true;state.profiles[entry.ship]=entry.profile;clearDmProfileHydrating(entry.ship);const uav=entry.profile&&entry.profile.avatar&&entry.profile.avatar.type==='urbit';if(uav){if(!avatarRevisionByShip[entry.ship])avatarRevisionByShip[entry.ship]=Date.now()}else{delete avatarRevisionByShip[entry.ship]}if(_plChanged&&findDmRoot(entry.ship))_plDmDirty=true}const me=state.profiles['~'+api.ship];if(me){if(me.displayName)document.getElementById('shipDisplay').textContent=me.displayName;updateSidebarSigil()}if(state.palsView)renderPalsList();if(_plDmDirty){scheduleNoteList();const _cn=state.currentNoteId?state.notes[state.currentNoteId]:null;if(_cn&&_cn.type==='dm'){const _cp=dmCounterparty(_cn);if(_cp&&upd['profile-list'].some(e=>e.ship===_cp)){const _el=document.getElementById('chatNoteName');if(_el)_el.textContent=noteDisplayName(_cn)}}}if(_plDirty)scheduleRender();if(_plStale&&state.searchQuery)renderSidebarSearchResults();if(document.querySelector('.view-profile-overlay')){for(const entry of upd['profile-list'])refreshOpenProfileCard(entry.ship)}}
+  else if(upd['profile-list']){const _plNid=state.currentNoteId;const _plAu=_plNid?new Set(visibleMsgs(state.messages[_plNid]).map(m=>m.author)):null;let _plDirty=false;let _plDmDirty=false;let _plStale=false;for(const entry of upd['profile-list']){if(reconcileStaleLookupOnProfile(entry.ship))_plStale=true;const _plOld=state.profiles[entry.ship];const _plChanged=JSON.stringify(_plOld)!==JSON.stringify(entry.profile);if(_plAu&&_plAu.has(entry.ship)&&_plChanged)_plDirty=true;state.profiles[entry.ship]=entry.profile;clearDmProfileHydrating(entry.ship);const uav=entry.profile&&entry.profile.avatar&&entry.profile.avatar.type==='urbit';if(uav){if(!avatarRevisionByShip[entry.ship])avatarRevisionByShip[entry.ship]=Date.now()}else{delete avatarRevisionByShip[entry.ship]}if(_plChanged&&findDmRoot(entry.ship))_plDmDirty=true}const me=state.profiles['~'+api.ship];if(me){if(me.displayName)document.getElementById('shipDisplay').textContent=me.displayName;updateSidebarSigil()}if(state.palsView)renderPalsList();if(_plDmDirty){scheduleNoteList();const _cn=state.currentNoteId?state.notes[state.currentNoteId]:null;if(_cn&&_cn.type==='dm'){const _cp=dmCounterparty(_cn);if(_cp&&upd['profile-list'].some(e=>e.ship===_cp)){const _el=document.getElementById('chatNoteName');if(_el)_el.textContent=noteDisplayName(_cn)}}}if(_plDirty)scheduleRender();if(_plStale&&state.searchQuery)renderSidebarSearchResults();if(document.querySelector('.view-profile-overlay')){for(const entry of upd['profile-list'])refreshOpenProfileCard(entry.ship)}}
   else if(upd['profile-updated']){const{ship,profile}=upd['profile-updated'];const _puOld=state.profiles[ship];state.profiles[ship]=profile;clearDmProfileHydrating(ship);const uav=profile&&profile.avatar&&profile.avatar.type==='urbit';if(uav){avatarRevisionByShip[ship]=Date.now()}else{delete avatarRevisionByShip[ship]}if(ship==='~'+api.ship&&!uav)clearOwnAvatarBlob();if(ship==='~'+api.ship){document.getElementById('shipDisplay').textContent=profile.displayName||'~'+api.ship;updateSidebarSigil()}if(state.palsView)renderPalsList();if(profileTouchesOpenNote(ship)&&JSON.stringify(_puOld)!==JSON.stringify(profile))scheduleRender();if(reconcileStaleLookupOnProfile(ship)&&state.searchQuery)renderSidebarSearchResults();refreshOpenProfileCard(ship);refreshNotePresentation()}
   else if(upd['remote-note-list']){const{ship,notes}=upd['remote-note-list'];Object.keys(state.discoveryNotes).forEach(k=>{if(state.discoveryNotes[k].creator===ship)delete state.discoveryNotes[k]});for(const n of notes)state.discoveryNotes[n.id]=n;const el=document.getElementById('viewProfileNotes');if(el&&state.viewingProfileShip===ship){el.innerHTML=renderProfileNotesHtml(ship,'none available')}if(state.pendingRefOpen&&state.pendingRefOpen.creator===ship){const _pnid=state.pendingRefOpen.noteId;clearTimeout(state.pendingRefOpen.timer);state.pendingRefOpen=null;if(state.discoveryNotes[_pnid]){openNoteDetailModal(_pnid)}else{showRefUnavailable(_pnid,'Note unavailable')}}}
   else if(upd['pal-list']){for(const entry of upd['pal-list']){state.palStatus[entry.ship]=entry.status}if(state.palsView)renderPalsList();fetchVisibleEnvelopes();if(state.viewingProfileShip)updateViewProfileTags(state.viewingProfileShip)}
@@ -1669,7 +1829,11 @@ function handleUpdate(upd){
   else if(upd['call-started']){const d=upd['call-started'];console.log('[call-started]',d);state.activeCalls[d.noteId]={callId:d.callId,noteId:d.noteId,startedBy:d.startedBy,participants:d.participants,status:'active'};updateCallUI()}
   else if(upd['call-joined']){const{noteId,ship}=upd['call-joined'];console.log('[call-joined]',noteId,ship);const c=state.activeCalls[noteId];if(c){if(!c.participants.includes(ship))c.participants.push(ship);updateCallUI();if(state.inCall===noteId)rtcManager.onPeerJoined(ship)}}
   else if(upd['call-left']){const{noteId,ship}=upd['call-left'];console.log('[call-left]',noteId,ship);const c=state.activeCalls[noteId];if(c){c.participants=c.participants.filter(p=>p!==ship);updateCallUI();if(state.inCall===noteId)rtcManager.onPeerLeft(ship)}}
-  else if(upd['call-ended']){const{noteId,callId}=upd['call-ended'];const c=state.activeCalls[noteId];if(!c){console.log('[call-ended] no active call, ignoring');return}if(callId&&c.callId&&callId!==c.callId){console.log('[call-ended] stale callId',callId,'vs active',c.callId,', ignoring');return}console.log('[call-ended]',noteId,callId);delete state.activeCalls[noteId];if(state.inCall===noteId){rtcManager.hangUp();state.inCall=null}updateCallUI()}
+  else if(upd['call-ended']){const{noteId,callId}=upd['call-ended'];const c=state.activeCalls[noteId];if(!c){console.log('[call-ended] no active call, ignoring');return}if(callId&&c.callId&&callId!==c.callId){console.log('[call-ended] stale callId',callId,'vs active',c.callId,', ignoring');return}console.log('[call-ended]',noteId,callId);const wasOurs=state.inCall===noteId;delete state.activeCalls[noteId];if(wasOurs){rtcManager.hangUp();state.inCall=null}updateCallUI();
+    /* the call being displayed has fully ended -- put the view away through the normal
+       cleanup path. %call-left is deliberately NOT handled here: another participant
+       leaving while we are still joined must leave the rail open. */
+    if(wasOurs||noteId===state.currentNoteId)closeCallRail()}
   else if(upd['call-signal']){const{noteId,from,sigType,payload}=upd['call-signal'];console.log('[call-signal]',noteId,from,sigType);if(state.inCall===noteId)rtcManager.handleSignal(from,sigType,payload)}
   else if(upd['kick-notification']){const{noteId,noteName,from}=upd['kick-notification'];state.blockNotifications.push({noteId,noteName,from,time:Date.now()});state.removedFromNotes[noteId]=from;updateLogoBadge()}
   else if(upd['blocked-notification']){const{from}=upd['blocked-notification'];state.blockedBy[from]=true;state.blockNotifications.push({noteId:null,noteName:null,from,time:Date.now(),type:'blocked'});updateLogoBadge();if(state.currentNoteId){const cn=state.notes[state.currentNoteId];if(cn&&cn.type==='dm'){const cp=dmCounterparty(cn);if(cp===from)updateMuteUI()}}}
@@ -2490,7 +2654,7 @@ function makeNoteItem(n,depth){
   // none exists, show an empty preview. Otherwise keep prior behavior, still skipping a
   // control-message last-message fallback.
   let rawSource, rawPreview;
-  if(isArtDeleteControl(n.lastPreview)){
+  if(isArtDeleteControl(n.lastPreview)||(!SHOW_CALL_SYSTEM_MESSAGES&&isCallControl(n.lastPreview))){
     let _pm=null;const _pmsgs=state.messages[n.id]||[];
     for(let _i=_pmsgs.length-1;_i>=0;_i--){const _t=_pmsgs[_i].text;if(_t&&_t.charCodeAt(0)===1)continue;_pm=_pmsgs[_i];break}
     rawSource=_pm?_pm.author:'';
@@ -2707,7 +2871,10 @@ function runSidebarSearch(q){
   // MESSAGES: Phase 2 — comes from the agent via %search-result. Hits are
   //   only valid for the currently-typed query (back-compat guard for any
   //   in-flight or stale results lingering after fast typing).
-  const messages=state.searchMessageHits||[];
+  // hidden call markers are stored and therefore still returned by the backend scan;
+  // drop them here so a search for e.g. "call" never surfaces a raw marker.
+  const messages=(state.searchMessageHits||[]).filter(
+    h=>SHOW_CALL_SYSTEM_MESSAGES||!isCallControl(h&&h.preview));
   // PEOPLE: known ships by display name and @p
   const people=[];
   for(const ship of collectKnownShips()){
@@ -3508,7 +3675,7 @@ function renderMessages(noteId,target){
     hdr.innerHTML=`<div style="text-align:center;padding:1.2rem 1rem .6rem;color:#b088cc;font-style:italic;font-size:1.4rem;font-weight:bold">${escHtml(saying)}</div>`;
     el.appendChild(hdr);
   }
-  let msgs=state.messages[noteId]||[];
+  let msgs=visibleMsgs(state.messages[noteId]);
   if(isGossipNote(noteId)){msgs=msgs.filter(coverMsgVisible)}
   // seq ordering only when every message carries meta.seq (regular notes);
   // gossip/cover order by id/timestamp.
@@ -3795,6 +3962,8 @@ function renderMsg(el,msg,depth,isThreadAnchor){
   // the single canonical msg-<id> (standalone root or unique nested reply).
   const idSuf=isThreadAnchor?'-ta':'';
   if(msg.text&&msg.text.charCodeAt(0)===1){
+    // call markers are diagnostics only -- render nothing at all
+    if(!SHOW_CALL_SYSTEM_MESSAGES&&isCallControl(msg.text))return;
     const parts=msg.text.slice(1).split(':');
     if(parts[0]==='SYS'&&parts[1]==='host-delete'){
       const victim=parts[2]||'';
@@ -3914,8 +4083,13 @@ function canAppendMessageFast(msg){
   if(getAttentionTargets(noteId).length)return false;
   // any expanded threads: full render (collapse housekeeping rerenders)
   if(state.expandedThreads&&state.expandedThreads.size)return false;
-  // must be the new latest among existing messages (gossip: by id; else seq)
-  const msgs=state.messages[noteId]||[];
+  // must be the new latest among existing messages (gossip: by id; else seq).
+  // VISIBLE timeline only: a stored call marker carries no meta.seq, so appendOrder()
+  // falls back to its timestamp-like id (~1.7e12), which dwarfs every real seq. One
+  // marker would therefore make `max` unreachable and fail this test for every later
+  // post forever -- forcing renderMessages(), which wipes and rebuilds the timeline and
+  // reloads interactive artifact iframes.
+  const msgs=visibleMsgs(state.messages[noteId]);
   const myOrd=appendOrder(noteId,msg);
   if(typeof myOrd!=='number')return false;
   let max=0;
@@ -3951,6 +4125,9 @@ function appendMessageFast(msg,isOwn){
   return true;
 }
 function appendMessage(msg,isOwn){
+  // belt and braces: a hidden call marker renders nothing, so it must never reach the
+  // fast-path test or its renderMessages() fallback from ANY caller
+  if(isHiddenCallMsg(msg))return;
   if(state.expandedThreads){
     // Walk to the thread root starting from THIS message object (never a byId[m.id]
     // lookup, which collapses same-timestamp DM messages), preferring reply-to-EID
@@ -5945,14 +6122,399 @@ async function saveProfile(){
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function escAttr(s){return String(s).replace(/'/g,'&#39;').replace(/"/g,'&quot;')}
 document.addEventListener('click',(e)=>{if(!e.target.closest('.attach-wrap'))document.getElementById('attachMenu').classList.remove('open')});
-(function initSidebarResize(){
-  const sidebar=document.getElementById('sidebar');
-  const handle=document.getElementById('sidebarResize');
-  let dragging=false,startX=0,startW=0;
-  handle.addEventListener('mousedown',(e)=>{e.preventDefault();dragging=true;startX=e.clientX;startW=sidebar.offsetWidth;document.body.style.cursor='col-resize';document.body.style.userSelect='none'});
-  document.addEventListener('mousemove',(e)=>{if(!dragging)return;const w=Math.min(500,Math.max(150,startW+(e.clientX-startX)));sidebar.style.width=w+'px'});
-  document.addEventListener('mouseup',()=>{if(dragging){dragging=false;document.body.style.cursor='';document.body.style.userSelect=''}});
-})();
+// ===== edge dragging (Pointer Events: mouse, pen and touch share one path) =====
+// SB_MIN is the CONTENT-SAFE minimum: measured against the real rendered header, the
+// view toggle (113.8px) + "+ NEW"/"%PALS" (49.6px) + padding (21px) + gap (7px) need
+// 192px before either control starts compressing. 204 keeps a little headroom.
+// The snap threshold is the SAME value, so there is no band in which the sidebar can be
+// left open with a squeezed header: below it the panel closes, above it it clamps up.
+const SB_MIN=204, SB_MAX=500, SB_SNAP=SB_MIN;
+// clampSidebarWidth: the one place that enforces the safe range, so a drag, a keyboard
+// nudge, a restore-handle drag and an old undersized saved width all agree.
+function clampSidebarWidth(px){return Math.round(Math.min(SB_MAX,Math.max(SB_MIN,px)))}
+const RAIL_MIN=300, RAIL_SNAP=120;              // snap the call rail closed below 120px
+const DRAG_SLOP=4;                              // below this a gesture is a click, not a drag
+function dragChrome(on){
+  document.body.style.cursor=on?'col-resize':'';
+  document.body.style.userSelect=on?'none':'';
+}
+function syncSidebarSeparator(){
+  const sep=document.getElementById('sidebarResize'), sb=document.getElementById('sidebar');
+  if(!sep||!sb)return;
+  sep.setAttribute('aria-valuemin',String(SB_MIN));
+  sep.setAttribute('aria-valuemax',String(SB_MAX));
+  sep.setAttribute('aria-valuenow',String(Math.round(sb.getBoundingClientRect().width)));
+  const restore=document.getElementById('sidebarRestore');
+  if(restore)restore.setAttribute('aria-expanded',sb.classList.contains('collapsed')?'false':'true');
+}
+// the largest call-rail width that still leaves the chat usable
+// ===== ordinary (non-theater) sequential column resizing =====
+// Growing the call rail first eats chat's slack, then closes chat, then closes the
+// sidebar -- each step freeing the next tranche of width so ONE uninterrupted drag can
+// keep going. Both auto-collapses are tracked separately from the theater ones so a
+// panel the user closed themselves is never auto-reopened, and neither writes the saved
+// sidebar preference.
+let _rzAutoChat=false, _rzAutoSb=false;
+const RZ_HYST=24;                 // reopen margin, so a boundary cannot flap
+let _suppressChatClick=false;     // a completed drag must not also fire click-to-open
+function layoutTotals(){
+  const appBody=document.querySelector('.app-body');
+  const sb=document.getElementById('sidebar');
+  const sbR=document.getElementById('sidebarRestore');
+  const chR=document.getElementById('chatRestoreHandle');
+  // the artifact panel is width:0 when closed but still contributes its 1px border,
+  // so measure it rather than assuming zero
+  const ap=document.getElementById('artifactPanel');
+  return {
+    total:appBody?appBody.clientWidth:(window.innerWidth||1200),
+    sbW:sidebarCollapsed()?0:(sb?sb.offsetWidth:0),
+    sbRestoreW:(sbR&&sbR.classList.contains('show'))?sbR.offsetWidth:0,
+    chatRestoreW:(chR&&chR.classList.contains('show'))?chR.offsetWidth:0,
+    apW:ap?ap.offsetWidth:0
+  };
+}
+// the widest the rail may be RIGHT NOW, given which columns are currently open
+function railMaxWidth(){
+  const t=layoutTotals();
+  const chatFloor=_chatCollapsed?0:THEATER_MIN_CHAT;
+  return Math.max(RAIL_MIN,t.total-t.sbW-t.sbRestoreW-t.chatRestoreW-t.apW-chatFloor);
+}
+// ===== pointer-following sequential allocator =====
+// chat is flex:1, so it already shrinks continuously as the rail grows -- the old
+// ceiling of (total - 360) is what stopped it and forced the one-frame snap to zero.
+// Here the rail may keep growing while chat shrinks 360 -> 0, and the collapse is
+// FINALISED at exactly RZ_SWAP, the restore strip's width, so swapping an 18px sliver
+// of chat for an 18px handle moves the boundary by zero. The sidebar then does the same.
+const RZ_SWAP=18;                 // restore-strip width; the no-jump swap point
+let _rzSbBase=220;                // sidebar width at drag start
+// GESTURE SCOPE. Every pointer gesture declares which panels it is allowed to move.
+//   'all'          -- the ordinary main divider: chat, then Notes/Contacts.
+//   'theater-main' -- the theater main divider: same panels, theater width output.
+//   'chat'         -- the CHAT restore handle: chat and the rail only.
+//   'theater-chat' -- the CHAT restore handle while theater is active.
+//   'rail'         -- the hidden call-rail restore handle.
+// A main-divider gesture may collapse Notes/Contacts only when that panel was open at
+// the start of the gesture. Once Notes/Contacts is collapsed, it belongs to its own
+// restore handle: no call-rail or chat gesture may pull it open as a side effect.
+let _rzScope='all';
+let _rzSbFrozen=false;            // this gesture may not open, close or squeeze it
+// Theater is an output mode, not one sidebar policy. A theater main-divider gesture may
+// close an open Notes/Contacts panel; a theater CHAT gesture must leave it alone.
+let _rzTheater=false;             // this gesture drives the theater width variable
+let _rzAppliedW=null;             // last width the allocator actually wrote
+let _rzDragging=false;
+let _rzLastWant=null;             // previous target, to infer gesture direction
+function stripW(id,fallback){
+  const el=document.getElementById(id);
+  if(!el)return fallback;
+  const w=el.getBoundingClientRect().width;
+  return w>0?w:fallback;
+}
+// ===== active layout gesture =====
+// Any pointer gesture that owns column widths registers here. An asynchronous call or
+// theater teardown replaces the layout underneath a live gesture; the closure-local drag
+// record survives that, so without a token the surviving handler keeps writing widths
+// into a layout that no longer exists -- which is how a CHAT drag ended up reopening and
+// then squeezing Notes/Contacts, and how a theater drag kept writing --theater-w after
+// .theater had been removed.
+let _rzGen=0;                 // monotonically increasing token generation
+let _rzActive=null;           // {token,kind,el,pointerId,alive,reason}
+// kind: 'sidebar' | 'main-divider' | 'rail-restore' | 'chat-restore' | 'theater-split'
+function beginLayoutGesture(kind,el,pointerId){
+  // a lingering prior gesture (lost capture, missed pointerup) is cancelled first
+  if(_rzActive&&_rzActive.alive)abortLayoutGesture('superseded');
+  const token=++_rzGen;
+  _rzActive={token:token,kind:kind,el:el||null,
+             pointerId:(pointerId==null?null:pointerId),alive:true,reason:null};
+  return token;
+}
+// every pointermove/up/cancel asks this before touching anything
+function layoutGestureValid(token){
+  return !!_rzActive&&_rzActive.alive&&_rzActive.token===token;
+}
+// a NORMAL pointerup: retire the record without touching layout. Exactly once.
+function endLayoutGesture(token){
+  if(_rzActive&&_rzActive.token===token){_rzActive.alive=false;_rzActive=null}
+}
+// abortLayoutGesture(reason): cancel a live gesture and wipe TRANSIENT drag state only.
+// It never opens or closes a panel, never pokes, and never touches a settled rail width,
+// a saved sidebar preference, _rzAutoChat/_rzAutoSb ownership or the theater selection --
+// the teardown that called it owns the final layout. Idempotent; a no-op when idle.
+function abortLayoutGesture(reason){
+  const a=_rzActive;
+  // invalidate FIRST: everything below can run handlers re-entrantly
+  if(a){a.alive=false;a.reason=reason||'abort'}
+  _rzActive=null;
+  if(a&&a.el&&a.pointerId!=null){
+    try{a.el.releasePointerCapture(a.pointerId)}catch(e){}
+  }
+  const sb=document.getElementById('sidebar');
+  const rail=document.getElementById('callRail');
+  const wasSqueezed=!!sb&&sb.classList.contains('rz-squeeze');
+  if(sb){
+    sb.classList.remove('dragging','rz-squeeze','rz-settle');
+    sb.style.removeProperty('--sb-keep');
+    // a half-finished squeeze leaves an inline width the CSS floor no longer permits;
+    // put the DURABLE width back. This restores a preference, it does not rewrite one.
+    if(wasSqueezed&&!sb.classList.contains('collapsed')){
+      const saved=parseInt(localStorage.getItem(SB_WIDTH_KEY),10);
+      sb.style.width=clampSidebarWidth(saved||_rzSbBase||SB_MIN)+'px';
+    }
+  }
+  if(rail)rail.classList.remove('dragging','rz-settle');
+  document.querySelectorAll('.rz-settle').forEach(e=>e.classList.remove('rz-settle'));
+  dragChrome(false);
+  // transient allocator state only. _theaterManualW is a SETTLED split, not transient.
+  _rzDragging=false;_rzLastWant=null;_rzScope='all';_rzSbFrozen=false;
+  _rzTheater=false;_rzAppliedW=null;
+  return !!a;
+}
+function beginRailLayoutDrag(scope,seedW){
+  const sb=document.getElementById('sidebar');
+  const _rail=document.getElementById('callRail');
+  _rzScope=scope||'all';
+  _rzTheater=(_rzScope==='theater-main'||_rzScope==='theater-chat');
+  _rzAppliedW=null;
+  _rzDragging=true;
+  // seed the direction reference with the CURRENT width, otherwise the gesture's first
+  // move has no direction and falls back to "growing", which would reopen the sidebar
+  // one frame before chat on a reverse drag
+  // seedW overrides the measurement when the rect is not the real starting width --
+  // leaving fullscreen, for one, reports 100vw for a frame
+  _rzLastWant=(seedW!=null)?Math.round(seedW)
+             :(_rail?Math.round(_rail.getBoundingClientRect().width):null);
+  const mainDivider=(_rzScope==='all'||_rzScope==='theater-main');
+  _rzSbFrozen=!mainDivider||sidebarCollapsed();
+  if(!_rzSbFrozen&&sb&&!sidebarCollapsed())
+    _rzSbBase=Math.round(sb.getBoundingClientRect().width)||_rzSbBase;
+  if(sb&&!_rzSbFrozen)sb.style.setProperty('--sb-keep',_rzSbBase+'px');
+  document.querySelectorAll('.rz-settle').forEach(e=>e.classList.remove('rz-settle'));
+}
+function sbSqueeze(px){
+  const sb=document.getElementById('sidebar');
+  if(!sb)return;
+  sb.classList.add('rz-squeeze');
+  sb.style.width=Math.max(0,Math.round(px))+'px';
+}
+function sbUnsqueeze(){
+  const sb=document.getElementById('sidebar');
+  if(!sb)return;
+  sb.classList.remove('rz-squeeze');
+  sb.style.removeProperty('--sb-keep');
+}
+// railDragTo: allocate a desired rail width across chat and the sidebar continuously.
+// The order is direction-aware: TAKING space squeezes chat first and the sidebar second;
+// HANDING space back refills chat to its floor first and only then reopens the sidebar.
+// Both directions stay continuous -- nothing is ever restored in a single 0 -> 360 step.
+function chatOpenNow(){
+  if(!_chatCollapsed)return;
+  _rzAutoChat=false;_chatCollapsed=false;
+  const c=document.querySelector('.chat');if(c)c.classList.remove('chat-collapsed');
+  const h=document.getElementById('chatRestoreHandle');
+  if(h){h.classList.remove('show');h.setAttribute('aria-expanded','true')}
+}
+function chatCloseNow(){
+  if(_chatCollapsed)return;
+  _rzAutoChat=true;
+  const cm=document.getElementById('chatMessages');
+  if(cm&&_chatScrollTop==null)_chatScrollTop=cm.scrollTop;
+  _chatCollapsed=true;
+  const c=document.querySelector('.chat');if(c)c.classList.add('chat-collapsed');
+  const h=document.getElementById('chatRestoreHandle');
+  if(h){h.classList.add('show');h.setAttribute('aria-expanded','false')}
+}
+function sbOpenNow(){
+  if(!sidebarCollapsed())return;
+  _rzAutoSb=false;setSidebarCollapsed(false,false);
+}
+function sbCloseNow(){
+  if(sidebarCollapsed())return;
+  const sb=document.getElementById('sidebar');
+  _rzAutoSb=true;sbUnsqueeze();
+  if(sb)sb.style.width=_rzSbBase+'px';        // keep the width ready for the restore
+  setSidebarCollapsed(true,false);
+}
+function railDragTo(want){
+  const t=layoutTotals();
+  const avail=t.total-t.apW;
+  const sbEl=document.getElementById('sidebar');
+  if(_rzSbFrozen){
+    // The sidebar is off-limits for this gesture, so it keeps EXACTLY the room it holds
+    // now -- its full width if open, its restore strip if collapsed -- and only chat and
+    // the rail share what is left. Nothing here reads or writes _rzAutoSb.
+    const sbHold=sidebarCollapsed()?RZ_SWAP:(sbEl?sbEl.getBoundingClientRect().width:0);
+    // the clamp permanently reserves the chat strip, so `rem` bottoms out at RZ_SWAP.
+    // Finalising at `rem > RZ_SWAP` swaps a 19px chat sliver for an 18px handle and moves
+    // the boundary by ~0; the old `rem >= RZ_SWAP*2` closed chat from a 36px sliver and
+    // shifted the divider ~18px away from the pointer in that one frame.
+    want=Math.max(0,Math.min(avail-sbHold-RZ_SWAP,want));
+    _rzLastWant=want;
+    const rem=avail-want-sbHold;
+    if(rem>RZ_SWAP)chatOpenNow(); else chatCloseNow();
+    return want;
+  }
+  const sbBase=_rzSbBase;
+  // BOTH panels end at their 18px restore strips, so 2*RZ_SWAP is the real floor for
+  // everything that is not the rail. Reserving only one strip let `want` outrun what the
+  // layout can render by ~18px in the last stretch, and the divider stopped tracking the
+  // pointer there. RAIL_MIN applies on release, not during the drag.
+  want=Math.max(0,Math.min(avail-RZ_SWAP*2,want));
+  const growing=(_rzLastWant==null)||want>=_rzLastWant;
+  _rzLastWant=want;
+  const remaining=avail-want;
+  if(growing){
+    if(remaining>=sbBase+RZ_SWAP){
+      chatOpenNow();sbOpenNow();sbSqueeze(sbBase);
+    }else{
+      chatCloseNow();
+      const rem2=remaining-RZ_SWAP;             // chat's strip now occupies 18px
+      if(rem2>=sbBase){sbOpenNow();sbSqueeze(sbBase)}
+      // finalise AT the strip width, matching the chat swap: an 18px sliver of sidebar
+      // becomes an 18px handle and the boundary does not move
+      else if(rem2>RZ_SWAP){sbOpenNow();sbSqueeze(rem2)}
+      else sbCloseNow();
+    }
+  }else{
+    if(sidebarCollapsed()){
+      const forChat=remaining-RZ_SWAP;          // the sidebar strip is still in the layout
+      if(forChat>=THEATER_MIN_CHAT+RZ_SWAP){
+        chatOpenNow();sbOpenNow();
+        sbSqueeze(Math.min(sbBase,Math.max(0,remaining-THEATER_MIN_CHAT)));
+      }else if(forChat>=RZ_SWAP){
+        chatOpenNow();                           // chat refills 0 -> 360 on its own
+      }else chatCloseNow();
+    }else{
+      const cur=sbEl?sbEl.getBoundingClientRect().width:sbBase;
+      if(remaining-cur>=THEATER_MIN_CHAT){
+        chatOpenNow();sbSqueeze(Math.min(sbBase,remaining-THEATER_MIN_CHAT));
+      }else if(remaining-cur>=RZ_SWAP){
+        chatOpenNow();sbSqueeze(cur);
+      }else{
+        chatCloseNow();sbSqueeze(Math.max(0,remaining-RZ_SWAP));
+      }
+    }
+  }
+  return want;
+}
+// railSettleLayout: after release, no panel may sit at an unusable intermediate width.
+function railSettleLayout(){
+  const frozen=_rzSbFrozen, theater=_rzTheater;
+  let applied=_rzAppliedW;
+  _rzDragging=false;_rzLastWant=null;_rzScope='all';_rzSbFrozen=false;_rzTheater=false;
+  const setW=(px)=>{applied=Math.round(px);
+    if(theater)setTheaterWidth(px); else setRailWidth(px)};
+  const sb=document.getElementById('sidebar');
+  const chat=document.querySelector('.chat');
+  const rail=document.getElementById('callRail');
+  const t=layoutTotals();
+  const avail=t.total-t.apW;
+  const settle=(el)=>{if(!el)return;el.classList.add('rz-settle');
+    setTimeout(()=>el.classList.remove('rz-settle'),200)};
+  // sidebar partway through its squeeze -> nearest endpoint
+  if(!frozen&&sb&&sb.classList.contains('rz-squeeze')){
+    const w=sb.getBoundingClientRect().width;
+    sbUnsqueeze();
+    if(w<SB_MIN-RZ_HYST){
+      sb.style.width=_rzSbBase+'px';
+      _rzAutoSb=true;settle(sb);setSidebarCollapsed(true,false);
+    }else{
+      settle(sb);sb.style.width=clampSidebarWidth(Math.max(w,SB_MIN))+'px';
+    }
+  }
+  // chat partway between 0 and its floor -> settle to the NEARER endpoint
+  if(chat&&!_chatCollapsed){
+    const cw=chat.getBoundingClientRect().width;
+    if(cw<THEATER_MIN_CHAT-RZ_HYST){
+      settle(rail);
+      if(cw<THEATER_MIN_CHAT/2){
+        // closer to shut: finish the collapse and let the rail keep the room
+        _rzAutoChat=true;
+        const cm=document.getElementById('chatMessages');
+        if(cm&&_chatScrollTop==null)_chatScrollTop=cm.scrollTop;
+        _chatCollapsed=true;chat.classList.add('chat-collapsed');
+        const h=document.getElementById('chatRestoreHandle');
+        if(h){h.classList.add('show');h.setAttribute('aria-expanded','false')}
+        setW(Math.min(rail.getBoundingClientRect().width+cw-RZ_SWAP,railMaxWidth()));
+      }else{
+        setW(Math.max(RAIL_MIN,railMaxWidth()));   // closer to open: restore the floor
+      }
+    }
+  }
+  // railMaxWidth() already derives the ceiling from whichever panels are open and from
+  // whether chat is collapsed, so it is correct for theater unchanged.
+  const max=railMaxWidth();
+  if(rail&&rail.getBoundingClientRect().width>max+1){settle(rail);setW(max)}
+  // pin the settled split so a later re-render, viewport resize or sidebar observer
+  // cannot recompute theater back to its automatic width
+  if(theater&&applied!=null)_theaterManualW=Math.max(300,applied);
+  _rzAppliedW=null;
+}
+// railResizeTo stays as the non-drag entry point (keyboard, restore clamps)
+function railResizeTo(want){
+  if(_rzDragging)return railDragTo(want);
+  const before=want;
+  want=railDragTo(want);
+  railSettleLayout();
+  return want;
+}
+// After a panel is restored by hand, an oversized call rail may leave it under its
+// floor. railMaxWidth() already knows the ceiling for the panels that are currently
+// open, so clamp to it.
+function clampRailToOpenPanels(){
+  const rail=document.getElementById('callRail');
+  if(!rail||_theaterKey||!rail.classList.contains('open'))return;
+  const max=railMaxWidth();
+  if(rail.getBoundingClientRect().width>max+1)setRailWidth(max);
+}
+// undo only what THIS resize closed; a manually closed panel stays closed
+function resetRailAutoLayout(){
+  // an async teardown is about to replace the layout: kill any live gesture FIRST, before
+  // the scope flags below are cleared and before any panel is restored
+  abortLayoutGesture('reset-rail-auto-layout');
+  _rzDragging=false;_rzLastWant=null;_rzScope='all';_rzSbFrozen=false;
+  _rzTheater=false;_rzAppliedW=null;
+  const sb=document.getElementById('sidebar');
+  if(sb){
+    sb.classList.remove('rz-squeeze','rz-settle');
+    sb.style.removeProperty('--sb-keep');
+    if(!sidebarCollapsed())sb.style.width=clampSidebarWidth(
+      parseInt(localStorage.getItem(SB_WIDTH_KEY),10)||sb.getBoundingClientRect().width)+'px';
+  }
+  document.querySelectorAll('.rz-settle').forEach(e=>e.classList.remove('rz-settle'));
+  if(_rzAutoChat){_rzAutoChat=false;restoreChat()}
+  if(_rzAutoSb){_rzAutoSb=false;setSidebarCollapsed(false,false)}
+}
+function setRailWidth(px){
+  const rail=document.getElementById('callRail');
+  if(!rail)return;
+  _rzAppliedW=Math.round(px);
+  rail.classList.add('sized');
+  rail.style.setProperty('--rail-w',Math.round(px)+'px');
+}
+// the theater counterpart: same value, different custom property. .sized is deliberately
+// NOT added -- .call-rail.open.sized (0,3,0) outranks .call-rail.theater (0,2,0).
+function setTheaterWidth(px){
+  const rail=document.getElementById('callRail');
+  if(!rail)return;
+  _rzAppliedW=Math.round(px);
+  rail.style.setProperty('--theater-w',Math.round(px)+'px');
+}
+// the mode adapter: the ONE place that knows which custom property a gesture drives
+function rzApply(px){return _rzTheater?setTheaterWidth(px):setRailWidth(px)}
+// session-only: any manual rail width is dropped on close and on theater entry
+function clearRailWidth(){
+  const rail=document.getElementById('callRail');
+  if(!rail)return;
+  rail.classList.remove('sized');
+  rail.style.removeProperty('--rail-w');
+}
+function syncRailSeparator(){
+  const sep=document.getElementById('callRailResize'), rail=document.getElementById('callRail');
+  if(!sep||!rail)return;
+  sep.setAttribute('aria-valuemin',String(RAIL_MIN));
+  sep.setAttribute('aria-valuemax',String(Math.round(railMaxWidth())));
+  sep.setAttribute('aria-valuenow',String(Math.round(rail.getBoundingClientRect().width)));
+}
 function updateViewProfileTags(ship){
   const status=state.palStatus[ship]||'none';
   const isBlocked=status==='blocked';
@@ -8081,7 +8643,10 @@ const rtcManager={
     if(this.peers[ship])return this.peers[ship].pc;
     const polite=this.isPolite(ship);
     const pc=new RTCPeerConnection({iceServers:ICE_SERVERS});
-    const peer={pc,stream:new MediaStream(),makingOffer:false,audioEl:null,videoSender:null,screenSender:null};
+    // streams: remote streamId -> {id, stream, synthetic}. Grouping comes from
+    // RTCTrackEvent.streams (msid), never from track-array position.
+    const peer={pc,streams:new Map(),primaryId:null,fallbackUsed:false,
+                makingOffer:false,audioEl:null,videoSender:null,screenSender:null};
     this.peers[ship]=peer;
 
     // add local tracks, tracking video/screen senders for replaceTrack
@@ -8104,25 +8669,41 @@ const rtcManager={
 
     pc.ontrack=(e)=>{
       const track=e.track;
-      console.log('[rtc] ontrack from',ship,'kind:',track.kind,'readyState:',track.readyState,'muted:',track.muted);
-      peer.stream.addTrack(track);
-      renderCallParticipant(ship,peer.stream);
-      // clean up when remote track ends (e.g. screenshare stopped)
-      track.onended=()=>{
-        peer.stream.removeTrack(track);
-        renderCallParticipant(ship,peer.stream);
+      // The sender puts mic+camera in localStream and screen share in screenStream, so the
+      // association arrives as msid in e.streams. Group by that stream id -- never guess
+      // from getVideoTracks() position.
+      const rs=(e.streams&&e.streams.length)?e.streams[0]:null;
+      if(!rs){
+        // Defensive: a browser that supplies no stream (e.g. addTransceiver without a
+        // stream). Synthesize a per-track group so the track still renders; recorded so
+        // the harness/report can surface that the fallback was taken.
+        peer.fallbackUsed=true;
+        console.warn('[rtc] ontrack from',ship,'has EMPTY e.streams; using per-track fallback group');
+      }
+      const sid=rs?rs.id:('nostream:'+track.kind+':'+track.id);
+      console.log('[rtc] ontrack from',ship,'kind:',track.kind,'stream:',sid);
+      let ent=peer.streams.get(sid);
+      if(!ent){ent={id:sid,stream:new MediaStream(),synthetic:!rs};peer.streams.set(sid,ent)}
+      if(ent.stream.getTrackById(track.id)===null)ent.stream.addTrack(track);
+      classifyPeerStreams(peer);
+      renderCallRail();
+      const drop=()=>{
+        const g=peer.streams.get(sid);
+        if(!g)return;
+        if(g.stream.getTrackById(track.id))g.stream.removeTrack(track);
+        if(g.stream.getTracks().length===0)peer.streams.delete(sid);
+        classifyPeerStreams(peer);
         renderCallRail();
       };
+      // a stopped remote camera/screen must drop its own surface only
+      track.onended=drop;
       track.onmute=()=>{
-        // some browsers fire mute instead of ended on track removal
-        setTimeout(()=>{
-          if(track.readyState==='ended'){
-            peer.stream.removeTrack(track);
-            renderCallParticipant(ship,peer.stream);
-            renderCallRail();
-          }
-        },500);
+        // replaceTrack(null) on the far side mutes rather than ends; treat a muted video
+        // track as "surface gone" so a stopped remote screen never freezes on-screen.
+        if(track.kind==='video'){renderCallRail();return}
+        setTimeout(()=>{if(track.readyState==='ended')drop()},500);
       };
+      track.onunmute=()=>{renderCallRail()};
     };
 
     pc.oniceconnectionstatechange=()=>{
@@ -8230,6 +8811,7 @@ const rtcManager={
     if(p){
       if(p.audioEl){p.audioEl.pause();p.audioEl.srcObject=null;p.audioEl.remove()}
       p.pc.close();
+      p.streams.clear();
       delete this.peers[ship];
     }
     renderCallRail();
@@ -8237,10 +8819,12 @@ const rtcManager={
 
   hangUp(){
     iceBatcher.clear();
+    discardTheater('hang-up');            // the call is over: no parked key survives
     for(const ship of Object.keys(this.peers)){
       const p=this.peers[ship];
       if(p.audioEl){p.audioEl.pause();p.audioEl.srcObject=null;p.audioEl.remove()}
       p.pc.close();
+      p.streams.clear();
     }
     this.peers={};
     if(this.localStream){
@@ -8257,20 +8841,58 @@ const rtcManager={
   }
 };
 
+// placeCallBtn: there is exactly ONE #callBtn. appendChild MOVES the existing node, so
+// its id, inline onclick and classes are preserved and the two placements can never
+// drift. Open rail -> rail header (before the close X); closed -> back in the note
+// header after SHARE. A hidden button (cover/rumors/gossip) always parks in the header
+// so it can never be stranded inside a collapsed rail.
+function placeCallBtn(){
+  const btn=document.getElementById('callBtn');
+  const rail=document.getElementById('callRail');
+  if(!btn||!rail)return;
+  const open=rail.classList.contains('open')&&btn.style.display!=='none';
+  const slot=document.getElementById(open?'callRailSlot':'callBtnSlot');
+  if(!slot)return;
+  if(btn.parentNode!==slot)slot.appendChild(btn);
+}
+// noteSupportsCalls: the SINGLE place that decides whether a note is a call surface.
+// A %notebook is a publishing surface, so it gets SHARE but never CALL; cover, %Rumors
+// and gossip notes were already excluded. %group, %dm and everything else keep calls.
+function noteSupportsCalls(noteId){
+  if(!noteId)return false;
+  if(noteId==='cover'||noteId==='ars-rumors')return false;
+  if(isGossipNote(noteId))return false;
+  const n=state.notes[noteId];
+  if(n&&n.type==='notebook')return false;
+  return true;
+}
+// ...with one escape hatch: if this client is ALREADY joined to a call on such a note
+// (started before this rule existed, or by a peer on an older build), END must stay
+// reachable so nobody is stranded in a call with no way to leave.
+function callControlsVisible(noteId){
+  return noteSupportsCalls(noteId)||state.inCall===noteId;
+}
 function updateCallUI(){
   const noteId=state.currentNoteId;
   const call=state.activeCalls[noteId];
+  // switching notes discards theater/fullscreen -- including one parked behind a hidden
+  // rail -- back to the normal rail
+  const _tNote=_theaterKey?_theaterNote:(_theaterParked?_theaterParked.note:null);
+  if(_tNote&&_tNote!==noteId)discardTheater('note-change');
   const btn=document.getElementById('callBtn');
   const indicator=document.getElementById('callIndicator');
   const countEl=document.getElementById('callParticipantCount');
 
-  // hide call button for cover/rumors/gossip
-  if(noteId==='cover'||noteId==='ars-rumors'||isGossipNote(noteId)){
+  // hide the call button on every non-call surface (cover/%Rumors/gossip/notebook)
+  if(!callControlsVisible(noteId)){
     btn.style.display='none';
+    placeCallBtn();
     indicator.classList.remove('active');
+    updateCallRestoreUI();
     return;
   }
   btn.style.display='';
+  placeCallBtn();
 
   if(call){
     indicator.classList.add('active');
@@ -8297,120 +8919,665 @@ function updateCallUI(){
     }
   }
   renderCallRail();
+  updateCallRestoreUI();
   renderNoteList();
 }
 
+// ===== media-stream classification =====
+// Rule: a remote stream that carries AUDIO is the peer's primary call stream, so its video
+// track is their CAMERA. Any other (video-only) stream is a SCREEN SHARE. This is derived
+// from msid grouping, is independent of track arrival order, and is re-evaluated on every
+// track add/remove -- so a screen share that arrives before the audio track is reclassified
+// the moment the primary stream appears, and a lone screen video is never shown as a camera.
+function classifyPeerStreams(peer){
+  if(!peer||!peer.streams)return;
+  let primary=null;
+  for(const [sid,ent] of peer.streams){
+    if(ent.stream.getAudioTracks().length>0){primary=sid;break}
+  }
+  peer.primaryId=primary;
+}
+// the peer's camera stream (video on the primary stream), or null
+function peerCamStream(peer){
+  if(!peer||!peer.primaryId)return null;
+  const ent=peer.streams.get(peer.primaryId);
+  if(!ent)return null;
+  const vt=ent.stream.getVideoTracks().filter(t=>t.readyState==='live'&&!t.muted);
+  return vt.length?ent.stream:null;
+}
+// every screen-share stream for this peer (any non-primary group holding live video)
+function peerScreenStreams(peer){
+  const out=[];
+  if(!peer||!peer.streams)return out;
+  for(const [sid,ent] of peer.streams){
+    if(sid===peer.primaryId)continue;
+    const vt=ent.stream.getVideoTracks().filter(t=>t.readyState==='live'&&!t.muted);
+    if(vt.length)out.push({id:sid,stream:ent.stream});
+  }
+  return out;
+}
+// the peer's audio stream (for the hidden <audio> element)
+function peerAudioStream(peer){
+  if(!peer||!peer.primaryId)return null;
+  const ent=peer.streams.get(peer.primaryId);
+  return ent?ent.stream:null;
+}
+
+// ===== theater mode (primary expansion) + full-rail fullscreen (secondary) =====
+// _theaterKey is the data-key of the STAGED tile, or null when the rail is the normal
+// 300px strip. Theater never moves a tile between containers -- every media tile always
+// lives in #callMedia and theater only adds .staged/.thumb classes, so tile, <video> and
+// srcObject identity survive entering, restaging and leaving by construction.
+let _theaterKey=null;
+let _railFsFallback=false;
+let _theaterNote=null;          // note the theater was opened for (note switch collapses)
+// Theater has FOUR distinct end states, kept apart on purpose:
+//   active            -- _theaterKey is set.
+//   parked            -- the call view was hidden without ending anything. The favoured
+//                        key survives in memory ONLY; no theater layout is left behind.
+//   explicit exit     -- the user pressed return on the staged tile.
+//   permanent discard -- the call, the note or the stream went away.
+let _theaterParked=null;        // {key,note,manualW,reason} while the rail is hidden
+let _theaterPreLayout=null;     // normal-rail layout captured when theater was entered
+const THEATER_MIN_CHAT=360;     // never crush the chat below this
+const THEATER_MAX=900;
+const THEATER_FRACTION=0.55;    // ~50-60% of the space left of the rail
+// ===== collapsible sidebar =====
+// The sidebar DOM is never destroyed -- collapsing only sets width:0, so width, scroll
+// position, search text, expanded sections and note/call state all survive untouched.
+const SB_COLLAPSED_KEY='nb-sidebar-collapsed', SB_WIDTH_KEY='nb-sidebar-width';
+let _sbAutoCollapsed=false;      // theater collapsed it, not the user
+let _sbPreTheater=null;          // user's collapsed state when theater opened
+let _sbManualInTheater=false;    // user overrode it while theater was active
+function sidebarCollapsed(){
+  const sb=document.getElementById('sidebar');
+  return !!sb&&sb.classList.contains('collapsed');
+}
+function saveSidebarPrefs(collapsed){
+  try{localStorage.setItem(SB_COLLAPSED_KEY,collapsed?'1':'0')}catch(e){}
+}
+function saveSidebarWidth(){
+  const sb=document.getElementById('sidebar');
+  if(!sb||sb.classList.contains('collapsed'))return;
+  try{localStorage.setItem(SB_WIDTH_KEY,
+    String(clampSidebarWidth(sb.getBoundingClientRect().width)))}catch(e){}
+}
+// setSidebarCollapsed(collapsed, userInitiated)
+function setSidebarCollapsed(collapsed,userInitiated){
+  const sb=document.getElementById('sidebar');
+  const restore=document.getElementById('sidebarRestore');
+  if(!sb)return;
+  if(collapsed&&!sb.classList.contains('collapsed'))saveSidebarWidth();
+  sb.classList.toggle('collapsed',!!collapsed);
+  if(restore){
+    restore.classList.toggle('show',!!collapsed);
+    restore.setAttribute('aria-expanded',collapsed?'false':'true');
+  }
+  syncSidebarSeparator();
+  if(userInitiated){
+    // the user just decided: the rail's automatic ownership of this panel is over, so a
+    // later resetRailAutoLayout() must not reopen a sidebar they closed by hand
+    _rzAutoSb=false;
+    if(_theaterKey){_sbManualInTheater=true;_sbAutoCollapsed=false}
+    else saveSidebarPrefs(!!collapsed);       // theater's own toggling never rewrites the pref
+  }
+  if(_theaterKey)applyTheaterWidth();          // reopening must re-fit theater immediately
+  if(!collapsed)clampRailToOpenPanels();       // reopened sidebar gets its width back
+}
+function toggleSidebarCollapsed(){setSidebarCollapsed(!sidebarCollapsed(),true)}
+(function restoreSidebarPrefs(){
+  const apply=()=>{
+    const sb=document.getElementById('sidebar');
+    if(!sb)return;
+    let w=null,c=null;
+    try{w=localStorage.getItem(SB_WIDTH_KEY);c=localStorage.getItem(SB_COLLAPSED_KEY)}catch(e){}
+    if(w){
+      const n=parseInt(w,10);
+      // a width saved before the content-safe minimum existed is clamped up, not dropped
+      if(!isNaN(n))sb.style.width=clampSidebarWidth(n)+'px';
+    }
+    if(c==='1')setSidebarCollapsed(true,false);
+  };
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',apply);
+  else apply();
+})();
+function fsElement(){return document.fullscreenElement||document.webkitFullscreenElement||null}
+function railFullscreenActive(){
+  const rail=document.getElementById('callRail');
+  return _railFsFallback||(!!fsElement()&&fsElement()===rail);
+}
+// theaterRailWidth: derived from the LIVE layout, including the user's resized sidebar.
+// width available to the chat + theater split, after the sidebar and both slim strips
+function theaterAvailWidth(){
+  const appBody=document.querySelector('.app-body');
+  const sidebar=document.getElementById('sidebar');
+  const sbRestore=document.getElementById('sidebarRestore');
+  const chRestore=document.getElementById('chatRestoreHandle');
+  const ap=document.getElementById('artifactPanel');
+  const total=appBody?appBody.clientWidth:(window.innerWidth||1200);
+  const sw=sidebar?sidebar.offsetWidth:0;
+  const rw=(sbRestore&&sbRestore.classList.contains('show'))?sbRestore.offsetWidth:0;
+  const cw=(chRestore&&chRestore.classList.contains('show'))?chRestore.offsetWidth:0;
+  // the closed artifact panel is width:0 but still contributes its 1px border, exactly
+  // as layoutTotals() accounts for it -- both budgets must agree or the divider drifts
+  return Math.max(0,total-sw-rw-cw-(ap?ap.offsetWidth:0));
+}
+// theaterRailWidth: the staged-media width. With chat collapsed the rail takes ALL the
+// remaining room (no 900 cap, so no blank area); otherwise it is ~55% capped at 900 and
+// always leaves the chat its floor. A manual split drag overrides the automatic value.
+function theaterRailWidth(){
+  const avail=theaterAvailWidth();
+  // With chat collapsed the rail may take ALL the remaining room, but a pinned split is
+  // still honoured -- ignoring it here is what made a released drag spring back to full
+  // width and what lost the presentation across a view-only hide.
+  const ceiling=Math.max(300,_chatCollapsed?avail:avail-THEATER_MIN_CHAT);
+  if(_theaterManualW!=null)return Math.max(300,Math.min(_theaterManualW,ceiling));
+  if(_chatCollapsed)return Math.max(300,avail);
+  let w=Math.round(avail*THEATER_FRACTION);
+  w=Math.min(w,THEATER_MAX);
+  w=Math.min(w,ceiling);                                 // chat keeps its floor
+  return Math.max(300,w);
+}
+function applyTheaterWidth(){
+  const rail=document.getElementById('callRail');
+  if(!rail)return;
+  // never recompute underneath a live gesture: the pointer owns the width until release
+  if(_rzDragging&&_rzTheater)return;
+  if(_theaterKey&&!_railFsFallback&&fsElement()!==rail){
+    rail.style.setProperty('--theater-w',theaterRailWidth()+'px');
+  }else{
+    rail.style.removeProperty('--theater-w');
+  }
+}
+window.addEventListener('resize',()=>{if(_theaterKey)applyTheaterWidth()});
+// the sidebar drag handler mutates sidebar.style.width directly; observe it
+(function(){
+  const sb=document.getElementById('sidebar');
+  if(!sb||typeof ResizeObserver==='undefined')return;
+  new ResizeObserver(()=>{if(_theaterKey)applyTheaterWidth()}).observe(sb);
+})();
+// ===== theater-only chat collapse (never persisted) =====
+let _chatCollapsed=false;      // temporary theater UI state
+let _theaterManualW=null;      // in-memory split width from a divider drag
+let _chatScrollTop=null;       // saved across a collapse: width:0 reflows and clamps it
+// Reopening chat animates the rail width for 200ms, and every reflow during that
+// animation re-wraps the message list and re-clamps scrollTop. Assign immediately and
+// then re-assert once the layout has settled.
+function restoreChatScroll(want){
+  const cm=document.getElementById('chatMessages');
+  if(!cm||want==null)return;
+  const put=()=>{void cm.offsetHeight;cm.scrollTop=want};
+  put();
+  requestAnimationFrame(put);
+  setTimeout(put,260);           // just past the .call-rail width transition
+}
+function setChatCollapsed(collapsed){
+  const chat=document.querySelector('.chat');
+  const handle=document.getElementById('chatRestoreHandle');
+  if(!chat)return;
+  // chat collapse is reachable from theater AND from an ordinary call-rail resize
+  const on=!!collapsed;
+  const cm=document.getElementById('chatMessages');
+  if(on&&!_chatCollapsed&&cm&&_chatScrollTop==null)_chatScrollTop=cm.scrollTop;
+  _chatCollapsed=on;
+  chat.classList.toggle('chat-collapsed',on);
+  if(!on&&cm&&_chatScrollTop!=null){
+    const want=_chatScrollTop;_chatScrollTop=null;
+    restoreChatScroll(want);
+  }
+  if(handle){
+    handle.classList.toggle('show',on);
+    handle.setAttribute('aria-expanded',on?'false':'true');
+  }
+  applyTheaterWidth();
+}
+function restoreChat(){
+  if(!_chatCollapsed&&!document.querySelector('.chat.chat-collapsed'))return;
+  _chatCollapsed=false;
+  const chat=document.querySelector('.chat');
+  const handle=document.getElementById('chatRestoreHandle');
+  if(chat)chat.classList.remove('chat-collapsed');
+  if(_chatScrollTop!=null){
+    const want=_chatScrollTop;_chatScrollTop=null;
+    _theaterManualW=null;
+    applyTheaterWidth();
+    restoreChatScroll(want);
+  }
+  if(handle){handle.classList.remove('show');handle.setAttribute('aria-expanded','true')}
+  _theaterManualW=null;                     // fall back to the normal split calculation
+  applyTheaterWidth();
+  clampRailToOpenPanels();
+}
+function enterTheater(key){
+  // capture the ordinary layout BEFORE clearRailWidth/resetRailAutoLayout destroy it
+  if(!_theaterKey)_theaterPreLayout=snapshotNormalLayout();
+  _theaterKey=key;
+  _theaterNote=state.currentNoteId;
+  // remember the user's pre-theater choice, then free space automatically
+  clearRailWidth();                    // theater owns the width while it is active
+  resetRailAutoLayout();               // the ordinary-resize ladder does not apply here
+  _chatCollapsed=false;_theaterManualW=null;   // theater always starts with chat open
+  setChatCollapsed(false);
+  _sbPreTheater=sidebarCollapsed();
+  _sbManualInTheater=false;
+  _sbAutoCollapsed=false;
+  if(!_sbPreTheater){_sbAutoCollapsed=true;setSidebarCollapsed(true,false)}
+  applyTheaterWidth();
+  renderCallRail();
+}
+// snapshotNormalLayout: the ordinary rail width and panel arrangement, taken the moment
+// before theater takes them over, so an explicit exit can put them back exactly.
+function snapshotNormalLayout(){
+  const rail=document.getElementById('callRail');
+  const sb=document.getElementById('sidebar');
+  return {
+    railSized:!!(rail&&rail.classList.contains('sized')),
+    railW:rail?rail.style.getPropertyValue('--rail-w'):'',
+    sbCollapsed:sidebarCollapsed(),
+    sbWidth:sb?sb.style.width:'',
+    sbAuto:_rzAutoSb,
+    chatCollapsed:_chatCollapsed,
+    chatAuto:_rzAutoChat
+  };
+}
+// restoreNormalLayout: panels FIRST, rail width LAST. setSidebarCollapsed() reaches
+// clampRailToOpenPanels(), which writes --rail-w, so the width must be applied after it.
+function restoreNormalLayout(snap,opts){
+  const rail=document.getElementById('callRail');
+  const sb=document.getElementById('sidebar');
+  if(!snap){clearRailWidth();return}
+  const doSb=!(opts&&opts.sidebar===false);
+  if(doSb){
+    if(sb&&snap.sbWidth)sb.style.width=snap.sbWidth;
+    setSidebarCollapsed(!!snap.sbCollapsed,false);
+    _rzAutoSb=!!snap.sbAuto;
+  }
+  if(snap.chatCollapsed)chatCloseNow(); else chatOpenNow();
+  _rzAutoChat=!!snap.chatAuto;
+  if(snap.railSized&&snap.railW&&rail){
+    rail.classList.add('sized');
+    rail.style.setProperty('--rail-w',snap.railW);
+  }else clearRailWidth();
+}
+// leaveTheater(mode,reason): the ONE teardown path. Callers state their intent; nothing
+// here infers it from whether _theaterKey happens to be set.
+//   'park'    view-only rail hiding -- remember the favoured key, drop the layout.
+//   'exit'    the user returned the staged tile -- forget it, restore the pre-theater rail.
+//   'discard' the call/note/stream is gone -- forget everything, plain rail.
+function leaveTheater(mode,reason){
+  // same rule: cancel before theater classes, widths or the staged key are touched, so a
+  // live theater/CHAT drag cannot keep writing --theater-w against a non-theater rail
+  abortLayoutGesture('leave-theater:'+(mode||'?'));
+  const rail=document.getElementById('callRail');
+  const media=document.getElementById('callMedia');
+  const key=_theaterKey;
+  exitRailFullscreen();                       // fullscreen survives none of the three
+  if(mode==='park'&&key)
+    // park the EFFECTIVE presentation. A fully expanded theater has _theaterManualW ===
+    // null and _chatCollapsed === true, so recording manualW alone loses it; record the
+    // rendered target width and the chat state as well.
+    _theaterParked={key:key,note:_theaterNote,manualW:_theaterManualW,
+      w:theaterRailWidth(),chatCollapsed:_chatCollapsed,reason:reason||'hide'};
+  else
+    _theaterParked=null;
+  const snap=_theaterPreLayout;
+  _theaterPreLayout=null;
+  const wasAuto=_sbAutoCollapsed, pre=_sbPreTheater, manual=_sbManualInTheater;
+  _theaterKey=null;_theaterNote=null;_theaterManualW=null;
+  // 1. drop the theater LAYOUT before anything else can measure it. While .theater is
+  //    still on the rail, clampRailToOpenPanels() (reached from setSidebarCollapsed)
+  //    reads the theater width and pins it as an ordinary --rail-w -- and .call-rail
+  //    .open.sized outranks .call-rail.theater, which is what left the normal rail
+  //    sitting at the former theater width.
+  if(rail){rail.classList.remove('theater');rail.style.removeProperty('--theater-w')}
+  if(media){
+    media.classList.remove('theater');
+    media.querySelectorAll('.media-tile').forEach(t=>t.classList.remove('staged','thumb'));
+  }
+  // 2. theater-only chat collapse is always undone
+  _chatCollapsed=false;_rzAutoChat=false;
+  const _chat=document.querySelector('.chat');
+  if(_chat)_chat.classList.remove('chat-collapsed');
+  const _ch=document.getElementById('chatRestoreHandle');
+  if(_ch){_ch.classList.remove('show');_ch.setAttribute('aria-expanded','true')}
+  // 3. panels and rail width
+  if(mode==='exit'){
+    // a sidebar the user themselves moved while in theater keeps their choice
+    restoreNormalLayout(snap,{sidebar:!manual});
+  }else{
+    // restore the pre-theater sidebar ONLY when the user did not override it in theater,
+    // and never re-open a sidebar the user had already collapsed themselves.
+    if(!manual&&wasAuto&&pre===false)setSidebarCollapsed(false,false);
+    clearRailWidth();
+  }
+  _sbAutoCollapsed=false;_sbPreTheater=null;_sbManualInTheater=false;
+  if(typeof syncRailSeparator==='function')syncRailSeparator();
+  renderCallRail();
+}
+// view-only hide: keeps the favoured key. A no-op when theater is not active, so an
+// EXISTING parked record survives a second hide/reopen cycle.
+function parkTheater(reason){if(_theaterKey)leaveTheater('park',reason)}
+function exitTheaterExplicit(){leaveTheater('exit','user-return')}
+// permanent invalidation: clears the parked key too, even with no active theater
+function discardTheater(reason){
+  if(_theaterKey){leaveTheater('discard',reason);return}
+  _theaterParked=null;_theaterPreLayout=null;
+}
+// unparkTheater: restore the favoured stream after a view-only hide. Never restores
+// fullscreen, never applies a stale key, and re-clamps the remembered split width.
+function unparkTheater(){
+  const p=_theaterParked;
+  if(!p)return;
+  _theaterParked=null;
+  if(p.note&&p.note!==(state.inCall||state.currentNoteId))return;   // note changed
+  const media=document.getElementById('callMedia');
+  const tile=media&&media.querySelector('.media-tile[data-key="'+cssEsc(p.key)+'"]');
+  if(!tile)return;                                   // the favoured stream is gone
+  enterTheater(p.key);                               // resets chat + split to defaults
+  if(!_theaterKey)return;
+  if(p.chatCollapsed)setChatCollapsed(true);
+  const want=(p.manualW!=null)?p.manualW:p.w;
+  if(want!=null){
+    // clamp to the CURRENT viewport: the window may have been resized while hidden
+    _theaterManualW=Math.max(300,Math.min(want,theaterAvailWidth()));
+    applyTheaterWidth();
+  }
+}
+// toggleTileExpand: the tile control and dblclick. Normal -> enter theater staging this
+// tile. Already staged -> return to the normal rail. A thumbnail while in theater ->
+// restage without leaving theater.
+function toggleTileExpand(tile){
+  if(!tile)return;
+  const key=tile.getAttribute('data-key');
+  if(!_theaterKey){enterTheater(key);return}
+  if(_theaterKey===key){exitTheaterExplicit();return}   // deliberate: forget the stage
+  _theaterKey=key;          // restage; stays in theater and keeps fullscreen if active
+  renderCallRail();
+}
+function enterRailFullscreen(){
+  const rail=document.getElementById('callRail');
+  if(!rail)return;
+  const req=rail.requestFullscreen||rail.webkitRequestFullscreen;
+  if(req){
+    try{
+      const r=req.call(rail);
+      if(r&&r.catch)r.catch(()=>{_railFsFallback=true;rail.classList.add('rail-fs-fallback');applyTheaterWidth()});
+    }catch(e){_railFsFallback=true;rail.classList.add('rail-fs-fallback')}
+  }else{
+    // no Fullscreen API: in-page fullscreen of the WHOLE rail, never a new window
+    _railFsFallback=true;rail.classList.add('rail-fs-fallback');
+  }
+  applyTheaterWidth();
+  syncStagedFsBtn();
+}
+function exitRailFullscreen(){
+  const rail=document.getElementById('callRail');
+  if(fsElement()&&rail&&fsElement()===rail){
+    if(document.exitFullscreen)document.exitFullscreen().catch(()=>{});
+    else if(document.webkitExitFullscreen)document.webkitExitFullscreen();
+  }
+  if(_railFsFallback){_railFsFallback=false;if(rail)rail.classList.remove('rail-fs-fallback')}
+  applyTheaterWidth();
+  syncStagedFsBtn();
+}
+function toggleRailFullscreen(){
+  if(railFullscreenActive())exitRailFullscreen(); else enterRailFullscreen();
+}
+// syncStagedFsBtn: the fullscreen affordance lives on the STAGED tile (bottom-right) and
+// still targets the whole call rail, so header, controls and thumbnails stay on screen.
+function syncStagedFsBtn(){
+  const on=railFullscreenActive();
+  document.querySelectorAll('.media-tile').forEach(t=>{
+    const b=t.querySelector('.media-fs');
+    if(!b)return;
+    const staged=t.classList.contains('staged');
+    // CSS hides it on non-staged tiles; keep it out of the a11y tree there too
+    b.setAttribute('aria-hidden',staged?'false':'true');
+    b.tabIndex=staged?0:-1;
+    if(!staged)return;
+    b.textContent=on?'⤡':'⛶';
+    b.title=on?'Exit fullscreen':'Fullscreen the call';
+    b.setAttribute('aria-label',b.title);
+    b.setAttribute('aria-pressed',on?'true':'false');
+  });
+}
+// native Escape exits fullscreen only -- theater must survive it
+const _onFsChange=()=>{
+  const rail=document.getElementById('callRail');
+  if(!fsElement()&&rail)rail.classList.remove('rail-fs-fallback');
+  applyTheaterWidth();
+  syncStagedFsBtn();
+};
+document.addEventListener('fullscreenchange',_onFsChange);
+document.addEventListener('webkitfullscreenchange',_onFsChange);
+// two-stage Escape: fullscreen -> theater -> normal rail
+document.addEventListener('keydown',(e)=>{
+  if(e.key!=='Escape')return;
+  if(railFullscreenActive()){exitRailFullscreen();return}
+  if(_theaterKey)exitTheaterExplicit();   // Escape out of theater is a deliberate exit
+});
+
+// ===== incremental call-rail reconciliation =====
+// Tiles and their <video> elements are created once and REUSED. Nothing is rebuilt with
+// innerHTML during normal reconciliation, so DOM identity (and therefore fullscreen and
+// playback) survives peers joining/leaving and ICE status churn.
+function ensureTile(container,key,kind,label){
+  // look up GLOBALLY inside the rail, not just in `container`: a tile may have been
+  // moved (staged vs thumbnail) and must never be recreated.
+  const body=document.getElementById('callRailBody');
+  let tile=(body||container).querySelector('.media-tile[data-key="'+cssEsc(key)+'"]');
+  if(tile){
+    if(tile.parentNode!==container)container.appendChild(tile);
+    const lb=tile.querySelector('.media-tile-label');
+    if(lb&&lb.textContent!==label)lb.textContent=label;
+    return tile;
+  }
+  tile=document.createElement('div');
+  tile.className='media-tile '+kind;
+  tile.setAttribute('data-key',key);
+  const vid=document.createElement('video');
+  vid.autoplay=true;vid.playsInline=true;vid.muted=true;   // audio plays via the <audio> el
+  tile.appendChild(vid);
+  const lb=document.createElement('span');
+  lb.className='media-tile-label';lb.textContent=label;
+  tile.appendChild(lb);
+  const btn=document.createElement('button');
+  btn.className='media-expand';btn.type='button';
+  btn.onclick=(e)=>{e.stopPropagation();toggleTileExpand(tile)};
+  tile.appendChild(btn);
+  const fs=document.createElement('button');
+  fs.className='media-fs';fs.type='button';fs.textContent='⛶';fs.tabIndex=-1;
+  fs.title='Fullscreen the call';fs.setAttribute('aria-label','Fullscreen the call');
+  fs.setAttribute('aria-pressed','false');fs.setAttribute('aria-hidden','true');
+  fs.onclick=(e)=>{e.stopPropagation();toggleRailFullscreen()};
+  fs.ondblclick=(e)=>{e.stopPropagation()};
+  tile.appendChild(fs);
+  tile.ondblclick=()=>toggleTileExpand(tile);
+  container.appendChild(tile);
+  return tile;
+}
+function cssEsc(v){return String(v).replace(/["\\]/g,'\\$&')}
+// syncTileControl: the expand affordance is contextual -- expand, restage, or return.
+function syncTileControl(tile,label){
+  const btn=tile.querySelector('.media-expand');
+  if(!btn)return;
+  const key=tile.getAttribute('data-key');
+  let txt,title;
+  if(_theaterKey===key){txt='\u2921';title='Return '+label+' to the call rail'}
+  else if(_theaterKey){txt='\u2922';title='Show '+label+' on the stage'}
+  else {txt='\u26F6';title='Expand '+label}
+  if(btn.textContent!==txt)btn.textContent=txt;
+  if(btn.title!==title){btn.title=title;btn.setAttribute('aria-label',title)}
+  btn.setAttribute('aria-pressed',_theaterKey===key?'true':'false');
+}
+// attach a stream only when it actually changed -- never reassign an unchanged srcObject
+function bindTile(tile,stream){
+  const vid=tile.querySelector('video');
+  if(!vid)return;
+  if(vid.srcObject!==stream){vid.srcObject=stream;vid.play().catch(()=>{})}
+}
 function renderCallRail(){
   const rail=document.getElementById('callRail');
   const body=document.getElementById('callRailBody');
   const controls=document.getElementById('callControls');
   const noteId=state.inCall||state.currentNoteId;
   const call=state.activeCalls[noteId];
+  const me='~'+api.ship;
 
   if(!state.inCall&&!call){
+    discardTheater('no-call');            // also drops a key parked behind a hidden rail
+    resetRailAutoLayout();
+    restoreChat();
     if(rail.classList.contains('open')){
-      body.innerHTML='<div style="font-size:.8rem;color:var(--text-dim)">No active call</div>';
+      body.textContent='';
+      const empty=document.createElement('div');
+      empty.className='call-empty';
+      empty.style.cssText='font-size:.8rem;color:var(--text-dim)';
+      empty.textContent='No active call';
+      body.appendChild(empty);
       controls.style.display='none';
     }
     return;
   }
+  const emptyEl=body.querySelector('.call-empty');
+  if(emptyEl)emptyEl.remove();
 
-  const participants=call?call.participants:['~'+api.ship];
-  let html='';
+  const participants=call?call.participants:[me];
+  // ---- participant rows: create once, update name/status in place ----
+  const keepShips=new Set(participants);
   for(const ship of participants){
+    let row=body.querySelector('.call-participant[data-ship="'+cssEsc(ship)+'"]');
+    if(!row){
+      row=document.createElement('div');
+      row.className='call-participant';
+      row.setAttribute('data-ship',ship);
+      const head=document.createElement('div');
+      head.style.cssText='display:flex;align-items:center;gap:.5rem;width:100%';
+      const nm=document.createElement('span');nm.className='call-participant-name';
+      const st=document.createElement('span');st.className='call-participant-status';
+      head.appendChild(nm);head.appendChild(st);
+      row.appendChild(head);
+      body.appendChild(row);
+    }
+    const nm=row.querySelector('.call-participant-name');
+    const st=row.querySelector('.call-participant-status');
     const name=displayName(ship);
-    const isSelf=ship==='~'+api.ship;
-    let status='';
-    if(isSelf){
-      status=state.inCall?'local':'';
-    }else{
-      const peer=rtcManager.peers[ship];
-      status=peer?peer.pc.iceConnectionState:'waiting';
-    }
-    html+=`<div class="call-participant" data-ship="${escAttr(ship)}">
-      <div style="display:flex;align-items:center;gap:.5rem;width:100%">
-        <span class="call-participant-name">${escHtml(name)}</span>
-        <span class="call-participant-status">${status}</span>
-      </div>
-      <div class="video-container" id="video-${escAttr(ship)}"></div>
-    </div>`;
+    if(nm.textContent!==name)nm.textContent=name;
+    const peer=rtcManager.peers[ship];
+    const status=(ship===me)?(state.inCall?'local':''):(peer?peer.pc.iceConnectionState:'waiting');
+    if(st.textContent!==status)st.textContent=status;
   }
-  // screen share surface (shared by all — shows whoever is sharing)
-  html+='<div class="video-container" id="screen-share-display" style="display:none;width:100%;aspect-ratio:16/9;background:#000;border:1px solid var(--border);margin-top:.5rem"><video id="screen-share-video" autoplay playsinline style="width:100%;height:100%;object-fit:contain"></video></div>';
-  body.innerHTML=html;
-  controls.style.display=state.inCall?'flex':'none';
+  // rows carry name+status only; media tiles live in #callMedia, and a departing peer's
+  // staged tile is handled by the want-set check below.
+  for(const row of Array.from(body.querySelectorAll('.call-participant'))){
+    if(!keepShips.has(row.getAttribute('data-ship')))row.remove();
+  }
+  // ---- ONE flat media container: every camera/screen tile lives here in both modes,
+  // so theater only toggles classes/placement and never rebuilds a tile ----
+  let media=body.querySelector('#callMedia');
+  if(!media){
+    media=document.createElement('div');
+    media.id='callMedia';
+    body.appendChild(media);
+  }else if(media!==body.lastElementChild){
+    body.appendChild(media);
+  }
+  let strip=media.querySelector('#callThumbStrip');
+  if(!strip){
+    strip=document.createElement('div');
+    strip.id='callThumbStrip';
+    media.appendChild(strip);
+  }
 
-  // update control button states
-  const muteBtn=document.getElementById('muteBtn');
-  muteBtn.classList.toggle('active',!rtcManager.muted);
-  muteBtn.classList.toggle('muted-state',rtcManager.muted);
-  document.getElementById('videoBtn').classList.toggle('active',rtcManager.videoOn);
-  document.getElementById('screenBtn').classList.toggle('active',rtcManager.screenOn);
-
-  // attach remote streams to video/audio elements
+  // ---- desired media tiles ----
+  const wantCam=new Map();     // ship -> stream (camera tile lives in that ship's row)
+  const wantScreen=new Map();  // key   -> {stream,label}
+  if(state.inCall&&rtcManager.localStream&&rtcManager.videoOn)
+    wantCam.set(me,rtcManager.localStream);
+  if(state.inCall&&rtcManager.screenStream&&rtcManager.screenOn)
+    wantScreen.set('screen:'+me+':local',{stream:rtcManager.screenStream,label:'Your screen'});
   for(const ship of Object.keys(rtcManager.peers)){
-    const p=rtcManager.peers[ship];
-    if(p.stream.getTracks().length>0){
-      renderCallParticipant(ship,p.stream);
-    }
-    // if remote has >1 video track, second one is screen share
-    if(p.stream.getVideoTracks().length>1){
-      const screenTrack=p.stream.getVideoTracks()[1];
-      const ssd=document.getElementById('screen-share-display');
-      const ssv=document.getElementById('screen-share-video');
-      if(ssd&&ssv){
-        ssd.style.display='block';
-        ssv.srcObject=new MediaStream([screenTrack]);
+    const peer=rtcManager.peers[ship];
+    const cam=peerCamStream(peer);
+    if(cam)wantCam.set(ship,cam);
+    for(const sc of peerScreenStreams(peer))
+      wantScreen.set('screen:'+ship+':'+sc.id,{stream:sc.stream,label:displayName(ship)+"'s screen"});
+    // remote audio: one hidden <audio> per peer, unchanged behaviour
+    const aud=peerAudioStream(peer);
+    if(aud&&aud.getAudioTracks().length>0){
+      if(!peer.audioEl){
+        peer.audioEl=document.createElement('audio');
+        peer.audioEl.autoplay=true;peer.audioEl.playsInline=true;
+        document.body.appendChild(peer.audioEl);
       }
+      if(peer.audioEl.srcObject!==aud)peer.audioEl.srcObject=aud;
     }
   }
-  // local camera preview
-  if(rtcManager.localStream&&rtcManager.videoOn){
-    const el=document.getElementById('video-~'+api.ship);
-    if(el){
-      el.classList.add('active');
-      let vid=el.querySelector('video');
-      if(!vid){vid=document.createElement('video');vid.autoplay=true;vid.muted=true;vid.playsInline=true;el.appendChild(vid)}
-      vid.srcObject=rtcManager.localStream;
-    }
-  }
-  // local screen share preview
-  if(rtcManager.screenStream&&rtcManager.screenOn){
-    const ssd=document.getElementById('screen-share-display');
-    const ssv=document.getElementById('screen-share-video');
-    if(ssd&&ssv){
-      ssd.style.display='block';
-      ssv.srcObject=rtcManager.screenStream;
-    }
-  }
-}
+  // ---- desired tile set (key -> {kind,stream,label}) ----
+  const want=new Map();
+  for(const [ship,stream] of wantCam)
+    want.set('cam:'+ship,{kind:'cam',stream,label:ship===me?'You':displayName(ship)});
+  for(const [key,info] of wantScreen)
+    want.set(key,{kind:'screen',stream:info.stream,label:info.label});
 
-function renderCallParticipant(ship,stream){
-  const peer=rtcManager.peers[ship];
-  // always ensure audio is playing for remote peers
-  if(peer&&stream.getAudioTracks().length>0){
-    if(!peer.audioEl){
-      peer.audioEl=document.createElement('audio');
-      peer.audioEl.autoplay=true;
-      peer.audioEl.playsInline=true;
-      document.body.appendChild(peer.audioEl);
-    }
-    if(peer.audioEl.srcObject!==stream)peer.audioEl.srcObject=stream;
-  }
-  // video container (only shown if video tracks exist)
-  const el=document.getElementById('video-'+ship);
-  if(!el)return;
-  if(stream.getVideoTracks().length>0){
-    el.classList.add('active');
-    let vid=el.querySelector('video');
-    if(!vid){vid=document.createElement('video');vid.autoplay=true;vid.muted=true;vid.playsInline=true;el.appendChild(vid)}
-    if(vid.srcObject!==stream)vid.srcObject=stream;
-    vid.play().catch(()=>{});
-  }else{
-    el.classList.remove('active');
-  }
-}
+  // the STAGED tile disappearing leaves theater; an UNRELATED tile disappearing must not.
+  // A key parked behind a hidden rail is invalidated by exactly the same test, so a
+  // stream or peer that goes away while hidden can never be restaged.
+  if(_theaterParked&&!want.has(_theaterParked.key))_theaterParked=null;
+  if(_theaterKey&&!want.has(_theaterKey)){discardTheater('stream-gone');return}
 
+  // ---- create/update, never recreate ----
+  for(const [key,info] of want){
+    const tile=ensureTile(media,key,info.kind,info.label);
+    bindTile(tile,info.stream);
+  }
+  // ---- remove only what actually disappeared ----
+  for(const t of Array.from(media.querySelectorAll('.media-tile'))){
+    if(!want.has(t.getAttribute('data-key')))t.remove();
+  }
+  // ---- theater classing + placement (class/parent only; tiles are never rebuilt) ----
+  const theater=!!_theaterKey;
+  rail.classList.toggle('theater',theater);
+  media.classList.toggle('theater',theater);
+  strip.style.display=theater?'':'none';
+  for(const [key,info] of want){
+    const tile=media.querySelector('.media-tile[data-key="'+cssEsc(key)+'"]')
+             ||strip.querySelector('.media-tile[data-key="'+cssEsc(key)+'"]');
+    if(!tile)continue;
+    const staged=theater&&key===_theaterKey;
+    tile.classList.toggle('staged',staged);
+    tile.classList.toggle('thumb',theater&&!staged);
+    const home=(!theater||staged)?media:strip;
+    if(tile.parentNode!==home)home.appendChild(tile);
+    if(staged)media.insertBefore(tile,strip);
+    syncTileControl(tile,info.label);
+  }
+  if(theater)applyTheaterWidth();
+  // theater changes the rail header layout, so re-assert the single CALL button's slot
+  placeCallBtn();
+  syncStagedFsBtn();
+  controls.style.display=state.inCall?'flex':'none';
+  syncCallControls();
+}
+// syncCallControls: the ONLY writer of MIC/CAM/SCREEN presentation. Derives every
+// button's state class, aria-pressed and title from rtcManager, so a denied permission,
+// a browser-chrome "stop sharing", a re-render and a manual toggle can never disagree.
+function syncCallControls(){
+  const set=(id,on,offClass,titleOn,titleOff)=>{
+    const b=document.getElementById(id);
+    if(!b)return;
+    b.classList.remove('on','off','idle','active','muted-state');
+    b.classList.add(on?'on':offClass);
+    if(id==='muteBtn'&&!on)b.classList.add('muted-state');
+    b.setAttribute('aria-pressed',on?'true':'false');
+    b.title=on?titleOn:titleOff;
+  };
+  // MIC is "on" when NOT muted; muted is red AND keeps the slash.
+  set('muteBtn',!rtcManager.muted,'off','Microphone on','Microphone muted');
+  set('videoBtn',!!rtcManager.videoOn,'off','Camera on','Camera off');
+  // SCREEN idle is neutral gray, not red -- it is an offer, not a fault.
+  set('screenBtn',!!rtcManager.screenOn,'idle','Sharing screen','Share screen');
+}
 function renderCallParticipantStatus(ship,status){
   const el=document.querySelector(`.call-participant[data-ship="${ship}"] .call-participant-status`);
   if(el)el.textContent=status;
@@ -8425,22 +9592,42 @@ async function toggleCall(){
 async function _toggleCallInner(){
   const noteId=state.currentNoteId;
   console.log('[toggleCall] noteId=',noteId,'inCall=',state.inCall,'activeCalls=',JSON.stringify(state.activeCalls[noteId]||null));
-  if(noteId==='cover'||noteId==='ars-rumors'||isGossipNote(noteId))return;
+  // a non-call surface can never START or JOIN; only an in-progress call may be ENDed
+  if(!noteSupportsCalls(noteId)&&state.inCall!==noteId)return;
 
   if(state.inCall===noteId){
     // leave call
     console.log('[toggleCall] LEAVING call');
-    await api.poke('noltbook','noltbook-action',{action:'leave-call',data:{noteId}});
+    const left=await api.poke('noltbook','noltbook-action',{action:'leave-call',data:{noteId}});
+    if(left===false){
+      // definite transport failure: the ship never got the leave, so the call is still
+      // ours. Keep peers, streams, tracks and state.inCall exactly as they were, leave
+      // the rail open and the button on END, and let the user try again.
+      console.error('[call] leave-call poke failed; staying in the call so END can be retried');
+      updateCallUI();
+      return;
+    }
     rtcManager.hangUp();
     state.inCall=null;
     updateCallUI();
+    // closeCallRail is the existing view-cleanup path: it exits fullscreen and theater,
+    // restores theater-only chat collapse and applies the sidebar rules, and sends no
+    // poke of its own.
+    closeCallRail();
     return;
   }
 
   // enforce single-call: leave current call before joining another
   if(state.inCall){
     console.log('[toggleCall] leaving previous call',state.inCall,'before joining',noteId);
-    await api.poke('noltbook','noltbook-action',{action:'leave-call',data:{noteId:state.inCall}});
+    const leftPrev=await api.poke('noltbook','noltbook-action',{action:'leave-call',data:{noteId:state.inCall}});
+    if(leftPrev===false){
+      // the old call was never left, so do NOT tear it down, do not re-prompt for the
+      // microphone and do not join/start the new note.
+      console.error('[call] leave-call for the previous call failed; staying put');
+      updateCallUI();
+      return;
+    }
     rtcManager.hangUp();
     state.inCall=null;
     updateCallUI();
@@ -8473,15 +9660,65 @@ async function _toggleCallInner(){
 
   // open the call rail
   document.getElementById('callRail').classList.add('open');
+  placeCallBtn();
+  updateCallRestoreUI();
   updateCallUI();
 }
 
-function closeCallRail(){
-  document.getElementById('callRail').classList.remove('open');
+// updateCallRestoreUI: the ONE place that decides whether the closed-rail restore
+// affordances are shown. Purely view state -- it never pokes or touches the call.
+function updateCallRestoreUI(){
+  const rail=document.getElementById('callRail');
+  const handle=document.getElementById('callRestoreHandle');
+  const indicator=document.getElementById('callIndicator');
+  if(!rail)return;
+  const open=rail.classList.contains('open');
+  const nid=state.currentNoteId;
+  const relevant=!!state.inCall||!!state.activeCalls[nid];
+  if(handle){
+    const show=!open&&relevant;
+    handle.classList.toggle('show',show);
+    const inCall=state.inCall===nid||!!state.inCall;
+    handle.title=inCall?'Show call view':'Show the active call';
+    handle.setAttribute('aria-label',handle.title);
+  }
+  if(indicator){
+    indicator.title=open?'Hide call view':'Show call view';
+    indicator.setAttribute('aria-label',indicator.title);
+  }
+  const sep=document.getElementById('callRailResize');
+  if(sep)sep.classList.toggle('show',open);
 }
-
+// closing the rail is VIEW-ONLY: no poke, no leave, no track teardown.
+// closeCallRail({keepTheater:true}) is the VIEW-ONLY hide -- the X/view toggle, a drag
+// past the threshold, Enter on the separator. It parks the favoured stream.
+// closeCallRail() with no options is SEMANTIC TEARDOWN -- the call itself ended -- and
+// discards theater outright. Callers say which; nothing is inferred from _theaterKey.
+function closeCallRail(opts){
+  if(opts&&opts.keepTheater)parkTheater(opts.reason||'rail-hidden');
+  else discardTheater((opts&&opts.reason)||'call-teardown');
+  resetRailAutoLayout();               // the normal columns come back while hidden
+  restoreChat();
+  clearRailWidth();                    // manual width is session-only; reopen is 300px
+  document.getElementById('callRail').classList.remove('open');
+  placeCallBtn();
+  updateCallRestoreUI();
+}
+function openCallRail(){
+  clearRailWidth();                    // always reopen at the normal 300px
+  document.getElementById('callRail').classList.add('open');
+  const _sep=document.getElementById('callRailResize');
+  if(_sep)_sep.classList.add('show');
+  placeCallBtn();
+  updateCallRestoreUI();
+  renderCallRail();                    // the tiles must exist before one can be staged
+  unparkTheater();
+}
 function toggleCallRail(){
-  document.getElementById('callRail').classList.toggle('open');
+  const rail=document.getElementById('callRail');
+  // the view control hides the CALL VIEW, never the call
+  if(rail.classList.contains('open'))closeCallRail({keepTheater:true,reason:'view-toggle'});
+  else openCallRail();
 }
 
 function toggleMute(){
@@ -8489,9 +9726,7 @@ function toggleMute(){
   if(rtcManager.localStream){
     rtcManager.localStream.getAudioTracks().forEach(t=>{t.enabled=!rtcManager.muted});
   }
-  const btn=document.getElementById('muteBtn');
-  btn.classList.toggle('active',!rtcManager.muted);
-  btn.classList.toggle('muted-state',rtcManager.muted);
+  syncCallControls();
 }
 
 async function toggleVideo(){
@@ -8523,8 +9758,12 @@ async function toggleVideo(){
         });
       }
     }
-  }catch(e){console.error('[video] toggleVideo error:',e)}
-  document.getElementById('videoBtn').classList.toggle('active',rtcManager.videoOn);
+  }catch(e){
+    // permission denial / no device: fall back to the truthful OFF state
+    console.error('[video] toggleVideo error:',e);
+    rtcManager.videoOn=false;
+  }
+  syncCallControls();
   renderCallRail();
 }
 
@@ -8566,22 +9805,22 @@ async function toggleScreen(){
         }
         rtcManager.screenOn=false;
         rtcManager.screenStream=null;
-        document.getElementById('screenBtn').classList.remove('active');
+        syncCallControls();
         renderCallRail();
       };
-    }catch(e){console.error('[rtc] screenshare failed',e);return}
+    }catch(e){
+      // user cancelled the picker or the request failed: stay truthfully idle
+      console.error('[rtc] screenshare failed',e);
+      rtcManager.screenOn=false;
+      rtcManager.screenStream=null;
+      syncCallControls();
+      return;
+    }
   }
-  document.getElementById('screenBtn').classList.toggle('active',rtcManager.screenOn);
+  syncCallControls();
   renderCallRail();
 }
 
-async function hangUp(){
-  if(!state.inCall)return;
-  await api.poke('noltbook','noltbook-action',{action:'leave-call',data:{noteId:state.inCall}});
-  rtcManager.hangUp();
-  state.inCall=null;
-  updateCallUI();
-}
 // leave call on tab close/refresh
 window.addEventListener('beforeunload',()=>{
   if(state.inCall){
@@ -8607,6 +9846,273 @@ window.addEventListener('pagehide',()=>{
   }
 });
 /* ========== END CALL SYSTEM ========== */
+
+// initEdgeDrags is registered LAST: it reads THEATER_MIN_CHAT and _theaterKey, which are
+// initialised further down the script, so running it inline would hit the temporal dead zone.
+(function initEdgeDrags(){
+  const sidebar=document.getElementById('sidebar');
+  const sbSep=document.getElementById('sidebarResize');
+  const sbRestore=document.getElementById('sidebarRestore');
+  const rail=document.getElementById('callRail');
+  const railSep=document.getElementById('callRailResize');
+  const railRestore=document.getElementById('callRestoreHandle');
+
+  // ---- left sidebar: resize edge ----
+  let d=null;
+  const sbStart=(el,startW,fromRestore)=>(e)=>{
+    if(e.button!==undefined&&e.button!==0)return;
+    e.preventDefault();
+    d={x:e.clientX,w:startW(),moved:false,fromRestore:fromRestore,el:el,
+       token:beginLayoutGesture('sidebar',el,e.pointerId)};
+    try{el.setPointerCapture(e.pointerId)}catch(err){}
+    sidebar.classList.add('dragging');dragChrome(true);
+  };
+  const sbMove=(e)=>{
+    if(!d)return;
+    // a teardown cancelled this gesture: drop the record, write nothing
+    if(!layoutGestureValid(d.token)){d=null;return}
+    const dx=e.clientX-d.x;
+    if(!d.moved&&Math.abs(dx)<DRAG_SLOP)return;
+    d.moved=true;
+    if(d.fromRestore&&sidebar.classList.contains('collapsed'))setSidebarCollapsed(false,true);
+    // below SB_MIN is allowed WHILE dragging so the user can pull it shut
+    sidebar.style.width=Math.max(0,Math.min(SB_MAX,d.w+dx))+'px';
+    if(_theaterKey)applyTheaterWidth();
+    syncSidebarSeparator();
+  };
+  const sbEnd=(e)=>{
+    if(!d)return;
+    if(!layoutGestureValid(d.token)){d=null;return}
+    const wasDrag=d.moved, el=d.el, fromRestore=d.fromRestore;
+    endLayoutGesture(d.token);
+    d=null;
+    // read the dragged width BEFORE dropping .dragging -- removing it restores
+    // min-width:150px, which would hide the fact that the user pulled it shut
+    const w=sidebar.getBoundingClientRect().width;
+    sidebar.classList.remove('dragging');dragChrome(false);
+    try{el.releasePointerCapture(e.pointerId)}catch(err){}
+    if(!wasDrag){                                   // a short click, not a drag
+      if(fromRestore)setSidebarCollapsed(false,true);
+      return;
+    }
+    if(w<SB_SNAP){
+      sidebar.style.width='';                       // keep the SAVED width for next open
+      setSidebarCollapsed(true,true);
+    }else{
+      sidebar.style.width=clampSidebarWidth(w)+'px';
+      setSidebarCollapsed(false,true);
+      saveSidebarWidth();
+    }
+    if(_theaterKey)applyTheaterWidth();
+    syncSidebarSeparator();
+  };
+  for(const [el,startW,fromRestore] of [[sbSep,()=>sidebar.offsetWidth,false],
+                                        [sbRestore,()=>0,true]]){
+    if(!el)continue;
+    el.addEventListener('pointerdown',sbStart(el,startW,fromRestore));
+    el.addEventListener('pointermove',sbMove);
+    el.addEventListener('pointerup',sbEnd);
+    el.addEventListener('pointercancel',sbEnd);
+  }
+  // ---- right call rail: resize edge (dragging RIGHT narrows it) ----
+  let r=null;
+  // The divider is CONTEXTUAL. Outside theater it is the call-rail width handle
+  // (unchanged). Inside theater it is the chat/staged-media split: it must NOT exit
+  // theater and must NOT restore the sidebar just because it was touched.
+  const railStart=(el,fromRestore)=>(e)=>{
+    if(e.button!==undefined&&e.button!==0)return;
+    e.preventDefault();
+    const inTheater=!fromRestore&&!!_theaterKey;
+    let startW=fromRestore?0:rail.getBoundingClientRect().width;
+    // register BEFORE beginRailLayoutDrag: a superseded-gesture abort resets the scope
+    // flags, so it has to happen before this gesture installs its own
+    const _tok=beginLayoutGesture(
+      inTheater?'theater-split':(fromRestore?'rail-restore':'main-divider'),el,e.pointerId);
+    let fsExited=false;
+    const prevManualW=_theaterManualW;
+    if(inTheater){
+      // narrowing chat reflows the message list and clamps its scrollTop, so snapshot
+      // the position BEFORE the first width change rather than at collapse time
+      const _cm=document.getElementById('chatMessages');
+      if(_cm&&!_chatCollapsed)_chatScrollTop=_cm.scrollTop;
+      // fullscreen yields, theater does NOT. Pin the current width as the manual split
+      // so exiting fullscreen cannot produce a jump mid-gesture.
+      if(railFullscreenActive()){
+        fsExited=true;
+        exitRailFullscreen();
+        // Fullscreen had no visible chat. Returning to a chat-floored theater would
+        // shrink the rail by hundreds of px mid-gesture, so if the pinned width cannot
+        // coexist with the chat floor, collapse chat instead and keep the width.
+        if(startW>theaterAvailWidth()-THEATER_MIN_CHAT)setChatCollapsed(true);
+        startW=Math.min(startW,theaterAvailWidth());
+        _theaterManualW=startW;
+        applyTheaterWidth();
+      }
+    }
+    // One allocator, distinct ownership. Both main-divider modes may collapse an open
+    // Notes/Contacts panel. CHAT and rail-restore gestures never control that panel.
+    beginRailLayoutDrag(inTheater?'theater-main':(fromRestore?'rail':'all'),startW);
+    r={x:e.clientX,w:startW,moved:false,fromRestore:fromRestore,el:el,theater:inTheater,
+       fsExited:fsExited,prevManualW:prevManualW,token:_tok};
+    try{el.setPointerCapture(e.pointerId)}catch(err){}
+    rail.classList.add('dragging');dragChrome(true);
+  };
+  const railMove=(e)=>{
+    if(!r)return;
+    if(!layoutGestureValid(r.token)){r=null;return}
+    const dx=e.clientX-r.x;
+    if(!r.moved&&Math.abs(dx)<DRAG_SLOP)return;
+    r.moved=true;
+    if(r.fromRestore&&!rail.classList.contains('open')){
+      rail.classList.add('open');placeCallBtn();updateCallRestoreUI();renderCallRail();
+    }
+    // one path for both modes: railDragTo allocates, rzApply writes it to whichever
+    // custom property this mode uses. Continuous -- no finalise-snap mid-gesture.
+    rzApply(railDragTo(r.w-dx));
+    syncRailSeparator();
+  };
+  const railEnd=(e)=>{
+    if(!r)return;
+    if(!layoutGestureValid(r.token)){r=null;return}
+    const wasDrag=r.moved, el=r.el, fromRestore=r.fromRestore, inTheater=r.theater;
+    const r_fsExited=r.fsExited, r_prevManualW=r.prevManualW;
+    // retire the record now: this handler may itself close the rail, and the teardown
+    // that follows would otherwise abort a gesture that has already finished
+    endLayoutGesture(r.token);
+    r=null;
+    const w=rail.getBoundingClientRect().width;
+    rail.classList.remove('dragging');dragChrome(false);
+    try{el.releasePointerCapture(e.pointerId)}catch(err){}
+    if(!wasDrag){
+      _rzDragging=false;_rzTheater=false;_rzAppliedW=null;
+      _rzScope='all';_rzSbFrozen=false;
+      const _sb=document.getElementById('sidebar');
+      if(_sb)_sb.classList.remove('rz-squeeze');
+      // a short click is a NO-OP in theater too: it must not reset a chosen split back
+      // to the automatic one. Only a fullscreen exit legitimately re-pins the width.
+      if(inTheater){
+        if(!r_fsExited)_theaterManualW=r_prevManualW;
+        applyTheaterWidth();return;
+      }
+      // A short click on the open rail's divider is a NO-OP: a missed grab must not
+      // hide the call view. Hiding is a real drag past the threshold, or Enter/Space
+      // on the focused separator. The restore handle keeps its click-to-open.
+      if(fromRestore){clearRailWidth();openCallRail()}
+      return;
+    }
+    if(inTheater&&_theaterKey){
+      // dragged right past the rail threshold: a view-only hide, so the stage is parked
+      if(w<RAIL_SNAP){closeCallRail({keepTheater:true,reason:'drag-close'});clearRailWidth();return}
+      // identical settling to ordinary mode: chat caught between zero and its floor
+      // lands on the NEARER endpoint, and the settled width is pinned as the split.
+      railSettleLayout();
+      syncRailSeparator();
+      return;
+    }
+    if(w<RAIL_SNAP){_rzDragging=false;closeCallRail({keepTheater:true,reason:'drag-close'});clearRailWidth()}
+    else{
+      setRailWidth(railDragTo(Math.max(RAIL_MIN,w)));railSettleLayout();
+      // drag-opening the rail from its restore handle is a reopen too: unpark, and keep
+      // the width the drag chose as the theater split rather than discarding it
+      if(fromRestore&&_theaterParked){
+        const _pw=w;
+        unparkTheater();
+        if(_theaterKey){
+          _theaterManualW=Math.max(300,Math.min(_pw,theaterAvailWidth()));
+          applyTheaterWidth();
+        }
+      }
+    }
+    syncRailSeparator();
+  };
+  for(const [el,fromRestore] of [[railSep,false],[railRestore,true]]){
+    if(!el)continue;
+    el.addEventListener('pointerdown',railStart(el,fromRestore));
+    el.addEventListener('pointermove',railMove);
+    el.addEventListener('pointerup',railEnd);
+    el.addEventListener('pointercancel',railEnd);
+  }
+  // ---- keyboard: arrows resize, Enter/Space collapses or restores ----
+  if(sbSep)sbSep.addEventListener('keydown',(e)=>{
+    const w=sidebar.getBoundingClientRect().width;
+    if(e.key==='ArrowLeft'||e.key==='ArrowRight'){
+      e.preventDefault();
+      sidebar.style.width=clampSidebarWidth(w+(e.key==='ArrowRight'?16:-16))+'px';
+      saveSidebarWidth();
+      if(_theaterKey)applyTheaterWidth();
+      syncSidebarSeparator();
+    }else if(e.key==='Enter'||e.key===' '){
+      e.preventDefault();setSidebarCollapsed(true,true);
+    }
+  });
+  if(railSep)railSep.addEventListener('keydown',(e)=>{
+    const w=rail.getBoundingClientRect().width;
+    if(e.key==='ArrowLeft'||e.key==='ArrowRight'){
+      e.preventDefault();
+      setRailWidth(Math.min(railMaxWidth(),Math.max(RAIL_MIN,w+(e.key==='ArrowLeft'?16:-16))));
+      syncRailSeparator();
+    }else if(e.key==='Enter'||e.key===' '){
+      e.preventDefault();closeCallRail({keepTheater:true,reason:'keyboard-hide'});
+    }
+  });
+  const restoreKey=(fn)=>(e)=>{
+    if(e.key==='Enter'||e.key===' '){e.preventDefault();fn()}
+  };
+  if(sbRestore)sbRestore.addEventListener('keydown',restoreKey(()=>setSidebarCollapsed(false,true)));
+  if(railRestore)railRestore.addEventListener('keydown',restoreKey(()=>openCallRail()));
+  // ---- collapsed chat: click opens at the normal width, click-and-drag sizes it ----
+  // The handle sits on the chat/rail boundary, so dragging it RIGHT gives chat room by
+  // taking it back from the rail -- the same boundary the call divider drives.
+  const chatRestore=document.getElementById('chatRestoreHandle');
+  if(chatRestore){
+    let c=null;
+    chatRestore.addEventListener('pointerdown',(e)=>{
+      if(e.button!==undefined&&e.button!==0)return;
+      e.preventDefault();
+      c={x:e.clientX,w:rail.getBoundingClientRect().width,moved:false,
+         token:beginLayoutGesture('chat-restore',chatRestore,e.pointerId)};
+      try{chatRestore.setPointerCapture(e.pointerId)}catch(err){}
+      rail.classList.add('dragging');dragChrome(true);
+    });
+    chatRestore.addEventListener('pointermove',(e)=>{
+      if(!c)return;
+      if(!layoutGestureValid(c.token)){c=null;return}
+      const dx=e.clientX-c.x;
+      if(!c.moved&&Math.abs(dx)<DRAG_SLOP)return;    // a small wobble is still a click
+      if(!c.moved){
+        c.moved=true;
+        // Scope this gesture to CHAT in both modes: it may resize chat and the rail, but
+        // must never open, close or squeeze Notes/Contacts or change its ownership flag.
+        beginRailLayoutDrag(_theaterKey?'theater-chat':'chat',c.w);
+      }
+      // grows chat smoothly from zero in BOTH modes -- no 0 -> 360 jump in theater
+      rzApply(railDragTo(c.w-dx));
+      syncRailSeparator();
+    });
+    const chatEnd=(e)=>{
+      if(!c)return;
+      if(!layoutGestureValid(c.token)){c=null;return}
+      const wasDrag=c.moved;
+      endLayoutGesture(c.token);
+      c=null;
+      rail.classList.remove('dragging');dragChrome(false);
+      try{chatRestore.releasePointerCapture(e.pointerId)}catch(err){}
+      // short click: the normal split in theater, the normal width otherwise
+      if(!wasDrag){_rzDragging=false;_rzTheater=false;_rzAppliedW=null;
+        _rzScope='all';_rzSbFrozen=false;_rzAutoChat=false;restoreChat();return}
+      railSettleLayout();
+      _suppressChatClick=true;                       // the drag already chose the width
+      setTimeout(()=>{_suppressChatClick=false},0);
+    };
+    chatRestore.addEventListener('pointerup',chatEnd);
+    chatRestore.addEventListener('pointercancel',chatEnd);
+    chatRestore.addEventListener('click',(e)=>{
+      if(_suppressChatClick){e.preventDefault();e.stopPropagation();return}
+    });
+    chatRestore.addEventListener('keydown',restoreKey(()=>{_rzAutoChat=false;restoreChat()}));
+  }
+  syncSidebarSeparator();syncRailSeparator();
+})();
 
 boot();
 </script>
