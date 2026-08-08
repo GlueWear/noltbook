@@ -915,6 +915,11 @@
       ::  the authoritative REPLACEMENT of the whole visible call set (hydration and
       ::  reconnect). The frontend derives WebRTC peer add/drop by diffing the
       ::  participant set, so no separate join/left delta is needed.
+      ::  the build stamp the AGENT reads out of its own copy of index.html. The browser
+      ::  compares it against the stamp baked into the page it is running: a mismatch
+      ::  means this tab is serving a cached build, which is the one failure a
+      ::  self-reported version number cannot otherwise reveal.
+      [%build-stamp stamp=@t]
       [%call-snap snap=call-snapshot]
       [%call-list snaps=(list call-snapshot)]
       [%call-signal note-id=@ta from=@p sig-type=@t payload=@t]

@@ -2633,6 +2633,24 @@
 ::  The desk has no desk.bill, runs no agent, is not mounted, and has no remote sync.
 ::  An existing desk is never recreated or overwritten; art-store-exists remains the
 ::  fail-safe readiness check if an existing desk is incomplete.
+::  build-stamp: read the build marker out of the index.html this ship actually serves.
+::  Reading the served file rather than a side-file means the two can never disagree.
+::  The marker lives in <head>, so a short prefix is scanned -- never the whole ~700KB.
+++  build-stamp
+  |=  =bowl:gall
+  ^-  @t
+  =/  pax=path
+    :*  (scot %p our.bowl)
+        q.byk.bowl
+        (scot %da now.bowl)
+        /lib/noltbook/index/html
+    ==
+  ?.  .^(? %cu pax)  ''
+  =/  head=tape  (scag 600 (trip .^(@t %cx pax)))
+  =/  key=tape   "nb-build\" content=\""
+  =/  i  (find key head)
+  ?~  i  ''
+  (crip (scag 10 (slag (add u.i (lent key)) head)))
 ++  ensure-data-desk
   |=  =bowl:gall
   ^-  (list card)
@@ -6881,7 +6899,9 @@
       ?~  rl  ~
       ~[(gf-paths ~ `update:noltbook`[%dm-ref-list nid rl])]
     :_  this(notes notes-now, messages messages-now, notification-acks pruned-acks, note-activity pruned-activity, note-unread-activity pruned-unread-activity, note-read pruned-read, app-notifications pruned-app-notifications)
-    :(weld init-cards pal-sync-cards mention-cards attention-cards call-cards active-cards jr-cards role-cards bb-cards hs-cards lineage-cards pfi-cards ack-cards activity-cards read-cards unread-activity-cards app-notification-cards dm-ref-cards)
+    =/  build-cards=(list card)
+      ~[(gf-paths ~ `update:noltbook`[%build-stamp (build-stamp bowl)])]
+    :(weld build-cards init-cards pal-sync-cards mention-cards attention-cards call-cards active-cards jr-cards role-cards bb-cards hs-cards lineage-cards pfi-cards ack-cards activity-cards read-cards unread-activity-cards app-notification-cards dm-ref-cards)
   ::
       [%notes @ ~]
     =/  nid=@ta  i.t.path
@@ -9067,7 +9087,16 @@
     =/  html-bytes=octs
       (as-octs:mimes:html .^(@ %cx html-path))
     =/  =simple-payload:http
-      [[200 ~[['content-type' 'text/html; charset=utf-8']]] `html-bytes]
+      :_  `html-bytes
+      :-  200
+      :~  ['content-type' 'text/html; charset=utf-8']
+          ::  Never cache the app shell. This response carries no ETag and no
+          ::  Last-Modified, so a browser that keeps a copy has no way to revalidate it:
+          ::  it just keeps serving the old page after an update, and the only cure is a
+          ::  manual hard reload. Storing it at all is what makes a ship look "not
+          ::  updated" when the desk is perfectly current.
+          ['cache-control' 'no-store']
+      ==
     [(give-simple-payload:app:server eyre-id simple-payload) this]
       %noltbook-action
     =/  act  !<(action:noltbook vase)

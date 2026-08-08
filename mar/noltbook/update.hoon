@@ -301,6 +301,10 @@
           ==
       ==
     ::
+        %build-stamp
+      %+  frond  'build-stamp'
+      s+stamp.upd
+    ::
         %call-snap
       ::  one authoritative record for one note. `call` is null when there is no call,
       ::  and `gen` is present either way so the browser can order it.

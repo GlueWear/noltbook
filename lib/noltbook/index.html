@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="nb-build" content="bejm31f33h">
 <title>NOLTBOOK</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
@@ -20,7 +21,9 @@
 html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg);color:var(--text);overflow:hidden}
 .app{display:flex;flex-direction:column;height:100vh}
 .app-header{display:flex;align-items:center;justify-content:space-between;padding:0 1rem 0 1rem;height:42px;border-bottom:1px solid var(--border);flex-shrink:0}
-.logo{font-size:1.5rem;letter-spacing:.3em;color:#ffaa00;margin-left:.3em;cursor:pointer;padding:.2rem .4rem;position:relative;display:inline-block}
+.logo{font-size:1.5rem;letter-spacing:.3em;color:#ffaa00;cursor:pointer;padding:.2rem .4rem;position:relative;display:inline-block}
+/* the wordmark and the build stamp share one left edge */
+.logo-stack{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;margin-left:.45rem}
 .logo-mark{display:block;width:145px;height:23.45px}
 .logo:hover{background:var(--bg2)}
 .logo-badge{position:absolute;top:2px;right:-2px;width:8px;height:8px;border-radius:50%;background:#ff4444;display:none}
@@ -149,6 +152,13 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
   writing-mode:vertical-rl;letter-spacing:.15em;touch-action:none;transition:box-shadow .15s}
 .chat-restore.show{display:flex}
 .chat-restore:hover,.chat-restore:focus-visible{color:#ffaa00;box-shadow:0 0 8px currentColor}
+/* Indented to sit under the N of NOLTBOOK. The SVG is 145px wide over a 641.2 viewBox
+   and the N's path starts at x=134.2, so the glyph begins 134.2/641.2 * 145 = 30.35px
+   into the mark -- plus .4rem for .logo's own left padding. */
+.build-badge{margin-left:calc(.4rem + 30.35px);margin-top:-4px;font-family:var(--font);
+  font-size:.6rem;line-height:1;letter-spacing:.08em;color:#00ff88;
+  cursor:pointer;user-select:none;white-space:nowrap}
+.build-badge.stale{color:#ff4444}
 .chat-header{display:flex;align-items:center;justify-content:space-between;padding:0 1rem;height:42px;border-bottom:1px solid var(--border);flex-shrink:0}
 .chat-note-name{font-size:1.1rem;color:#ffaa00;cursor:pointer;text-decoration:underline;padding:.2rem .4rem}
 .chat-note-name:hover{background:var(--bg2)}
@@ -686,7 +696,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 <body>
 <div class="app">
   <header class="app-header">
-    <span class="logo" id="noltbookLogo" onclick="openGrimoireMenu()"><svg class="logo-mark" viewBox="0 0 641.2 103.7" role="img" aria-label="Noltbook"><defs><clipPath id="nbLogoClip"><rect x="134.2" y="16.8" width="506.9" height="63.8"/></clipPath></defs><g clip-path="url(#nbLogoClip)"><path fill="#ffaa00" d="M583.9,79.4h15.3V18h-15.3v61.4ZM599.4,46.9l22,32.5h19.3l-24.4-32.8,24.9-28.6h-17.5l-24.3,28.9ZM550.8,33.3c3.7,3.8,5.6,9,5.6,15.4s-1.9,11.6-5.6,15.5c-2.5,2.6-5.8,4-9.7,4s-7.3-1.3-9.8-4c-3.7-3.9-5.6-9.1-5.6-15.7s1.9-11.3,5.6-15.2c2.6-2.6,5.8-4,9.8-4s7.2,1.3,9.7,4M525.2,20.7c-4.7,2.6-8.2,6.1-10.7,10.7-2.9,5.4-4.3,11-4.3,16.9,0,11.5,3.9,20.3,11.7,26.3,5.2,4,11.6,6.1,19.1,6.1s18.2-3.6,24-10.7c4.6-5.7,6.8-12.7,6.8-21.1s-1.4-12.1-4.3-17.3c-1.8-3.3-4.3-6.1-7.4-8.5-5.2-4-11.6-6.1-19.1-6.1s-11.2,1.3-15.8,3.8M480.9,33.3c3.7,3.8,5.6,9,5.6,15.4s-1.9,11.6-5.6,15.5c-2.5,2.6-5.8,4-9.7,4s-7.3-1.3-9.8-4c-3.7-3.9-5.6-9.1-5.6-15.7s1.9-11.3,5.6-15.2c2.6-2.6,5.8-4,9.8-4s7.2,1.3,9.7,4M455.3,20.7c-4.7,2.6-8.2,6.1-10.7,10.7-2.9,5.4-4.3,11-4.3,16.9,0,11.5,3.9,20.3,11.7,26.3,5.2,4,11.6,6.1,19.1,6.1s18.2-3.6,24-10.7c4.6-5.7,6.8-12.7,6.8-21.1s-1.4-12.1-4.3-17.3c-1.8-3.3-4.3-6.1-7.4-8.5-5.2-4-11.6-6.1-19.1-6.1s-11.2,1.3-15.8,3.8M395,53.6h8.2c4.1,0,7,.2,8.7.6,3.1.7,4.6,2.8,4.6,6.2s-1.6,5.4-4.7,6.1c-1.5.3-4.5.4-8.8.4h-7.9v-13.3ZM395,30.5h7.4c4.4,0,7.4.4,8.9,1.1,1.5.7,2.3,2.1,2.3,4.2s-1.1,4.2-3.4,4.7c-1.4.4-4,.5-7.8.5h-7.3v-10.6ZM380.4,79.4h20.5c5.5,0,9.4-.1,11.7-.3,2.3-.2,4.5-.6,6.7-1.3,4-1.2,7.2-3.3,9.4-6.3,2.2-3,3.3-6.5,3.3-10.6s-1.5-8.3-4.5-11c-1.4-1.3-3.2-2.4-5.5-3.5,4.7-2.8,7.1-6.8,7.1-12s-.8-6.1-2.4-8.6c-1.6-2.5-3.9-4.3-6.7-5.5-3.8-1.5-9.9-2.3-18.4-2.3h-21.1v61.4ZM322,30.5h16.3v48.9h15.3V30.5h16.9v-12.5h-48.6v12.5ZM274.7,79.4h43v-12.5h-27.7V18h-15.3v61.4ZM241.5,33.3c3.7,3.8,5.6,9,5.6,15.4s-1.9,11.6-5.6,15.5c-2.5,2.6-5.8,4-9.7,4s-7.3-1.3-9.8-4c-3.7-3.9-5.6-9.1-5.6-15.7s1.9-11.3,5.6-15.2c2.6-2.6,5.8-4,9.8-4s7.2,1.3,9.7,4M216,20.7c-4.7,2.6-8.2,6.1-10.7,10.7-2.9,5.4-4.3,11-4.3,16.9,0,11.5,3.9,20.3,11.7,26.3,5.2,4,11.6,6.1,19.1,6.1s18.2-3.6,24-10.7c4.6-5.7,6.8-12.7,6.8-21.1s-1.4-12.1-4.3-17.3c-1.8-3.3-4.3-6.1-7.4-8.5-5.2-4-11.6-6.1-19.1-6.1s-11.1,1.3-15.8,3.8M134.2,79.4h15v-37.8l25.4,37.8h14.2V18h-15v36.3l-24.8-36.3h-14.9v61.4Z"/></g><g fill="#ffaa00"><polygon points="8.2 62.1 8.2 8.2 62.1 8.2 62.1 31.5 62.1 43.8 62.1 62.1 45.1 62.1 45.1 70.4 70.4 70.4 70.4 43.8 70.4 31.5 70.4 0 0 0 0 70.4 29.7 70.4 29.7 62.1 8.2 62.1"/><polygon points="74 33.4 74 41.6 95.4 41.6 95.4 95.5 41.5 95.5 41.5 72.7 41.5 70.4 41.5 62.1 41.5 60.4 41.5 41.6 58.5 41.6 58.5 33.4 33.3 33.4 33.3 59.1 33.3 62.1 33.3 70.4 33.3 71.4 33.3 103.7 103.6 103.7 103.6 33.4 74 33.4"/></g></svg><span class="logo-badge"></span></span>
+    <span class="logo-stack"><span class="logo" id="noltbookLogo" onclick="openGrimoireMenu()"><svg class="logo-mark" viewBox="0 0 641.2 103.7" role="img" aria-label="Noltbook"><defs><clipPath id="nbLogoClip"><rect x="134.2" y="16.8" width="506.9" height="63.8"/></clipPath></defs><g clip-path="url(#nbLogoClip)"><path fill="#ffaa00" d="M583.9,79.4h15.3V18h-15.3v61.4ZM599.4,46.9l22,32.5h19.3l-24.4-32.8,24.9-28.6h-17.5l-24.3,28.9ZM550.8,33.3c3.7,3.8,5.6,9,5.6,15.4s-1.9,11.6-5.6,15.5c-2.5,2.6-5.8,4-9.7,4s-7.3-1.3-9.8-4c-3.7-3.9-5.6-9.1-5.6-15.7s1.9-11.3,5.6-15.2c2.6-2.6,5.8-4,9.8-4s7.2,1.3,9.7,4M525.2,20.7c-4.7,2.6-8.2,6.1-10.7,10.7-2.9,5.4-4.3,11-4.3,16.9,0,11.5,3.9,20.3,11.7,26.3,5.2,4,11.6,6.1,19.1,6.1s18.2-3.6,24-10.7c4.6-5.7,6.8-12.7,6.8-21.1s-1.4-12.1-4.3-17.3c-1.8-3.3-4.3-6.1-7.4-8.5-5.2-4-11.6-6.1-19.1-6.1s-11.2,1.3-15.8,3.8M480.9,33.3c3.7,3.8,5.6,9,5.6,15.4s-1.9,11.6-5.6,15.5c-2.5,2.6-5.8,4-9.7,4s-7.3-1.3-9.8-4c-3.7-3.9-5.6-9.1-5.6-15.7s1.9-11.3,5.6-15.2c2.6-2.6,5.8-4,9.8-4s7.2,1.3,9.7,4M455.3,20.7c-4.7,2.6-8.2,6.1-10.7,10.7-2.9,5.4-4.3,11-4.3,16.9,0,11.5,3.9,20.3,11.7,26.3,5.2,4,11.6,6.1,19.1,6.1s18.2-3.6,24-10.7c4.6-5.7,6.8-12.7,6.8-21.1s-1.4-12.1-4.3-17.3c-1.8-3.3-4.3-6.1-7.4-8.5-5.2-4-11.6-6.1-19.1-6.1s-11.2,1.3-15.8,3.8M395,53.6h8.2c4.1,0,7,.2,8.7.6,3.1.7,4.6,2.8,4.6,6.2s-1.6,5.4-4.7,6.1c-1.5.3-4.5.4-8.8.4h-7.9v-13.3ZM395,30.5h7.4c4.4,0,7.4.4,8.9,1.1,1.5.7,2.3,2.1,2.3,4.2s-1.1,4.2-3.4,4.7c-1.4.4-4,.5-7.8.5h-7.3v-10.6ZM380.4,79.4h20.5c5.5,0,9.4-.1,11.7-.3,2.3-.2,4.5-.6,6.7-1.3,4-1.2,7.2-3.3,9.4-6.3,2.2-3,3.3-6.5,3.3-10.6s-1.5-8.3-4.5-11c-1.4-1.3-3.2-2.4-5.5-3.5,4.7-2.8,7.1-6.8,7.1-12s-.8-6.1-2.4-8.6c-1.6-2.5-3.9-4.3-6.7-5.5-3.8-1.5-9.9-2.3-18.4-2.3h-21.1v61.4ZM322,30.5h16.3v48.9h15.3V30.5h16.9v-12.5h-48.6v12.5ZM274.7,79.4h43v-12.5h-27.7V18h-15.3v61.4ZM241.5,33.3c3.7,3.8,5.6,9,5.6,15.4s-1.9,11.6-5.6,15.5c-2.5,2.6-5.8,4-9.7,4s-7.3-1.3-9.8-4c-3.7-3.9-5.6-9.1-5.6-15.7s1.9-11.3,5.6-15.2c2.6-2.6,5.8-4,9.8-4s7.2,1.3,9.7,4M216,20.7c-4.7,2.6-8.2,6.1-10.7,10.7-2.9,5.4-4.3,11-4.3,16.9,0,11.5,3.9,20.3,11.7,26.3,5.2,4,11.6,6.1,19.1,6.1s18.2-3.6,24-10.7c4.6-5.7,6.8-12.7,6.8-21.1s-1.4-12.1-4.3-17.3c-1.8-3.3-4.3-6.1-7.4-8.5-5.2-4-11.6-6.1-19.1-6.1s-11.1,1.3-15.8,3.8M134.2,79.4h15v-37.8l25.4,37.8h14.2V18h-15v36.3l-24.8-36.3h-14.9v61.4Z"/></g><g fill="#ffaa00"><polygon points="8.2 62.1 8.2 8.2 62.1 8.2 62.1 31.5 62.1 43.8 62.1 62.1 45.1 62.1 45.1 70.4 70.4 70.4 70.4 43.8 70.4 31.5 70.4 0 0 0 0 70.4 29.7 70.4 29.7 62.1 8.2 62.1"/><polygon points="74 33.4 74 41.6 95.4 41.6 95.4 95.5 41.5 95.5 41.5 72.7 41.5 70.4 41.5 62.1 41.5 60.4 41.5 41.6 58.5 41.6 58.5 33.4 33.3 33.4 33.3 59.1 33.3 62.1 33.3 70.4 33.3 71.4 33.3 103.7 103.6 103.7 103.6 33.4 74 33.4"/></g></svg><span class="logo-badge"></span></span><span class="build-badge" id="buildBadge" onclick="copyBuildBadge()"></span></span>
     <div class="header-dial" id="dialWrap">
       <span class="dial-label">DIAL</span>
       <div class="dial-box active" onclick="setDial(0)">0</div>
@@ -1243,6 +1253,7 @@ async function boot(){
   document.getElementById('shipDisplay').textContent='~'+ship;
   document.getElementById('shipDisplay').style.color=shipColor('~'+ship);
   updateSidebarSigil();
+  renderBuildBadge();
   loadReadCursors();
   await api.subscribe('noltbook','/notes',handleUpdate);
   api.open();
@@ -1961,6 +1972,7 @@ function handleUpdate(upd){
   else if(upd['rumor-message']){/* %Rumors removed from UI — ignore rumor traffic so no phantom %GOSSIP notification dot */}
   else if(upd['mention-update']){const{noteId,mentions}=upd['mention-update'];if(!state.mentions[noteId])state.mentions[noteId]=[];for(const m of mentions){const mEid=m.eid||null;const dup=state.mentions[noteId].some(x=>(mEid&&x.eid&&x.eid===mEid)||x.id===m.id);if(!dup)state.mentions[noteId].push({id:m.id,eid:mEid,author:m.author})}scheduleNoteList()}
   else if(upd['attention-update']){const{noteId,items,full}=upd['attention-update'];const mapped=(items||[]).map(it=>({kind:it.kind,targetKind:it.targetKind,eid:it.eid||null,msgId:(it.msgId!=null?it.msgId:null),aid:it.aid||null,author:it.author,when:it.when}));if(full){state.attention[noteId]=mapped}else{if(!state.attention[noteId])state.attention[noteId]=[];for(const it of mapped){const dup=state.attention[noteId].some(x=>(it.eid&&x.eid&&x.eid===it.eid)||(it.msgId!=null&&x.targetKind==='message'&&x.msgId===it.msgId)||(it.aid&&x.aid===it.aid)||(x.kind===it.kind&&x.author===it.author&&x.when===it.when));if(!dup)state.attention[noteId].push(it)}}scheduleNoteList()}
+  else if(upd['build-stamp']){_nbShipBuild=String(upd['build-stamp']||'').trim()||null;renderBuildBadge()}
   else if(upd['call-snap']){if(applyCallSnap(upd['call-snap'])){updateCallUI();scheduleNoteList()}}
   else if(upd['call-list']){applyCallList(upd['call-list']);updateCallUI();scheduleNoteList()}
   else if(upd['call-signal']){const{noteId,from,sigType,payload}=upd['call-signal'];console.log('[call-signal]',noteId,from,sigType);if(state.inCall===noteId)rtcManager.handleSignal(from,sigType,payload)}
@@ -9338,6 +9350,36 @@ function expireCallOp(){
   state.inCall=null;
   stopCallHeartbeat();
   updateCallUI();
+}
+// ===== build stamp =====
+// NB_BUILD is baked into the served file by the sync, so it identifies the code ACTUALLY
+// RUNNING in this tab -- not what the ship holds. That distinction is the whole point: a
+// cached page keeps reporting its own stale stamp, which is how a stale browser gives
+// itself away. The agent separately reports the stamp it reads from its own copy of
+// index.html; the two are the same value computed the same way, so they are directly
+// comparable and a mismatch means exactly one thing -- reload this tab.
+const NB_BUILD=(function(){
+  const m=document.querySelector('meta[name="nb-build"]');
+  return (m&&m.content)?m.content.trim():'';
+})();
+let _nbShipBuild=null;             // the stamp the ship reports for its own index.html
+function renderBuildBadge(){
+  const el=document.getElementById('buildBadge');
+  if(!el)return;
+  const mine=NB_BUILD||'\u2014';
+  const stale=!!_nbShipBuild&&!!NB_BUILD&&_nbShipBuild!==NB_BUILD;
+  el.textContent=stale?(mine+' \u26A0'):mine;
+  el.classList.toggle('stale',stale);
+  el.title=stale
+    ?('This tab is running build '+mine+' but the ship has '+_nbShipBuild
+      +' \u2014 hard-reload to pick it up')
+    :('Noltbook build '+mine+' (click to copy)');
+  el.setAttribute('aria-label',el.title);
+}
+function copyBuildBadge(){
+  const t=NB_BUILD||'';
+  if(!t)return;
+  try{navigator.clipboard.writeText(t)}catch(e){}
 }
 // noteSupportsCalls: the SINGLE place that decides whether a note is a call surface.
 // A %notebook is a publishing surface, so it gets SHARE but never CALL; cover, %Rumors
