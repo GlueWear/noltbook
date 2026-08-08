@@ -3037,6 +3037,21 @@
   |=  [now=@da nid=@ta who=@p txt=@t]
   ^-  message:noltbook
   [now nid who txt now ~ %.n ~]
+::  is-call-marker: the four hidden call-control markers, and ONLY those. Deliberately
+::  narrow, exactly like isCallControl() in the frontend: \01SYS:host-delete and
+::  \01SYS:art-delete are real system messages and keep their existing behaviour.
+++  is-call-marker
+  |=  t=@t
+  ^-  ?
+  =/  s=tape  (trip t)
+  ?:  =("\01SYS:call-ended" s)  %.y
+  %+  lien
+    ^-  (list tape)
+    :~  "\01SYS:call-started:"
+        "\01SYS:call-joined:"
+        "\01SYS:call-left:"
+    ==
+  |=(pfx=tape =(pfx (scag (lent pfx) s)))
 ++  call-started-txt
   |=  who=@p  ^-  @t
   (crip (weld "\01SYS:call-started:" (trip (scot %p who))))
@@ -12705,6 +12720,19 @@
         =.  messages  (~(put by messages) nid (cap-msgs (snoc cur msg) %.n))
         ::  Phase 11B: subscribed member records app attribution carried on the fact.
         =.  via-by-eid  (api-via-put via-by-eid via.upd msg)
+        ::  A hidden call marker is stored for the transcript but must have NO visible
+        ::  effect here: no recency bump, no DURABLE UNREAD, no sidebar preview, no
+        ::  mention or attention work. Relay the fact so the browser stores it too (the
+        ::  frontend filters it out of the timeline itself) and stop.
+        ::
+        ::  Without this, the four markers a single call writes each raise
+        ::  note-unread-activity on every member that does not have the note open, and
+        ::  the sidebar shows a green unread dot for a call nobody missed. The frontend's
+        ::  isHiddenCallMsg() guard cannot help: by the time the browser sees
+        ::  %note-unread-activity the message is gone and only a timestamp remains.
+        ?:  (is-call-marker text.msg)
+          :_  this
+          ~[(gf-paths ~[/notes/[nid]] upd) (gf-notes upd)]
         ::  a shared-note artifact-deletion marker (\01SYS:art-delete:...) is stored in the
         ::  timeline like any message, but a receiving member must NOT overwrite the note's
         ::  sidebar last-author/last-preview with its raw control text — preserve the
