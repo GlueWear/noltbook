@@ -982,6 +982,9 @@ const api = {
       return;
     }
     this.open();
+    // a fresh channel means we may have missed a call ending entirely; ask our agent to
+    // replay the full call list AND re-query every remote host
+    this.poke('noltbook','noltbook-action',{action:'sync-calls',data:{}});
     for(const [id,m] of Object.entries(this.subMeta)){
       if(m.path==='/notes/'+state.currentNoteId)state.currentNoteSub=parseInt(id);
     }
@@ -989,7 +992,7 @@ const api = {
     this.reconnecting=false;
   }
 };
-const state={notes:{},messages:{},artifacts:{},profiles:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,editingEid:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteUnreadActivity:{},noteRead:{},coverPreview:null,notePins:{},pinArtId:null,noteActive:{},appNotifications:{},artifactRefs:{},pendingRedirect:null};
+const state={notes:{},messages:{},artifacts:{},profiles:{},callGens:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,editingEid:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteUnreadActivity:{},noteRead:{},coverPreview:null,notePins:{},pinArtId:null,noteActive:{},appNotifications:{},artifactRefs:{},pendingRedirect:null};
 // Phase G4 freshness: resolved profiles are fresh for 10 min; negative results
 // (missing/invalid) cool down 5 min; unreachable cools down 2 min. Render cycles
 // poke only when fresh-expired AND past the cooldown (and not in flight).
@@ -1825,15 +1828,8 @@ function handleUpdate(upd){
   else if(upd['rumor-message']){/* %Rumors removed from UI — ignore rumor traffic so no phantom %GOSSIP notification dot */}
   else if(upd['mention-update']){const{noteId,mentions}=upd['mention-update'];if(!state.mentions[noteId])state.mentions[noteId]=[];for(const m of mentions){const mEid=m.eid||null;const dup=state.mentions[noteId].some(x=>(mEid&&x.eid&&x.eid===mEid)||x.id===m.id);if(!dup)state.mentions[noteId].push({id:m.id,eid:mEid,author:m.author})}scheduleNoteList()}
   else if(upd['attention-update']){const{noteId,items,full}=upd['attention-update'];const mapped=(items||[]).map(it=>({kind:it.kind,targetKind:it.targetKind,eid:it.eid||null,msgId:(it.msgId!=null?it.msgId:null),aid:it.aid||null,author:it.author,when:it.when}));if(full){state.attention[noteId]=mapped}else{if(!state.attention[noteId])state.attention[noteId]=[];for(const it of mapped){const dup=state.attention[noteId].some(x=>(it.eid&&x.eid&&x.eid===it.eid)||(it.msgId!=null&&x.targetKind==='message'&&x.msgId===it.msgId)||(it.aid&&x.aid===it.aid)||(x.kind===it.kind&&x.author===it.author&&x.when===it.when));if(!dup)state.attention[noteId].push(it)}}scheduleNoteList()}
-  else if(upd['call-state']){const{noteId,call}=upd['call-state'];console.log('[call-state]',noteId,call);if(call.status==='active'){state.activeCalls[noteId]=call}else{delete state.activeCalls[noteId]}updateCallUI()}
-  else if(upd['call-started']){const d=upd['call-started'];console.log('[call-started]',d);state.activeCalls[d.noteId]={callId:d.callId,noteId:d.noteId,startedBy:d.startedBy,participants:d.participants,status:'active'};updateCallUI()}
-  else if(upd['call-joined']){const{noteId,ship}=upd['call-joined'];console.log('[call-joined]',noteId,ship);const c=state.activeCalls[noteId];if(c){if(!c.participants.includes(ship))c.participants.push(ship);updateCallUI();if(state.inCall===noteId)rtcManager.onPeerJoined(ship)}}
-  else if(upd['call-left']){const{noteId,ship}=upd['call-left'];console.log('[call-left]',noteId,ship);const c=state.activeCalls[noteId];if(c){c.participants=c.participants.filter(p=>p!==ship);updateCallUI();if(state.inCall===noteId)rtcManager.onPeerLeft(ship)}}
-  else if(upd['call-ended']){const{noteId,callId}=upd['call-ended'];const c=state.activeCalls[noteId];if(!c){console.log('[call-ended] no active call, ignoring');return}if(callId&&c.callId&&callId!==c.callId){console.log('[call-ended] stale callId',callId,'vs active',c.callId,', ignoring');return}console.log('[call-ended]',noteId,callId);const wasOurs=state.inCall===noteId;delete state.activeCalls[noteId];if(wasOurs){rtcManager.hangUp();state.inCall=null}updateCallUI();
-    /* the call being displayed has fully ended -- put the view away through the normal
-       cleanup path. %call-left is deliberately NOT handled here: another participant
-       leaving while we are still joined must leave the rail open. */
-    if(wasOurs||noteId===state.currentNoteId)closeCallRail()}
+  else if(upd['call-snap']){if(applyCallSnap(upd['call-snap'])){updateCallUI();scheduleNoteList()}}
+  else if(upd['call-list']){applyCallList(upd['call-list']);updateCallUI();scheduleNoteList()}
   else if(upd['call-signal']){const{noteId,from,sigType,payload}=upd['call-signal'];console.log('[call-signal]',noteId,from,sigType);if(state.inCall===noteId)rtcManager.handleSignal(from,sigType,payload)}
   else if(upd['kick-notification']){const{noteId,noteName,from}=upd['kick-notification'];state.blockNotifications.push({noteId,noteName,from,time:Date.now()});state.removedFromNotes[noteId]=from;updateLogoBadge()}
   else if(upd['blocked-notification']){const{from}=upd['blocked-notification'];state.blockedBy[from]=true;state.blockNotifications.push({noteId:null,noteName:null,from,time:Date.now(),type:'blocked'});updateLogoBadge();if(state.currentNoteId){const cn=state.notes[state.currentNoteId];if(cn&&cn.type==='dm'){const cp=dmCounterparty(cn);if(cp===from)updateMuteUI()}}}
@@ -8855,6 +8851,127 @@ function placeCallBtn(){
   if(!slot)return;
   if(btn.parentNode!==slot)slot.appendChild(btn);
 }
+// ===== authoritative call state =====
+// The note host owns every call. It publishes a snapshot {noteId, gen, call} where
+// `call` is null when there is no call and `gen` is present EITHER WAY, so an empty
+// snapshot is ordered rather than an untagged absence. state.activeCalls is written
+// only from applyCallSnap / applyCallList -- never from a poke's transport result.
+//
+// `gen` is the monotonically increasing REVISION of that note's snapshot, advanced by
+// the host once per change it authors (start, join, leave, lease expiry, end). It is
+// not the identity of a call -- `call.callId` is, and that stays stable while gen moves.
+const CALL_HB_MS=20000;          // mirrors call-hb-interval in the agent
+const CALL_OP_TIMEOUT=12000;     // how long we wait for the host to confirm an action
+let _callHbTimer=null;
+let _callOp=null;                // {noteId,kind:'start'|'join'|'leave'}
+function callGenOf(noteId){
+  const g=state.callGens[noteId];
+  return (typeof g==='number')?g:-1;
+}
+// The ONE ordering rule, identical to snap-dominates in the agent, and strict: only a
+// higher revision replaces. Anything less than or equal is a duplicate or a straggler
+// and is dropped without touching state, peers, or a pending call operation. That single
+// comparison covers an old active after a newer leave, an old active after a newer end,
+// an old end after a newer call started, and duplicate delivery.
+function snapDominates(snap){
+  return snap.gen>callGenOf(snap.noteId);
+}
+function snapLive(c){
+  return !!c&&c.status==='active'&&Array.isArray(c.participants)&&c.participants.length>0;
+}
+function applyCallSnap(snap){
+  if(!snap||typeof snap.noteId!=='string')return false;
+  if(!snapDominates(snap))return false;
+  const nid=snap.noteId;
+  const before=state.activeCalls[nid]?state.activeCalls[nid].participants.slice():[];
+  state.callGens[nid]=snap.gen;
+  // zero participants is not a call: it can never render as active
+  if(snapLive(snap.call))state.activeCalls[nid]=snap.call; else delete state.activeCalls[nid];
+  const after=state.activeCalls[nid]?state.activeCalls[nid].participants:[];
+  reconcileCallPeers(nid,before,after);
+  return true;
+}
+// applyCallList: authoritative REPLACEMENT of the whole visible set, from our OWN agent
+// (hydration, reconnect). A note absent from the list is not in a call, which is what
+// clears a badge left behind by a missed end. Revisions are adopted wholesale: this is
+// our agent's own view, not a peer's claim, so it is not subject to the ordering rule.
+function applyCallList(snaps){
+  const prev={};
+  for(const nid in state.activeCalls)prev[nid]=state.activeCalls[nid].participants.slice();
+  state.activeCalls={};state.callGens={};
+  for(const sn of (Array.isArray(snaps)?snaps:[])){
+    if(!sn||typeof sn.noteId!=='string')continue;
+    state.callGens[sn.noteId]=sn.gen;
+    if(snapLive(sn.call))state.activeCalls[sn.noteId]=sn.call;
+  }
+  const nid=state.inCall;
+  if(nid)reconcileCallPeers(nid,prev[nid]||[],
+    state.activeCalls[nid]?state.activeCalls[nid].participants:[]);
+}
+// reconcileCallPeers: WebRTC membership is derived from the participant set rather than
+// from a separate join/left delta, so a missed delta cannot leave a half-built mesh.
+// Signaling itself is untouched.
+function reconcileCallPeers(nid,before,after){
+  if(state.inCall!==nid)return;
+  const me='~'+api.ship;
+  const b=new Set(before),a=new Set(after);
+  for(const sh of after)if(sh!==me&&!b.has(sh))rtcManager.onPeerJoined(sh);
+  for(const sh of before)if(sh!==me&&!a.has(sh))rtcManager.onPeerLeft(sh);
+  if(a.has(me)){
+    // the host confirmed us: a pending start/join is now real
+    if(_callOp&&_callOp.noteId===nid&&_callOp.kind!=='leave')finishCallOp();
+    startCallHeartbeat();
+    return;
+  }
+  // the host says we are NOT in this call. Whether we asked to leave or our lease
+  // lapsed, the truthful thing is to release media and close the view exactly once.
+  finishCallOp();
+  rtcManager.hangUp();
+  state.inCall=null;
+  stopCallHeartbeat();
+  closeCallRail();
+}
+function startCallHeartbeat(){
+  if(_callHbTimer)return;
+  _callHbTimer=setInterval(()=>{
+    if(!state.inCall){stopCallHeartbeat();return}
+    api.poke('noltbook','noltbook-action',{action:'call-heartbeat',data:{noteId:state.inCall}});
+  },CALL_HB_MS);
+}
+function stopCallHeartbeat(){
+  if(_callHbTimer){clearInterval(_callHbTimer);_callHbTimer=null}
+}
+// A poke landing is not the action happening. beginCallOp arms a timeout; only an
+// authoritative snapshot clears it, and a timeout reverts us to a truthful state.
+function beginCallOp(noteId,kind){
+  finishCallOp();
+  _callOp={noteId:noteId,kind:kind,
+    timer:setTimeout(()=>{expireCallOp()},CALL_OP_TIMEOUT)};
+  updateCallUI();
+}
+function finishCallOp(){
+  if(_callOp&&_callOp.timer)clearTimeout(_callOp.timer);
+  _callOp=null;
+}
+function callOpPending(noteId){
+  return !!_callOp&&_callOp.noteId===noteId;
+}
+function expireCallOp(){
+  const op=_callOp; finishCallOp();
+  if(!op)return;
+  console.error('[call] host never confirmed '+op.kind+' for '+op.noteId);
+  if(op.kind==='leave'){
+    // we are still in the call as far as anyone knows: leave END on the button so the
+    // user can retry, and keep peers and tracks exactly as they were.
+    updateCallUI();
+    return;
+  }
+  // start/join was never confirmed: never strand the microphone or a half-open peer
+  rtcManager.hangUp();
+  state.inCall=null;
+  stopCallHeartbeat();
+  updateCallUI();
+}
 // noteSupportsCalls: the SINGLE place that decides whether a note is a call surface.
 // A %notebook is a publishing surface, so it gets SHARE but never CALL; cover, %Rumors
 // and gossip notes were already excluded. %group, %dm and everything else keep calls.
@@ -9607,13 +9724,11 @@ async function _toggleCallInner(){
       updateCallUI();
       return;
     }
-    rtcManager.hangUp();
-    state.inCall=null;
-    updateCallUI();
-    // closeCallRail is the existing view-cleanup path: it exits fullscreen and theater,
-    // restores theater-only chat collapse and applies the sidebar rules, and sends no
-    // poke of its own.
-    closeCallRail();
+    // The poke landing is NOT the call ending -- only the host decides. Wait for its
+    // snapshot; reconcileCallPeers() releases media and closes the rail when we are
+    // actually out. On timeout the button stays on END so the user can retry, and
+    // peers/tracks are left untouched.
+    beginCallOp(noteId,'leave');
     return;
   }
 
@@ -9628,8 +9743,11 @@ async function _toggleCallInner(){
       updateCallUI();
       return;
     }
+    // the host will drop us from the old call; release our own media now so the mic is
+    // not held for two notes at once, but let the snapshot settle the old call's state
     rtcManager.hangUp();
     state.inCall=null;
+    stopCallHeartbeat();
     updateCallUI();
   }
 
@@ -9641,24 +9759,24 @@ async function _toggleCallInner(){
   }
 
   const call=state.activeCalls[noteId];
-  if(call){
-    // join existing call — set state BEFORE creating peers
-    console.log('[toggleCall] JOINING existing call, participants=',call.participants);
-    state.inCall=noteId;
-    await api.poke('noltbook','noltbook-action',{action:'join-call',data:{noteId}});
-    // establish peer connections to existing participants
-    const me='~'+api.ship;
-    for(const ship of call.participants){
-      if(ship!==me)rtcManager.createPeer(ship);
-    }
-  }else{
-    // start new call — set state BEFORE poke so signals can be handled
-    console.log('[toggleCall] STARTING new call');
-    state.inCall=noteId;
-    await api.poke('noltbook','noltbook-action',{action:'start-call',data:{noteId}});
+  const kind=call?'join':'start';
+  // state.inCall must be set before the poke so an early inbound signal routes to us
+  state.inCall=noteId;
+  console.log('[toggleCall] '+kind.toUpperCase()+'ING call on',noteId);
+  const ok=await api.poke('noltbook','noltbook-action',
+    {action:(kind==='join'?'join-call':'start-call'),data:{noteId}});
+  if(ok===false){
+    // definite transport failure: the host never heard us, so we are not in any call
+    console.error('[call] '+kind+'-call poke failed');
+    rtcManager.hangUp();
+    state.inCall=null;
+    updateCallUI();
+    return;
   }
-
-  // open the call rail
+  // No peers are created here. The host answers with an authoritative snapshot and
+  // reconcileCallPeers() builds exactly the mesh that snapshot describes, so a call we
+  // were never actually added to cannot leave a half-open peer behind.
+  beginCallOp(noteId,kind);
   document.getElementById('callRail').classList.add('open');
   placeCallBtn();
   updateCallRestoreUI();

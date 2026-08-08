@@ -350,6 +350,25 @@
       participants=(set @p)
       status=call-status
   ==
+::  call-snapshot: the HOST's authoritative record for one note, and the only shape any
+::  call state travels in.
+::
+::  `gen` is the monotonically increasing REVISION of that note's snapshot -- not the
+::  identity of a call. The host increments it exactly once for every change it authors:
+::  starting a call, adding a participant, removing one, a lease expiry, and the ending.
+::  It is carried on EMPTY snapshots too, so a cleared call is ordered rather than an
+::  untagged ~. `call-id` is what stays stable across one call's lifetime; a later call
+::  gets both the next revision and a fresh call-id.
+::
+::  Ordering is therefore strict and total (see snap-dominates in the agent): a higher
+::  revision replaces a lower one, and anything less than or equal is a duplicate or a
+::  straggler and is ignored outright. Heartbeats and signaling change no snapshot and
+::  never advance the revision.
++$  call-snapshot
+  $:  note-id=@ta
+      gen=@ud
+      call=(unit call-info)
+  ==
 ::
 ::  message-body search result row (Phase 2 sidebar search). Carries enough
 ::  for the frontend to render a row and route a click to openNote(note-id).
@@ -415,16 +434,20 @@
       ::  fork declined: invitee tells the forker to drop them from the invitee set.
       [%remote-fork-decline root-id=@ta]
       [%remote-introduce ship=@p]
-      ::  call signaling remotes
-      [%remote-call-start note-id=@ta call-id=@ta started-by=@p]
-      [%remote-call-join note-id=@ta ship=@p]
-      [%remote-call-leave note-id=@ta ship=@p]
-      [%remote-call-ended note-id=@ta]
+      ::  ===== calls =====
+      ::  member -> host REQUESTS. The sender is always the subject: there is no
+      ::  ship field to spoof, and no member-authored end.
+      [%remote-call-start note-id=@ta]
+      [%remote-call-join note-id=@ta]
+      [%remote-call-leave note-id=@ta]
+      [%remote-call-heartbeat note-id=@ta]
+      ::  member -> host: "tell me the current call state of these notes". Answers
+      ::  a reconnect, an agent reload, or time spent offline while a call ended.
+      [%remote-call-sync note-ids=(list @ta)]
+      ::  host -> member: the ONE authoritative call payload. Accepted only from the
+      ::  note creator, and only when it dominates what we already hold.
+      [%remote-call-snap snap=call-snapshot]
       [%remote-call-signal call-id=@ta from=@p sig-type=@t payload=@t]
-      ::  authoritative full call snapshot from the note creator to note members.
-      ::  The sidebar active-call badge is note-visible state, so non-participant
-      ::  members need the current participant set (deltas only reach participants).
-      [%remote-call-state note-id=@ta call=call-info]
       ::  block: host kicked you from a note
       [%remote-kick note-id=@ta note-name=@t]
       ::  block: high-level notification that someone blocked you
@@ -603,6 +626,11 @@
       [%start-call note-id=@ta]
       [%join-call note-id=@ta]
       [%leave-call note-id=@ta]
+      ::  liveness: sent by the frontend ONLY while actually joined. Refreshes this
+      ::  ship's own participant lease; a non-host forwards it to the host.
+      [%call-heartbeat note-id=@ta]
+      ::  ask every relevant host for current call state (frontend channel reconnect)
+      [%sync-calls ~]
       [%call-signal note-id=@ta to=@p sig-type=@t payload=@t]
       [%clear-calls ~]
       [%fetch-cover-msg note-id=@ta author=@p msg-id=@da eid=(unit @uv)]
@@ -883,13 +911,13 @@
       ::  Phase A: typed directed-attention stream. full=& is an authoritative
       ::  per-note snapshot (replace that note's list); full=| is a delta (append).
       [%attention-update note-id=@ta items=(list attention-item) full=?]
-      ::  call updates
-      [%call-started note-id=@ta call-id=@ta started-by=@p participants=(list @p)]
-      [%call-joined note-id=@ta ship=@p]
-      [%call-left note-id=@ta ship=@p]
-      [%call-ended note-id=@ta call-id=@ta]
+      ::  call updates. %call-snap is the single per-note transition fact; %call-list is
+      ::  the authoritative REPLACEMENT of the whole visible call set (hydration and
+      ::  reconnect). The frontend derives WebRTC peer add/drop by diffing the
+      ::  participant set, so no separate join/left delta is needed.
+      [%call-snap snap=call-snapshot]
+      [%call-list snaps=(list call-snapshot)]
       [%call-signal note-id=@ta from=@p sig-type=@t payload=@t]
-      [%call-state note-id=@ta call=call-info]
       ::  block: you were kicked from a note
       [%headline-updated id=@ta headline=(unit @t)]
       [%kick-notification note-id=@ta note-name=@t from=@p]

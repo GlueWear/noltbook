@@ -301,35 +301,16 @@
           ==
       ==
     ::
-        %call-started
-      %+  frond  'call-started'
-      %-  pairs
-      :~  ['noteId' s+(crip (trip note-id.upd))]
-          ['callId' s+(crip (trip call-id.upd))]
-          ['startedBy' s+(scot %p started-by.upd)]
-          ['participants' a+(turn participants.upd |=(p=@p s+(scot %p p)))]
-      ==
+        %call-snap
+      ::  one authoritative record for one note. `call` is null when there is no call,
+      ::  and `gen` is present either way so the browser can order it.
+      %+  frond  'call-snap'
+      (snap-to-json snap.upd)
     ::
-        %call-joined
-      %+  frond  'call-joined'
-      %-  pairs
-      :~  ['noteId' s+(crip (trip note-id.upd))]
-          ['ship' s+(scot %p ship.upd)]
-      ==
-    ::
-        %call-left
-      %+  frond  'call-left'
-      %-  pairs
-      :~  ['noteId' s+(crip (trip note-id.upd))]
-          ['ship' s+(scot %p ship.upd)]
-      ==
-    ::
-        %call-ended
-      %+  frond  'call-ended'
-      %-  pairs
-      :~  ['noteId' s+(crip (trip note-id.upd))]
-          ['callId' s+(crip (trip call-id.upd))]
-      ==
+        %call-list
+      ::  authoritative REPLACEMENT of the whole visible call set
+      %+  frond  'call-list'
+      a+(turn snaps.upd snap-to-json)
     ::
         %call-signal
       %+  frond  'call-signal'
@@ -338,13 +319,6 @@
           ['from' s+(scot %p from.upd)]
           ['sigType' s+sig-type.upd]
           ['payload' s+payload.upd]
-      ==
-    ::
-        %call-state
-      %+  frond  'call-state'
-      %-  pairs
-      :~  ['noteId' s+(crip (trip note-id.upd))]
-          ['call' (call-to-json call.upd)]
       ==
     ::
         %kick-notification
@@ -573,6 +547,15 @@
           ['createdAt' (numb (da-to-ms created-at.n))]
           ['updatedAt' (numb (da-to-ms updated-at.n))]
           ['expiresAt' ?~(expires-at.n ~ (numb (da-to-ms u.expires-at.n)))]
+      ==
+    ++  snap-to-json
+      |=  sn=call-snapshot:noltbook
+      ::  ^json, not json: this core has its own ++json arm, which shadows the mold
+      ^-  ^json
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.sn))]
+          ['gen' (numb gen.sn)]
+          ['call' ?~(call.sn ~ (call-to-json u.call.sn))]
       ==
     ++  call-to-json
       |=  c=call-info:noltbook

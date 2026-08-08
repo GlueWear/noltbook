@@ -74,6 +74,79 @@
       pending-img-writes=(map @ta pending-img-write:noltbook)
       pending-profile-lookups=(map @ud pending-profile-lookup:noltbook)
   ==
+::  state-76: identical to %75 except that the single active-calls map is replaced by
+::  the generation-bearing `calls` record plus per-participant `call-leases`. %75 above
+::  is FROZEN -- it is the mold the saved noun was written against, and !< nests on the
+::  mold, so nothing in it may be narrowed or renamed.
++$  state-76
+  $:  %76
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      ::  calls: ONE authoritative record per note, empty snapshots included, so a
+      ::  cleared call keeps its generation and stays ordered. Replaces active-calls.
+      calls=(map @ta call-snapshot:noltbook)
+      ::  call-leases: host-only liveness. note -> participant -> deadline. A lapsed
+      ::  lease removes ONLY that participant, so one crashed browser cannot end a
+      ::  call the others are still in.
+      call-leases=(map @ta (map @p @da))
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      note-unread-activity=(map @ta @da)
+      note-members=(map @ta (set @p))
+      app-notifications=(map [@tas @t] app-notification:noltbook)
+      dm-artifact-refs=(map @uv dm-artifact-ref:noltbook)
+      dm-artifact-tombs=(map @uv dm-artifact-tomb:noltbook)
+      dm-msg-tombs=(map dm-message-key:noltbook @da)
+      peer-proto=(map @p @ud)
+      pending-dm-fetches=(map @ta pending-dm-fetch:noltbook)
+      note-artifact-tombs=(map @ta note-artifact-tomb:noltbook)
+      mesh-tombs=(set @uv)
+      mesh-tomb-meta=(map @uv mesh-tomb:noltbook)
+      dm-imports=(map @uv dm-import:noltbook)
+      import-only-dms=(set @ta)
+      pending-icon-fetches=(map @ta pending-icon-fetch:noltbook)
+      pending-img-writes=(map @ta pending-img-write:noltbook)
+      pending-profile-lookups=(map @ud pending-profile-lookup:noltbook)
+  ==
 +$  card  card:agent:gall
 ::
 ::  Gossip reservoir caps are now NO-OPS. "What you store/pass" (the gossip
@@ -1709,8 +1782,8 @@
 ::  lose==win. Group/fork/gossip-only fields hold no ordinary-DM data and are left
 ::  alone; pending-dm-fetches/dm-msg-tombs key by entry identity (not note-id).
 ++  reconcile-dm-roots
-  |=  [st=state-75 lose=@ta win=@ta cn=note:noltbook]
-  ^-  state-75
+  |=  [st=state-76 lose=@ta win=@ta cn=note:noltbook]
+  ^-  state-76
   ?:  =(lose win)  st
   =*  s  st
   ::  notes: install canonical winner, drop loser
@@ -1782,12 +1855,21 @@
     =/  lp  (~(get by note-pins.s) lose)
     ?~  lp  note-pins.s
     (~(put by (~(del by note-pins.s) lose)) win u.lp)
-  ::  active-calls: prefer W; else move L, rewriting call-info.note-id
-  =.  active-calls.s
-    ?:  (~(has by active-calls.s) win)  (~(del by active-calls.s) lose)
-    =/  lc  (~(get by active-calls.s) lose)
-    ?~  lc  active-calls.s
-    (~(put by (~(del by active-calls.s) lose)) win u.lc(note-id win))
+  ::  calls: prefer W; else move L, rewriting note-id on the snapshot and its call
+  =.  calls.s
+    ?:  (~(has by calls.s) win)  (~(del by calls.s) lose)
+    =/  lc  (~(get by calls.s) lose)
+    ?~  lc  calls.s
+    =/  moved=call-snapshot:noltbook
+      :+  win  gen.u.lc
+      ?~  call.u.lc  ~
+      `u.call.u.lc(note-id win)
+    (~(put by (~(del by calls.s) lose)) win moved)
+  =.  call-leases.s
+    ?:  (~(has by call-leases.s) win)  (~(del by call-leases.s) lose)
+    =/  ll  (~(get by call-leases.s) lose)
+    ?~  ll  call-leases.s
+    (~(put by (~(del by call-leases.s) lose)) win u.ll)
   ::  note-members: union, drop loser
   =.  note-members.s
     =/  mw  (fall (~(get by note-members.s) win) ~)
@@ -1881,9 +1963,85 @@
 ::  noncreator never holds an editable/serveable copy. Skips creator-owned, %code and
 ::  non-DM notes. Terminally-tombstoned eids are dropped, not referenced.
 ::  Re-runnable: once the full artifact is gone there is nothing left to convert.
+::  upgrade-75-to-76: the ONLY migration. Identical field-for-field except that the
+::  single active-calls map becomes the generation-bearing `calls` record plus an
+::  empty lease map. A call in flight does NOT survive: every note that had one gets
+::  a cleared record at generation 1 -- a real generation-bearing empty snapshot, so
+::  the browser badge disappears on load and the next start allocates generation 2.
+++  upgrade-75-to-76
+  |=  o=state-75
+  ^-  state-76
+  =/  cleared=(map @ta call-snapshot:noltbook)
+    %-  ~(gas by *(map @ta call-snapshot:noltbook))
+    %+  turn  ~(tap by active-calls.o)
+    |=  [nid=@ta *]
+    [nid `call-snapshot:noltbook`[nid 1 ~]]
+  :*  %76
+      notes.o
+      messages.o
+      artifacts.o
+      profiles.o
+      transactions.o
+      current-note.o
+      peers.o
+      has-avatar.o
+      pal-outgoing.o
+      pal-incoming.o
+      pal-blocked.o
+      blocked-by.o
+      dial.o
+      gossip-hops.o
+      mentions.o
+      cleared
+      *(map @ta (map @p @da))
+      gossip-envelopes.o
+      headlines.o
+      seq-counters.o
+      join-requests.o
+      note-admins.o
+      note-muted.o
+      artifact-envelopes.o
+      host-status.o
+      fork-origin.o
+      fork-version.o
+      fork-of.o
+      pending-fork-invites.o
+      fork-invitees.o
+      contacts.o
+      dm-prefs.o
+      member-revs.o
+      fork-parent-version.o
+      host-checks.o
+      notification-acks.o
+      note-activity.o
+      note-read.o
+      attention.o
+      cleared-mentions.o
+      via-by-eid.o
+      note-pins.o
+      note-apps.o
+      note-active.o
+      app-grants.o
+      note-unread-activity.o
+      note-members.o
+      app-notifications.o
+      dm-artifact-refs.o
+      dm-artifact-tombs.o
+      dm-msg-tombs.o
+      peer-proto.o
+      pending-dm-fetches.o
+      note-artifact-tombs.o
+      mesh-tombs.o
+      mesh-tomb-meta.o
+      dm-imports.o
+      import-only-dms.o
+      pending-icon-fetches.o
+      pending-img-writes.o
+      pending-profile-lookups.o
+  ==
 ++  migrate-dm-artifacts
-  |=  [our=@p st=state-75]
-  ^-  state-75
+  |=  [our=@p st=state-76]
+  ^-  state-76
   =*  s  st
   =/  targets=(list [aid=@ta a=artifact:noltbook])
     %+  murn  ~(tap by artifacts.s)
@@ -1895,7 +2053,7 @@
     ?~  nt  ~
     ?.  (is-ordinary-dm u.nt)  ~
     `[aid a]
-  |-  ^-  state-75
+  |-  ^-  state-76
   ?~  targets  s
   =/  a=artifact:noltbook  a.i.targets
   =/  eid=@uv  (dm-artifact-eid a)
@@ -2403,7 +2561,7 @@
 ::  than relying on that. See FUTURE(cleanup-scope) above for why these exclusions are
 ::  a group and must be relaxed together, never individually.
 ++  notebook-subtree-private
-  |=  [our=@p ids=(list @ta) st=state-75]
+  |=  [our=@p ids=(list @ta) st=state-76]
   ^-  ?
   ::  an empty subtree proves nothing.
   ?~  ids  %.n
@@ -2718,18 +2876,192 @@
   |=  [=wire who=@p rem=remote:noltbook]
   ^-  card
   [%pass wire %agent [who %noltbook] %poke %noltbook-remote !>(rem)]
-::  call-state-cards: creator -> members. Sends the authoritative full call-info as
-::  %remote-call-state to each ship in `to` (excluding self). Sent to ALL note members
-::  (participants and non-participants) so every member's active-call badge/participant
-::  set self-heals after any join/leave, even if a delta was missed. The
-::  %call-joined/%call-left deltas still drive WebRTC peer setup for participants.
-++  call-state-cards
-  |=  [to=(set @p) nid=@ta ci=call-info:noltbook our=@p]
+::  ===== CALL STATE: host-authoritative, generation-ordered =====
+::  Every ship stores exactly one call-snapshot per note it knows about, including
+::  EMPTY ones, so a cleared call keeps its generation. Only the note creator writes a
+::  snapshot; members send requests and apply what the host returns.
+::
+::  Timing. The lease must survive ordinary Ames latency and a browser tab that is
+::  briefly throttled, so it is generous: a participant is dropped only after four
+::  missed heartbeats.
+++  call-hb-interval  ~s20        ::  frontend heartbeat cadence while joined
+++  call-lease-ttl    ~m2         ::  participant deadline granted per heartbeat
+::  call-eligible: the note kinds that may host a call. Mirrors the frontend's
+::  noteSupportsCalls() exactly -- cover, %Rumors, gossip and notebooks never call.
+++  call-eligible
+  |=  [nid=@ta nt=note:noltbook]
+  ^-  ?
+  ?:  =(nid %cover)  %.n
+  ?:  =(nid %ars-rumors)  %.n
+  ?:  ?=(%gossip type.nt)  %.n
+  ?:  ?=(%notebook type.nt)  %.n
+  %.y
+::  norm-snap: an active call with no participants, or one already marked %ended, is
+::  not a call. Normalising here is what makes "zero participants but still active"
+::  unrepresentable rather than merely unlikely.
+++  norm-snap
+  |=  snap=call-snapshot:noltbook
+  ^-  call-snapshot:noltbook
+  ?~  call.snap  snap
+  ?:  ?=(%ended status.u.call.snap)  snap(call ~)
+  ?:  =(0 ~(wyt in participants.u.call.snap))  snap(call ~)
+  snap
+::  snap-dominates: may `inc` replace `cur`? This is the ONLY ordering rule, and it is
+::  strict: `gen` is a per-note revision counter that the host advances on every change
+::  it authors, so a STRICTLY higher revision replaces, and anything less than or equal
+::  is a duplicate or a straggler and is ignored outright. That single comparison covers
+::  an old active after a newer leave, an old active after a newer end, an old end after
+::  a newer call started, and plain duplicate delivery -- no payload inspection needed.
+++  snap-dominates
+  |=  [inc=call-snapshot:noltbook cur=(unit call-snapshot:noltbook)]
+  ^-  ?
+  ?~  cur  %.y
+  (gth gen.inc gen.u.cur)
+::  call-gen: the highest generation we hold for a note (0 = never seen a call).
+++  call-gen
+  |=  [cm=(map @ta call-snapshot:noltbook) nid=@ta]
+  ^-  @ud
+  =/  c  (~(get by cm) nid)
+  ?~  c  0
+  gen.u.c
+::  call-snap-wire: carries note, generation and attempt so a poke-ack failure can be
+::  retried a bounded number of times and a stale ack can be recognised.
+++  call-snap-wire
+  |=  [who=@p nid=@ta gen=@ud try=@ud]
+  ^-  wire
+  /call-snap/(scot %p who)/[nid]/(scot %ud gen)/(scot %ud try)
+::  call-snap-cards: host -> every current note member (participants and not, because
+::  the sidebar badge is note-visible state). One authoritative payload, no deltas.
+++  call-snap-cards
+  |=  [to=(set @p) snap=call-snapshot:noltbook our=@p]
   ^-  (list card)
   %+  murn  ~(tap in to)
   |=  p=@p
   ?:  =(p our)  ~
-  `(rpoke /call-state/(scot %p p)/[nid] p `remote:noltbook`[%remote-call-state nid ci])
+  :-  ~
+  %^    rpoke
+      (call-snap-wire p note-id.snap gen.snap 1)
+    p
+  `remote:noltbook`[%remote-call-snap snap]
+::  call-local-cards: the same snapshot to our own frontend, on both subscription paths.
+++  call-local-cards
+  |=  snap=call-snapshot:noltbook
+  ^-  (list card)
+  =/  upd=update:noltbook  [%call-snap snap]
+  ~[(gf-paths ~[/notes/[note-id.snap]] upd) (gf-notes upd)]
+::  lease-wake: a behn wake carrying note, CALL ID, participant and deadline. All four
+::  are re-checked on wake, so a wake left over from a renewed heartbeat, an ended call,
+::  a different call or a participant who already left is a silent no-op, and nothing is
+::  ever cancelled.
+::
+::  It is keyed on call-id, NOT on the snapshot revision. The revision advances every
+::  time the host changes the participant set, so a revision-keyed wake would be
+::  invalidated by somebody else's join or leave -- leaving a crashed participant with no
+::  live timer at all, since a crashed browser sends no further heartbeat to arm a new
+::  one. call-id is stable for the whole life of one call, which is exactly the scope a
+::  lease belongs to.
+++  lease-wake
+  |=  [nid=@ta cid=@ta who=@p at=@da]
+  ^-  card
+  :^  %pass  /call-lease/[nid]/[cid]/(scot %p who)/(scot %da at)
+    %arvo
+  [%b %wait at]
+::  put-lease: refresh one participant's deadline and arm its wake.
+++  put-lease
+  |=  [lm=(map @ta (map @p @da)) nid=@ta who=@p at=@da]
+  ^-  (map @ta (map @p @da))
+  =/  cur  (fall (~(get by lm) nid) *(map @p @da))
+  (~(put by lm) nid (~(put by cur) who at))
+++  del-lease
+  |=  [lm=(map @ta (map @p @da)) nid=@ta who=@p]
+  ^-  (map @ta (map @p @da))
+  =/  cur  (fall (~(get by lm) nid) *(map @p @da))
+  =/  nxt  (~(del by cur) who)
+  ?:  =(~ nxt)  (~(del by lm) nid)
+  (~(put by lm) nid nxt)
+++  prune-call-leases
+  |=  [ids=(list @ta) lm=(map @ta (map @p @da))]
+  ^-  (map @ta (map @p @da))
+  =/  acc  lm
+  |-
+  ?~  ids  acc
+  $(ids t.ids, acc (~(del by acc) i.ids))
+::  visible-call-snaps: the call records for notes this subscriber can see. Sent as ONE
+::  %call-list replacement rather than a fact per note; empty records travel too, so the
+::  frontend inherits our revisions and can reject a stale fact after hydration.
+++  visible-call-snaps
+  |=  [cm=(map @ta call-snapshot:noltbook) vis=(set @ta)]
+  ^-  (list call-snapshot:noltbook)
+  %+  murn  ~(tap by cm)
+  |=  [nid=@ta snap=call-snapshot:noltbook]
+  ^-  (unit call-snapshot:noltbook)
+  ?.  (~(has in vis) nid)  ~
+  `snap
+::  call-sys-msg: the hidden \01SYS:call-* marker. Written by the HOST only, so every
+::  ship's transcript agrees. The frontend filters these; see isCallControl().
+++  call-sys-msg
+  |=  [now=@da nid=@ta who=@p txt=@t]
+  ^-  message:noltbook
+  [now nid who txt now ~ %.n ~]
+++  call-started-txt
+  |=  who=@p  ^-  @t
+  (crip (weld "\01SYS:call-started:" (trip (scot %p who))))
+++  call-joined-txt
+  |=  who=@p  ^-  @t
+  (crip (weld "\01SYS:call-joined:" (trip (scot %p who))))
+++  call-left-txt
+  |=  who=@p  ^-  @t
+  (crip (weld "\01SYS:call-left:" (trip (scot %p who))))
+::  call-sync-cards: ask every remote host for the current state of the notes it owns.
+::  One poke per HOST, not per note. Repairs a missed ending after downtime.
+::  host-start-snap: the host authors the generation, the call id AND the start time, so
+::  every ship shows the same values instead of each reconstructing `started` locally.
+++  host-start-snap
+  |=  [nid=@ta starter=@p now=@da prev-gen=@ud]
+  ^-  call-snapshot:noltbook
+  =/  g=@ud  +(prev-gen)
+  =/  cid=@ta
+    %-  crip
+    ;:  weld
+      "call-"  (trip (scot %ud g))  "-"  (trip (scot %da now))
+    ==
+  [nid g `[cid nid starter now (sy ~[starter]) %active]]
+::  host-drop: remove exactly ONE participant from a live call, and end the call only
+::  when that empties it. Either outcome is a host-authored change, so the revision
+::  advances exactly once -- that is what makes a delayed earlier snapshot (which would
+::  otherwise restore a departed participant or a stale count) strictly older and inert.
+::  `call-id` is untouched: it identifies the call, not the revision.
+::  An ALREADY-EMPTY snapshot is returned verbatim: nothing changed, so nothing advances.
+++  host-drop
+  |=  [now=@da snap=call-snapshot:noltbook who=@p]
+  ^-  [out=call-snapshot:noltbook msgs=(list message:noltbook) ended=?]
+  ?~  call.snap  [snap ~ %.y]
+  =/  ci  u.call.snap
+  =/  left=(set @p)  (~(del in participants.ci) who)
+  =/  leave-msg  (call-sys-msg now note-id.snap who (call-left-txt who))
+  =/  nxt=@ud  +(gen.snap)
+  ?:  =(0 ~(wyt in left))
+    =/  end-msg  (call-sys-msg now note-id.snap who '\01SYS:call-ended')
+    [[note-id.snap nxt ~] ~[leave-msg end-msg] %.y]
+  ::  bind before wrapping: `ci(participants left) would parse the backtick against `ci`
+  ::  and then apply the mutation to the resulting unit
+  =/  kept=call-info:noltbook  ci(participants left)
+  [[note-id.snap nxt `kept] ~[leave-msg] %.n]
+++  call-sync-cards
+  |=  [nmap=(map @ta note:noltbook) our=@p]
+  ^-  (list card)
+  =/  by-host=(map @p (list @ta))
+    %+  roll  ~(tap by nmap)
+    |=  [[nid=@ta nt=note:noltbook] acc=(map @p (list @ta))]
+    ?:  =(creator.nt our)  acc
+    ?.  (~(has in users.nt) our)  acc
+    ?.  (call-eligible nid nt)  acc
+    =/  cur  (fall (~(get by acc) creator.nt) ~)
+    (~(put by acc) creator.nt [nid cur])
+  %+  turn  ~(tap by by-host)
+  |=  [host=@p ids=(list @ta)]
+  ^-  card
+  (rpoke /call-sync/(scot %p host) host `remote:noltbook`[%remote-call-sync ids])
 ::  pal-status-of: the visible pal status for `target` from our actual sets.
 ++  pal-status-of
   |=  [target=@p outgoing=(set @p) incoming=(set @p) blocked=(set @p)]
@@ -2797,11 +3129,11 @@
   ::  Option-1: the whole %noltbook-remote dispatch moved OUT of the on-poke battery.
   ::  =| / =* / =. re-expose state-67 faces exactly like the door, so handler bodies are
   ::  unchanged except this->state. on-poke delegates: =^ cards state (rem-handle bowl rem state).
-  |=  [=bowl:gall rem=remote:noltbook sin=state-75]
-  =|  state-75
+  |=  [=bowl:gall rem=remote:noltbook sin=state-76]
+  =|  state-76
   =*  state  -
   =.  state  sin
-  ^-  (quip card state-75)
+  ^-  (quip card state-76)
     ?-  -.rem
     ::
         %remote-invite
@@ -4548,171 +4880,168 @@
     ::  ===== REMOTE CALL HANDLERS =====
     ::
         %remote-call-start
+      ::  member -> HOST: "please start a call". Only the host allocates a generation,
+      ::  a call id and a start time; a member never authors call state.
       =/  exists  (~(get by notes) note-id.rem)
       ?~  exists  `state
-      ?.  (~(has in users.u.exists) src.bowl)  `state
-      ::  if stale call (0 participants), allow replacement; if active, no-op
-      =/  old-call  (~(get by active-calls) note-id.rem)
-      ?:  ?&  ?=(^ old-call)
-              (gth ~(wyt in participants.u.old-call) 0)
-          ==
-        `state
-      ::  case 1: we are the creator and a member asked us to start
-      ?:  =(our.bowl creator.u.exists)
-        =/  cid=@ta  (crip (weld "call-" (trip (scot %da now.bowl))))
-        =/  ci=call-info:noltbook
-          [cid note-id.rem src.bowl now.bowl (sy ~[src.bowl]) %active]
-        =/  sys-msg=message:noltbook
-          [now.bowl note-id.rem src.bowl (crip (weld "\01SYS:call-started:" (trip (scot %p src.bowl)))) now.bowl ~ %.n ~]
-        =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
-        =/  upd=update:noltbook  [%call-started note-id.rem cid src.bowl ~[src.bowl]]
-        =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
-        =/  pax=path  ~[%notes note-id.rem]
-        ::  broadcast to all members including the requester
-        =/  broadcast=(list card)
-          %+  murn  ~(tap in users.u.exists)
-          |=  p=@p
-          ?:  =(p our.bowl)  ~
-          `(rpoke /call-start/(scot %p p)/[note-id.rem] p `remote:noltbook`[%remote-call-start note-id.rem cid src.bowl])
-        :_  state(active-calls (~(put by active-calls) note-id.rem ci), messages (~(put by messages) note-id.rem (snoc cur sys-msg)))
-        :(weld ~[(gf-paths ~[pax] upd)] ~[(gf-notes upd)] ~[(gf-paths ~[pax] msg-upd)] broadcast)
-      ::  case 2: we are NOT creator; accept notification from creator only
-      ?.  =(src.bowl creator.u.exists)  `state
-      =/  ci=call-info:noltbook
-        [call-id.rem note-id.rem started-by.rem now.bowl (sy ~[started-by.rem]) %active]
-      =/  sys-msg=message:noltbook
-        [now.bowl note-id.rem started-by.rem (crip (weld "\01SYS:call-started:" (trip (scot %p started-by.rem)))) now.bowl ~ %.n ~]
-      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
-      =/  upd=update:noltbook  [%call-started note-id.rem call-id.rem started-by.rem ~[started-by.rem]]
-      =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
+      ?.  =(our.bowl creator.u.exists)  `state
+      ?.  (call-eligible note-id.rem u.exists)  `state
+      ?.  (can-user-post note-id.rem src.bowl host-status notes note-members)  `state
+      =/  cur  (~(get by calls) note-id.rem)
+      ::  a live call already exists: the requester should JOIN it, not restart it
+      ?:  ?&(?=(^ cur) ?=(^ call.u.cur))  `state
+      =/  snap=call-snapshot:noltbook
+        %-  norm-snap
+        (host-start-snap note-id.rem src.bowl now.bowl (call-gen calls note-id.rem))
+      ?~  call.snap  `state
+      =/  dl=@da  (add now.bowl call-lease-ttl)
+      =/  msg  (call-sys-msg now.bowl note-id.rem src.bowl (call-started-txt src.bowl))
+      =/  cur-msgs=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
+      =/  msg-upd=update:noltbook  [%new-message msg ~ ~ ~]
       =/  pax=path  ~[%notes note-id.rem]
-      :_  state(active-calls (~(put by active-calls) note-id.rem ci), messages (~(put by messages) note-id.rem (snoc cur sys-msg)))
-      :(weld ~[(gf-paths ~[pax] upd)] ~[(gf-notes upd)] ~[(gf-paths ~[pax] msg-upd)])
+      =.  calls  (~(put by calls) note-id.rem snap)
+      =.  call-leases  (put-lease call-leases note-id.rem src.bowl dl)
+      =.  messages  (~(put by messages) note-id.rem (snoc cur-msgs msg))
+      :_  state
+      ;:  weld
+        (call-snap-cards users.u.exists snap our.bowl)
+        (call-local-cards snap)
+        ~[(gf-paths ~[pax] msg-upd)]
+        ~[(lease-wake note-id.rem call-id.u.call.snap src.bowl dl)]
+      ==
     ::
         %remote-call-join
+      ::  member -> HOST: "add me". src.bowl IS the subject, so there is no ship field
+      ::  to forge and no way to join anyone else.
       =/  exists  (~(get by notes) note-id.rem)
       ?~  exists  `state
-      =/  ci  (~(get by active-calls) note-id.rem)
-      ?~  ci  `state
-      ?.  (~(has in users.u.exists) ship.rem)  `state
-      ::  authority: creator accepts a join only from the joiner itself; a member
-      ::  accepts a relayed join only from the note creator (never member-to-member).
-      ?.  ?:(=(our.bowl creator.u.exists) =(src.bowl ship.rem) =(src.bowl creator.u.exists))
-        `state
-      ?:  (~(has in participants.u.ci) ship.rem)  `state
-      =/  new-ci=call-info:noltbook  u.ci(participants (~(put in participants.u.ci) ship.rem))
-      =/  sys-msg=message:noltbook
-        [now.bowl note-id.rem ship.rem (crip (weld "\01SYS:call-joined:" (trip (scot %p ship.rem)))) now.bowl ~ %.n ~]
-      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
-      =/  upd=update:noltbook  [%call-joined note-id.rem ship.rem]
-      =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
+      ?.  =(our.bowl creator.u.exists)  `state
+      ?.  (can-user-post note-id.rem src.bowl host-status notes note-members)  `state
+      =/  cur  (~(get by calls) note-id.rem)
+      ?~  cur  `state
+      ?~  call.u.cur  `state
+      =/  ci  u.call.u.cur
+      =/  dl=@da  (add now.bowl call-lease-ttl)
+      ::  already a participant: treat as liveness, refresh the lease only
+      ?:  (~(has in participants.ci) src.bowl)
+        =.  call-leases  (put-lease call-leases note-id.rem src.bowl dl)
+        :_  state
+        ~[(lease-wake note-id.rem call-id.ci src.bowl dl)]
+      =/  new-ci=call-info:noltbook
+        ci(participants (~(put in participants.ci) src.bowl))
+      ::  adding a participant is a host-authored change: advance the revision once, and
+      ::  keep call-id so the call's identity survives its own participant churn
+      =/  snap=call-snapshot:noltbook
+        (norm-snap [note-id.rem +(gen.u.cur) `new-ci])
+      =/  msg  (call-sys-msg now.bowl note-id.rem src.bowl (call-joined-txt src.bowl))
+      =/  cur-msgs=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
+      =/  msg-upd=update:noltbook  [%new-message msg ~ ~ ~]
       =/  pax=path  ~[%notes note-id.rem]
-      ::  creator only: relay the join DELTA to existing participants (media peer
-      ::  setup) AND send the authoritative full call-state to ALL members (self-healing
-      ::  badge/participant set). Non-creators just process locally (relay from creator).
-      =/  broadcast=(list card)
-        ?.  =(our.bowl creator.u.exists)  ~
-        %+  weld
-          ^-  (list card)
-          %+  murn  ~(tap in participants.u.ci)
-          |=  p=@p
-          ?:  =(p ship.rem)  ~
-          ?:  =(p our.bowl)  ~
-          `(rpoke /call-join-relay/(scot %p p)/[note-id.rem] p `remote:noltbook`[%remote-call-join note-id.rem ship.rem])
-        (call-state-cards users.u.exists note-id.rem new-ci our.bowl)
-      :_  state(active-calls (~(put by active-calls) note-id.rem new-ci), messages (~(put by messages) note-id.rem (snoc cur sys-msg)))
-      :(weld ~[(gf-paths ~[pax] upd)] ~[(gf-notes upd)] ~[(gf-paths ~[pax] msg-upd)] broadcast)
+      =.  calls  (~(put by calls) note-id.rem snap)
+      =.  call-leases  (put-lease call-leases note-id.rem src.bowl dl)
+      =.  messages  (~(put by messages) note-id.rem (snoc cur-msgs msg))
+      :_  state
+      ;:  weld
+        (call-snap-cards users.u.exists snap our.bowl)
+        (call-local-cards snap)
+        ~[(gf-paths ~[pax] msg-upd)]
+        ~[(lease-wake note-id.rem call-id.new-ci src.bowl dl)]
+      ==
     ::
         %remote-call-leave
+      ::  member -> HOST: "drop me". Only the sender can be dropped this way.
       =/  exists  (~(get by notes) note-id.rem)
       ?~  exists  `state
-      =/  ci  (~(get by active-calls) note-id.rem)
-      ?~  ci  `state
-      ?.  (~(has in participants.u.ci) ship.rem)  `state
-      ::  authority: creator accepts a leave only from the leaver itself; a member
-      ::  accepts a relayed leave only from the note creator.
-      ?.  ?:(=(our.bowl creator.u.exists) =(src.bowl ship.rem) =(src.bowl creator.u.exists))
-        `state
-      =/  new-parts=(set @p)  (~(del in participants.u.ci) ship.rem)
-      =/  sys-msg=message:noltbook
-        [now.bowl note-id.rem ship.rem (crip (weld "\01SYS:call-left:" (trip (scot %p ship.rem)))) now.bowl ~ %.n ~]
-      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
+      ?.  =(our.bowl creator.u.exists)  `state
+      =/  cur  (~(get by calls) note-id.rem)
+      ?~  cur  `state
+      ?~  call.u.cur  `state
+      ?.  (~(has in participants.u.call.u.cur) src.bowl)  `state
+      =/  res  (host-drop now.bowl u.cur src.bowl)
+      =/  cur-msgs=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
       =/  pax=path  ~[%notes note-id.rem]
-      ::  if no participants left, end the call
-      ?:  =(0 ~(wyt in new-parts))
-        =/  end-upd=update:noltbook  [%call-ended note-id.rem call-id.u.ci]
-        =/  end-msg=message:noltbook
-          [now.bowl note-id.rem ship.rem '\01SYS:call-ended' now.bowl ~ %.n ~]
-        ::  broadcast call-ended to all note members
-        =/  broadcast=(list card)
-          %+  murn  ~(tap in users.u.exists)
-          |=  p=@p
-          ?:  =(p our.bowl)  ~
-          `(rpoke /call-end/(scot %p p)/[note-id.rem] p `remote:noltbook`[%remote-call-ended note-id.rem])
-        :_  state(active-calls (~(del by active-calls) note-id.rem), messages (~(put by messages) note-id.rem (snoc (snoc cur sys-msg) end-msg)))
-        :(weld ~[(gf-paths ~[pax] end-upd)] ~[(gf-notes end-upd)] broadcast)
-      ::  still has participants: update and broadcast leave
-      =/  new-ci=call-info:noltbook  u.ci(participants new-parts)
-      =/  upd=update:noltbook  [%call-left note-id.rem ship.rem]
-      ::  creator only: relay the leave DELTA to remaining participants (media) AND
-      ::  send the authoritative full call-state to ALL members (self-healing badge).
-      =/  broadcast=(list card)
-        ?.  =(our.bowl creator.u.exists)  ~
-        %+  weld
-          ^-  (list card)
-          %+  murn  ~(tap in new-parts)
-          |=  p=@p
-          ?:  =(p our.bowl)  ~
-          `(rpoke /call-leave-relay/(scot %p p)/[note-id.rem] p `remote:noltbook`[%remote-call-leave note-id.rem ship.rem])
-        (call-state-cards users.u.exists note-id.rem new-ci our.bowl)
-      :_  state(active-calls (~(put by active-calls) note-id.rem new-ci), messages (~(put by messages) note-id.rem (snoc cur sys-msg)))
-      :(weld ~[(gf-paths ~[pax] upd)] ~[(gf-notes upd)] broadcast)
+      =.  calls  (~(put by calls) note-id.rem out.res)
+      =.  call-leases  (del-lease call-leases note-id.rem src.bowl)
+      =?  call-leases  ended.res  (~(del by call-leases) note-id.rem)
+      =.  messages  (~(put by messages) note-id.rem (weld cur-msgs msgs.res))
+      :_  state
+      ;:  weld
+        (call-snap-cards users.u.exists out.res our.bowl)
+        (call-local-cards out.res)
+        %+  turn  msgs.res
+        |=  m=message:noltbook
+        (gf-paths ~[pax] `update:noltbook`[%new-message m ~ ~ ~])
+      ==
     ::
-        %remote-call-ended
-      ::  host says call is over
-      =/  ci  (~(get by active-calls) note-id.rem)
-      ?~  ci  `state
-      ::  must come from a note member
+        %remote-call-heartbeat
+      ::  member -> HOST: liveness for ITSELF only. Refreshes that one lease.
       =/  exists  (~(get by notes) note-id.rem)
       ?~  exists  `state
-      ?.  (~(has in users.u.exists) src.bowl)  `state
-      =/  end-msg=message:noltbook
-        [now.bowl note-id.rem src.bowl '\01SYS:call-ended' now.bowl ~ %.n ~]
-      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
-      =/  upd=update:noltbook  [%call-ended note-id.rem call-id.u.ci]
-      =/  pax=path  ~[%notes note-id.rem]
-      :_  state(active-calls (~(del by active-calls) note-id.rem), messages (~(put by messages) note-id.rem (snoc cur end-msg)))
-      ~[(gf-paths ~[pax] upd) (gf-notes upd)]
+      ?.  =(our.bowl creator.u.exists)  `state
+      ?.  (can-user-post note-id.rem src.bowl host-status notes note-members)  `state
+      =/  cur  (~(get by calls) note-id.rem)
+      ?~  cur  `state
+      ?~  call.u.cur  `state
+      ?.  (~(has in participants.u.call.u.cur) src.bowl)  `state
+      =/  dl=@da  (add now.bowl call-lease-ttl)
+      =.  call-leases  (put-lease call-leases note-id.rem src.bowl dl)
+      :_  state
+      ~[(lease-wake note-id.rem call-id.u.call.u.cur src.bowl dl)]
     ::
-        %remote-call-state
-      ::  authoritative full call snapshot from the note creator (keeps the note-visible
-      ::  active-call badge correct for members not in the call). Replace our local call
-      ::  with the received set; an ended/empty snapshot clears it.
-      =/  exists  (~(get by notes) note-id.rem)
+        %remote-call-sync
+      ::  member -> HOST: "current call state of these notes". We answer only for notes
+      ::  we host and the asker is in. An EMPTY generation-bearing snapshot is a real
+      ::  answer -- it is what clears a badge left behind by downtime.
+      :_  state
+      %+  murn  note-ids.rem
+      |=  nid=@ta
+      ^-  (unit card)
+      =/  nt  (~(get by notes) nid)
+      ?~  nt  ~
+      ?.  =(our.bowl creator.u.nt)  ~
+      ?.  (~(has in users.u.nt) src.bowl)  ~
+      =/  cur  (~(get by calls) nid)
+      =/  snap=call-snapshot:noltbook  ?~(cur [nid 0 ~] u.cur)
+      :-  ~
+      %^    rpoke
+          (call-snap-wire src.bowl nid gen.snap 1)
+        src.bowl
+      `remote:noltbook`[%remote-call-snap snap]
+    ::
+        %remote-call-snap
+      ::  HOST -> us: the authoritative record. Accepted only from the note creator and
+      ::  only when it dominates what we hold, so duplicate, delayed and reordered
+      ::  snapshots are all inert.
+      =/  nid=@ta  note-id.snap.rem
+      =/  exists  (~(get by notes) nid)
       ?~  exists  `state
-      ?.  (~(has in users.u.exists) our.bowl)  `state
-      ::  only the note creator may push call-state (never member-to-member).
       ?.  =(src.bowl creator.u.exists)  `state
-      =/  new-ci=call-info:noltbook  call.rem
-      =/  pax=path  ~[%notes note-id.rem]
-      ?:  ?|(?=(%ended status.new-ci) =(0 ~(wyt in participants.new-ci)))
-        =/  end-upd=update:noltbook  [%call-ended note-id.rem call-id.new-ci]
-        :_  state(active-calls (~(del by active-calls) note-id.rem))
-        ~[(gf-paths ~[pax] end-upd) (gf-notes end-upd)]
-      =/  upd=update:noltbook  [%call-state note-id.rem new-ci]
-      :_  state(active-calls (~(put by active-calls) note-id.rem new-ci))
-      ~[(gf-paths ~[pax] upd) (gf-notes upd)]
+      ?.  (~(has in users.u.exists) our.bowl)  `state
+      =/  snap=call-snapshot:noltbook  (norm-snap snap.rem)
+      ?.  (snap-dominates snap (~(get by calls) nid))  `state
+      =.  calls  (~(put by calls) nid snap)
+      ::  leases are host-only bookkeeping; a member holds none
+      =.  call-leases  (~(del by call-leases) nid)
+      :_  state
+      (call-local-cards snap)
     ::
         %remote-call-signal
-      ::  incoming WebRTC signal from a peer; relay to local frontend
-      ::  find which note this call belongs to
-      =/  entries=(list [@ta call-info:noltbook])  ~(tap by active-calls)
-      =/  match=(list [@ta call-info:noltbook])
-        (skim entries |=([nid=@ta ci=call-info:noltbook] =(call-id.ci call-id.rem)))
+      ::  incoming WebRTC signal. Signaling itself is unchanged; the only addition is
+      ::  the correlation check -- the call id must match a LIVE call and the sender
+      ::  must actually be one of its participants.
+      =/  entries=(list [@ta call-snapshot:noltbook])  ~(tap by calls)
+      =/  match=(list [@ta call-snapshot:noltbook])
+        %+  skim  entries
+        |=  [nid=@ta snap=call-snapshot:noltbook]
+        ?~  call.snap  %.n
+        =(call-id.u.call.snap call-id.rem)
       ?~  match  `state
-      =/  note-id=@ta  -.i.match
-      =/  upd=update:noltbook  [%call-signal note-id from.rem sig-type.rem payload.rem]
-      =/  pax=path  ~[%notes note-id]
+      =/  nid=@ta  -.i.match
+      =/  snap=call-snapshot:noltbook  +.i.match
+      ?~  call.snap  `state
+      ?.  (~(has in participants.u.call.snap) src.bowl)  `state
+      =/  upd=update:noltbook  [%call-signal nid from.rem sig-type.rem payload.rem]
+      =/  pax=path  ~[%notes nid]
       :_  state
       ~[(gf-paths ~[pax] upd)]
     ::
@@ -6034,8 +6363,8 @@
 ::  artifact, already-tombstoned, or unauthorized sender — is a harmless no-op ([~ st]), so
 ::  duplicate and replayed requests neither mutate state nor emit a marker.
 ++  delete-note-artifact
-  |=  [=bowl:gall sender=@p nid=@ta aid=@ta st=state-75]
-  ^-  [(list card:agent:gall) state-75]
+  |=  [=bowl:gall sender=@p nid=@ta aid=@ta st=state-76]
+  ^-  [(list card:agent:gall) state-76]
   =/  nt  (~(get by notes.st) nid)
   ?~  nt  [~ st]
   ::  we must host this note; shared %group/%notebook only
@@ -6091,7 +6420,7 @@
   =/  del-upd=update:noltbook  [%artifact-deleted aid]
   =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
   =/  pax=path  ~[%notes nid]
-  =/  st2=state-75
+  =/  st2=state-76
     %=  st
       artifacts             (~(del by artifacts.st) aid)
       note-pins             new-pins
@@ -6200,7 +6529,7 @@
   ~[(gf-paths paths `update:noltbook`[%app-notifications-updated ~(val by live)])]
 --
 %-  agent:dbug
-=|  state-75
+=|  state-76
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -6218,27 +6547,77 @@
 ++  on-load
   |=  old=vase
   ^-  (quip card _this)
-  ::  Single-version load. The pre-%75 ladder is gone: both live ships migrated to %75,
-  ::  so there is no supported older noun. A vase that is not [%75 *] is a genuine
-  ::  invariant violation (a foreign or corrupt state) and fails loudly rather than
-  ::  being silently coerced. A fresh install never reaches here -- on-init builds the
-  ::  state-75 bunt directly.
-  ?>  ?=([%75 *] q.old)
-  =/  loaded  !<(state-75 old)
-  =/  loaded=state-75
-    %=  loaded
-      active-calls       *(map @ta call-info:noltbook)
-      note-members       (ensure-note-members note-members.loaded notes.loaded)
-      app-notifications  (app-notifications-live app-notifications.loaded now.bowl)
+  ::  TWO accepted shapes and no ladder: %75 (the previous development state, migrated
+  ::  exactly once) and %76 (our own, on every reload after that). Anything else is a
+  ::  foreign or corrupt noun and fails loudly rather than being coerced. state-75 is
+  ::  FROZEN -- !< nests on the mold, so narrowing anything in it breaks the decode.
+  ?>  ?|(?=([%75 *] q.old) ?=([%76 *] q.old))
+  =/  base=state-76
+    ?:  ?=([%76 *] q.old)  !<(state-76 old)
+    (upgrade-75-to-76 !<(state-75 old))
+  =/  based=state-76
+    %=  base
+      note-members       (ensure-note-members note-members.base notes.base)
+      app-notifications  (app-notifications-live app-notifications.base now.bowl)
       ::  in-flight lookups cannot survive a reload; the 28s frontend timeout covers it
       pending-profile-lookups  *(map @ud pending-profile-lookup:noltbook)
       ::  app-cap stays broad for storage compatibility, so strip any inert label from
-      ::  every decoded row here -- this runs after !<(state-75 old), on the %75 state.
-      app-grants               (clamp-app-grants app-grants.loaded)
+      ::  every decoded row here.
+      app-grants               (clamp-app-grants app-grants.base)
     ==
+  ::  Reload. A reload is only authoritative for calls WE host, so the two cases differ:
+  ::
+  ::    hosted + active  -- we can no longer vouch for the participants (their leases and
+  ::                        our timers are gone), so end it and advance the revision once.
+  ::                        Broadcasting that is what makes the other ship's badge clear
+  ::                        instead of lingering, which the old silent wipe caused.
+  ::    hosted + empty   -- nothing changed, so the revision must NOT move. Bumping it on
+  ::                        every reload would inflate our own revision for no reason.
+  ::    hosted elsewhere -- keep the cached snapshot VERBATIM and ask that host for the
+  ::                        truth. Synthesising an empty at the same revision is what
+  ::                        broke recovery: the host's real active answer then compared
+  ::                        as a duplicate and was rejected, so a member could never heal.
+  =/  hosted-active=(list @ta)
+    %+  murn  ~(tap by calls.based)
+    |=  [nid=@ta sn=call-snapshot:noltbook]
+    ^-  (unit @ta)
+    ?~  call.sn  ~
+    =/  nt  (~(get by notes.based) nid)
+    ?~  nt  ~
+    ?.  =(our.bowl creator.u.nt)  ~
+    `nid
+  =/  ended=(set @ta)  (sy hosted-active)
+  =/  reloaded=(map @ta call-snapshot:noltbook)
+    %-  ~(gas by *(map @ta call-snapshot:noltbook))
+    %+  turn  ~(tap by calls.based)
+    |=  [nid=@ta sn=call-snapshot:noltbook]
+    ^-  [@ta call-snapshot:noltbook]
+    ?.  (~(has in ended) nid)  [nid sn]
+    [nid [nid +(gen.sn) ~]]
+  =/  based=state-76
+    based(calls reloaded, call-leases *(map @ta (map @p @da)))
   ::  idempotent normalization of remote-owned ordinary-DM %file/%app artifacts into
   ::  content-free references (no content read/write; nothing serveable by a noncreator).
-  =/  loaded=state-75  (migrate-dm-artifacts our.bowl loaded)
+  =/  loaded=state-76  (migrate-dm-artifacts our.bowl based)
+  ::  tell our own browser the full call list (which now includes any PRESERVED remote
+  ::  cache), tell the members of every call we just ended that it is over, and ask every
+  ::  remote host for its current truth. Those three are why a reload converges on both
+  ::  ships without a manual %clear-calls. The browser may briefly show a preserved
+  ::  remote call; the host's reply then either duplicates it (ignored) or supersedes it.
+  ::  broadcast ONLY the endings this reload actually authored. A hosted call that was
+  ::  already empty, and every call hosted elsewhere, is left alone.
+  =/  host-end-cards=(list card)
+    %-  zing
+    %+  turn  ~(tap in ended)
+    |=  nid=@ta
+    ^-  (list card)
+    =/  nt  (~(get by notes.loaded) nid)
+    ?~  nt  ~
+    =/  sn  (~(get by calls.loaded) nid)
+    ?~  sn  ~
+    (call-snap-cards users.u.nt u.sn our.bowl)
+  =/  call-cards=(list card)
+    :(weld host-end-cards ~[(gf-notes `update:noltbook`[%call-list ~(val by calls.loaded)])] (call-sync-cards notes.loaded our.bowl))
   =/  prof  (fall (~(get by profiles.loaded) our.bowl) *profile:noltbook)
   =/  prof-cards=(list card)
     %+  turn  ~(tap in peers.loaded)
@@ -6247,7 +6626,7 @@
     (rpoke /prof-out/(scot %p p) p `remote:noltbook`[%remote-profile our.bowl prof])
   ::  Phase 3: no protocol advertisement — both ships run the same build. DM reference
   ::  delivery is unconditional; peer-proto is left dormant (no state revision).
-  [(weld prof-cards (ensure-data-desk bowl)) this(state loaded)]
+  [:(weld prof-cards call-cards (ensure-data-desk bowl)) this(state loaded)]
 ++  on-watch
   |=  =path
   ^-  (quip card _this)
@@ -6319,13 +6698,11 @@
       ^-  (unit card)
       ?.  (~(has in vis-set) nid)  ~
       `(gf-paths ~ `update:noltbook`[%attention-update nid its %.y])
-    ::  send active call states
+    ::  ONE authoritative replacement of the whole visible call set, not a fact per
+    ::  note. Empty records travel too, so the browser inherits our generations and can
+    ::  reject a stale per-note fact that arrives after hydration.
     =/  call-cards=(list card)
-      %+  murn  ~(tap by active-calls)
-      |=  [nid=@ta ci=call-info:noltbook]
-      ^-  (unit card)
-      ?.  (~(has in vis-set) nid)  ~
-      `(gf-paths ~ `update:noltbook`[%call-state nid ci])
+      ~[(gf-paths ~ `update:noltbook`[%call-list (visible-call-snaps calls vis-set)])]
     ::  send live "active" status snapshots (unexpired only) so the sidebar shows
     ::  them after a hard refresh / reconnect, like active call states.
     =/  active-cards=(list card)
@@ -6565,11 +6942,14 @@
     =/  new-peers=(set @p)
       ?.  is-new-remote  peers
       (~(put in peers) src.bowl)
-    ::  send active call state for this note if one exists
+    ::  Always send a snapshot for this note, INCLUDING the empty one. This is the
+    ::  self-healing hinge: a remote member's persistent /remote-note subscription is
+    ::  re-established on either ship's reload, and the snapshot it receives here is
+    ::  what clears a call whose ending it missed.
     =/  call-cards=(list card)
-      =/  ci  (~(get by active-calls) nid)
-      ?~  ci  ~
-      ~[(gf-paths ~ `update:noltbook`[%call-state nid u.ci])]
+      =/  cur  (~(get by calls) nid)
+      =/  snap=call-snapshot:noltbook  ?~(cur [nid 0 ~] u.cur)
+      ~[(gf-paths ~ `update:noltbook`[%call-snap snap])]
     ::  send role state for this note
     =/  note-role-cards=(list card)
       =/  adms=(set @p)  (fall (~(get by note-admins) nid) ~)
@@ -6726,13 +7106,19 @@
   ::
   ::  Phase 18: call state (read-only).
       [%x %api %calls ~]
-    =/  jon=json  (frond:enjs:format 'calls' a+(turn ~(val by active-calls) api-call-json))
+    =/  live=(list call-info:noltbook)
+      %+  murn  ~(val by calls)
+      |=(sn=call-snapshot:noltbook call.sn)
+    =/  jon=json  (frond:enjs:format 'calls' a+(turn live api-call-json))
     ``[%json !>(jon)]
   ::
       [%x %api %notes @ %calls ~]
     =/  nid=@ta  i.t.t.t.path
-    =/  c  (~(get by active-calls) nid)
-    =/  cs=(list call-info:noltbook)  ?~(c ~ ~[u.c])
+    =/  c  (~(get by calls) nid)
+    =/  cs=(list call-info:noltbook)
+      ?~  c  ~
+      ?~  call.u.c  ~
+      ~[u.call.u.c]
     =/  jon=json
       %-  pairs:enjs:format
       :~  ['noteId' s+(crip (trip nid))]
@@ -7440,20 +7826,31 @@
       ?:  (is-write-blocked note-id.aa host-status notes our.bowl)
         :_  this
         (api-call-result-card request-id.aa %.n %rejected 'write blocked' `note-id.aa ~)
-      ::  active call with participants => the handler no-ops; report honestly.
-      =/  old-call  (~(get by active-calls) note-id.aa)
-      ?:  ?&(?=(^ old-call) (gth ~(wyt in participants.u.old-call) 0))
+      ?.  (call-eligible note-id.aa u.ex)
         :_  this
-        (api-call-result-card request-id.aa %.n %rejected 'call already active' `note-id.aa `call-id.u.old-call)
-      ::  creator starts locally (cid = call-{now}); non-creator forwards to host.
-      =/  is-creator=?  =(our.bowl creator.u.ex)
-      =/  cid=@ta  (crip (weld "call-" (trip (scot %da now.bowl))))
+        (api-call-result-card request-id.aa %.n %rejected 'note kind cannot host calls' `note-id.aa ~)
+      ::  a LIVE call => the handler no-ops; report honestly.
+      =/  old  (~(get by calls) note-id.aa)
+      ?:  ?&(?=(^ old) ?=(^ call.u.old))
+        :_  this
+        %^    api-call-result-card
+            request-id.aa
+          %.n
+        [%rejected 'call already active' `note-id.aa `call-id.u.call.u.old]
+      ::  the HOST authors the call id, so report it only when we are the host; a
+      ::  member's request is %accepted and the real id arrives with the snapshot.
+      =/  is-host=?  =(our.bowl creator.u.ex)
       =^  cards  this
         $(mark %noltbook-action, vase (action-vase `action:noltbook`[%start-call note-id.aa]))
+      =/  fresh  (~(get by calls) note-id.aa)
+      =/  new-cid=(unit @ta)
+        ?~  fresh  ~
+        ?~  call.u.fresh  ~
+        `call-id.u.call.u.fresh
       :_  this
       %+  weld  cards
-      ?:  is-creator
-        (api-call-result-card request-id.aa %.y %call-started 'call started' `note-id.aa `cid)
+      ?:  is-host
+        (api-call-result-card request-id.aa %.y %call-started 'call started' `note-id.aa new-cid)
       (api-call-result-card request-id.aa %.y %accepted 'call start forwarded to host' `note-id.aa ~)
     ::
         %join-call
@@ -7464,32 +7861,37 @@
       ?:  (is-write-blocked note-id.aa host-status notes our.bowl)
         :_  this
         (api-call-result-card request-id.aa %.n %rejected 'write blocked' `note-id.aa ~)
-      =/  ci  (~(get by active-calls) note-id.aa)
-      ?~  ci
+      =/  cur  (~(get by calls) note-id.aa)
+      ?:  ?|(?=(~ cur) ?=(~ call.u.cur))
         :_  this
         (api-call-result-card request-id.aa %.n %missing-target 'no active call to join' `note-id.aa ~)
-      ?:  (~(has in participants.u.ci) our.bowl)
+      =/  ci  u.call.u.cur
+      ?:  (~(has in participants.ci) our.bowl)
         :_  this
-        (api-call-result-card request-id.aa %.n %rejected 'already in call' `note-id.aa `call-id.u.ci)
+        (api-call-result-card request-id.aa %.n %rejected 'already in call' `note-id.aa `call-id.ci)
+      =/  is-host=?  =(our.bowl creator.u.ex)
       =^  cards  this
         $(mark %noltbook-action, vase (action-vase `action:noltbook`[%join-call note-id.aa]))
       :_  this
       %+  weld  cards
-      (api-call-result-card request-id.aa %.y %call-joined 'call joined' `note-id.aa `call-id.u.ci)
+      ?:  is-host
+        (api-call-result-card request-id.aa %.y %call-joined 'call joined' `note-id.aa `call-id.ci)
+      (api-call-result-card request-id.aa %.y %accepted 'join forwarded to host' `note-id.aa `call-id.ci)
     ::
         %leave-call
       =/  ex=(unit note:noltbook)  (~(get by notes) note-id.aa)
       ?~  ex
         :_  this
         (api-call-result-card request-id.aa %.n %missing-note 'no such note' `note-id.aa ~)
-      =/  ci  (~(get by active-calls) note-id.aa)
-      ?~  ci
+      =/  cur  (~(get by calls) note-id.aa)
+      ?:  ?|(?=(~ cur) ?=(~ call.u.cur))
         :_  this
         (api-call-result-card request-id.aa %.n %missing-target 'no active call' `note-id.aa ~)
-      ?.  (~(has in participants.u.ci) our.bowl)
+      =/  ci  u.call.u.cur
+      ?.  (~(has in participants.ci) our.bowl)
         :_  this
-        (api-call-result-card request-id.aa %.n %rejected 'not in call' `note-id.aa `call-id.u.ci)
-      =/  cid=@ta  call-id.u.ci
+        (api-call-result-card request-id.aa %.n %rejected 'not in call' `note-id.aa `call-id.ci)
+      =/  cid=@ta  call-id.ci
       =^  cards  this
         $(mark %noltbook-action, vase (action-vase `action:noltbook`[%leave-call note-id.aa]))
       :_  this
@@ -8818,8 +9220,8 @@
         |-
         ?~  todo  acc
         $(todo t.todo, acc (~(del by acc) i.todo))
-      =/  new-active-calls=(map @ta call-info:noltbook)
-        =/  acc=(map @ta call-info:noltbook)  active-calls
+      =/  new-calls=(map @ta call-snapshot:noltbook)
+        =/  acc=(map @ta call-snapshot:noltbook)  calls
         =/  todo=(list @ta)  subtree-ids
         |-
         ?~  todo  acc
@@ -8881,7 +9283,8 @@
             notes  new-notes
             messages  new-messages
             mentions  new-mentions
-            active-calls  new-active-calls
+            calls         new-calls
+            call-leases   (prune-call-leases subtree-ids call-leases)
             gossip-envelopes  new-gossip-envelopes
             headlines  new-headlines
             seq-counters  new-seq-counters
@@ -11166,132 +11569,197 @@
     ::  ===== CALL ACTIONS =====
     ::
         %start-call
+      ::  Local user pressed CALL. If we host the note we allocate; otherwise we only
+      ::  REQUEST and wait for the host's snapshot -- the frontend must not treat the
+      ::  poke landing as the call existing.
       ?:  (is-write-blocked note-id.act host-status notes our.bowl)  `this
       =/  exists  (~(get by notes) note-id.act)
       ?~  exists  `this
-      ::  if stale call exists (0 participants), clean it up; if active, no-op
-      =/  old-call  (~(get by active-calls) note-id.act)
-      ?:  ?&  ?=(^ old-call)
-              (gth ~(wyt in participants.u.old-call) 0)
-          ==
-        `this
-      ::  non-creator: ask host to start the call, then join
+      ?.  (call-eligible note-id.act u.exists)  `this
+      =/  cur  (~(get by calls) note-id.act)
+      ?:  ?&(?=(^ cur) ?=(^ call.u.cur))  `this
       ?.  =(our.bowl creator.u.exists)
         :_  this
-        :~  (rpoke /call-start/(scot %p creator.u.exists)/[note-id.act] creator.u.exists `remote:noltbook`[%remote-call-start note-id.act (crip (weld "call-" (trip (scot %da now.bowl)))) our.bowl])
+        :~  %^    rpoke
+                /call-start/(scot %p creator.u.exists)/[note-id.act]
+              creator.u.exists
+            `remote:noltbook`[%remote-call-start note-id.act]
         ==
-      ::  we are the creator: create call locally and broadcast
-      =/  cid=@ta  (crip (weld "call-" (trip (scot %da now.bowl))))
-      =/  ci=call-info:noltbook
-        [cid note-id.act our.bowl now.bowl (sy ~[our.bowl]) %active]
-      ::  record call-started system message
-      =/  sys-msg=message:noltbook
-        [now.bowl note-id.act our.bowl (crip (weld "\01SYS:call-started:" (trip (scot %p our.bowl)))) now.bowl ~ %.n ~]
-      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
-      =/  upd=update:noltbook  [%call-started note-id.act cid our.bowl ~[our.bowl]]
-      =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
+      =/  snap=call-snapshot:noltbook
+        %-  norm-snap
+        (host-start-snap note-id.act our.bowl now.bowl (call-gen calls note-id.act))
+      ?~  call.snap  `this
+      =/  dl=@da  (add now.bowl call-lease-ttl)
+      =/  msg  (call-sys-msg now.bowl note-id.act our.bowl (call-started-txt our.bowl))
+      =/  cur-msgs=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
+      =/  msg-upd=update:noltbook  [%new-message msg ~ ~ ~]
       =/  pax=path  ~[%notes note-id.act]
-      ::  notify all other note members
-      =/  broadcast=(list card)
-        %+  murn  ~(tap in users.u.exists)
-        |=  p=@p
-        ?:  =(p our.bowl)  ~
-        `(rpoke /call-start/(scot %p p)/[note-id.act] p `remote:noltbook`[%remote-call-start note-id.act cid our.bowl])
-      :_  this(active-calls (~(put by active-calls) note-id.act ci), messages (~(put by messages) note-id.act (snoc cur sys-msg)))
-      :(weld ~[(gf-paths ~[pax] upd)] ~[(gf-notes upd)] ~[(gf-paths ~[pax] msg-upd)] broadcast)
+      :_  %=  this
+            calls        (~(put by calls) note-id.act snap)
+            call-leases  (put-lease call-leases note-id.act our.bowl dl)
+            messages     (~(put by messages) note-id.act (snoc cur-msgs msg))
+          ==
+      ;:  weld
+        (call-snap-cards users.u.exists snap our.bowl)
+        (call-local-cards snap)
+        ~[(gf-paths ~[pax] msg-upd)]
+        ~[(lease-wake note-id.act call-id.u.call.snap our.bowl dl)]
+      ==
     ::
         %join-call
       ?:  (is-write-blocked note-id.act host-status notes our.bowl)  `this
       =/  exists  (~(get by notes) note-id.act)
       ?~  exists  `this
-      =/  ci  (~(get by active-calls) note-id.act)
-      ?~  ci  `this
-      ?:  (~(has in participants.u.ci) our.bowl)  `this
-      =/  new-ci=call-info:noltbook  u.ci(participants (~(put in participants.u.ci) our.bowl))
-      =/  sys-msg=message:noltbook
-        [now.bowl note-id.act our.bowl (crip (weld "\01SYS:call-joined:" (trip (scot %p our.bowl)))) now.bowl ~ %.n ~]
-      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
-      =/  upd=update:noltbook  [%call-joined note-id.act our.bowl]
-      =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
+      ?.  (call-eligible note-id.act u.exists)  `this
+      =/  cur  (~(get by calls) note-id.act)
+      ?~  cur  `this
+      ?~  call.u.cur  `this
+      =/  ci  u.call.u.cur
+      ?.  =(our.bowl creator.u.exists)
+        :_  this
+        :~  %^    rpoke
+                /call-join/(scot %p creator.u.exists)/[note-id.act]
+              creator.u.exists
+            `remote:noltbook`[%remote-call-join note-id.act]
+        ==
+      =/  dl=@da  (add now.bowl call-lease-ttl)
+      ?:  (~(has in participants.ci) our.bowl)
+        :_  this(call-leases (put-lease call-leases note-id.act our.bowl dl))
+        ~[(lease-wake note-id.act call-id.ci our.bowl dl)]
+      =/  new-ci=call-info:noltbook
+        ci(participants (~(put in participants.ci) our.bowl))
+      ::  same rule as the remote join: one revision per authored change
+      =/  snap=call-snapshot:noltbook
+        (norm-snap [note-id.act +(gen.u.cur) `new-ci])
+      =/  msg  (call-sys-msg now.bowl note-id.act our.bowl (call-joined-txt our.bowl))
+      =/  cur-msgs=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
+      =/  msg-upd=update:noltbook  [%new-message msg ~ ~ ~]
       =/  pax=path  ~[%notes note-id.act]
-      ::  notify: if creator, tell existing participants directly;
-      ::  if non-creator, tell the host who relays
-      =/  broadcast=(list card)
-        ?:  =(our.bowl creator.u.exists)
-          ::  creator: relay delta to existing participants + full state to all members
-          %+  weld
-            ^-  (list card)
-            %+  murn  ~(tap in participants.u.ci)
-            |=  p=@p
-            ?:  =(p our.bowl)  ~
-            `(rpoke /call-join-relay/(scot %p p)/[note-id.act] p `remote:noltbook`[%remote-call-join note-id.act our.bowl])
-          (call-state-cards users.u.exists note-id.act new-ci our.bowl)
-        ~[(rpoke /call-join/(scot %p creator.u.exists)/[note-id.act] creator.u.exists `remote:noltbook`[%remote-call-join note-id.act our.bowl])]
-      :_  this(active-calls (~(put by active-calls) note-id.act new-ci), messages (~(put by messages) note-id.act (snoc cur sys-msg)))
-      :(weld ~[(gf-paths ~[pax] upd)] ~[(gf-notes upd)] ~[(gf-paths ~[pax] msg-upd)] broadcast)
+      :_  %=  this
+            calls        (~(put by calls) note-id.act snap)
+            call-leases  (put-lease call-leases note-id.act our.bowl dl)
+            messages     (~(put by messages) note-id.act (snoc cur-msgs msg))
+          ==
+      ;:  weld
+        (call-snap-cards users.u.exists snap our.bowl)
+        (call-local-cards snap)
+        ~[(gf-paths ~[pax] msg-upd)]
+        ~[(lease-wake note-id.act call-id.new-ci our.bowl dl)]
+      ==
     ::
         %leave-call
       =/  exists  (~(get by notes) note-id.act)
       ?~  exists  `this
-      =/  ci  (~(get by active-calls) note-id.act)
-      ?~  ci  `this
-      ?.  (~(has in participants.u.ci) our.bowl)  `this
-      =/  new-parts=(set @p)  (~(del in participants.u.ci) our.bowl)
-      =/  sys-msg=message:noltbook
-        [now.bowl note-id.act our.bowl (crip (weld "\01SYS:call-left:" (trip (scot %p our.bowl)))) now.bowl ~ %.n ~]
-      =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
+      =/  cur  (~(get by calls) note-id.act)
+      ?~  cur  `this
+      ?~  call.u.cur  `this
+      ?.  (~(has in participants.u.call.u.cur) our.bowl)  `this
+      ::  non-host: ask the host to drop us. Our badge clears when its snapshot lands,
+      ::  never on the poke merely being accepted.
+      ?.  =(our.bowl creator.u.exists)
+        :_  this
+        :~  %^    rpoke
+                /call-leave/(scot %p creator.u.exists)/[note-id.act]
+              creator.u.exists
+            `remote:noltbook`[%remote-call-leave note-id.act]
+        ==
+      =/  res  (host-drop now.bowl u.cur our.bowl)
+      =/  cur-msgs=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
       =/  pax=path  ~[%notes note-id.act]
-      ::  if last participant, end call
-      ?:  =(0 ~(wyt in new-parts))
-        =/  end-upd=update:noltbook  [%call-ended note-id.act call-id.u.ci]
-        =/  end-msg=message:noltbook
-          [now.bowl note-id.act our.bowl '\01SYS:call-ended' now.bowl ~ %.n ~]
-        ::  broadcast call-ended to all note members (not just host)
-        =/  broadcast=(list card)
-          %+  murn  ~(tap in users.u.exists)
-          |=  p=@p
-          ?:  =(p our.bowl)  ~
-          `(rpoke /call-end/(scot %p p)/[note-id.act] p `remote:noltbook`[%remote-call-ended note-id.act])
-        :_  this(active-calls (~(del by active-calls) note-id.act), messages (~(put by messages) note-id.act (snoc (snoc cur sys-msg) end-msg)))
-        :(weld ~[(gf-paths ~[pax] end-upd)] ~[(gf-notes end-upd)] broadcast)
-      ::  not last: just leave
-      =/  new-ci=call-info:noltbook  u.ci(participants new-parts)
-      =/  upd=update:noltbook  [%call-left note-id.act our.bowl]
-      ::  if creator, notify remaining participants directly;
-      ::  if non-creator, tell the host who relays
-      =/  broadcast=(list card)
-        ?:  =(our.bowl creator.u.exists)
-          ::  creator: relay delta to remaining participants + full state to all members
-          %+  weld
-            ^-  (list card)
-            %+  murn  ~(tap in new-parts)
-            |=  p=@p
-            ?:  =(p our.bowl)  ~
-            `(rpoke /call-leave-relay/(scot %p p)/[note-id.act] p `remote:noltbook`[%remote-call-leave note-id.act our.bowl])
-          (call-state-cards users.u.exists note-id.act new-ci our.bowl)
-        ~[(rpoke /call-leave/(scot %p creator.u.exists)/[note-id.act] creator.u.exists `remote:noltbook`[%remote-call-leave note-id.act our.bowl])]
-      =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
-      :_  this(active-calls (~(put by active-calls) note-id.act new-ci), messages (~(put by messages) note-id.act (snoc cur sys-msg)))
-      :(weld ~[(gf-paths ~[pax] upd)] ~[(gf-notes upd)] ~[(gf-paths ~[pax] msg-upd)] broadcast)
+      =/  leases-1  (del-lease call-leases note-id.act our.bowl)
+      =/  leases-2  ?:(ended.res (~(del by leases-1) note-id.act) leases-1)
+      :_  %=  this
+            calls        (~(put by calls) note-id.act out.res)
+            call-leases  leases-2
+            messages     (~(put by messages) note-id.act (weld cur-msgs msgs.res))
+          ==
+      ;:  weld
+        (call-snap-cards users.u.exists out.res our.bowl)
+        (call-local-cards out.res)
+        %+  turn  msgs.res
+        |=  m=message:noltbook
+        (gf-paths ~[pax] `update:noltbook`[%new-message m ~ ~ ~])
+      ==
     ::
-        %call-signal
-      ::  relay WebRTC signal to target peer
+        %call-heartbeat
+      ::  liveness for OURSELVES only, sent while actually joined. Non-hosts forward it.
       =/  exists  (~(get by notes) note-id.act)
       ?~  exists  `this
-      =/  ci  (~(get by active-calls) note-id.act)
-      ?~  ci  `this
-      ::  send signal directly to target peer
+      =/  cur  (~(get by calls) note-id.act)
+      ?~  cur  `this
+      ?~  call.u.cur  `this
+      ?.  (~(has in participants.u.call.u.cur) our.bowl)  `this
+      ?.  =(our.bowl creator.u.exists)
+        :_  this
+        :~  %^    rpoke
+                /call-hb/(scot %p creator.u.exists)/[note-id.act]
+              creator.u.exists
+            `remote:noltbook`[%remote-call-heartbeat note-id.act]
+        ==
+      =/  dl=@da  (add now.bowl call-lease-ttl)
+      :_  this(call-leases (put-lease call-leases note-id.act our.bowl dl))
+      ~[(lease-wake note-id.act call-id.u.call.u.cur our.bowl dl)]
+    ::
+        %sync-calls
+      ::  frontend channel reconnect: re-hydrate the browser from what we hold AND ask
+      ::  every remote host for its current truth, so a missed ending self-heals.
       :_  this
-      ~[(rpoke /call-sig/(scot %p to.act)/[note-id.act] to.act `remote:noltbook`[%remote-call-signal call-id.u.ci our.bowl sig-type.act payload.act])]
+      %+  weld
+        ~[(gf-notes `update:noltbook`[%call-list ~(val by calls)])]
+      (call-sync-cards notes our.bowl)
+    ::
+        %call-signal
+      ::  relay a WebRTC signal to one peer. Only inside a LIVE call we are in, and only
+      ::  to a ship that is actually a participant.
+      =/  exists  (~(get by notes) note-id.act)
+      ?~  exists  `this
+      =/  cur  (~(get by calls) note-id.act)
+      ?~  cur  `this
+      ?~  call.u.cur  `this
+      =/  ci  u.call.u.cur
+      ?.  (~(has in participants.ci) our.bowl)  `this
+      ?.  (~(has in participants.ci) to.act)  `this
+      :_  this
+      :~  %^    rpoke
+              /call-sig/(scot %p to.act)/[note-id.act]
+            to.act
+          `remote:noltbook`[%remote-call-signal call-id.ci our.bowl sig-type.act payload.act]
+      ==
     ::
         %clear-calls
-      ::  purge all active calls locally, notify frontend
-      =/  end-cards=(list card)
-        %+  turn  ~(tap by active-calls)
-        |=  [nid=@ta ci=call-info:noltbook]
-        (gf-notes `update:noltbook`[%call-ended nid call-id.ci])
-      :_  this(active-calls *(map @ta call-info:noltbook))
-      end-cards
+      ::  operator escape hatch. For notes we HOST this is a real authoritative end
+      ::  broadcast to the members; for notes hosted elsewhere we drop our cached copy
+      ::  and immediately re-ask the host, so we cannot invent an ending for someone else.
+      =/  ours=(list [@ta call-snapshot:noltbook])
+        %+  skim  ~(tap by calls)
+        |=  [nid=@ta *]
+        =/  nt  (~(get by notes) nid)
+        ?~  nt  %.n
+        =(our.bowl creator.u.nt)
+      ::  only an ACTIVE hosted call is a real ending: it gets one revision bump. An
+      ::  already-empty record is left exactly as it is, so a duplicate %clear-calls
+      ::  cannot inflate the revision or invalidate the host's own later snapshots.
+      =/  ended-map=(map @ta call-snapshot:noltbook)
+        %+  roll  ours
+        |=  [[nid=@ta snap=call-snapshot:noltbook] acc=(map @ta call-snapshot:noltbook)]
+        ?~  call.snap  acc
+        (~(put by acc) nid [nid +(gen.snap) ~])
+      =/  host-cards=(list card)
+        %-  zing
+        %+  turn  ~(tap by ended-map)
+        |=  [nid=@ta snap=call-snapshot:noltbook]
+        ^-  (list card)
+        =/  nt  (~(get by notes) nid)
+        ?~  nt  ~
+        (call-snap-cards users.u.nt snap our.bowl)
+      =/  next-calls=(map @ta call-snapshot:noltbook)
+        (~(uni by calls) ended-map)
+      :_  this(calls next-calls, call-leases *(map @ta (map @p @da)))
+      ;:  weld
+        host-cards
+        ~[(gf-notes `update:noltbook`[%call-list ~(val by next-calls)])]
+        (call-sync-cards notes our.bowl)
+      ==
     ::
         %fetch-cover-msg
       ::  fetch full content of a gossip/cover message from its author
@@ -11559,6 +12027,56 @@
 ++  on-arvo
   |=  [=wire =sign-arvo]
   ^-  (quip card _this)
+  ::  Call lease expiry. The wire carries note, CALL ID, participant and deadline, and
+  ::  every one is re-checked below, in that order. Nothing is ever cancelled, so no
+  ::  timer bookkeeping can leak; a wake that no longer describes reality simply returns.
+  ::  Keyed on call-id rather than the snapshot revision, so another participant joining
+  ::  or leaving -- which does advance the revision -- leaves this timer intact.
+  ?:  ?=([%call-lease @ @ @ @ ~] wire)
+    ?.  ?=([%behn %wake *] sign-arvo)  `this
+    =/  nid=@ta   i.t.wire
+    =/  cid=@ta   i.t.t.wire
+    =/  who=@p    (slav %p i.t.t.t.wire)
+    =/  at=@da    (slav %da i.t.t.t.t.wire)
+    ::  1. the note still has a call record
+    =/  cur  (~(get by calls) nid)
+    ?~  cur  `this
+    ::  2. that record is an ACTIVE call
+    ?~  call.u.cur  `this
+    ::  3. it is the SAME call this wake was armed for. A wake from an earlier call on
+    ::     this note dies here, and a revision bump from someone else's join or leave
+    ::     does not.
+    ?.  =(cid call-id.u.call.u.cur)  `this
+    ::  4. the participant is still in it
+    ?.  (~(has in participants.u.call.u.cur) who)  `this
+    ::  5. the note still exists and 6. we still host it -- only a host expires anyone
+    =/  nt  (~(get by notes) nid)
+    ?~  nt  `this
+    ?.  =(our.bowl creator.u.nt)  `this
+    ::  7. we still hold a lease for them
+    =/  held  (~(get by (fall (~(get by call-leases) nid) *(map @p @da))) who)
+    ?~  held  `this
+    ::  8. it is THIS deadline -- a later heartbeat moved it, so that wake supersedes us
+    ?.  =(u.held at)  `this
+    ::  9. and it has actually expired
+    ?:  (gth u.held now.bowl)  `this
+    =/  res  (host-drop now.bowl u.cur who)
+    =/  cur-msgs=(list message:noltbook)  (fall (~(get by messages) nid) ~)
+    =/  pax=path  ~[%notes nid]
+    =/  leases-1  (del-lease call-leases nid who)
+    =/  leases-2  ?:(ended.res (~(del by leases-1) nid) leases-1)
+    :_  %=  this
+          calls        (~(put by calls) nid out.res)
+          call-leases  leases-2
+          messages     (~(put by messages) nid (weld cur-msgs msgs.res))
+        ==
+    ;:  weld
+      (call-snap-cards users.u.nt out.res our.bowl)
+      (call-local-cards out.res)
+      %+  turn  msgs.res
+      |=  m=message:noltbook
+      (gf-paths ~[pax] `update:noltbook`[%new-message m ~ ~ ~])
+    ==
   ?:  ?=([%eyre %bound *] sign-arvo)
     ~?  !accepted.sign-arvo
       [dap.bowl "eyre bind rejected!" binding.sign-arvo]
@@ -12092,6 +12610,24 @@
         ==
       ::  === regular note: persist full messages ===
       ?+  -.upd  `this
+      ::
+          %call-snap
+        ::  Authoritative call record arriving on the HOST subscription. Gall
+        ::  re-establishes this subscription after either ship reloads, and the host's
+        ::  on-watch always sends a snapshot -- including the empty one -- so this branch
+        ::  is what heals a call whose ending we missed. Same dominance rule as the
+        ::  direct poke, so a resubscribe can never regress our state.
+        =/  snap=call-snapshot:noltbook  (norm-snap snap.upd)
+        ?.  =(nid note-id.snap)  `this
+        =/  nt  (~(get by notes) nid)
+        ?~  nt  `this
+        ?.  =(src.bowl creator.u.nt)  `this
+        ?.  (snap-dominates snap (~(get by calls) nid))  `this
+        :_  %=  this
+              calls        (~(put by calls) nid snap)
+              call-leases  (~(del by call-leases) nid)
+            ==
+        (call-local-cards snap)
       ::
           %message-list
         ::  initial sync: store messages and artifacts locally
@@ -12903,6 +13439,32 @@
       `this
     ==
   ::
+      [%call-snap @ @ @ @ ~]
+    ::  Authoritative snapshot delivery failed. Retry EXACTLY once, and resend whatever
+    ::  we hold NOW rather than the payload that failed -- if the call moved on, the
+    ::  newer record is the one worth delivering. After that we stop: the member's own
+    ::  %remote-call-sync (agent reload, resubscribe, frontend reconnect) repairs it, so
+    ::  there is no unbounded retry map anywhere.
+    ?+  -.sign  `this
+        %poke-ack
+      ?~  p.sign  `this
+      =/  who=@p   (slav %p i.t.wire)
+      =/  nid=@ta  i.t.t.wire
+      =/  try=@ud  (slav %ud i.t.t.t.t.wire)
+      ~&  [%call-snap-failed nid who try]
+      ?:  (gte try 2)  `this
+      =/  cur  (~(get by calls) nid)
+      ?~  cur  `this
+      :_  this
+      :~  %^    rpoke
+              (call-snap-wire who nid gen.u.cur +(try))
+            who
+          `remote:noltbook`[%remote-call-snap u.cur]
+      ==
+    ==
+  ::
+  ::  member -> host requests. A failure here is reported and dropped: the frontend is
+  ::  waiting on an authoritative snapshot and will surface the timeout truthfully.
       [%call-start @ @ ~]
     ?+  -.sign  `this
         %poke-ack
@@ -12913,30 +13475,36 @@
   ::
       [%call-join @ @ ~]
     ?+  -.sign  `this
-        %poke-ack  `this
-    ==
-  ::
-      [%call-join-relay @ @ ~]
-    ?+  -.sign  `this
-        %poke-ack  `this
+        %poke-ack
+      ?~  p.sign  `this
+      ~&  [%call-join-failed wire]
+      `this
     ==
   ::
       [%call-leave @ @ ~]
     ?+  -.sign  `this
+        %poke-ack
+      ?~  p.sign  `this
+      ~&  [%call-leave-failed wire]
+      `this
+    ==
+  ::
+      [%call-hb @ @ ~]
+    ::  a dropped heartbeat is self-correcting: the next one renews the lease, and if
+    ::  they all stop the host expires this participant on purpose.
+    ?+  -.sign  `this
         %poke-ack  `this
     ==
   ::
-      [%call-leave-relay @ @ ~]
+      [%call-sync @ ~]
     ?+  -.sign  `this
-        %poke-ack  `this
+        %poke-ack
+      ?~  p.sign  `this
+      ~&  [%call-sync-failed wire]
+      `this
     ==
   ::
       [%call-sig @ @ ~]
-    ?+  -.sign  `this
-        %poke-ack  `this
-    ==
-  ::
-      [%call-end @ @ ~]
     ?+  -.sign  `this
         %poke-ack  `this
     ==

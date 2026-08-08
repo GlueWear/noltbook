@@ -464,6 +464,14 @@
       =/  pl-nd  (need (~(get by d) 'payload'))
       ?>  ?=([%s *] pl-nd)
       [%call-signal `@ta`p.nid-nd (slav %p p.to-nd) p.st-nd p.pl-nd]
+    ::  call-heartbeat
+    ?:  =('call-heartbeat' tag)
+      =/  nid-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] nid-nd)
+      [%call-heartbeat `@ta`p.nid-nd]
+    ::  sync-calls
+    ?:  =('sync-calls' tag)
+      [%sync-calls ~]
     ::  clear-calls
     ?:  =('clear-calls' tag)
       [%clear-calls ~]
