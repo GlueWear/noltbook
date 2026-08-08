@@ -943,10 +943,26 @@
       ?~  ms  note-acc
       ?:  (~(has in blocked) author.i.ms)
         $(ms t.ms)
-      =/  body=tape  (cass (trip text.i.ms))
-      ?:  =(~ (find q-tape body))
+      =/  raw=tape  (trip text.i.ms)
+      =/  body=tape  (cass raw)
+      =/  found=(unit @ud)  (find q-tape body)
+      ?~  found
         $(ms t.ms)
-      =/  pv=@t  (crip (scag 160 (trip text.i.ms)))
+      ::  Center the result preview on the first match instead of always
+      ::  showing the beginning of the post. Keep a little more context after
+      ::  the match, where the rest of the sentence usually lives.
+      =/  start=@ud  ?:((gth u.found 55) (sub u.found 55) 0)
+      =/  tail=tape  (slag start raw)
+      =/  excerpt=tape  (scag 160 tail)
+      =/  excerpt-len=@ud  (lent excerpt)
+      =/  tail-len=@ud  (lent tail)
+      =/  pv=@t
+        %-  crip
+        ;:  weld
+          ?:(=(start 0) "" "...")
+          excerpt
+          ?:(=(excerpt-len tail-len) "" "...")
+        ==
       =/  eid-u=(unit @uv)
         ?~  meta.i.ms  ~
         `eid.u.meta.i.ms

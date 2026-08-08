@@ -174,6 +174,8 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .msg-author.visitor{color:var(--visitor)}
 .msg-time{font-size:.75rem;color:var(--text-dim)}
 .msg-text{font-family:var(--font);font-size:1rem;line-height:1.5;color:#ddd;word-break:break-word;white-space:pre-wrap}
+.search-hit-target{box-shadow:inset 3px 0 0 rgba(255,170,0,.65)}
+.search-hit-mark{background:#ffaa00;color:#111;padding:0 .08em;border-radius:2px}
 .msg:hover{background:rgba(255,255,255,.04)}
 .msg.selected{background:rgba(255,255,255,.06)}
 .msg-actions{display:none;flex-direction:column;gap:.25rem;position:absolute;right:1rem;top:1.5rem;background:var(--bg2);padding:.25rem;border:1px solid var(--border);border-radius:3px;z-index:10;min-width:5rem}
@@ -702,7 +704,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
       </div>
       <div class="sidebar-search">
         <input class="sidebar-search-input" id="sidebarSearchInput" type="text" placeholder="search notes & people..." autocomplete="off" oninput="setSidebarSearch(this.value)">
-        <button class="sidebar-search-clear" id="sidebarSearchClear" style="display:none" onclick="setSidebarSearch('');document.getElementById('sidebarSearchInput').value='';document.getElementById('sidebarSearchInput').focus()">CLEAR</button>
+        <button class="sidebar-search-clear" id="sidebarSearchClear" style="display:none" onclick="clearSidebarSearch(true)">CLEAR</button>
       </div>
       <div class="sidebar-scroll">
         <div class="section-body open" id="coverPinnedBody"></div>
@@ -1495,6 +1497,108 @@ let _readTrackTimer=null;
 // set true around a programmatic attention/ref jump so the resulting scroll does
 // not mark messages read or destroy the unread divider (issue: jump != user read).
 let _programmaticScroll=false;
+// ===== message-search navigation =====
+// Search results already carry both the legacy message id and the stable EID.
+// Keep the selected result in memory only: it temporarily widens a gossip
+// render window, reveals a collapsed thread, and owns one centered jump.
+let _searchNavSeq=0;
+let _searchNav=null;
+let _searchScrollSeq=0;
+function searchNavigationForNote(noteId){
+  return _searchNav&&_searchNav.noteId===noteId?_searchNav:null;
+}
+function clearSearchHighlightDom(){
+  document.querySelectorAll('.search-hit-mark').forEach(mark=>{
+    const p=mark.parentNode;
+    if(p){p.replaceChild(document.createTextNode(mark.textContent||''),mark);p.normalize()}
+  });
+  document.querySelectorAll('.search-hit-target').forEach(el=>el.classList.remove('search-hit-target'));
+}
+function clearSearchNavigation(){
+  clearSearchHighlightDom();
+  _searchNav=null;
+}
+function messageMatchesSearchNavigation(m,nav){
+  if(!m||!nav)return false;
+  if(nav.eid)return getMsgEid(m)===nav.eid;
+  return String(m.id)===String(nav.msgId);
+}
+function messageForSearchNavigation(nav){
+  if(!nav)return null;
+  const msgs=state.messages[nav.noteId]||[];
+  return msgs.find(m=>messageMatchesSearchNavigation(m,nav))||null;
+}
+function elementForSearchNavigation(nav){
+  const msg=messageForSearchNavigation(nav);
+  return msg?document.getElementById(msgDomId(msg,nav.noteId)):null;
+}
+// Highlight the first exact displayed occurrence, case-insensitively. A text
+// map lets one phrase span inline markup (for example a mention or <code>)
+// without ever doing unsafe string replacement on rendered HTML.
+function markSearchPhrase(body,phrase){
+  if(!body||!phrase)return false;
+  const parts=[];let full='';
+  const walker=document.createTreeWalker(body,NodeFilter.SHOW_TEXT,{acceptNode(node){
+    if(!node.nodeValue)return NodeFilter.FILTER_REJECT;
+    const p=node.parentElement;
+    if(!p||p.closest('.msg-edited,.msg-import-badge,button,script,style,iframe'))return NodeFilter.FILTER_REJECT;
+    return NodeFilter.FILTER_ACCEPT;
+  }});
+  let n;
+  while((n=walker.nextNode())){parts.push({node:n,start:full.length,end:full.length+n.nodeValue.length});full+=n.nodeValue}
+  const needle=String(phrase).trim();
+  if(!needle)return false;
+  const at=full.toLowerCase().indexOf(needle.toLowerCase());
+  if(at<0)return false;
+  const end=at+needle.length;
+  // Work backwards so splitting a later text node cannot disturb an earlier one.
+  for(let i=parts.length-1;i>=0;i--){
+    const part=parts[i];
+    if(part.end<=at||part.start>=end)continue;
+    const from=Math.max(0,at-part.start);
+    const to=Math.min(part.node.nodeValue.length,end-part.start);
+    if(to<part.node.nodeValue.length)part.node.splitText(to);
+    const hit=from?part.node.splitText(from):part.node;
+    const mark=document.createElement('mark');mark.className='search-hit-mark';
+    hit.parentNode.replaceChild(mark,hit);mark.appendChild(hit);
+  }
+  return true;
+}
+function applySearchNavigation(noteId){
+  const nav=searchNavigationForNote(noteId);
+  if(!nav)return false;
+  const target=elementForSearchNavigation(nav);
+  if(!target)return false;
+  clearSearchHighlightDom();
+  target.classList.add('search-hit-target');
+  markSearchPhrase(target.querySelector('.msg-text,.rumor-text'),nav.query);
+  if(!nav.jumped){
+    ScrollCo.stop();
+    _programmaticScroll=true;
+    const scrollSeq=++_searchScrollSeq;
+    target.scrollIntoView({block:'center',behavior:'smooth'});
+    nav.jumped=true;
+    // Smooth scroll can emit several scroll events; keep read tracking out of
+    // the whole gesture, but do not put a lifetime on the visible highlight.
+    setTimeout(()=>{if(scrollSeq===_searchScrollSeq)_programmaticScroll=false},800);
+  }
+  return true;
+}
+function openSearchMessageResult(hit){
+  if(!hit||!hit.noteId)return;
+  clearSearchNavigation();
+  _searchNav={token:++_searchNavSeq,noteId:hit.noteId,msgId:hit.msgId,eid:hit.eid||null,query:String(state.searchQuery||'').trim(),jumped:false};
+  if(state.currentNoteId===hit.noteId){
+    // The common same-note case needs no unsubscribe, poke, or DOM rebuild.
+    if(applySearchNavigation(hit.noteId))return;
+    // A top-window or collapsed-thread target is already in local state but
+    // not in the DOM. One render temporarily admits/reveals just that path.
+    if(messageForSearchNavigation(_searchNav)){renderMessages(hit.noteId,'preserve');return}
+  }
+  // Cold/missing local data still uses the normal subscription path. The
+  // snapshot render consumes the pending target once it arrives.
+  openNote(hit.noteId,{keepSearchNavigation:true});
+}
 function scheduleMarkVisible(){
   if(_programmaticScroll)return;
   if(_readTrackTimer)return;
@@ -1570,6 +1674,18 @@ function clearAttentionTarget(noteId,t){
   const el=document.getElementById('chatMessages');
   if(!el){setTimeout(attachReadTracker,100);return}
   el.addEventListener('scroll',scheduleMarkVisible,{passive:true});
+})();
+// A selected search phrase stays visible until the user deliberately interacts
+// with the note. Programmatic scrolling emits none of these input events, so it
+// cannot clear its own highlight.
+(function attachSearchNavigationDismiss(){
+  const chat=document.querySelector('.chat');
+  if(!chat){setTimeout(attachSearchNavigationDismiss,100);return}
+  const dismiss=()=>{if(_searchNav)clearSearchNavigation()};
+  chat.addEventListener('pointerdown',dismiss,{passive:true});
+  chat.addEventListener('wheel',dismiss,{passive:true});
+  chat.addEventListener('touchstart',dismiss,{passive:true});
+  chat.addEventListener('keydown',dismiss);
 })();
 // Debounce wrapper only — no scroll policy here. renderMessages resolves the
 // scroll target itself (via ScrollCo). target is optional ('bottom'|'unread'|
@@ -1647,6 +1763,11 @@ function handleUpdate(upd){
   else if(upd['note-renamed']){const{id,name}=upd['note-renamed'];if(state.notes[id]){state.notes[id].name=name;renderNoteList()}if(state.currentNoteId===id)document.getElementById('chatNoteName').textContent=state.notes[id]?noteDisplayName(state.notes[id]):name}
   else if(upd['note-deleted']){const{id}=upd['note-deleted'];const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];delete state.noteAdmins[id];delete state.noteMuted[id];delete state.notePins[id];delete state.noteActive[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];delete state.attention[id];state.notifications.delete(id);state.notificationAcks.delete(notifAckKey('removed-status',id));state.notificationAcks.delete(notifAckKey('host-deleted-status',id));delete state.noteActivity[id];delete state.noteUnreadActivity[id];delete state.noteRead[id];for(const _e in state.artifactRefs){if(state.artifactRefs[_e].noteId===id)delete state.artifactRefs[_e]}if(state.currentNoteId===id)openNote('cover');renderNoteList()}
   else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];
+    // The subscription snapshot is authoritative. If a result was deleted
+    // between search and click, abandon only the pending jump and open the note
+    // normally instead of leaving a stale highlight target alive forever.
+    const _searchForList=searchNavigationForNote(noteId);
+    if(_searchForList&&!messages.some(m=>messageMatchesSearchNavigation(m,_searchForList)))clearSearchNavigation();
     /* Hash the VISIBLE timeline only. A snapshot that differs solely by hidden call
        markers must not schedule a render, because a render destroys and remounts every
        interactive artifact iframe. Iterating only visible messages also keeps revSum
@@ -1883,7 +2004,8 @@ function revealNoteInTree(id){
   }
 }
 let mentionObserver=null;
-async function openNote(id){
+async function openNote(id,opts){
+  if(!(opts&&opts.keepSearchNavigation))clearSearchNavigation();
   const prevNoteId=state.currentNoteId;
   if(prevNoteId&&prevNoteId!==id){
     // The unread divider is a per-visit marker. Read cursors decide
@@ -1916,7 +2038,7 @@ async function openNote(id){
   // read cursor, decides unread-divider vs open-bottom. cover always opens bottom;
   // ars-rumors keeps its newest-first divider/scroll behavior.
   const _durableUnread=!isPinnedUnreadNote(id)&&((state.noteUnreadActivity[id]||0)>(state.noteRead[id]||0));
-  const _openTarget=(isGossipNote(id)?'bottom':id==='ars-rumors'?'unread':(_durableUnread?'unread':'bottom'));
+  const _openTarget=searchNavigationForNote(id)?'preserve':(isGossipNote(id)?'bottom':id==='ars-rumors'?'unread':(_durableUnread?'unread':'bottom'));
   // record + pre-pin (bottom intent) so cold-cache backfill stays put before the snapshot
   ScrollCo.beginOpen(id,_openTarget);
   await api.poke('noltbook','noltbook-action',{action:'switch-note',data:{id}});
@@ -2715,6 +2837,10 @@ function toggleSection(name){
   renderNoteList();
 }
 function switchView(mode){
+  // NOTES and CONTACTS are also exits from search, even when the selected tab
+  // is clicked again. CLEAR remains available for users who want to stay put.
+  const searchInput=document.getElementById('sidebarSearchInput');
+  if(state.searchQuery||(searchInput&&searchInput.value))clearSidebarSearch(false);
   state.palsView=mode==='contact';
   const notesBtn=document.getElementById('toggleNotes');
   const contactBtn=document.getElementById('toggleContact');
@@ -2790,6 +2916,7 @@ function normalizeSearch(s){return String(s||'').trim().toLowerCase().replace(/^
 function setSidebarSearch(q){
   const norm=String(q||'');
   const trimmed=norm.trim();
+  if(trimmed!==state.searchQuery)clearSearchNavigation();
   state.searchQuery=trimmed;
   // Fresh user search input clears any stale "this user can't be reached"
   // for the typed candidate so the row shows LOOK UP again. Active
@@ -2807,6 +2934,8 @@ function setSidebarSearch(q){
   // any change cancels a pending debounce so we never fire stale pokes
   if(state.searchDebounce){clearTimeout(state.searchDebounce);state.searchDebounce=null}
   if(!trimmed){
+    // Invalidate any late result from the search we just left.
+    state.searchReqInFlight=0;
     state.searchMessageHits=[];
     state.searchMessageCapped=false;
     if(results){results.classList.remove('open');results.innerHTML=''}
@@ -2826,6 +2955,12 @@ function setSidebarSearch(q){
     state.searchDebounce=setTimeout(()=>{state.searchDebounce=null;sendMessageSearch(trimmed)},250);
   }
   renderSidebarSearchResults();
+}
+function clearSidebarSearch(focus){
+  const input=document.getElementById('sidebarSearchInput');
+  if(input)input.value='';
+  setSidebarSearch('');
+  if(focus&&input)input.focus();
 }
 async function sendMessageSearch(q){
   state.searchReqCounter+=1;
@@ -3164,7 +3299,7 @@ function makeSearchMessageResult(hit){
   // Plain escaped preview — no markdown/embed/image rendering for result rows.
   const previewHtml=escHtml(String(hit.preview||''));
   div.innerHTML=`<span class="note-arrow" style="visibility:hidden">&#9654;</span><div class="note-icon" ${hasCustomIcon?'style="display:flex"':''}>${iconContent}</div><div class="note-text"><span class="note-name"><span style="color:${authorColor}">${escHtml(authorName)}</span> <span style="color:var(--text-dim)">in</span> ${escHtml(noteName)}</span><span class="note-preview">${previewHtml}</span></div>`;
-  div.onclick=()=>openNote(hit.noteId);
+  div.onclick=()=>openSearchMessageResult(hit);
   return div;
 }
 function toggleContactTag(el){
@@ -3724,7 +3859,25 @@ function renderMessages(noteId,target){
   // (no placeholder); they render normally once existing fetch paths resolve them.
   if(isTopWindowNote(noteId)){
     const top=computeVisibleTopPosts(noteId,100);
-    if(top.applies)nodes=nodes.filter(n=>top.selectedKeys.has(n.key));
+    if(top.applies){
+      const allowed=new Set(top.selectedKeys);
+      const searchNav=searchNavigationForNote(noteId);
+      if(searchNav){
+        // Temporarily admit an older user-gossip hit and only its ancestor
+        // chain. This changes neither the normal top-100 policy nor storage.
+        const allByEid={};const allMsgById={};
+        nodes.forEach(n=>{if(n.eid)allByEid[n.eid]=n;if(n.kind==='msg'&&!(String(n.id) in allMsgById))allMsgById[String(n.id)]=n});
+        let cur=searchNav.eid?(allByEid[searchNav.eid]||null):(allMsgById[String(searchNav.msgId)]||null);
+        let guard=0;
+        while(cur&&guard++<500){
+          allowed.add(cur.key);
+          if(cur.replyToEid&&allByEid[cur.replyToEid])cur=allByEid[cur.replyToEid];
+          else if(cur.kind==='msg'&&cur.legacyReplyTo!=null&&allMsgById[String(cur.legacyReplyTo)])cur=allMsgById[String(cur.legacyReplyTo)];
+          else cur=null;
+        }
+      }
+      nodes=nodes.filter(n=>allowed.has(n.key));
+    }
   }
   const byKey={};const byEidN={};
   // Always index messages under 'm:'+id too, so legacy @da reply-to resolution keeps
@@ -3777,6 +3930,12 @@ function renderMessages(noteId,target){
     else if(t.aid){if(byKey['a:'+t.aid])nk='a:'+t.aid;else if(byKey['e:'+t.aid])nk='e:'+t.aid}
     if(nk)attnForceKeys.add(nk);
   }
+  const searchForceKeys=new Set();
+  const searchNav=searchNavigationForNote(noteId);
+  if(searchNav){
+    const sn=searchNav.eid?(byEidN[searchNav.eid]||null):nodes.find(n=>n.kind==='msg'&&String(n.id)===String(searchNav.msgId));
+    if(sn)searchForceKeys.add(sn.key);
+  }
   // does an item render an unread message? root item => its root message;
   // thread item => the root OR any descendant message (so a reply under an
   // artifact root, or a reply under a read text root, still triggers it).
@@ -3821,11 +3980,11 @@ function renderMessages(noteId,target){
         if(parentOfNewest&&parentOfNewest.key!==anchorKey)visible.add(parentOfNewest.key);
         visible.add(newest.key);
         if(parentOfNewest){nodeAncestorChain(parentOfNewest.key).forEach(k=>{if(k!==anchorKey)visible.add(k)})}
-        // force any directed-attention targets in THIS thread (and their ancestor
-        // chains) visible, so a hidden oldest target is still jumpable/clearable.
-        if(attnForceKeys.size){
+        // Force directed-attention and selected search targets in THIS thread
+        // (plus their ancestors) visible without permanently expanding it.
+        if(attnForceKeys.size||searchForceKeys.size){
           for(const f of flat){
-            if(attnForceKeys.has(f.node.key)){
+            if(attnForceKeys.has(f.node.key)||searchForceKeys.has(f.node.key)){
               visible.add(f.node.key);
               nodeAncestorChain(f.node.key).forEach(k=>{if(k!==anchorKey)visible.add(k)});
             }
@@ -3856,6 +4015,13 @@ function renderMessages(noteId,target){
       }
       el.appendChild(wrap);
     }
+  }
+  // Search navigation owns this render's scroll policy. Return before the
+  // attention observer and ordinary bottom/unread logic can move the viewport
+  // or interpret the programmatic jump as reading/clearing an attention item.
+  if(applySearchNavigation(noteId)){
+    if(window.twttr&&twttr.widgets)twttr.widgets.load(el);
+    return;
   }
   // set up mention observer on every render for current note
   // unified directed-attention observer (mentions + reply/send). Each target is
