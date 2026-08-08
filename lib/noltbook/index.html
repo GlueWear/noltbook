@@ -9294,8 +9294,20 @@ function stopCallHeartbeat(){
 }
 // A poke landing is not the action happening. beginCallOp arms a timeout; only an
 // authoritative snapshot clears it, and a timeout reverts us to a truthful state.
+// callHasUs: does the host's authoritative snapshot already list us as a participant?
+function callHasUs(noteId){
+  const c=state.activeCalls[noteId];
+  return !!c&&Array.isArray(c.participants)&&c.participants.indexOf('~'+api.ship)>=0;
+}
 function beginCallOp(noteId,kind){
   finishCallOp();
+  // Nothing to wait for when the host's state already agrees with what we asked for.
+  // A redundant JOIN is the case that matters: the agent's join handler no-ops when we
+  // are already a participant, so it emits no snapshot and a timer armed here could
+  // never be cleared -- the request would silently self-destruct 12s later.
+  const has=callHasUs(noteId);
+  if(kind!=='leave'&&has){startCallHeartbeat();updateCallUI();return}
+  if(kind==='leave'&&!has){updateCallUI();return}
   _callOp={noteId:noteId,kind:kind,
     timer:setTimeout(()=>{expireCallOp()},CALL_OP_TIMEOUT)};
   updateCallUI();
@@ -9317,7 +9329,11 @@ function expireCallOp(){
     updateCallUI();
     return;
   }
-  // start/join was never confirmed: never strand the microphone or a half-open peer
+  // start/join was never confirmed: never strand the microphone or a half-open peer.
+  // The host may still have us listed (our request could have landed and only the
+  // confirmation been lost), so ask it to drop us -- otherwise the agent and the browser
+  // disagree, and the next JOIN is a no-op the agent answers with silence.
+  api.poke('noltbook','noltbook-action',{action:'leave-call',data:{noteId:op.noteId}});
   rtcManager.hangUp();
   state.inCall=null;
   stopCallHeartbeat();
@@ -10110,14 +10126,17 @@ async function _toggleCallInner(){
   if(!noteSupportsCalls(noteId)&&state.inCall!==noteId)return;
 
   if(state.inCall===noteId){
-    // leave call
+    // leave call. Same ordering rule as start/join: arm first, because a self-hosted
+    // note's ending snapshot can arrive before this poke resolves.
     console.log('[toggleCall] LEAVING call');
+    beginCallOp(noteId,'leave');
     const left=await api.poke('noltbook','noltbook-action',{action:'leave-call',data:{noteId}});
     if(left===false){
       // definite transport failure: the ship never got the leave, so the call is still
       // ours. Keep peers, streams, tracks and state.inCall exactly as they were, leave
       // the rail open and the button on END, and let the user try again.
       console.error('[call] leave-call poke failed; staying in the call so END can be retried');
+      finishCallOp();
       updateCallUI();
       return;
     }
@@ -10125,7 +10144,6 @@ async function _toggleCallInner(){
     // snapshot; reconcileCallPeers() releases media and closes the rail when we are
     // actually out. On timeout the button stays on END so the user can retry, and
     // peers/tracks are left untouched.
-    beginCallOp(noteId,'leave');
     return;
   }
 
@@ -10160,20 +10178,27 @@ async function _toggleCallInner(){
   // state.inCall must be set before the poke so an early inbound signal routes to us
   state.inCall=noteId;
   console.log('[toggleCall] '+kind.toUpperCase()+'ING call on',noteId);
+  // Arm the confirmation BEFORE the poke, not after. On a note this ship HOSTS there is
+  // no network hop: our own agent authors the snapshot and it can reach handleUpdate
+  // while we are still awaiting the poke. A confirmation that arrives before the
+  // operation exists cannot clear it, so the timer would later fire on a healthy call
+  // and tear it down -- controls vanish, END reverts to JOIN.
+  beginCallOp(noteId,kind);
   const ok=await api.poke('noltbook','noltbook-action',
     {action:(kind==='join'?'join-call':'start-call'),data:{noteId}});
   if(ok===false){
     // definite transport failure: the host never heard us, so we are not in any call
     console.error('[call] '+kind+'-call poke failed');
+    finishCallOp();
     rtcManager.hangUp();
     state.inCall=null;
+    stopCallHeartbeat();
     updateCallUI();
     return;
   }
   // No peers are created here. The host answers with an authoritative snapshot and
   // reconcileCallPeers() builds exactly the mesh that snapshot describes, so a call we
   // were never actually added to cannot leave a half-open peer behind.
-  beginCallOp(noteId,kind);
   document.getElementById('callRail').classList.add('open');
   placeCallBtn();
   updateCallRestoreUI();
