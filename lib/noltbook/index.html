@@ -633,6 +633,18 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
   font-size:.7rem;line-height:1;padding:.15rem .3rem;background:rgba(0,0,0,.55);
   border:1px solid #666;color:#ccc;cursor:pointer;transition:box-shadow .15s}
 .media-fs:hover,.media-fs:focus-visible{box-shadow:0 0 8px currentColor;color:#fff}
+/* screen-audio control: top-left, the only free corner (expand top-right, fullscreen
+   bottom-right, label bottom-left). Hover/focus glows in its CURRENT colour -- it must
+   not wash to #fff like .media-expand/.media-fs do, because the colour IS the state. */
+.media-audio{position:absolute;left:.3rem;top:.3rem;display:none;font-family:var(--font);
+  font-size:.7rem;line-height:1;padding:.1rem .3rem;background:rgba(0,0,0,.55);
+  border:1px solid currentColor;cursor:pointer}
+.media-audio.off{color:#ff4444}
+.media-audio.on{color:#00ff88}
+.media-audio.unavail{color:#666;cursor:default}
+.media-audio:hover:not(:disabled),.media-audio:focus-visible:not(:disabled){
+  box-shadow:0 0 8px currentColor}
+.media-audio:focus-visible{outline:none}
 /* only the staged theater tile offers fullscreen */
 .media-tile.staged .media-fs{display:block}
 /* native fullscreen: fill the screen, keep the per-kind fit */
@@ -8728,7 +8740,23 @@ const iceBatcher={
 const rtcManager={
   peers:{},        // ship -> {pc, stream, makingOffer, audioEl}
   localStream:null,
-  screenStream:null,
+  screenStream:null,          // VIDEO ONLY. Display audio is held separately (below) so
+                              // createPeer's screenStream.getTracks() walk can never turn
+                              // an audio track into a screenSender.
+  screenAudioTrack:null,      // the captured display-audio track, owned here
+  screenAudioOn:false,        // audible to remote participants?
+  screenAudioAvailable:false, // the browser actually gave us a display-audio track
+  // WebAudio mix: mic -> gainMic -> dest, screenAudio -> gainScreen -> dest. `dest`'s
+  // track is the single outbound audio track in the PRIMARY stream, so the receiver's
+  // camera/screen classification is untouched. The graph is NEVER connected to
+  // ctx.destination -- that is what would echo the share back to the sharer.
+  audioCtx:null,
+  mixDest:null,
+  micSource:null,
+  gainMic:null,
+  screenSource:null,
+  gainScreen:null,
+  _screenTearing:false,       // re-entrancy guard for stopScreenShare
   muted:false,
   videoOn:false,
   screenOn:false,
@@ -8801,6 +8829,148 @@ const rtcManager={
     return this.localStream;
   },
 
+  // the raw microphone track. localStream stays the OWNER of raw capture, so every
+  // existing stop/enumerate path (hangUp, toggleVideo, beforeunload) keeps working.
+  rawMicTrack(){
+    if(!this.localStream)return null;
+    const a=this.localStream.getAudioTracks();
+    return a.length?a[0]:null;
+  },
+  // what actually goes on the wire: the MIX while a screen share contributes audio,
+  // the raw mic otherwise.
+  outboundAudioTrack(){
+    if(this.mixDest){
+      const t=this.mixDest.stream.getAudioTracks();
+      if(t.length)return t[0];
+    }
+    return this.rawMicTrack();
+  },
+  // build (or extend) the mix graph. Returns false if the platform cannot do it, in
+  // which case the caller keeps sharing video and reports audio as unavailable.
+  ensureAudioMix(screenAudioTrack){
+    const mic=this.rawMicTrack();
+    if(!mic||!screenAudioTrack)return false;
+    const Ctx=window.AudioContext||window.webkitAudioContext;
+    if(!Ctx)return false;
+    try{
+      if(!this.audioCtx)this.audioCtx=new Ctx();
+      const ctx=this.audioCtx;
+      if(!this.mixDest){
+        this.mixDest=ctx.createMediaStreamDestination();
+        this.gainMic=ctx.createGain();
+        this.gainMic.gain.value=this.muted?0:1;
+        this.micSource=ctx.createMediaStreamSource(new MediaStream([mic]));
+        this.micSource.connect(this.gainMic).connect(this.mixDest);
+        // the gain node owns muting from here on. A raw track left enabled:false would
+        // feed the graph silence that no later unmute could recover.
+        mic.enabled=true;
+      }
+      if(this.screenSource){try{this.screenSource.disconnect()}catch(e){}}
+      if(this.gainScreen){try{this.gainScreen.disconnect()}catch(e){}}
+      this.gainScreen=ctx.createGain();
+      this.gainScreen.gain.value=0;            // EVERY new share starts muted
+      this.screenSource=ctx.createMediaStreamSource(new MediaStream([screenAudioTrack]));
+      this.screenSource.connect(this.gainScreen).connect(this.mixDest);
+      return true;
+    }catch(e){
+      console.error('[rtc] screen-audio mix failed',e);
+      this.teardownAudioMix();
+      return false;
+    }
+  },
+  // point every peer's audio sender at the current outbound track. Same kind, so this
+  // needs NO renegotiation and no SDP change.
+  async swapOutboundAudio(){
+    const t=this.outboundAudioTrack();
+    if(!t)return;
+    for(const ship of Object.keys(this.peers)){
+      const p=this.peers[ship];
+      if(!p.audioSender){
+        p.audioSender=p.pc.getSenders().find(s=>s.track&&s.track.kind==='audio')||null;
+      }
+      if(!p.audioSender)continue;
+      try{await p.audioSender.replaceTrack(t)}
+      catch(e){console.error('[rtc] audio replaceTrack failed for',ship,e)}
+    }
+  },
+  teardownAudioMix(){
+    for(const n of ['screenSource','gainScreen','micSource','gainMic']){
+      if(this[n]){try{this[n].disconnect()}catch(e){}}
+      this[n]=null;
+    }
+    if(this.mixDest){
+      try{this.mixDest.stream.getTracks().forEach(t=>{try{t.stop()}catch(e){}})}catch(e){}
+    }
+    this.mixDest=null;
+    if(this.audioCtx){
+      const c=this.audioCtx;this.audioCtx=null;
+      try{if(c.state!=='closed')c.close()}catch(e){}
+    }
+  },
+  // drop ONLY the screen-audio branch, keeping video sharing and the mic path alive.
+  // Used when the display-audio track ends on its own (surface change).
+  dropScreenAudio(){
+    if(this.screenAudioTrack){
+      this.screenAudioTrack.onended=null;
+      try{this.screenAudioTrack.stop()}catch(e){}
+      this.screenAudioTrack=null;
+    }
+    for(const n of ['screenSource','gainScreen']){
+      if(this[n]){try{this[n].disconnect()}catch(e){}}
+      this[n]=null;
+    }
+    this.screenAudioOn=false;
+    this.screenAudioAvailable=false;
+  },
+  // THE single screen-share teardown. Used by the SCREEN button, the browser's Stop
+  // sharing control, a failed capture, and hangUp. Guarded against re-entry, and it
+  // clears each track's onended BEFORE stopping it so our own stop() cannot recurse.
+  // opts.closing: the peer connections are about to close, so skip the sender work.
+  async stopScreenShare(opts){
+    if(this._screenTearing)return;
+    this._screenTearing=true;
+    const closing=!!(opts&&opts.closing);
+    try{
+      const mic=this.rawMicTrack();
+      if(!closing){
+        // 1. put the RAW mic back on every audio sender BEFORE the graph goes away, so
+        //    the call is never left transmitting a track whose source we destroyed
+        if(mic){
+          for(const ship of Object.keys(this.peers)){
+            const p=this.peers[ship];
+            if(!p.audioSender)continue;
+            try{await p.audioSender.replaceTrack(mic)}catch(e){}
+          }
+        }
+        // 2. null the screen VIDEO sender; the transceiver survives for the next share
+        for(const ship of Object.keys(this.peers)){
+          const p=this.peers[ship];
+          if(p.screenSender){try{p.screenSender.replaceTrack(null)}catch(e){}}
+        }
+      }
+      // 3. stop the captured display tracks
+      if(this.screenStream){
+        for(const t of this.screenStream.getTracks()){
+          t.onended=null;
+          try{t.stop()}catch(e){}
+        }
+      }
+      if(this.screenAudioTrack){
+        this.screenAudioTrack.onended=null;
+        try{this.screenAudioTrack.stop()}catch(e){}
+      }
+      // 4-6. disconnect every node and close the context
+      this.teardownAudioMix();
+      // the raw mic is back on the wire, so the mute flag must apply to IT again
+      if(mic)mic.enabled=!this.muted;
+      // 7. clear all screen references and UI state
+      this.screenStream=null;
+      this.screenAudioTrack=null;
+      this.screenOn=false;
+      this.screenAudioOn=false;
+      this.screenAudioAvailable=false;
+    }finally{this._screenTearing=false}
+  },
   createPeer(ship){
     if(this.peers[ship])return this.peers[ship].pc;
     const polite=this.isPolite(ship);
@@ -8808,12 +8978,22 @@ const rtcManager={
     // streams: remote streamId -> {id, stream, synthetic}. Grouping comes from
     // RTCTrackEvent.streams (msid), never from track-array position.
     const peer={pc,streams:new Map(),primaryId:null,fallbackUsed:false,
-                makingOffer:false,audioEl:null,videoSender:null,screenSender:null};
+                makingOffer:false,audioEl:null,videoSender:null,screenSender:null,
+                audioSender:null};
     this.peers[ship]=peer;
 
-    // add local tracks, tracking video/screen senders for replaceTrack
+    // add local tracks, tracking audio/video/screen senders for replaceTrack.
+    // A peer joining DURING a screen share must get the same mixed audio track the
+    // others were switched to, so the audio sender is fed outboundAudioTrack() rather
+    // than the raw mic. It is still announced under localStream, so the receiver groups
+    // it into the primary stream exactly as before.
     if(this.localStream){
+      const out=this.outboundAudioTrack();
       for(const track of this.localStream.getTracks()){
+        if(track.kind==='audio'){
+          peer.audioSender=pc.addTrack(out||track,this.localStream);
+          continue;
+        }
         const sender=pc.addTrack(track,this.localStream);
         if(track.kind==='video')peer.videoSender=sender;
       }
@@ -8982,6 +9162,9 @@ const rtcManager={
   hangUp(){
     iceBatcher.clear();
     discardTheater('hang-up');            // the call is over: no parked key survives
+    // one shared teardown. closing:true skips the sender work (the pcs are about to
+    // close) so every await is bypassed and the cleanup completes synchronously here.
+    this.stopScreenShare({closing:true});
     for(const ship of Object.keys(this.peers)){
       const p=this.peers[ship];
       if(p.audioEl){p.audioEl.pause();p.audioEl.srcObject=null;p.audioEl.remove()}
@@ -9000,6 +9183,8 @@ const rtcManager={
     this.muted=false;
     this.videoOn=false;
     this.screenOn=false;
+    this.screenAudioOn=false;
+    this.screenAudioAvailable=false;
   }
 };
 
@@ -9624,6 +9809,41 @@ function syncStagedFsBtn(){
     b.setAttribute('aria-pressed',on?'true':'false');
   });
 }
+// syncTileAudioBtn: the ONLY writer of the screen-audio control, mirroring how
+// syncCallControls owns MIC/CAM/SCREEN. Derived entirely from rtcManager, so a browser
+// "Stop sharing", a surface change or a re-render can never leave it disagreeing.
+function syncTileAudioBtn(){
+  const localKey='screen:~'+api.ship+':local';
+  document.querySelectorAll('.media-tile').forEach(t=>{
+    const b=t.querySelector('.media-audio');
+    if(!b)return;
+    const mine=t.getAttribute('data-key')===localKey;
+    if(!mine||!rtcManager.screenOn){
+      b.style.display='none';b.setAttribute('aria-hidden','true');b.tabIndex=-1;
+      return;
+    }
+    b.style.display='block';b.setAttribute('aria-hidden','false');b.tabIndex=0;
+    b.classList.remove('on','off','unavail');
+    if(!rtcManager.screenAudioAvailable){
+      // video keeps sharing; the control states plainly that audio was not supplied
+      b.classList.add('unavail');
+      b.disabled=true;
+      b.textContent='\u{1F507}';
+      b.removeAttribute('aria-pressed');
+      b.title='Screen audio unavailable';
+      b.setAttribute('aria-label','Screen audio unavailable');
+      return;
+    }
+    b.disabled=false;
+    const on=!!rtcManager.screenAudioOn;
+    b.classList.add(on?'on':'off');
+    b.textContent=on?'\u{1F50A}':'\u{1F507}';
+    b.setAttribute('aria-pressed',on?'true':'false');
+    b.title=on?'Screen audio on \u2014 click to mute'
+              :'Screen audio muted \u2014 click to unmute';
+    b.setAttribute('aria-label',b.title);
+  });
+}
 // native Escape exits fullscreen only -- theater must survive it
 const _onFsChange=()=>{
   const rail=document.getElementById('callRail');
@@ -9675,6 +9895,16 @@ function ensureTile(container,key,kind,label){
   fs.onclick=(e)=>{e.stopPropagation();toggleRailFullscreen()};
   fs.ondblclick=(e)=>{e.stopPropagation()};
   tile.appendChild(fs);
+  // screen-audio control. Created with every tile but revealed by syncTileAudioBtn on
+  // the LOCAL screen-share tile only. Because a tile is never rebuilt and theater only
+  // toggles classes, this button rides into theater and fullscreen on the same node.
+  const sa=document.createElement('button');
+  sa.className='media-audio';sa.type='button';sa.textContent='\u{1F507}';
+  sa.style.display='none';sa.tabIndex=-1;
+  sa.setAttribute('aria-hidden','true');
+  sa.onclick=(e)=>{e.stopPropagation();toggleScreenAudio()};
+  sa.ondblclick=(e)=>{e.stopPropagation()};
+  tile.appendChild(sa);
   tile.ondblclick=()=>toggleTileExpand(tile);
   container.appendChild(tile);
   return tile;
@@ -9839,6 +10069,7 @@ function renderCallRail(){
   // theater changes the rail header layout, so re-assert the single CALL button's slot
   placeCallBtn();
   syncStagedFsBtn();
+  syncTileAudioBtn();
   controls.style.display=state.inCall?'flex':'none';
   syncCallControls();
 }
@@ -10007,12 +10238,27 @@ function toggleCallRail(){
 
 function toggleMute(){
   rtcManager.muted=!rtcManager.muted;
-  if(rtcManager.localStream){
+  // While a screen-audio mix is live the outbound track IS the mix, so track.enabled
+  // would silence screen audio too. Gate the microphone through its own gain node; MIC
+  // and screen audio are then completely independent. Without a mix, the original
+  // track.enabled path is used unchanged.
+  if(rtcManager.gainMic){
+    try{rtcManager.gainMic.gain.value=rtcManager.muted?0:1}catch(e){}
+  }else if(rtcManager.localStream){
     rtcManager.localStream.getAudioTracks().forEach(t=>{t.enabled=!rtcManager.muted});
   }
   syncCallControls();
 }
 
+// toggleScreenAudio: gain only. No track, sender, stream or SDP change, and no second
+// trip through the picker -- which is why a share can start muted and become audible.
+function toggleScreenAudio(){
+  if(!rtcManager.screenOn)return;
+  if(!rtcManager.screenAudioAvailable||!rtcManager.gainScreen)return;
+  rtcManager.screenAudioOn=!rtcManager.screenAudioOn;
+  try{rtcManager.gainScreen.gain.value=rtcManager.screenAudioOn?1:0}catch(e){}
+  syncTileAudioBtn();
+}
 async function toggleVideo(){
   try{
     console.log('[video] toggleVideo called, videoOn=',rtcManager.videoOn);
@@ -10051,56 +10297,89 @@ async function toggleVideo(){
   renderCallRail();
 }
 
+let _screenPending=false;
 async function toggleScreen(){
+  // rapid clicks must not open two captures or two AudioContexts
+  if(_screenPending)return;
+  _screenPending=true;
+  try{await _toggleScreenInner()}finally{_screenPending=false}
+}
+async function _toggleScreenInner(){
   if(rtcManager.screenOn){
-    // stop screenshare — replaceTrack(null) keeps transceiver alive
-    if(rtcManager.screenStream){
-      rtcManager.screenStream.getTracks().forEach(t=>t.stop());
-      for(const ship of Object.keys(rtcManager.peers)){
-        const peer=rtcManager.peers[ship];
-        if(peer.screenSender){
-          peer.screenSender.replaceTrack(null);
-        }
-      }
-      rtcManager.screenStream=null;
-    }
+    await rtcManager.stopScreenShare();
+    syncCallControls();
+    renderCallRail();
+    return;
+  }
+  let ds=null;
+  try{
+    // audio is REQUESTED; the picker decides whether the chosen surface can supply it
+    ds=await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});
+  }catch(e){
+    // picker cancelled, or the request failed: stay truthfully idle and keep nothing
+    console.error('[rtc] screenshare failed',e);
     rtcManager.screenOn=false;
-  }else{
-    try{
-      rtcManager.screenStream=await navigator.mediaDevices.getDisplayMedia({video:true});
-      rtcManager.screenOn=true;
-      const screenTrack=rtcManager.screenStream.getVideoTracks()[0];
-      let needsRenegotiate=false;
-      for(const ship of Object.keys(rtcManager.peers)){
-        const peer=rtcManager.peers[ship];
-        if(peer.screenSender){
-          await peer.screenSender.replaceTrack(screenTrack);
-        }else{
-          peer.screenSender=peer.pc.addTrack(screenTrack,rtcManager.screenStream);
-          needsRenegotiate=true;
-        }
-      }
-      if(needsRenegotiate)await rtcManager.renegotiateAll();
-      screenTrack.onended=async()=>{
-        // user stopped sharing via browser chrome
-        for(const ship of Object.keys(rtcManager.peers)){
-          const peer=rtcManager.peers[ship];
-          if(peer.screenSender)peer.screenSender.replaceTrack(null);
-        }
-        rtcManager.screenOn=false;
-        rtcManager.screenStream=null;
-        syncCallControls();
-        renderCallRail();
-      };
-    }catch(e){
-      // user cancelled the picker or the request failed: stay truthfully idle
-      console.error('[rtc] screenshare failed',e);
-      rtcManager.screenOn=false;
-      rtcManager.screenStream=null;
-      syncCallControls();
-      return;
+    rtcManager.screenStream=null;
+    rtcManager.screenAudioTrack=null;
+    rtcManager.screenAudioOn=false;
+    rtcManager.screenAudioAvailable=false;
+    syncCallControls();
+    renderCallRail();
+    return;
+  }
+  const vt=ds.getVideoTracks()[0]||null;
+  const at=ds.getAudioTracks()[0]||null;
+  if(!vt){
+    // no video to share: release whatever came back rather than stranding it
+    ds.getTracks().forEach(t=>{try{t.stop()}catch(e){}});
+    rtcManager.screenOn=false;
+    rtcManager.screenStream=null;
+    syncCallControls();
+    renderCallRail();
+    return;
+  }
+  // CRITICAL: display audio must not stay reachable through screenStream.getTracks(),
+  // which createPeer() walks to build screenSender. Detach it and own it separately, so
+  // the screen stream on the wire stays video-only and remote classification is intact.
+  if(at)ds.removeTrack(at);
+  rtcManager.screenStream=ds;
+  rtcManager.screenAudioTrack=at;
+  rtcManager.screenOn=true;
+  rtcManager.screenAudioOn=false;              // every new share begins muted
+  rtcManager.screenAudioAvailable=false;
+  if(at){
+    if(rtcManager.ensureAudioMix(at)){
+      rtcManager.screenAudioAvailable=true;
+      // existing peers move from the raw mic to the mixed track. Same kind => no
+      // renegotiation, no SDP change, no new stream.
+      await rtcManager.swapOutboundAudio();
+    }else{
+      // the platform cannot mix: keep sharing video, and do not strand the track
+      try{at.stop()}catch(e){}
+      rtcManager.screenAudioTrack=null;
     }
   }
+  let needsRenegotiate=false;
+  for(const ship of Object.keys(rtcManager.peers)){
+    const peer=rtcManager.peers[ship];
+    if(peer.screenSender){
+      await peer.screenSender.replaceTrack(vt);
+    }else{
+      peer.screenSender=peer.pc.addTrack(vt,rtcManager.screenStream);
+      needsRenegotiate=true;
+    }
+  }
+  if(needsRenegotiate)await rtcManager.renegotiateAll();
+  vt.onended=()=>{
+    // stopped through browser chrome. stopScreenShare clears onended before its own
+    // stop() calls and is re-entrancy guarded, so this cannot recurse.
+    rtcManager.stopScreenShare().then(()=>{syncCallControls();renderCallRail()});
+  };
+  if(at&&rtcManager.screenAudioAvailable)at.onended=()=>{
+    // display audio ended on its own (surface changed): keep video, degrade the control
+    rtcManager.dropScreenAudio();
+    syncTileAudioBtn();
+  };
   syncCallControls();
   renderCallRail();
 }
