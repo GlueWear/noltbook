@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="nb-build" content="n35qfj8sf8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="nb-build" content="nlhvq3pupl">
 <title>NOLTBOOK</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20355.9%20355.9%22%20width=%22355.9%22%20height=%22355.9%22%3E%3Cg%20fill=%22%23ffffff%22%20transform=%22translate(-10.9901536%2036.4439936)%20scale(1.06235712)%22%3E%3Cpolygon%20points=%2266%20159.5%2066%2021.2%20204.3%2021.2%20204.3%2080.8%20204.3%20112.5%20204.3%20159.5%20160.7%20159.5%20160.7%20180.7%20225.5%20180.7%20225.5%20112.5%20225.5%2080.8%20225.5%200%2044.8%200%2044.8%20180.7%20121%20180.7%20121%20159.5%2066%20159.5%22/%3E%3Cpolygon%20points=%22234.7%2085.7%20234.7%20106.9%20289.8%20106.9%20289.8%20245.3%20151.4%20245.3%20151.4%20186.8%20151.4%20180.7%20151.4%20159.5%20151.4%20155.1%20151.4%20106.9%20195%20106.9%20195%2085.7%20130.2%2085.7%20130.2%20151.8%20130.2%20159.5%20130.2%20180.7%20130.2%20183.5%20130.2%20266.4%20310.9%20266.4%20310.9%2085.7%20234.7%2085.7%22/%3E%3C/g%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -691,11 +692,146 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .inline-img-box>img{display:block;width:100%;height:100%;object-fit:contain}
 .new-messages-divider{display:flex;align-items:center;gap:.5rem;margin:.6rem .75rem;color:#ffaa00;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase}
 .new-messages-divider>.line{flex:1;height:1px;background:#ffaa00;opacity:.5}
+/* ============================ PHONE MODE (phase 1) ============================
+   ONE breakpoint definition lives here and nowhere else. The block sets --nb-phone,
+   and phoneMode() in JS READS that variable rather than restating the query, so the
+   CSS and the JS cannot drift apart.
+
+   Why these numbers: the desktop layout's own floor is SB_MIN 204 + THEATER_MIN_CHAT
+   360 = 564px, so below ~600 the two-column layout is already violating its own
+   minimum. The widest phone portrait in use is 430px and the narrowest tablet portrait
+   is 744px, so 600 sits in a wide dead zone -- tablets keep the desktop interface.
+   The second clause catches a phone held in landscape (932x430), where the width test
+   passes but the height does not; `pointer:coarse` keeps a short desktop window out.
+   No User-Agent is consulted anywhere. */
+:root{--nb-phone:0}
+#mobileNav{display:none}
+@media (max-width:599.98px) and (pointer:coarse),(max-height:500px) and (orientation:landscape) and (pointer:coarse){
+  :root{--nb-phone:1;--nb-nav-h:52px}
+  /* dvh, not vh: iOS reports the LARGE viewport for vh, which puts the bottom of the
+     app under the browser chrome. vh first as the fallback for engines without dvh.
+     Desktop height behaviour is untouched -- this rule exists only inside the query. */
+  .app{height:100vh;height:100dvh;
+       padding-bottom:calc(var(--nb-nav-h) + env(safe-area-inset-bottom,0px))}
+
+  /* ---- compact header ---- */
+  .app-header{padding-left:.4rem;padding-right:.4rem;gap:.4rem;
+              padding-top:env(safe-area-inset-top,0px);
+              height:calc(42px + env(safe-area-inset-top,0px))}
+  .logo-stack{margin-left:0}
+  .logo-mark{width:112px;height:18.12px}
+  .build-badge{margin-left:calc(.3rem + 23.4px)}
+  .user-info{margin-right:0;gap:.4rem}
+  /* the long ship name is 188px of the 543px desktop header -- the single biggest
+     saving. Identity stays reachable through the avatar, whose handler is unchanged. */
+  #shipDisplay{display:none}
+  .header-avatar{width:30px;height:30px}
+
+  /* Compact DIAL, with NO new DOM and no second code path: the existing #dialWrap
+     collapses to "DIAL n" by showing only the active box. Tapping it sets data-open
+     and reveals the other three; picking one runs the existing setDial(n) through its
+     existing inline handler. Because it is the same element, it inherits the existing
+     show/hide rule (gossip notes only) exactly. Desktop DIAL is untouched. */
+  #dialWrap{margin:0;gap:.25rem;padding:.1rem .3rem;border:1px solid var(--border2);
+            cursor:pointer;flex:0 0 auto}
+  #dialWrap .dial-box{display:none}
+  #dialWrap .dial-box.active,
+  #dialWrap[data-open="1"] .dial-box{display:flex}
+  #dialWrap .dial-label{pointer-events:none}
+
+  /* ---- one view at a time ----
+     The panels are NOT moved, cloned, reparented or unmounted. They are stacked and
+     switched with `visibility`, which keeps every layout box alive: scroll offsets,
+     iframes, MediaStreams, plugin bridges and the composer draft all survive a switch.
+     display:none would destroy those boxes and reset scrollTop to 0. */
+  .app-body{position:relative}
+  .app-body>#sidebar,
+  .app-body>.chat,
+  .app-body>#callRail{
+    position:absolute;inset:0;width:100%;min-width:0;max-width:none;
+    border:none;transition:none;
+    visibility:hidden;pointer-events:none;z-index:0}
+  /* desktop collapse states must not shrink a full-screen phone view. `.sidebar.collapsed`
+     uses !important, so countering it needs !important; the others are outranked here. */
+  .app-body>#sidebar.collapsed{width:100%!important;min-width:0;border:none}
+  .app-body>.chat.chat-collapsed{width:100%;flex:none}
+  .app[data-mview="notes"] .app-body>#sidebar,
+  .app[data-mview="chat"]  .app-body>.chat,
+  .app[data-mview="call"]  .app-body>#callRail{
+    visibility:visible;pointer-events:auto;z-index:1}
+
+  /* every desktop drag surface is removed from the phone layout AND from hit testing */
+  #sidebarResize,#sidebarRestore,#chatRestoreHandle,#callRestoreHandle,#callRailResize{
+    display:none;pointer-events:none}
+
+  /* ---- full-screen artifact view ----
+     The artifact surfaces are shown in place: no node is moved, cloned or reparented,
+     so iframes, media and plugin bridges keep running across the switch.
+     #artifactPanel joins the absolute stack and is revealed by data-moverlay.
+     #file-fullscreen and the app overlays are already position:fixed; on a phone they
+     simply lose their desktop insets and respect the safe area. */
+  .app-body>#artifactPanel{
+    position:absolute;inset:0;width:100%;min-width:0;max-width:none;
+    border:none;transition:none;visibility:hidden;pointer-events:none;z-index:0}
+  .app[data-moverlay="artifact"] .app-body>#artifactPanel{
+    visibility:visible;pointer-events:auto;z-index:5}
+  #artifactPanel .artifact-body{overflow:auto;-webkit-overflow-scrolling:touch}
+  #artifactPanel img,#artifactPanel video,#artifactPanel iframe{max-width:100%}
+  /* An inline preview iframe (PDF cards) swallows the tap, so the card underneath can
+     never be opened -- on a phone the preview is a thumbnail and the tap belongs to the
+     card. Scoped to cards that actually have an opener; desktop is untouched. */
+  #chatMessages [ondblclick] iframe{pointer-events:none}
+
+  /* the dynamic file/PDF/image viewer: keep its bar clear of the notch */
+  #file-fullscreen{padding:0}
+  #file-fullscreen>div:first-child{
+    padding-top:calc(env(safe-area-inset-top,0px) + .75rem)!important}
+
+  /* embedded apps and plugin tools go edge to edge (inline sizes need overriding) */
+  .embedded-app-overlay,.plugin-tool-overlay{padding:0}
+  .embedded-app-shell,.plugin-tool-shell{
+    width:100%!important;height:100%!important;max-width:100%;border:none;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px)}
+
+  /* one BACK control, injected into whichever artifact view is open */
+  .m-art-back{position:absolute;z-index:20;
+    top:calc(env(safe-area-inset-top,0px) + .5rem);
+    left:calc(env(safe-area-inset-left,0px) + .5rem);
+    min-height:44px;padding:0 .9rem;display:inline-flex;align-items:center;
+    background:rgba(24,24,24,.92);border:1px solid var(--border2);color:#ffaa00;
+    font-family:var(--font);font-size:.72rem;letter-spacing:.12em;cursor:pointer;
+    -webkit-tap-highlight-color:transparent}
+
+  /* ---- fixed bottom navigation ---- */
+  #mobileNav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:900;
+    background:var(--bg);border-top:1px solid var(--border);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+    height:calc(var(--nb-nav-h) + env(safe-area-inset-bottom,0px))}
+  /* flex:1 1 0: two equal halves that never move. There is no CALL tab -- a call is
+     contextual to a note, so the CALL view opens only when a call starts, is joined,
+     or is reopened from the active-call indicator in CHAT. While data-mview="call"
+     neither half is marked active, and the bar itself does not change. */
+  .mnav-btn{flex:1 1 0;min-width:0;height:var(--nb-nav-h);min-height:44px;
+    display:flex;align-items:center;justify-content:center;
+    background:none;border:none;color:var(--text-dim);
+    font-family:var(--font);font-size:.7rem;letter-spacing:.12em;
+    cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .mnav-btn.active{color:#ffaa00;box-shadow:inset 0 2px 0 #ffaa00}
+
+  /* Long-press on a note row opens Note Info, so the platform's own text-selection
+     callout has to stay out of the way. Scoped to the note rows on phones only --
+     selection is NOT disabled globally, and message text stays selectable. */
+  .note-item{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+}
+@media (prefers-reduced-motion:reduce){
+  .app-body>#sidebar,.app-body>.chat,.app-body>#callRail{transition:none}
+}
 </style>
 <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 </head>
 <body>
-<div class="app">
+<div class="app" data-mview="notes">
   <header class="app-header">
     <span class="logo-stack"><span class="logo" id="noltbookLogo" onclick="openGrimoireMenu()"><svg class="logo-mark" viewBox="0 0 641.2 103.7" role="img" aria-label="Noltbook"><defs><clipPath id="nbLogoClip"><rect x="134.2" y="16.8" width="506.9" height="63.8"/></clipPath></defs><g clip-path="url(#nbLogoClip)"><path fill="#ffaa00" d="M583.9,79.4h15.3V18h-15.3v61.4ZM599.4,46.9l22,32.5h19.3l-24.4-32.8,24.9-28.6h-17.5l-24.3,28.9ZM550.8,33.3c3.7,3.8,5.6,9,5.6,15.4s-1.9,11.6-5.6,15.5c-2.5,2.6-5.8,4-9.7,4s-7.3-1.3-9.8-4c-3.7-3.9-5.6-9.1-5.6-15.7s1.9-11.3,5.6-15.2c2.6-2.6,5.8-4,9.8-4s7.2,1.3,9.7,4M525.2,20.7c-4.7,2.6-8.2,6.1-10.7,10.7-2.9,5.4-4.3,11-4.3,16.9,0,11.5,3.9,20.3,11.7,26.3,5.2,4,11.6,6.1,19.1,6.1s18.2-3.6,24-10.7c4.6-5.7,6.8-12.7,6.8-21.1s-1.4-12.1-4.3-17.3c-1.8-3.3-4.3-6.1-7.4-8.5-5.2-4-11.6-6.1-19.1-6.1s-11.2,1.3-15.8,3.8M480.9,33.3c3.7,3.8,5.6,9,5.6,15.4s-1.9,11.6-5.6,15.5c-2.5,2.6-5.8,4-9.7,4s-7.3-1.3-9.8-4c-3.7-3.9-5.6-9.1-5.6-15.7s1.9-11.3,5.6-15.2c2.6-2.6,5.8-4,9.8-4s7.2,1.3,9.7,4M455.3,20.7c-4.7,2.6-8.2,6.1-10.7,10.7-2.9,5.4-4.3,11-4.3,16.9,0,11.5,3.9,20.3,11.7,26.3,5.2,4,11.6,6.1,19.1,6.1s18.2-3.6,24-10.7c4.6-5.7,6.8-12.7,6.8-21.1s-1.4-12.1-4.3-17.3c-1.8-3.3-4.3-6.1-7.4-8.5-5.2-4-11.6-6.1-19.1-6.1s-11.2,1.3-15.8,3.8M395,53.6h8.2c4.1,0,7,.2,8.7.6,3.1.7,4.6,2.8,4.6,6.2s-1.6,5.4-4.7,6.1c-1.5.3-4.5.4-8.8.4h-7.9v-13.3ZM395,30.5h7.4c4.4,0,7.4.4,8.9,1.1,1.5.7,2.3,2.1,2.3,4.2s-1.1,4.2-3.4,4.7c-1.4.4-4,.5-7.8.5h-7.3v-10.6ZM380.4,79.4h20.5c5.5,0,9.4-.1,11.7-.3,2.3-.2,4.5-.6,6.7-1.3,4-1.2,7.2-3.3,9.4-6.3,2.2-3,3.3-6.5,3.3-10.6s-1.5-8.3-4.5-11c-1.4-1.3-3.2-2.4-5.5-3.5,4.7-2.8,7.1-6.8,7.1-12s-.8-6.1-2.4-8.6c-1.6-2.5-3.9-4.3-6.7-5.5-3.8-1.5-9.9-2.3-18.4-2.3h-21.1v61.4ZM322,30.5h16.3v48.9h15.3V30.5h16.9v-12.5h-48.6v12.5ZM274.7,79.4h43v-12.5h-27.7V18h-15.3v61.4ZM241.5,33.3c3.7,3.8,5.6,9,5.6,15.4s-1.9,11.6-5.6,15.5c-2.5,2.6-5.8,4-9.7,4s-7.3-1.3-9.8-4c-3.7-3.9-5.6-9.1-5.6-15.7s1.9-11.3,5.6-15.2c2.6-2.6,5.8-4,9.8-4s7.2,1.3,9.7,4M216,20.7c-4.7,2.6-8.2,6.1-10.7,10.7-2.9,5.4-4.3,11-4.3,16.9,0,11.5,3.9,20.3,11.7,26.3,5.2,4,11.6,6.1,19.1,6.1s18.2-3.6,24-10.7c4.6-5.7,6.8-12.7,6.8-21.1s-1.4-12.1-4.3-17.3c-1.8-3.3-4.3-6.1-7.4-8.5-5.2-4-11.6-6.1-19.1-6.1s-11.1,1.3-15.8,3.8M134.2,79.4h15v-37.8l25.4,37.8h14.2V18h-15v36.3l-24.8-36.3h-14.9v61.4Z"/></g><g fill="#ffaa00"><polygon points="8.2 62.1 8.2 8.2 62.1 8.2 62.1 31.5 62.1 43.8 62.1 62.1 45.1 62.1 45.1 70.4 70.4 70.4 70.4 43.8 70.4 31.5 70.4 0 0 0 0 70.4 29.7 70.4 29.7 62.1 8.2 62.1"/><polygon points="74 33.4 74 41.6 95.4 41.6 95.4 95.5 41.5 95.5 41.5 72.7 41.5 70.4 41.5 62.1 41.5 60.4 41.5 41.6 58.5 41.6 58.5 33.4 33.3 33.4 33.3 59.1 33.3 62.1 33.3 70.4 33.3 71.4 33.3 103.7 103.6 103.7 103.6 33.4 74 33.4"/></g></svg><span class="logo-badge"></span></span><span class="build-badge" id="buildBadge" onclick="copyBuildBadge()"></span></span>
     <div class="header-dial" id="dialWrap">
@@ -863,6 +999,14 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
       </div>
     </aside>
   </div>
+  <!-- phone-only bottom navigation. display:none on desktop; the three buttons are
+       flex:1 1 0 so CALL going disabled can never shift NOTES or CHAT. -->
+  <nav class="mobile-nav" id="mobileNav" role="tablist" aria-label="Noltbook views">
+    <button class="mnav-btn" type="button" role="tab" data-mview="notes"
+      onclick="setMobileView('notes')">NOTES</button>
+    <button class="mnav-btn" type="button" role="tab" data-mview="chat"
+      onclick="setMobileView('chat')">CHAT</button>
+  </nav>
 </div>
 <div class="plugin-tool-overlay" id="pluginToolOverlay" aria-hidden="true">
   <div class="plugin-tool-shell" role="dialog" aria-modal="true" aria-labelledby="pluginToolTitle">
@@ -938,8 +1082,380 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
   </div>
 </div>
 <script>
+/* ===================== PHONE MODE (phase 1) =====================
+   Declared first in the script so every later guard can call phoneMode() without a
+   temporal-dead-zone risk, including the restoreSidebarPrefs IIFE.
+
+   SINGLE SOURCE OF TRUTH: the breakpoint is written once, in the CSS @media block.
+   phoneMode() reads the --nb-phone custom property that block sets, so JS cannot
+   disagree with the layout it is guarding. PHONE_MQ below is used ONLY as a change
+   trigger, never as the answer, and a boot assertion reports it if the two ever drift. */
+const PHONE_MQ='(max-width:599.98px) and (pointer:coarse),(max-height:500px) and (orientation:landscape) and (pointer:coarse)';
+let _phoneCache=null;
+function phoneMode(){
+  if(_phoneCache===null){
+    try{
+      _phoneCache=getComputedStyle(document.documentElement)
+        .getPropertyValue('--nb-phone').trim()==='1';
+    }catch(e){_phoneCache=false}
+  }
+  return _phoneCache;
+}
+const MVIEWS=['notes','chat','call'];
+function mobileView(){
+  const app=document.querySelector('.app');
+  const v=app?app.getAttribute('data-mview'):null;
+  return MVIEWS.indexOf(v)>=0?v:'notes';
+}
+/* setMobileView: visibility ONLY.
+   It sets one attribute and syncs the tab strip. It never moves, clones, rebuilds or
+   unmounts a panel, never calls a desktop resize/collapse/theater function, never
+   writes history, and never touches a saved desktop width or collapsed flag.
+   'call' is a real view with no tab: only the call lifecycle routes to it. */
+function setMobileView(view,opts){
+  if(!phoneMode())return false;
+  if(MVIEWS.indexOf(view)<0)return false;
+  const app=document.querySelector('.app');
+  if(!app)return false;
+  // leaving CHAT must not strand a full-screen artifact view or its history entry
+  if(view!=='chat')mArtCloseForNav();
+  if(app.getAttribute('data-mview')!==view)app.setAttribute('data-mview',view);
+  syncMobileTabs();
+  return true;
+}
+function syncMobileTabs(){
+  const nav=document.getElementById('mobileNav');
+  if(!nav)return;
+  const cur=mobileView();
+  // 'call' matches no button, so while the call view is up neither half is active --
+  // deliberately, since the user has not left the note the call belongs to.
+  nav.querySelectorAll('.mnav-btn').forEach(function(b){
+    const v=b.getAttribute('data-mview');
+    b.classList.toggle('active',v===cur);
+    b.setAttribute('aria-selected',v===cur?'true':'false');
+  });
+}
+/* The call view is contextual. These two are called from the existing call lifecycle,
+   never from a tab, and they change the visible screen ONLY -- no poke, no track, no
+   peer, no lease, no snapshot. A remote participant leaving, or a failed leave, never
+   reaches either of them, so the local user stays where they are. */
+function mobileEnterCallView(){if(phoneMode())setMobileView('call')}
+function mobileExitCallView(){if(phoneMode()&&mobileView()==='call')setMobileView('chat')}
+
+/* ===== phone artifact view (phase 3) =====
+   The surfaces that actually open an artifact are #file-fullscreen (images, PDFs, text,
+   files) and #embeddedAppOverlay / #pluginToolOverlay (interactive apps); #artifactPanel
+   is included so it behaves too. None of them is moved or rebuilt -- state is driven by
+   one attribute and the existing open/close paths keep running unchanged.
+
+   Detection is a MutationObserver rather than wrapped functions, because #file-fullscreen
+   is created and removed with raw DOM calls (its own CLOSE button does
+   `this.closest('#file-fullscreen').remove()`), so there is no single function to hook. */
+function mArtOpenEl(){
+  const ff=document.getElementById('file-fullscreen');
+  if(ff)return ff;
+  const ea=document.getElementById('embeddedAppOverlay');
+  if(ea&&ea.classList.contains('open'))return ea;
+  const pt=document.getElementById('pluginToolOverlay');
+  if(pt&&pt.classList.contains('open'))return pt;
+  const ap=document.getElementById('artifactPanel');
+  if(ap&&ap.classList.contains('open'))return ap;
+  return null;
+}
+function mArtCloseNow(){
+  const ff=document.getElementById('file-fullscreen');
+  if(ff){ff.remove();return true}
+  const ea=document.getElementById('embeddedAppOverlay');
+  if(ea&&ea.classList.contains('open')){closeEmbeddedApp();return true}
+  const pt=document.getElementById('pluginToolOverlay');
+  if(pt&&pt.classList.contains('open')){closePluginTool();return true}
+  const ap=document.getElementById('artifactPanel');
+  if(ap&&ap.classList.contains('open')){closeArtifactPanel();return true}
+  return false;
+}
+/* Exactly ONE history entry exists while an artifact view is open.
+   pushed  : the first sync that sees a view open
+   consumed: by popstate (browser Back), or by history.back() when the view was closed
+             through BACK / the existing close control.
+   The sync runs in a microtask so a close-then-open swap (opening artifact B while A is
+   up) settles to one final state and cannot push or pop spuriously. */
+let _mArtHist=false,_mArtQueued=false;
+function mArtSync(){
+  if(_mArtQueued)return;
+  _mArtQueued=true;
+  Promise.resolve().then(function(){
+    _mArtQueued=false;
+    const el=phoneMode()?mArtOpenEl():null;
+    const app=document.querySelector('.app');
+    if(app){
+      if(el)app.setAttribute('data-moverlay','artifact');
+      else app.removeAttribute('data-moverlay');
+    }
+    if(el)mArtEnsureBack(el);
+    if(el&&!_mArtHist){try{history.pushState({nbArt:1},'');_mArtHist=true}catch(e){}}
+    else if(!el&&_mArtHist){_mArtHist=false;try{history.back()}catch(e){}}
+  });
+}
+function mArtEnsureBack(el){
+  if(!el||el.querySelector(':scope > .m-art-back'))return;
+  const b=document.createElement('button');
+  b.type='button';b.className='m-art-back';b.textContent='\u2039 BACK';
+  b.setAttribute('aria-label','Back to chat');
+  b.addEventListener('click',function(ev){ev.preventDefault();ev.stopPropagation();mArtBack()});
+  el.appendChild(b);
+}
+function mArtBack(){
+  // going through history keeps the pushed entry balanced; popstate does the closing
+  if(_mArtHist){try{history.back();return}catch(e){}}
+  mArtCloseNow();
+}
+// navigating away (another note, or NOTES/CALL) must leave no overlay and no entry
+function mArtCloseForNav(){
+  if(!phoneMode()||!mArtOpenEl())return;
+  if(_mArtHist){_mArtHist=false;try{history.back()}catch(e){}}
+  mArtCloseNow();
+}
+function initMobileArtifactView(){
+  if(window._mArtBound)return;
+  window._mArtBound=true;
+  // #file-fullscreen is added to / removed from <body>; the overlays toggle a class
+  try{
+    new MutationObserver(mArtSync).observe(document.body,{childList:true});
+    ['embeddedAppOverlay','pluginToolOverlay','artifactPanel'].forEach(function(id){
+      const e=document.getElementById(id);
+      if(e)new MutationObserver(mArtSync).observe(e,{attributes:true,attributeFilter:['class']});
+    });
+  }catch(e){}
+  window.addEventListener('popstate',function(){
+    if(!_mArtHist)return;
+    _mArtHist=false;            // the entry is already gone; nothing left to pop
+    mArtCloseNow();
+  });
+  // PHONE: the artifact cards open on dblclick, which is not a usable touch gesture --
+  // double-tap is the browser's zoom. A single tap runs the element's OWN handler, so
+  // there is no second opening path and desktop is untouched.
+  const cm=document.getElementById('chatMessages');
+  if(cm&&!cm._mArtTapBound){
+    cm._mArtTapBound=true;
+    cm.addEventListener('click',function(e){
+      if(!phoneMode())return;
+      const el=e.target.closest('[ondblclick]');
+      if(!el||(el.getAttribute('ondblclick')||'').indexOf('openFileFullscreen')<0)return;
+      e.preventDefault();e.stopPropagation();
+      el.ondblclick(e);
+    });
+  }
+  mArtSync();
+}
+
+/* ---- phone long-press on a note row -> the existing Note Info modal ----
+   Pointer Events only, phones only. Desktop mouse behaviour (click, dblclick-to-expand,
+   right-click context menu) is untouched. */
+const LP_MS=550, LP_SLOP=10;
+let _lp=null;            // {id,x,y,row,pid,timer} while a press is pending
+/* Suppression is owed by exactly ONE fired long press and is identified BY that gesture,
+   never by a global flag. Lifetime: created only when a press actually opens Note Info;
+   destroyed by whichever comes first --
+     (a) the compatibility click it owes is swallowed, or
+     (b) the next non-mouse pointerdown, which necessarily precedes any later click.
+   There is no timer, so nothing can linger by time and no quick follow-up tap can be
+   eaten: that tap's own pointerdown clears the record before its click is dispatched. */
+let _lpSuppress=null;    // {row,pid,x,y} | null
+function _lpCancel(){if(_lp){clearTimeout(_lp.timer);_lp=null}}
+// reuse of the SAME modals the note title opens -- see openCurrentNoteMenu()
+function _lpOpenNoteInfo(noteId){
+  if(noteId==='cover'){openCoverInfoModal();return true}
+  if((noteId+'').startsWith('ars-'))return false;
+  const n=state.notes[noteId];
+  if(!n)return false;
+  openNoteInfoModal(n);
+  return true;
+}
+function initMobileLongPress(){
+  const sb=document.getElementById('sidebar');
+  if(!sb||sb._lpBound)return;
+  sb._lpBound=true;
+  // ANY new pointerdown, at document level, retires a stale suppression record --
+  // including a real mouse pointerdown on a hybrid device. A synthetic compatibility
+  // click emits no pointer event at all, so the record it is owed still survives to be
+  // matched below. No time window is involved.
+  document.addEventListener('pointerdown',function(){
+    if(_lpSuppress)_lpSuppress=null;
+  },true);
+  sb.addEventListener('pointerdown',function(e){
+    _lpCancel();
+    if(!phoneMode())return;
+    if(!e.isPrimary)return;                       // a second finger cancels, never arms
+    const row=e.target.closest('.note-item');
+    if(!row)return;
+    if(row.hasAttribute('data-msg-id'))return;    // a message hit is not a note row
+    // nested controls keep their own behaviour
+    if(e.target.closest('.note-arrow,button,a,input,select,textarea,.note-call-badge,.note-active-badge'))return;
+    const id=row.getAttribute('data-note-id');
+    if(!id)return;
+    const rec={id:id,x:e.clientX,y:e.clientY,row:row,pid:e.pointerId,timer:0};
+    rec.timer=setTimeout(function(){
+      if(_lp!==rec)return;
+      _lp=null;
+      if(_lpOpenNoteInfo(rec.id))
+        _lpSuppress={row:rec.row,pid:rec.pid,x:rec.x,y:rec.y};
+    },LP_MS);
+    _lp=rec;
+  },true);
+  sb.addEventListener('pointermove',function(e){
+    if(!_lp||e.pointerId!==_lp.pid)return;
+    // a small accidental drift is tolerated; a real drag or a scroll is not
+    if(Math.abs(e.clientX-_lp.x)>LP_SLOP||Math.abs(e.clientY-_lp.y)>LP_SLOP){_lpCancel();return}
+    if(!_lp.row.contains(e.target))_lpCancel();   // pointer left the row
+  },true);
+  sb.addEventListener('pointerup',_lpCancel,true);
+  sb.addEventListener('pointercancel',_lpCancel,true);
+  sb.addEventListener('lostpointercapture',_lpCancel,true);
+  sb.addEventListener('scroll',_lpCancel,true);   // vertical scrolling is never a press
+  // Capture phase at DOCUMENT level: the compatibility click can land on the row, or on
+  // the Note Info backdrop that just opened over it -- and that backdrop closes the modal
+  // on click, which would dismiss it the instant it appeared. Matching on the gesture's
+  // own row and press point catches both without ever touching an unrelated click.
+  document.addEventListener('click',function(e){
+    const s=_lpSuppress;
+    if(!s)return;
+    const near=Math.abs(e.clientX-s.x)<=LP_SLOP*2&&Math.abs(e.clientY-s.y)<=LP_SLOP*2;
+    const inRow=!!(s.row&&s.row.contains(e.target));
+    if(!near&&!inRow)return;      // not the click this press owes: leave it alone
+    _lpSuppress=null;
+    e.stopPropagation();e.preventDefault();
+  },true);
+  // on a phone the platform long-press menu is replaced by Note Info
+  sb.addEventListener('contextmenu',function(e){
+    if(!phoneMode())return;
+    if(!e.target.closest('.note-item'))return;
+    e.preventDefault();e.stopPropagation();
+  },true);
+}
+// Compact DIAL chooser: open on tap, close once a value is chosen. No new element and
+// no new dial state -- the .dial-box handlers still call the existing setDial(n).
+function initMobileDial(){
+  const dw=document.getElementById('dialWrap');
+  if(!dw||dw._mobBound)return;
+  dw._mobBound=true;
+  dw.addEventListener('click',function(e){
+    if(!phoneMode())return;
+    if(e.target.closest('.dial-box')){dw.removeAttribute('data-open');return}
+    dw.setAttribute('data-open',dw.getAttribute('data-open')==='1'?'0':'1');
+  });
+  document.addEventListener('click',function(e){
+    if(dw.getAttribute('data-open')==='1'&&!dw.contains(e.target))
+      dw.removeAttribute('data-open');
+  },true);
+}
+// re-evaluate on a viewport change. Leaving phone mode needs no restore work: phone
+// mode never wrote desktop state, so the desktop rules simply resume.
+function _phoneRecheck(){
+  const was=_phoneCache;
+  _phoneCache=null;
+  const now=phoneMode();
+  if(was!==now&&!now){
+    const dw=document.getElementById('dialWrap');
+    if(dw)dw.removeAttribute('data-open');
+  }
+  syncMobileTabs();
+}
+function initMobileShell(){
+  const app=document.querySelector('.app');
+  if(app&&MVIEWS.indexOf(app.getAttribute('data-mview'))<0)
+    app.setAttribute('data-mview','notes');   // a phone always opens on NOTES
+  initMobileDial();
+  initMobileLongPress();
+  initMobileArtifactView();
+  syncMobileTabs();
+  // drift check: PHONE_MQ is only a trigger, but if it stops agreeing with the CSS the
+  // change events would fire at the wrong moment, so say so loudly rather than silently.
+  try{
+    if(window.matchMedia(PHONE_MQ).matches!==phoneMode())
+      console.error('[phone] PHONE_MQ disagrees with the CSS --nb-phone sentinel');
+  }catch(e){}
+}
+try{
+  const _mql=window.matchMedia(PHONE_MQ);
+  if(_mql.addEventListener)_mql.addEventListener('change',_phoneRecheck);
+  else if(_mql.addListener)_mql.addListener(_phoneRecheck);
+}catch(e){}
+window.addEventListener('resize',_phoneRecheck);
+window.addEventListener('orientationchange',_phoneRecheck);
+if(document.readyState==='loading')
+  document.addEventListener('DOMContentLoaded',initMobileShell);
+else initMobileShell();
+/* =================== END PHONE MODE (phase 1) =================== */
+// SSE recovery budget. A transient error must cost nothing -- EventSource retries the
+// same channel on its own. Only sustained failure earns ONE replacement, whose retries
+// are bounded and reuse the same channel id.
+const SSE_RECOVER_MS=20000, SSE_RETRY_BASE=2000, SSE_RETRY_MAX=60000;
 const api = {
+  // msgId is MONOTONIC for the whole page, never reset by newChannel(). Resetting it
+  // let a replacement channel reissue a wire id an old alias still referred to, so a
+  // stale entry could capture a brand-new live subscription.
   ship:null,uid:null,url:null,msgId:0,subs:{},subMeta:{},es:null,reconnecting:false,lastAcked:-1,_ackTimer:null,_pendingAck:-1,
+  // ---- channel recovery state ----
+  // _esGen stamps every EventSource we create. Each callback captures its own stamp and
+  // returns early when it no longer matches, so a retired stream can never act on the
+  // live one -- the old handler read this.es and so closed the REPLACEMENT stream.
+  _esGen:0,
+  _recoverTimer:null,   // the one bounded same-channel recovery deadline
+  _replacing:false,     // single-flight guard: only one replacement may be in flight
+  _replaceWait:null,    // shared completion promise; deferred work awaits THIS, not a poll
+  _retry:0,
+  // Every subscription mutation runs on ONE FIFO chain, so concurrent note switches
+  // apply in call order instead of racing each other's reads of state.currentNoteSub.
+  _subQ:Promise.resolve(),
+  // A replacement issues new wire ids while callers still hold the ids they were given,
+  // so this maps any historical id onto the live one. Chains are collapsed on every
+  // replacement, keeping resolution a single lookup.
+  _remap:{},
+  _enqueue(fn){
+    const run=this._subQ.then(fn,fn);
+    this._subQ=run.then(()=>{},()=>{});   // one failure must not break the chain
+    return run;
+  },
+  // Resolves real aliases only. An id with no alias resolves to itself; if that id is
+  // not live the caller's operation is a safe no-op.
+  _resolveSub(id){
+    const m=this._remap[id];
+    return m===undefined?id:m;
+  },
+  // Internal, deliberately NOT queued: every caller is already inside a queued operation,
+  // and re-entering _enqueue from there would deadlock on its own chain. Awaits the PUT
+  // and only then forgets the subscription, so ordering on the SHIP matches ordering here.
+  async _unsubNow(id){
+    if(!this.subs[id])return true;                 // already gone: nothing owed
+    const ok=await this.put([{id:++this.msgId,action:'unsubscribe',subscription:Number(id)}]);
+    if(!ok)return false;                           // keep the metadata; the caller decides
+    delete this.subs[id];delete this.subMeta[id];
+    // Ids are monotonic, so this one can never be reissued: drop every alias that pointed
+    // at it instead of tombstoning. An old handle then resolves to itself, finds nothing
+    // live, and no-ops -- and _remap cannot accumulate entries for dead subscriptions.
+    for(const k of Object.keys(this._remap))if(this._remap[k]===Number(id))delete this._remap[k];
+    return true;
+  },
+  // A named slot holds at most one live subscription; claiming it evicts the previous
+  // occupant. openNote uses slot 'note', so however many switches queue up during a
+  // replacement, exactly the last one survives.
+  // Awaits every eviction. Returning false means the slot is still occupied on the ship,
+  // so no replacement subscription may be sent into it.
+  async _dropSlot(slot){
+    for(const [id,m] of Object.entries(this.subMeta)){
+      if(m.slot!==slot)continue;
+      if(!(await this._unsubNow(Number(id))))return false;
+    }
+    return true;
+  },
+  _waitReplace(){
+    if(this._replacing&&this._replaceWait)return this._replaceWait.catch(()=>{});
+    return null;
+  },
+  _resetAck(){
+    if(this._ackTimer){clearTimeout(this._ackTimer);this._ackTimer=null}
+    this._pendingAck=-1;this.lastAcked=-1;
+  },
   init(ship){this.ship=ship;this.cleanupOldChannel();this.newChannel()},
   cleanupOldChannel(){
     const old=sessionStorage.getItem('noltbook-channel');
@@ -948,17 +1464,57 @@ const api = {
       sessionStorage.removeItem('noltbook-channel');
     }
   },
-  newChannel(){this.uid=Date.now().toString(36)+Math.random().toString(36).slice(2,6);this.url=`/~/channel/${this.uid}`;this.msgId=0;this.lastAcked=-1;sessionStorage.setItem('noltbook-channel',this.uid)},
+  newChannel(){this.uid=Date.now().toString(36)+Math.random().toString(36).slice(2,6);this.url=`/~/channel/${this.uid}`;this._resetAck();sessionStorage.setItem('noltbook-channel',this.uid)},
   async put(a){try{const r=await fetch(this.url,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(a),credentials:'include'});if(!r.ok){console.error('PUT failed',r.status);return false}return true}catch(e){console.error('PUT error',e);return false}},
-  async poke(app,mark,json){if(this.reconnecting){console.warn('[poke] channel reconnecting, poke deferred');await new Promise(r=>{const check=()=>{if(!this.reconnecting)r();else setTimeout(check,200)};check()});console.log('[poke] reconnect done, retrying poke')}return this.put([{id:++this.msgId,action:'poke',ship:this.ship,app,mark,json}])},
-  async subscribe(app,path,handler){const id=++this.msgId;this.subs[id]=handler;this.subMeta[id]={app,path,handler};const ok=await this.put([{id,action:'subscribe',ship:this.ship,app,path}]);if(!ok){delete this.subs[id];delete this.subMeta[id];return null}return id},
-  async unsubscribe(subId){if(!this.subs[subId])return;this.put([{id:++this.msgId,action:'unsubscribe',subscription:subId}]);delete this.subs[subId];delete this.subMeta[subId]},
+  // A poke during a replacement awaits the ONE shared completion promise. The old code
+  // started a 200ms polling loop per deferred poke, so a slow ship accumulated one timer
+  // for every queued poke on top of everything else.
+  async poke(app,mark,json){
+    const w=this._waitReplace();if(w)await w;
+    return this.put([{id:++this.msgId,action:'poke',ship:this.ship,app,mark,json}]);
+  },
+  // Subscription mutations queue behind each other AND behind any replacement, so none
+  // is lost to a rebuild and none is applied out of order. Same shared promise as poke:
+  // no polling loop anywhere.
+  async subscribe(app,path,handler,opts){
+    const slot=(opts&&opts.slot)||null;
+    return this._enqueue(async()=>{
+      const w=this._waitReplace();if(w)await w;
+      // the previous occupant must be gone on the SHIP before the new one is sent, or a
+      // slow unsubscribe leaves two live note subscriptions
+      if(slot&&!(await this._dropSlot(slot))){
+        console.error('[api] slot "'+slot+'" not released; not subscribing '+path);
+        return null;
+      }
+      const id=++this.msgId;
+      this.subs[id]=handler;this.subMeta[id]={app,path,handler,slot};
+      const ok=await this.put([{id,action:'subscribe',ship:this.ship,app,path}]);
+      if(!ok){delete this.subs[id];delete this.subMeta[id];return null}
+      return id;
+    });
+  },
+  async unsubscribe(subId){
+    return this._enqueue(async()=>{
+      const w=this._waitReplace();if(w)await w;
+      // the caller may hold a pre-replacement id; resolve it onto the live one
+      return this._unsubNow(this._resolveSub(subId));
+    });
+  },
   async scry(app,path){const r=await fetch(`/~/scry/${app}${path}.json`,{credentials:'include'});if(!r.ok)throw new Error('scry failed '+r.status);return r.json()},
   open(){
+    this._clearRecovery();
+    const gen=++this._esGen;                // stamp this stream
     if(this.es)try{this.es.close()}catch(e){}
-    this.es=new EventSource(this.url,{withCredentials:true});
-    this.es.onopen=()=>{console.log('[SSE] connected')};
-    this.es.onmessage=(e)=>{
+    const es=new EventSource(this.url,{withCredentials:true});
+    this.es=es;
+    es.onopen=()=>{
+      if(gen!==this._esGen)return;          // a retired stream must not speak
+      this._clearRecovery();                // same-channel recovery cancels replacement
+      this._retry=0;
+      console.log('[SSE] connected');
+    };
+    es.onmessage=(e)=>{
+      if(gen!==this._esGen)return;
       const d=JSON.parse(e.data);
       const evId=parseInt(e.lastEventId);
       if(!isNaN(evId)&&evId>this.lastAcked){
@@ -967,6 +1523,9 @@ const api = {
         if(!this._ackTimer){
           this._ackTimer=setTimeout(()=>{
             this._ackTimer=null;
+            // a retired stream's ack must never be sent on the replacement channel:
+            // its event id belongs to a different channel's event sequence
+            if(gen!==this._esGen)return;
             if(this._pendingAck>=0){
               this.put([{id:++this.msgId,action:'ack','event-id':this._pendingAck}]);
               this._pendingAck=-1;
@@ -976,45 +1535,120 @@ const api = {
       }
       if(d.response==='diff'&&this.subs[d.id])this.subs[d.id](d.json);
     };
-    this.es.onerror=(e)=>{
-      console.warn('[SSE error]');
-      this.es.close();
-      if(!this.reconnecting)this.reconnect();
-    }
+    es.onerror=()=>{
+      if(gen!==this._esGen)return;
+      // DO NOT close the stream and DO NOT mint a new channel here. EventSource retries
+      // the SAME url by itself, carrying Last-Event-ID, so a transient error costs
+      // nothing. Closing it on every error is what turned a slow ship into a storm of
+      // fresh channels, each one re-subscribing and re-running %sync-calls.
+      this._armRecovery(es.readyState);
+    };
   },
-  async reconnect(){
-    if(this.reconnecting)return;
-    this.reconnecting=true;
-    console.log('[SSE] reconnecting with fresh channel...');
-    if(this.es)try{this.es.close()}catch(e){}
-    await new Promise(r=>setTimeout(r,2000));
-    const oldMeta=Object.values(this.subMeta);
+  // ---- bounded same-channel recovery ----
+  // ONE deadline however many errors arrive. If the stream reopens, the deadline is
+  // cancelled and nothing else happens: same channel, same subscriptions, same msgIds.
+  _armRecovery(readyState){
+    if(this._recoverTimer||this._replacing)return;
+    console.warn('[SSE] error; waiting for same-channel recovery (readyState '+readyState+')');
+    this._recoverTimer=setTimeout(()=>{
+      this._recoverTimer=null;
+      this._beginReplace('no recovery within '+SSE_RECOVER_MS+'ms');
+    },SSE_RECOVER_MS);
+  },
+  _clearRecovery(){
+    if(this._recoverTimer){clearTimeout(this._recoverTimer);this._recoverTimer=null}
+  },
+  _waitOnline(){
+    if(navigator.onLine!==false)return Promise.resolve();
+    console.warn('[SSE] offline; holding replacement until connectivity returns');
+    return new Promise(r=>{
+      const on=()=>{window.removeEventListener('online',on);r()};
+      window.addEventListener('online',on);
+    });
+  },
+  // public entry point (openNote calls it when a subscribe fails)
+  reconnect(){return this._beginReplace('manual')},
+  // ---- single-flight channel replacement ----
+  _beginReplace(reason){
+    if(this._replacing)return this._replaceWait;   // repeated errors cannot overlap
+    this._replacing=true;
+    this.reconnecting=true;                        // public flag keeps its old meaning
+    this._clearRecovery();
+    this._retry=0;
+    this._replaceWait=this._runReplace(reason).catch(e=>{
+      console.error('[SSE] replacement aborted',e);
+      this._replacing=false;this.reconnecting=false;
+    });
+    return this._replaceWait;
+  },
+  async _runReplace(reason){
+    console.log('[SSE] replacing channel:',reason);
+    // retire the old stream first: its callbacks are stale from here on
+    this._esGen++;
+    const oldEs=this.es;this.es=null;
+    if(oldEs)try{oldEs.close()}catch(e){}
+    this._resetAck();   // no ack owed by the retired channel may follow us
+    const oldUid=this.uid;
+    const oldMeta=Object.entries(this.subMeta).map(([wireId,m])=>({wireId:Number(wireId),
+      app:m.app,path:m.path,handler:m.handler,slot:m.slot||null}));
+    // ONE new channel id, reused by every retry below. The old code called newChannel()
+    // again on each retry, minting a fresh id every three seconds.
     this.subs={};this.subMeta={};
     this.newChannel();
-    _lastMsgHash={};  // clear BEFORE re-subscribing so no stale hash can race incoming snapshots
+    _lastMsgHash={};   // cleared BEFORE re-subscribing so no stale hash races a snapshot
+    if(oldUid&&oldUid!==this.uid){
+      // best-effort DELETE of the abandoned channel, once
+      fetch(`/~/channel/${oldUid}`,{method:'DELETE',credentials:'include'}).catch(()=>{});
+    }
+    // Build the batch ONCE. A retry must resend the identical action ids on the identical
+    // channel, so a request the server accepted but whose response was lost cannot become
+    // a second live subscription.
+    this.subs={};this.subMeta={};
     const batch=[];
+    const remap={};
     for(const m of oldMeta){
       const id=++this.msgId;
       this.subs[id]=m.handler;
-      this.subMeta[id]={app:m.app,path:m.path,handler:m.handler};
+      this.subMeta[id]={app:m.app,path:m.path,handler:m.handler,slot:m.slot};
+      remap[m.wireId]=id;
       batch.push({id,action:'subscribe',ship:this.ship,app:m.app,path:m.path});
     }
-    const ok=batch.length?await this.put(batch):true;
-    if(!ok){
-      console.error('[SSE] reconnect PUT failed, retrying...');
-      this.reconnecting=false;
-      setTimeout(()=>this.reconnect(),3000);
-      return;
+    // collapse older aliases onto the new ids so _resolveSub stays a single lookup
+    // Carry only aliases that still resolve to something live; anything else drops out,
+    // which is what keeps _remap bounded across many replacements.
+    for(const k of Object.keys(this._remap)){
+      const tgt=remap[this._remap[k]];
+      if(tgt!==undefined)remap[k]=tgt;
+    }
+    this._remap=remap;
+    for(;;){
+      await this._waitOnline();
+      const ok=batch.length?await this.put(batch):true;
+      if(ok)break;
+      const wait=Math.min(SSE_RETRY_MAX,SSE_RETRY_BASE*Math.pow(2,this._retry++));
+      console.error('[SSE] replacement PUT failed; retrying the SAME channel in '+wait+'ms');
+      await new Promise(r=>setTimeout(r,wait));
     }
     this.open();
-    // a fresh channel means we may have missed a call ending entirely; ask our agent to
-    // replay the full call list AND re-query every remote host
-    this.poke('noltbook','noltbook-action',{action:'sync-calls',data:{}});
+    // A fresh channel means we may have missed a call ending entirely; ask our agent to
+    // replay the full call list AND re-query every remote host. Sent DIRECTLY, never via
+    // public poke: poke awaits _replaceWait, which this very function owns, so calling it
+    // here would deadlock. Built once and resent verbatim, so a retry cannot double-poke.
+    const syncAction={id:++this.msgId,action:'poke',ship:this.ship,app:'noltbook',
+      mark:'noltbook-action',json:{action:'sync-calls',data:{}}};
+    for(;;){
+      await this._waitOnline();
+      if(await this.put([syncAction]))break;
+      const wait=Math.min(SSE_RETRY_MAX,SSE_RETRY_BASE*Math.pow(2,this._retry++));
+      console.error('[SSE] sync-calls PUT failed; retrying the SAME channel in '+wait+'ms');
+      await new Promise(r=>setTimeout(r,wait));
+    }
+    // only now may deferred pokes and subscriptions resume
+    this._replacing=false;this.reconnecting=false;
     for(const [id,m] of Object.entries(this.subMeta)){
       if(m.path==='/notes/'+state.currentNoteId)state.currentNoteSub=parseInt(id);
     }
-    console.log('[SSE] reconnected, re-subscribed to',oldMeta.length,'paths');
-    this.reconnecting=false;
+    console.log('[SSE] replaced, re-subscribed to',oldMeta.length,'paths');
   }
 };
 const state={notes:{},messages:{},artifacts:{},profiles:{},callGens:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,editingEid:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteUnreadActivity:{},noteRead:{},coverPreview:null,notePins:{},pinArtId:null,noteActive:{},appNotifications:{},artifactRefs:{},pendingRedirect:null};
@@ -1258,7 +1892,11 @@ async function boot(){
   loadReadCursors();
   await api.subscribe('noltbook','/notes',handleUpdate);
   api.open();
-  openNote(bootNoteFromUrl()||'cover');
+  // An explicit ?note= link is a request to view that note, so it opens in CHAT. A plain
+  // launch initialises Cover without navigating: the phone stays on NOTES, and because
+  // data-mview is already "notes" in the markup there is no CHAT frame to flash.
+  const _bootNote=bootNoteFromUrl();
+  openNote(_bootNote||'cover',_bootNote?undefined:{keepMobileView:true});
   resetChatInputHeight();
   setTimeout(walletTryRestore,1500);
 }
@@ -1613,6 +2251,11 @@ function openSearchMessageResult(hit){
   clearSearchNavigation();
   _searchNav={token:++_searchNavSeq,noteId:hit.noteId,msgId:hit.msgId,eid:hit.eid||null,query:String(state.searchQuery||'').trim(),jumped:false};
   if(state.currentNoteId===hit.noteId){
+    // PHONE: this branch returns without calling openNote(), so it needs its own hop to
+    // CHAT -- and it must happen BEFORE applySearchNavigation, which measures the target
+    // and calls scrollIntoView. Switching is a synchronous attribute + CSS change, so
+    // the layout box is correct on the very next measurement: no timer is needed.
+    if(phoneMode())setMobileView('chat');
     // The common same-note case needs no unsubscribe, poke, or DOM rebuild.
     if(applySearchNavigation(hit.noteId))return;
     // A top-window or collapsed-thread target is already in local state but
@@ -2030,6 +2673,14 @@ function revealNoteInTree(id){
 }
 let mentionObserver=null;
 async function openNote(id,opts){
+  // PHONE: selecting a note and showing it are ONE action. This sits before the first
+  // await, so the view switches with the tap rather than after the subscribe round
+  // trip, and it covers every caller -- cover, ordinary, shared, DM, gossip, newly
+  // created, joined, note references, search results, and re-opening the current note.
+  // opts.keepMobileView is the ONE exception: ordinary phone startup initialises and
+  // subscribes Cover underneath while the user stays on NOTES. Every other caller --
+  // taps, search hits, DMs, note refs, an explicit ?note= link -- still moves to CHAT.
+  if(phoneMode()&&!(opts&&opts.keepMobileView)){mArtCloseForNav();setMobileView('chat')}
   if(!(opts&&opts.keepSearchNavigation))clearSearchNavigation();
   const prevNoteId=state.currentNoteId;
   if(prevNoteId&&prevNoteId!==id){
@@ -2067,7 +2718,9 @@ async function openNote(id,opts){
   // record + pre-pin (bottom intent) so cold-cache backfill stays put before the snapshot
   ScrollCo.beginOpen(id,_openTarget);
   await api.poke('noltbook','noltbook-action',{action:'switch-note',data:{id}});
-  const subId=await api.subscribe('noltbook','/notes/'+id,handleUpdate);
+  // slot 'note': the api layer guarantees at most one open-note subscription, so a burst
+  // of switches queued behind a channel replacement ends with exactly the last one.
+  const subId=await api.subscribe('noltbook','/notes/'+id,handleUpdate,{slot:'note'});
   if(subId===null){console.error('[openNote] subscribe failed, reconnecting');if(!api.reconnecting)api.reconnect();return}
   state.currentNoteSub=subId;
   // messages already cached: consume the intent now. Otherwise the message-list
@@ -2822,7 +3475,11 @@ function makeNoteItem(n,depth){
   const activeBadge=active?`<span class="note-active-badge" title="${escAttr(active.label||'live')}"><span class="active-pip"></span>${active.count!=null?escHtml(''+active.count):'live'}</span>`:'';
   div.innerHTML=`${chevron}<div class="note-icon" ${hasCustomIcon?'style="display:flex"':''}>${iconContent}</div><div class="note-text"><span class="note-name">${escHtml(displayNameStr)}</span><span class="note-source"${sourceColor?' style="color:'+sourceColor+'"':''}>${escHtml(source)}</span><span class="note-preview">${previewHtml}</span></div>${callBadge}${activeBadge}<span class="note-dot" style="background:${dotColor}"></span>`;
   let clickTimer=null;
-  div.onclick=()=>{if(clickTimer)return;clickTimer=setTimeout(()=>{clickTimer=null;openNote(n.id)},250)};
+  div.onclick=()=>{
+    // PHONE: long-press is the secondary action here, so there is no double-click to
+    // wait for and the tap opens in this same event turn. Same call, no second path.
+    if(phoneMode()){openNote(n.id);return}
+    if(clickTimer)return;clickTimer=setTimeout(()=>{clickTimer=null;openNote(n.id)},250)};
   div.ondblclick=(e)=>{clearTimeout(clickTimer);clickTimer=null;e.preventDefault();toggleNoteExpand(n.id)};
   div.oncontextmenu=(e)=>{e.preventDefault();showNoteContextMenu(e,n.id)};
   return div;
@@ -6408,6 +7065,10 @@ let _rzGen=0;                 // monotonically increasing token generation
 let _rzActive=null;           // {token,kind,el,pointerId,alive,reason}
 // kind: 'sidebar' | 'main-divider' | 'rail-restore' | 'chat-restore' | 'theater-split'
 function beginLayoutGesture(kind,el,pointerId){
+  // PHONE GUARD. Token 0 is never valid (layoutGestureValid needs a live _rzActive), so
+  // every drag handler that asks before touching anything becomes a no-op. Nothing is
+  // registered, so no gesture state is created either.
+  if(phoneMode())return 0;
   // a lingering prior gesture (lost capture, missed pointerup) is cancelled first
   if(_rzActive&&_rzActive.alive)abortLayoutGesture('superseded');
   const token=++_rzGen;
@@ -6648,6 +7309,7 @@ function railResizeTo(want){
 // floor. railMaxWidth() already knows the ceiling for the panels that are currently
 // open, so clamp to it.
 function clampRailToOpenPanels(){
+  if(phoneMode())return;                 // PHONE GUARD: never write --rail-w on a phone
   const rail=document.getElementById('callRail');
   if(!rail||_theaterKey||!rail.classList.contains('open'))return;
   const max=railMaxWidth();
@@ -6672,6 +7334,7 @@ function resetRailAutoLayout(){
   if(_rzAutoSb){_rzAutoSb=false;setSidebarCollapsed(false,false)}
 }
 function setRailWidth(px){
+  if(phoneMode())return;                 // PHONE GUARD: --rail-w is desktop-only state
   const rail=document.getElementById('callRail');
   if(!rail)return;
   _rzAppliedW=Math.round(px);
@@ -6681,6 +7344,7 @@ function setRailWidth(px){
 // the theater counterpart: same value, different custom property. .sized is deliberately
 // NOT added -- .call-rail.open.sized (0,3,0) outranks .call-rail.theater (0,2,0).
 function setTheaterWidth(px){
+  if(phoneMode())return;                 // PHONE GUARD: --theater-w is desktop-only state
   const rail=document.getElementById('callRail');
   if(!rail)return;
   _rzAppliedW=Math.round(px);
@@ -9521,9 +10185,11 @@ function sidebarCollapsed(){
   return !!sb&&sb.classList.contains('collapsed');
 }
 function saveSidebarPrefs(collapsed){
+  if(phoneMode())return;    // PHONE GUARD: the phone never rewrites a desktop preference
   try{localStorage.setItem(SB_COLLAPSED_KEY,collapsed?'1':'0')}catch(e){}
 }
 function saveSidebarWidth(){
+  if(phoneMode())return;    // PHONE GUARD: a full-screen phone width is not a preference
   const sb=document.getElementById('sidebar');
   if(!sb||sb.classList.contains('collapsed'))return;
   try{localStorage.setItem(SB_WIDTH_KEY,
@@ -9606,6 +10272,7 @@ function theaterRailWidth(){
   return Math.max(300,w);
 }
 function applyTheaterWidth(){
+  if(phoneMode())return;                 // PHONE GUARD: theater arithmetic is desktop-only
   const rail=document.getElementById('callRail');
   if(!rail)return;
   // never recompute underneath a live gesture: the pointer owns the width until release
@@ -9616,12 +10283,14 @@ function applyTheaterWidth(){
     rail.style.removeProperty('--theater-w');
   }
 }
-window.addEventListener('resize',()=>{if(_theaterKey)applyTheaterWidth()});
+// PHONE GUARD on both width observers: rotating or resizing a phone must not re-apply a
+// desktop theater width. (applyTheaterWidth is guarded too; these stop it being reached.)
+window.addEventListener('resize',()=>{if(phoneMode())return;if(_theaterKey)applyTheaterWidth()});
 // the sidebar drag handler mutates sidebar.style.width directly; observe it
 (function(){
   const sb=document.getElementById('sidebar');
   if(!sb||typeof ResizeObserver==='undefined')return;
-  new ResizeObserver(()=>{if(_theaterKey)applyTheaterWidth()}).observe(sb);
+  new ResizeObserver(()=>{if(phoneMode())return;if(_theaterKey)applyTheaterWidth()}).observe(sb);
 })();
 // ===== theater-only chat collapse (never persisted) =====
 let _chatCollapsed=false;      // temporary theater UI state
@@ -9676,6 +10345,10 @@ function restoreChat(){
   clampRailToOpenPanels();
 }
 function enterTheater(key){
+  // PHONE GUARD: theater is a desktop column arrangement and CALL is already full screen
+  // on a phone. Blocking entry is what keeps _theaterKey/_theaterManualW/_theaterPreLayout
+  // from ever being written here. Theater is NOT redesigned in this phase.
+  if(phoneMode())return;
   // capture the ordinary layout BEFORE clearRailWidth/resetRailAutoLayout destroy it
   if(!_theaterKey)_theaterPreLayout=snapshotNormalLayout();
   _theaterKey=key;
@@ -9783,10 +10456,14 @@ function leaveTheater(mode,reason){
 }
 // view-only hide: keeps the favoured key. A no-op when theater is not active, so an
 // EXISTING parked record survives a second hide/reopen cycle.
-function parkTheater(reason){if(_theaterKey)leaveTheater('park',reason)}
+// PHONE GUARDS on park/discard: a theater entered on DESKTOP, then carried across the
+// breakpoint by a resize, must come back exactly as it was. Phone-side actions that
+// would otherwise write _theaterParked / _theaterPreLayout are frozen instead.
+function parkTheater(reason){if(phoneMode())return;if(_theaterKey)leaveTheater('park',reason)}
 function exitTheaterExplicit(){leaveTheater('exit','user-return')}
 // permanent invalidation: clears the parked key too, even with no active theater
 function discardTheater(reason){
+  if(phoneMode())return;
   if(_theaterKey){leaveTheater('discard',reason);return}
   _theaterParked=null;_theaterPreLayout=null;
 }
@@ -10246,6 +10923,9 @@ async function _toggleCallInner(){
   placeCallBtn();
   updateCallRestoreUI();
   updateCallUI();
+  // PHONE: a successful start or join shows the call. The two failure branches above
+  // return before this line, so a failed poke leaves the user exactly where they were.
+  mobileEnterCallView();
 }
 
 // updateCallRestoreUI: the ONE place that decides whether the closed-rail restore
@@ -10286,6 +10966,11 @@ function closeCallRail(opts){
   document.getElementById('callRail').classList.remove('open');
   placeCallBtn();
   updateCallRestoreUI();
+  // PHONE: the call view closing IS the navigation back. Reached from
+  // reconcileCallPeers() when the host says we are out -- a local leave or a call that
+  // ended. A remote participant leaving returns before that call, and a failed leave
+  // never gets there, so neither moves the local user.
+  mobileExitCallView();
 }
 function openCallRail(){
   clearRailWidth();                    // always reopen at the normal 300px
@@ -10296,9 +10981,19 @@ function openCallRail(){
   updateCallRestoreUI();
   renderCallRail();                    // the tiles must exist before one can be staged
   unparkTheater();
+  mobileEnterCallView();               // PHONE: the call view opening IS the navigation
 }
 function toggleCallRail(){
   const rail=document.getElementById('callRail');
+  if(phoneMode()){
+    // On a phone the rail's visibility is the mobile VIEW, not the .open class, so this
+    // must never run the desktop hide path -- that would park theater and tear the view
+    // down. The active-call indicator is simply the route back to CALL, and back again.
+    if(mobileView()==='call'){setMobileView('chat');return}
+    if(rail.classList.contains('open'))setMobileView('call');
+    else openCallRail();
+    return;
+  }
   // the view control hides the CALL VIEW, never the call
   if(rail.classList.contains('open'))closeCallRail({keepTheater:true,reason:'view-toggle'});
   else openCallRail();
