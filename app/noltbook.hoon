@@ -3405,8 +3405,17 @@
           ==
         `state
       ?.  (~(has in users.u.old) src.bowl)  `state
-      ::  DM validation: message author must match sender
-      ?:  &(=(%dm type.u.old) !=(src.bowl author.msg.rem))  `state
+      ::  INTEGRITY. src.bowl is the authenticated Gall sender, so the embedded
+      ::  author must always be that ship. This was previously enforced for %dm
+      ::  only, which let any member of a hosted group/notebook post under another
+      ::  ship's name. The embedded note-id must likewise equal the route note-id
+      ::  already validated above; the handler otherwise never reads it, but it is
+      ::  stored and fanned out, and clients file messages by it.
+      ::  Both are rejected here -- before sequence counters, host metadata,
+      ::  durable storage, previews, mentions, attention, activity/unread, and any
+      ::  fact or fan-out -- so a malformed payload changes nothing and emits no card.
+      ?.  =(src.bowl author.msg.rem)       `state
+      ?.  =(note-id.rem note-id.msg.rem)   `state
       ::  host assigns authoritative entry-meta for regular notes
       =/  is-regular=?
         ?&  !=(%cover type.u.old)
