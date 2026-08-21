@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="nb-build" content="df0j4vsvhl">
+<meta name="nb-build" content="v81p7gn88l">
 <title>NOLTBOOK</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20355.9%20355.9%22%20width=%22355.9%22%20height=%22355.9%22%3E%3Cg%20fill=%22%23ffffff%22%20transform=%22translate(-10.9901536%2036.4439936)%20scale(1.06235712)%22%3E%3Cpolygon%20points=%2266%20159.5%2066%2021.2%20204.3%2021.2%20204.3%2080.8%20204.3%20112.5%20204.3%20159.5%20160.7%20159.5%20160.7%20180.7%20225.5%20180.7%20225.5%20112.5%20225.5%2080.8%20225.5%200%2044.8%200%2044.8%20180.7%20121%20180.7%20121%20159.5%2066%20159.5%22/%3E%3Cpolygon%20points=%22234.7%2085.7%20234.7%20106.9%20289.8%20106.9%20289.8%20245.3%20151.4%20245.3%20151.4%20186.8%20151.4%20180.7%20151.4%20159.5%20151.4%20155.1%20151.4%20106.9%20195%20106.9%20195%2085.7%20130.2%2085.7%20130.2%20151.8%20130.2%20159.5%20130.2%20180.7%20130.2%20183.5%20130.2%20266.4%20310.9%20266.4%20310.9%2085.7%20234.7%2085.7%22/%3E%3C/g%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -1651,7 +1651,7 @@ const api = {
     console.log('[SSE] replaced, re-subscribed to',oldMeta.length,'paths');
   }
 };
-const state={notes:{},messages:{},artifacts:{},profiles:{},callGens:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,editingEid:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteUnreadActivity:{},noteRead:{},coverPreview:null,notePins:{},pinArtId:null,noteActive:{},appNotifications:{},artifactRefs:{},pendingRedirect:null};
+const state={notes:{},messages:{},artifacts:{},profiles:{},callGens:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,editingEid:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteUnreadActivity:{},noteRead:{},coverPreview:null,notePins:{},pinArtId:null,noteActive:{},appNotifications:{},artifactRefs:{},pendingRedirect:null,pendingDmTransition:null};
 // Phase G4 freshness: resolved profiles are fresh for 10 min; negative results
 // (missing/invalid) cool down 5 min; unreachable cools down 2 min. Render cycles
 // poke only when fresh-expired AND past the cooldown (and not in flight).
@@ -2426,9 +2426,20 @@ async function refreshNotesSnapshotFromScry(createHint){
 }
 function handleUpdate(upd){
   if(upd['note-list']){console.log('[note-list]',JSON.stringify(upd['note-list']));mergeNoteListSnapshot(upd['note-list']);rebuildDurableNotifications();updateLogoBadge();scheduleNoteList()}
-  else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));if(state.pendingRedirect&&state.pendingRedirect.to===n.id){state.notes[n.id]=n;if(!n.localImport)hydrateDmNoteProfile(n);state.pendingRedirect=null;if(state.currentNoteId===n.id)scheduleRender(n.id);scheduleNoteList();return;}const wasPendingJoin=!!state.pendingJoins[n.id];const wasAcceptedFork=state.acceptingForkRoots.has(n.id);if(wasAcceptedFork)state.acceptingForkRoots.delete(n.id);delete state.pendingJoins[n.id];delete state.removedFromNotes[n.id];state.notes[n.id]=n;if(!n.localImport)hydrateDmNoteProfile(n);if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id)}if(state.pendingWalletMsg&&n.type==='dm'){const pw=state.pendingWalletMsg;if(n.users&&n.users.length===2&&n.users.includes(pw.ship)){api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:n.id,text:pw.text}});state.pendingWalletMsg=null}}if(n.creator==='~'+api.ship){if(n.parent)state.expandedNotes.add(n.parent);openNote(n.id)}else if(wasAcceptedFork){if(state.palsView)switchView('notes');openNote(n.id)}else if(wasPendingJoin){document.querySelectorAll('.profile-flow-modal').forEach(el=>el.remove());state.viewingProfileShip=null;if(state.palsView)switchView('notes');if(n.visibility==='public'){openNote(n.id)}else{state.notifications.add(n.id)}}else if(state.pendingGossipFetch&&state.pendingGossipFetch.nid===n.id){clearTimeout(state.pendingGossipFetch.timer);state.pendingGossipFetch=null;if(state.palsView)switchView('notes');openNote(n.id)}else{if(state.palsView)switchView('notes');state.notifications.add(n.id)}scheduleNoteList()}
+  else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));const _dmT=state.pendingDmTransition;const _dmHit=!!(_dmT&&_dmT.phase==='waiting-created'&&_dmT.to===n.id);if((state.pendingRedirect&&state.pendingRedirect.to===n.id)||_dmHit){state.notes[n.id]=n;if(!n.localImport)hydrateDmNoteProfile(n);state.pendingRedirect=null;if(_dmHit)dmTransitionClear(_dmT);if(state.currentNoteId===n.id)scheduleRender(n.id);scheduleNoteList();return;}const wasPendingJoin=!!state.pendingJoins[n.id];const wasAcceptedFork=state.acceptingForkRoots.has(n.id);if(wasAcceptedFork)state.acceptingForkRoots.delete(n.id);delete state.pendingJoins[n.id];delete state.removedFromNotes[n.id];state.notes[n.id]=n;if(!n.localImport)hydrateDmNoteProfile(n);if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id)}if(state.pendingWalletMsg&&n.type==='dm'){const pw=state.pendingWalletMsg;if(n.users&&n.users.length===2&&n.users.includes(pw.ship)){api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:n.id,text:pw.text}});state.pendingWalletMsg=null}}if(n.creator==='~'+api.ship){if(n.parent)state.expandedNotes.add(n.parent);openNote(n.id)}else if(wasAcceptedFork){if(state.palsView)switchView('notes');openNote(n.id)}else if(wasPendingJoin){document.querySelectorAll('.profile-flow-modal').forEach(el=>el.remove());state.viewingProfileShip=null;if(state.palsView)switchView('notes');if(n.visibility==='public'){openNote(n.id)}else{state.notifications.add(n.id)}}else if(state.pendingGossipFetch&&state.pendingGossipFetch.nid===n.id){clearTimeout(state.pendingGossipFetch.timer);state.pendingGossipFetch=null;if(state.palsView)switchView('notes');openNote(n.id)}else{if(state.palsView)switchView('notes');state.notifications.add(n.id)}scheduleNoteList()}
   else if(upd['note-renamed']){const{id,name}=upd['note-renamed'];if(state.notes[id]){state.notes[id].name=name;renderNoteList()}if(state.currentNoteId===id)document.getElementById('chatNoteName').textContent=state.notes[id]?noteDisplayName(state.notes[id]):name}
-  else if(upd['note-deleted']){const{id}=upd['note-deleted'];const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];delete state.noteAdmins[id];delete state.noteMuted[id];delete state.notePins[id];delete state.noteActive[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];delete state.attention[id];state.notifications.delete(id);state.notificationAcks.delete(notifAckKey('removed-status',id));state.notificationAcks.delete(notifAckKey('host-deleted-status',id));delete state.noteActivity[id];delete state.noteUnreadActivity[id];delete state.noteRead[id];for(const _e in state.artifactRefs){if(state.artifactRefs[_e].noteId===id)delete state.artifactRefs[_e]}if(state.currentNoteId===id)openNote('cover');renderNoteList()}
+  else if(upd['note-deleted']){const{id}=upd['note-deleted'];const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];delete state.noteAdmins[id];delete state.noteMuted[id];delete state.notePins[id];delete state.noteActive[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];delete state.attention[id];state.notifications.delete(id);state.notificationAcks.delete(notifAckKey('removed-status',id));state.notificationAcks.delete(notifAckKey('host-deleted-status',id));delete state.noteActivity[id];delete state.noteUnreadActivity[id];delete state.noteRead[id];for(const _e in state.artifactRefs){if(state.artifactRefs[_e].noteId===id)delete state.artifactRefs[_e]}(function(){
+    const t=state.pendingDmTransition;
+    if(t&&t.from===id&&t.phase==='waiting-delete'){
+      if(state.currentNoteId!==id){dmTransitionClear(t);return}   // user moved on; don't hijack
+      t.phase='waiting-created';
+      state.currentNoteId=t.to;          // synchronous: the Cover fallback can no longer match
+      t.allowOpen=t.to;                  // authorise exactly one internal hop
+      openNote(t.to);
+      return;
+    }
+    if(state.currentNoteId===id)openNote('cover');
+  })();renderNoteList()}
   else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];
     // The subscription snapshot is authoritative. If a result was deleted
     // between search and click, abandon only the pending jump and open the note
@@ -2602,10 +2613,21 @@ function handleUpdate(upd){
     // Part 1D: preserve continuity. Clone the losing note's metadata under newId as a
     // placeholder so an open DM is NEVER bounced to Cover before %note-created arrives.
     // The pending marker lets note-created replace the placeholder + keep newId open.
+    // a DM transition in flight must follow the winning canonical root
+    if(state.pendingDmTransition&&state.pendingDmTransition.to===oldId){
+      state.pendingDmTransition.to=newId;
+      if(state.pendingDmTransition.allowOpen===oldId)state.pendingDmTransition.allowOpen=newId;
+    }
     const _wasOpen=(state.currentNoteId===oldId);
     if(state.notes[oldId]&&!state.notes[newId]){state.notes[newId]=Object.assign({},state.notes[oldId],{id:newId});}
     delete state.notes[oldId];delete state.messages[oldId];state.notifications.delete(oldId);
-    if(_wasOpen){state.pendingRedirect={from:oldId,to:newId};state.currentNoteId=newId;openNote(newId);}
+    if(_wasOpen){
+      state.pendingRedirect={from:oldId,to:newId};state.currentNoteId=newId;
+      // this hop is ours, not the user's -- keep a waiting-created transition alive
+      if(state.pendingDmTransition&&state.pendingDmTransition.to===newId)
+        state.pendingDmTransition.allowOpen=newId;
+      openNote(newId);
+    }
     else if(state.currentNoteId===newId)scheduleRender(newId);
     renderNoteList()}
   else if(upd['wallet-update']){wallet.transactions=upd['wallet-update'].map(tx=>({type:tx.type,who:tx.counterparty,amount:tx.amount,time:new Date(tx.timestamp).toLocaleString(),txid:tx.txHash}));renderWalletNotes()}
@@ -2672,7 +2694,53 @@ function revealNoteInTree(id){
   }
 }
 let mentionObserver=null;
+/* ===== pending DM transition =====
+   "Post to Existing DM" / "Open Existing DM" delete the source note and move its content
+   into an existing DM. The backend emits %note-deleted FIRST, and openNote() yields at
+   its unsubscribe before claiming state.currentNoteId -- so navigating eagerly let the
+   deletion handler still see the source as current and fire openNote('cover'), which
+   landed last and won. Instead we mark the intent, navigate only when the deletion
+   confirms success, and hold the marker across the destination's %note-created so its
+   ordinary creator branch cannot open the same note a second time.
+
+   phase: 'waiting-delete' -> 'waiting-created' -> cleared
+   allowOpen: a ONE-SHOT authorisation for a single internal openNote(to); any other
+   openNote call is manual navigation and cancels the transition.
+   The timer only DISCARDS a stale marker: it never navigates, deletes, retries or
+   changes the current note. */
+const DM_TRANSITION_MS=30000;
+let _dmTransitionSeq=0;
+function dmTransitionStart(from,to){
+  dmTransitionClear();                       // a new attempt replaces any previous one
+  const t={from:from,to:to,phase:'waiting-delete',allowOpen:null,token:++_dmTransitionSeq,timer:null};
+  t.timer=setTimeout(function(){
+    // discard only -- no navigation, no state change beyond dropping the marker
+    if(state.pendingDmTransition&&state.pendingDmTransition.token===t.token){
+      console.warn('[dm-transition] no deletion confirmation; discarding marker');
+      state.pendingDmTransition=null;
+    }
+  },DM_TRANSITION_MS);
+  state.pendingDmTransition=t;
+  return t;
+}
+function dmTransitionClear(t){
+  const cur=state.pendingDmTransition;
+  if(!cur)return;
+  if(t&&cur.token!==t.token)return;           // a stale promise must not clear a newer one
+  if(cur.timer)clearTimeout(cur.timer);
+  state.pendingDmTransition=null;
+}
+// consume the one-shot authorisation; true when this openNote is ours, not the user's
+function dmTransitionClaims(id){
+  const t=state.pendingDmTransition;
+  if(!t||t.allowOpen!==id)return false;
+  t.allowOpen=null;
+  return true;
+}
 async function openNote(id,opts){
+  // Manual or unrelated navigation cancels a pending DM transition. Covers every route
+  // into openNote, not just sidebar clicks. Our own internal hop is authorised one-shot.
+  if(state.pendingDmTransition&&!dmTransitionClaims(id))dmTransitionClear();
   // PHONE: selecting a note and showing it are ONE action. This sits before the first
   // await, so the view switches with the tap rather than after the subscribe round
   // trip, and it covers every caller -- cover, ordinary, shared, DM, gossip, newly
@@ -5563,12 +5631,24 @@ function showDmChoiceModal(noteId,targetShip){
       api.poke('noltbook','noltbook-action',{action:'convert-to-dm',data:{id:noteId,ship:targetShip}});
     }else if(hasContent){
       // merge content into existing DM, delete this note
-      api.poke('noltbook','noltbook-action',{action:'merge-into-dm',data:{id:noteId,ship:targetShip}});
-      openNote(existing.id);
+      // navigate only once %note-deleted confirms the merge actually happened
+      const _t=dmTransitionStart(noteId,existing.id);
+      api.poke('noltbook','noltbook-action',{action:'merge-into-dm',data:{id:noteId,ship:targetShip}})
+        .then(function(ok){
+          if(ok===false&&state.pendingDmTransition
+             &&state.pendingDmTransition.token===_t.token
+             &&state.pendingDmTransition.phase==='waiting-delete')dmTransitionClear(_t);
+        });
     }else{
       // discard empty note, open existing DM
-      api.poke('noltbook','noltbook-action',{action:'delete-note',data:{id:noteId}});
-      openNote(existing.id);
+      // same lifecycle: the deletion fact is the confirmation, so do not navigate yet
+      const _t=dmTransitionStart(noteId,existing.id);
+      api.poke('noltbook','noltbook-action',{action:'delete-note',data:{id:noteId}})
+        .then(function(ok){
+          if(ok===false&&state.pendingDmTransition
+             &&state.pendingDmTransition.token===_t.token
+             &&state.pendingDmTransition.phase==='waiting-delete')dmTransitionClear(_t);
+        });
     }
   });
   document.getElementById('dmChoiceNote').addEventListener('click',function(){
