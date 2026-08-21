@@ -1703,6 +1703,21 @@
   =/  by-leg  (skim msgs |=(m=message:noltbook &(=(author.m who) =(id.m mid))))
   ?~  by-leg  ~
   `i.by-leg
+::  dm-next-seq: the next RECEIVER-ASSIGNED ordinal for a local DM copy. Each ship owns
+::  the order of its own DM list, so an incoming meta.seq is never trusted as a timeline
+::  position. Returns one greater than the larger of the local counter and the highest
+::  meta.seq already stored in that DM, so a high value inherited from history stays
+::  monotonic without being repaired. meta=~ contributes nothing. Pure: no cards, no
+::  state, no scry, no logging.
+++  dm-next-seq
+  |=  [counter=@ud msgs=(list message:noltbook)]
+  ^-  @ud
+  =/  hi=@ud
+    |-  ^-  @ud
+    ?~  msgs  counter
+    =/  sq=@ud  ?~(meta.i.msgs 0 seq.u.meta.i.msgs)
+    $(msgs t.msgs, counter ?:((gth sq counter) sq counter))
+  +(hi)
 ::  dm-msg-winner: pick the surviving copy of two same-key messages — higher meta.rev,
 ::  then higher meta.updated, then a deterministic (sham) tie-break.
 ++  dm-msg-winner
@@ -3322,6 +3337,9 @@
       ?.  (~(has in users.note.rem) our.bowl)  `state
       ?.  (~(has in users.note.rem) src.bowl)  `state
       ?.  =(src.bowl author.msg.rem)  `state
+      ::  a DM message with no entry-meta has no seq to replace, so its order would fall
+      ::  back to the sender-controlled id. Current clients always send meta; reject.
+      ?~  meta.msg.rem  `state
       ::  resolve canonical local nid for this pair (handles re-creation
       ::  after leave, and possible nid collision via root-wins).
       ::  Part 4: a delayed delivery of an already-deleted message is a terminal no-op —
@@ -3364,7 +3382,14 @@
       ::  The remote ship may know this DM under a different root id. Store
       ::  and emit the message under our resolved local DM id so the frontend
       ::  does not route it to the stale/remote id.
-      =/  local-msg=message:noltbook  msg.rem(note-id target-nid)
+      ::  RECEIVER-ASSIGNED ORDER. Computed after authentication, tombstone and EID
+      ::  dedup, so a rejected or duplicate payload consumes no ordinal. Only meta.seq is
+      ::  replaced -- eid, author, text, timestamps, reply identity, rev, created and
+      ::  updated all survive, as does the note-id canonicalisation above.
+      =/  nxt-seq=@ud
+        (dm-next-seq (fall (~(get by seq-counters) target-nid) 0) cur)
+      =/  local-msg=message:noltbook
+        msg.rem(note-id target-nid, meta `u.meta.msg.rem(seq nxt-seq))
       =/  new-cur=(list message:noltbook)  (snoc cur local-msg)
       =/  target-note=note:noltbook  (~(got by notes) target-nid)
       =/  upd-note=note:noltbook
@@ -3376,7 +3401,7 @@
             (gf-notes new-msg-upd)
         ==
       =.  via-by-eid  (api-via-put via-by-eid via.rem local-msg)
-      :_  state(notes (~(put by notes) target-nid upd-note), messages (~(put by messages) target-nid new-cur), note-activity (put-activity note-activity target-nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity target-nid now.bowl), import-only-dms (~(del in import-only-dms) target-nid))
+      :_  state(notes (~(put by notes) target-nid upd-note), messages (~(put by messages) target-nid new-cur), seq-counters (~(put by seq-counters) target-nid nxt-seq), note-activity (put-activity note-activity target-nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity target-nid now.bowl), import-only-dms (~(del in import-only-dms) target-nid))
       :(weld note-cards msg-cards ~[(activity-fact target-nid now.bowl) (unread-activity-fact target-nid now.bowl)])
     ::
         %remote-dm-app-artifact-create  `state
@@ -3416,6 +3441,9 @@
       ::  fact or fan-out -- so a malformed payload changes nothing and emits no card.
       ?.  =(src.bowl author.msg.rem)       `state
       ?.  =(note-id.rem note-id.msg.rem)   `state
+      ::  DM only: no entry-meta means no seq to replace, so order would fall back to the
+      ::  sender-controlled id. Hosted notes are unaffected -- they get host-assigned meta.
+      ?:  &(=(%dm type.u.old) ?=(~ meta.msg.rem))  `state
       ::  host assigns authoritative entry-meta for regular notes
       =/  is-regular=?
         ?&  !=(%cover type.u.old)
@@ -3453,10 +3481,16 @@
       =/  host-meta=(unit entry-meta:noltbook)
         ?.  is-regular  ~
         `[(sham [src.bowl now.bowl nxt-seq]) nxt-seq 0 timestamp.msg.rem now.bowl reply-eid]
-      ::  DM: preserve sender-authored meta; hosted: override with host meta
+      ::  DM: keep the sender's meta but replace ONLY the ordinal with a receiver-assigned
+      ::  one (computed after the DM dedup above, so duplicates consume nothing).
+      ::  Hosted: override with host meta, byte-equivalent to before.
+      =/  dm-seq=@ud  (dm-next-seq (fall (~(get by seq-counters) note-id.rem) 0) cur)
+      ::  the ?: guard above cannot narrow meta.msg.rem for the compiler, so re-test with
+      ::  ?~ here. The null arm is unreachable -- the guard already rejected meta=~.
       =/  stamped=message:noltbook
-        ?:  =(%dm type.u.old)  msg.rem
-        msg.rem(meta host-meta)
+        ?.  =(%dm type.u.old)  msg.rem(meta host-meta)
+        ?~  meta.msg.rem  msg.rem
+        msg.rem(meta `u.meta.msg.rem(seq dm-seq))
       ::  host rebroadcast of a member's message: carry the member's NOTE SEND
       ::  marker (directed-kind.rem) so a member-recipient classifies as %send.
       ::  Phase 11B: carry the sender's via on the host rebroadcast so members
@@ -3479,7 +3513,7 @@
         =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) note-id.rem) ~)
         (~(put by mentions) note-id.rem (snoc cur-m [id.stamped stamped-eid author.msg.rem]))
       =/  new-seq=(map @ta @ud)
-        ?:  =(%dm type.u.old)  seq-counters
+        ?:  =(%dm type.u.old)  (~(put by seq-counters) note-id.rem dm-seq)
         ?:(is-regular (~(put by seq-counters) note-id.rem nxt-seq) seq-counters)
       ::  reply attention: notify the immediate parent owner if it is us. Target
       ::  is the NEW reply (a message). Uses sender reply-to-eid then legacy @da.
@@ -7720,7 +7754,8 @@
       =/  fresh=note:noltbook  (apply-dm-pref base dm-prefs our.bowl)
       =/  nt=note:noltbook  ?^(existing u.existing fresh)
       =/  cur=(list message:noltbook)  (fall (~(get by messages) nid) ~)
-      =/  seq=@ud  +((fall (~(get by seq-counters) nid) 0))
+      ::  imports share the receiver-assigned ordinal so they cannot collide with sends
+      =/  seq=@ud  (dm-next-seq (fall (~(get by seq-counters) nid) 0) cur)
       =/  meta=entry-meta:noltbook  [eid seq 0 now.bowl now.bowl ~]
       =/  msg=message:noltbook  [now.bowl nid peer text.aa now.bowl ~ %.n `meta]
       =/  importer=via-app:noltbook
@@ -9458,8 +9493,14 @@
       ::  content-hash identity (anonymous — no author for eid/seq).
       =/  is-regular=?
         !=(note-id.act %ars-rumors)
+      ::  DM: the ordinal is receiver-assigned and must clear anything already stored in
+      ::  this DM, since incoming messages are renumbered locally on arrival. Every other
+      ::  note type keeps its existing counter behaviour untouched.
       =/  cur-seq=@ud  (fall (~(get by seq-counters) note-id.act) 0)
-      =/  nxt-seq=@ud  ?:(is-regular +(cur-seq) 0)
+      =/  nxt-seq=@ud
+        ?.  is-regular  0
+        ?.  =(%dm type.u.exists)  +(cur-seq)
+        (dm-next-seq cur-seq (fall (~(get by messages) note-id.act) ~))
       ::  resolve reply-to-eid: prefer client-supplied, fall back to lookup
       =/  reply-eid=(unit @uv)
         ?.  is-regular  ~
@@ -11573,7 +11614,9 @@
       ::  gather source messages and re-post into DM
       =/  src-msgs=(list message:noltbook)  (fall (~(get by messages) id.act) ~)
       =/  dm-msgs=(list message:noltbook)  (fall (~(get by messages) dm-id) ~)
-      =/  cur-seq=@ud  (fall (~(get by seq-counters) dm-id) 0)
+      ::  seed the batch above both the counter and anything already in the destination DM
+      =/  cur-seq=@ud
+        (dec (dm-next-seq (fall (~(get by seq-counters) dm-id) 0) dm-msgs))
       =/  new-msgs=(list message:noltbook)  dm-msgs
       =/  msg-cards=(list card)  ~
       =/  idx=@ud  0

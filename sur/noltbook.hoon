@@ -1,7 +1,8 @@
 |%
 ::  entry-meta: reusable primitive separating identity/order/version/time
 ::  eid: stable identity hash — never changes after creation
-::  seq: monotonic sequence number, scoped per [author note-id]
+::  seq: locally assigned per-note ordinal. The storing ship owns it: in DMs an
+::  incoming seq is replaced on arrival, so the two ships may hold different values
 ::  rev: revision counter (0 = original, incremented on edit)
 ::  created: display timestamp — when entry was first created
 ::  updated: display timestamp — when entry was last modified
