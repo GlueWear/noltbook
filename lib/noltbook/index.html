@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="nb-build" content="n9maicm7b7">
+<meta name="nb-build" content="776ph5m26u">
 <title>NOLTBOOK</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20355.9%20355.9%22%20width=%22355.9%22%20height=%22355.9%22%3E%3Cg%20fill=%22%23ffffff%22%20transform=%22translate(-10.9901536%2036.4439936)%20scale(1.06235712)%22%3E%3Cpolygon%20points=%2266%20159.5%2066%2021.2%20204.3%2021.2%20204.3%2080.8%20204.3%20112.5%20204.3%20159.5%20160.7%20159.5%20160.7%20180.7%20225.5%20180.7%20225.5%20112.5%20225.5%2080.8%20225.5%200%2044.8%200%2044.8%20180.7%20121%20180.7%20121%20159.5%2066%20159.5%22/%3E%3Cpolygon%20points=%22234.7%2085.7%20234.7%20106.9%20289.8%20106.9%20289.8%20245.3%20151.4%20245.3%20151.4%20186.8%20151.4%20180.7%20151.4%20159.5%20151.4%20155.1%20151.4%20106.9%20195%20106.9%20195%2085.7%20130.2%2085.7%20130.2%20151.8%20130.2%20159.5%20130.2%20180.7%20130.2%20183.5%20130.2%20266.4%20310.9%20266.4%20310.9%2085.7%20234.7%2085.7%22/%3E%3C/g%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -213,6 +213,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .msg-edited{font-size:.65rem;color:var(--text-dim);font-style:italic;margin-left:.4rem}
 .msg-import-badge{display:inline-block;margin-left:.45rem;padding:.08rem .3rem;border:1px solid #4a5568;color:#94a3b8;font-size:.62rem;letter-spacing:.04em;vertical-align:middle}
 .msg-text.nock-send{color:#00ff88}
+.nock-recip{cursor:pointer;text-decoration:underline dotted}
 .rumor-post{padding:.8rem 1.5rem;text-align:center}
 .rumor-text{color:#c8b0d8;font-size:.95rem;line-height:1.5;font-style:italic}
 .rumor-sep{margin-top:.4rem}
@@ -533,14 +534,40 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .wallet-actions{display:flex;gap:.4rem;padding:.5rem .75rem;border-bottom:1px solid var(--border)}
 .wallet-action-btn{flex:1;padding:.35rem;font-family:var(--font);font-size:.75rem;background:#1a1a1a;border:1px solid #333;color:#bbb;cursor:pointer;transition:all .15s;letter-spacing:.05em}
 .wallet-action-btn:hover{border-color:var(--urbit);color:var(--urbit)}
-.wallet-transactions{flex:1;overflow-y:auto;padding:.5rem .75rem;min-height:0}
+/* #walletConnectedSection has no rule of its own, so walletUpdateUI's display:''
+   fell back to block and broke the chain: .wallet-transactions{flex:1} was inert and
+   .wallet-sidebar-panel{overflow:hidden} silently CLIPPED overflowing rows. Making it
+   a column flex container restores the intended sizing. */
+#walletConnectedSection{display:flex;flex-direction:column;min-height:0;flex:1}
+/* sizing box only -- no overflow of its own, so there is exactly one scroller. */
+.wallet-transactions{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;padding:.5rem .75rem}
 .wallet-tx-title{font-size:.65rem;color:var(--text-dim);margin-bottom:.4rem;letter-spacing:.08em}
-.wallet-tx-list{display:flex;flex-direction:column;gap:.3rem}
+.wallet-tx-list{display:flex;flex-direction:column;gap:.3rem;flex:1;min-height:0;position:relative}
+/* Only the activity ROWS scroll. The panel header, balance, send controls and
+   both section headings stay put. .wallet-transactions keeps its own overflow-y
+   as a short-viewport fallback rather than a competing scroller. max-height caps
+   without reserving space, so a one-row list stays one row tall. */
+/* THE one scroller. flex:0 1 auto = shrink-only: a short list keeps content height and
+   reserves no blank area; a long one shrinks to the space the flex chain grants and
+   scrolls. No fixed max-height -- available space is now the correct bound. */
+.wallet-tx-scroll{display:flex;flex-direction:column;gap:.3rem;flex:0 1 auto;min-width:0;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain}
+.wallet-tx-scroll:focus-visible{outline:1px solid var(--urbit);outline-offset:-1px}
+/* Conditional affordance: macOS hides overlay scrollbars, so a subtle bottom fade is
+   the reliable 'more below' signal. It sits on the NON-scrolling list, so it never
+   scrolls with content; pointer-events:none keeps it out of the way; and it is removed
+   the moment the user reaches the bottom, so the final row is never permanently faded. */
+.wallet-tx-list.has-more::after{content:'';position:absolute;left:0;right:0;bottom:0;height:20px;background:linear-gradient(to bottom,rgba(24,24,24,0),var(--bg));pointer-events:none}
 .wallet-tx-empty{color:#444;font-size:.75rem;text-align:center;padding:.5rem}
 .wallet-tx-item{padding:.3rem .4rem;background:var(--bg);border:1px solid #1a1a1a;font-size:.7rem}
 .wallet-tx-row{display:flex;justify-content:space-between;align-items:center}
-.wallet-tx-who{color:var(--text-muted)}
-.wallet-tx-amount{font-weight:500}
+/* label + counterparty are ONE flex child, so the row has exactly two and the
+   label stays attached to the name. min-width:0 lets the name ellipsise instead
+   of pushing the amount out of the panel. */
+.wallet-tx-party{display:flex;align-items:baseline;gap:.3rem;min-width:0;flex:1 1 auto}
+.wallet-tx-label{color:#555;flex:none}
+.wallet-tx-who{color:var(--text-muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.wallet-tx-amount{font-weight:500;flex:none;white-space:nowrap;margin-left:.5rem}
+.wallet-tx-id{margin-left:.35rem;color:#4a4a4a;white-space:nowrap}
 .wallet-tx-amount.sent{color:#cc4444}
 .wallet-tx-amount.received{color:var(--bot)}
 .wallet-tx-time{font-size:.6rem;color:#555;margin-top:.1rem}
@@ -917,9 +944,9 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
             <button class="wallet-action-btn" onclick="openRequestModal()">REQUEST</button>
           </div>
           <div class="wallet-transactions">
-            <div class="wallet-tx-title">TRANSACTIONS</div>
+            <div class="wallet-tx-title">NOLTBOOK ACTIVITY</div>
             <div class="wallet-tx-list" id="walletTxList">
-              <div class="wallet-tx-empty">No transactions yet</div>
+              <div class="wallet-tx-empty">No Noltbook activity yet</div>
             </div>
           </div>
         </div>
@@ -3258,7 +3285,7 @@ function makeArsItem(entry){
   const apA=hasMention?attentionPreviewHtml(entry.id):null;
   if(apA){previewHtml=apA}
   else if(entry.id!==state.currentNoteId&&rawPreview&&rawAuthor&&rawAuthor!=='~'+api.ship&&rawPreview.indexOf('@~'+api.ship)>=0){previewHtml='<span style="color:#ffaa00">@you:</span> '+escHtml(displayName(rawAuthor))}
-  else{previewHtml=escHtml(rawPreview)}
+  else{previewHtml=escHtml(receiptPlainText(rawPreview))}
   const bgStyle=entry.bgColor?`background:${entry.bgColor}`:entry.color?`background:${entry.color}`:'background:#000';
   const iconImg=entry.icon?`<img src="${entry.icon}" style="width:100%;height:100%;object-fit:contain">`:'';
   const arsSourceColor=entry.id==='ars-rumors'?(last?'#652287':''):(cp?shipColor(cp.author):(last?shipColor(last.author):''));
@@ -3532,7 +3559,7 @@ function makeNoteItem(n,depth){
   const apN=hasMention?attentionPreviewHtml(n.id):null;
   if(apN){previewHtml=apN}
   else if(n.id!==state.currentNoteId&&rawPreview&&rawSource&&rawSource!=='~'+api.ship&&rawPreview.indexOf('@~'+api.ship)>=0){previewHtml='<span style="color:#ffaa00">@you:</span> '+escHtml(displayName(rawSource))}
-  else{previewHtml=escHtml(rawPreview)}
+  else{previewHtml=escHtml(receiptPlainText(rawPreview))}
   const chevron=hasChildren?`<span class="note-arrow ${isExpanded?'open':''}" onclick="event.stopPropagation();toggleNoteExpand('${n.id}')">&#9654;</span>`:`<span class="note-arrow" style="visibility:hidden">&#9654;</span>`;
   const hasCustomIcon=!!n.iconUrl||!!dmCounterparty(n);
   const sourceColor=rawSource?shipColor(rawSource):'';
@@ -4047,7 +4074,7 @@ function makeSearchMessageResult(hit){
   const authorName=displayName(hit.author);
   const authorColor=shipColor(hit.author);
   // Plain escaped preview — no markdown/embed/image rendering for result rows.
-  const previewHtml=escHtml(String(hit.preview||''));
+  const previewHtml=escHtml(receiptPlainText(String(hit.preview||'')));
   div.innerHTML=`<span class="note-arrow" style="visibility:hidden">&#9654;</span><div class="note-icon" ${hasCustomIcon?'style="display:flex"':''}>${iconContent}</div><div class="note-text"><span class="note-name"><span style="color:${authorColor}">${escHtml(authorName)}</span> <span style="color:var(--text-dim)">in</span> ${escHtml(noteName)}</span><span class="note-preview">${previewHtml}</span></div>`;
   div.onclick=()=>openSearchMessageResult(hit);
   return div;
@@ -4179,10 +4206,11 @@ function pinCardHeaderHtml(author,timeStr){
 }
 // a pinned message rendered like a normal message body (avatar + author + text)
 function renderPinnedMessageHtml(msg){
-  const msgDisplay=isNockSend(msg.text)?parseNockSend(msg.text):renderText(msg.text);
+  const _mb=renderMsgBody(msg.text);
+  const msgDisplay=_mb.html;
   const timeSource=msg.meta&&msg.meta.created?msg.meta.created:msg.id;
   const timeStr=new Date(timeSource).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-  return `<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar">${avatarHtml(msg.author)}</div><div class="msg-body">${pinCardHeaderHtml(msg.author,timeStr)}<div class="msg-text">${msgDisplay}</div></div></div>`;
+  return `<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar">${avatarHtml(msg.author)}</div><div class="msg-body">${pinCardHeaderHtml(msg.author,timeStr)}<div class="msg-text${_mb.receipt?' nock-send':''}">${msgDisplay}</div></div></div>`;
 }
 // ===== pinned surface (Phase 2): one active pin per note =====
 // notebook/group/gossip only (mirrors backend); creator/host manages; one pin.
@@ -4975,8 +5003,9 @@ function renderMsg(el,msg,depth,isThreadAnchor){
   const actions=`<div class="msg-actions" onclick="event.stopPropagation()">${origBtn}<button class="msg-action-btn" onclick="startReply('${msg.id}','${escAttr(msg.author)}','${_mEid}');toggleMsgActions(this,false)">REPLY</button>${editBtn}${refBtn}${pinBtn}${_sendBtn}${delBtn}${removeImportBtn}</div>`;
   const div=document.createElement('div');
   const depthClass=depth>0?' depth-'+Math.min(depth,5):'';
-  const nockSendClass=isNockSend(msg.text)?' nock-send':'';
-  const msgDisplay=isNockSend(msg.text)?parseNockSend(msg.text):renderText(msg.text);
+  const _mb=renderMsgBody(msg.text);
+  const nockSendClass=_mb.receipt?' nock-send':'';
+  const msgDisplay=_mb.html;
   const importBadge=importBadgeHtml(msg);
   if(grouped){
     div.className='msg grouped'+depthClass;
@@ -8891,7 +8920,9 @@ function walletDisconnect(){
   wallet.grpc=null;
   wallet.balance=null;
   wallet.notes=[];
-  wallet.transactions=[];
+  // NOLTBOOK ACTIVITY is durable agent state, not Iris session state: disconnecting
+  // the wallet must not erase it. The rows stay visible, and the next /notes watch
+  // re-hydrates them authoritatively via %wallet-update (assign, never append).
   wallet.grpcClient=null;
   walletClearState();
   walletUpdateUI();
@@ -9054,42 +9085,79 @@ function walletUpdateUI(){
   renderWalletNotes();
 }
 
+// Bottom-fade affordance lifecycle. Toggled on the NON-scrolling .wallet-tx-list, so
+// it never scrolls with content and never covers a row permanently. Cleared the moment
+// the user reaches the bottom and restored on scrolling back up.
+function updateWalletActivityOverflow(sc){
+  if(!sc||!sc.parentElement)return;
+  const more=(sc.scrollHeight-sc.clientHeight-sc.scrollTop)>1;
+  sc.parentElement.classList.toggle('has-more',more);
+}
+// ONE window listener for the whole session: it re-queries the live scroller each time,
+// so replacing the list's innerHTML never accumulates listeners or observers. Per-element
+// scroll listeners die with the element they were attached to.
+let _walletOverflowResizeBound=false;
+function ensureWalletOverflowResize(){
+  if(_walletOverflowResizeBound)return;
+  _walletOverflowResizeBound=true;
+  window.addEventListener('resize',function(){
+    updateWalletActivityOverflow(document.querySelector('#walletTxList .wallet-tx-scroll'));
+  },{passive:true});
+}
 function renderWalletNotes(){
   const el=document.getElementById('walletTxList');
-  if(!wallet.notes.length&&!wallet.transactions.length){
-    el.innerHTML='<div class="wallet-tx-empty">No notes or transactions</div>';
+  // NOLTBOOK ACTIVITY lists sends we can actually identify. A row without a usable
+  // transaction id cannot be reconciled with anything, so it is not shown. This also
+  // hides pre-nicks legacy rows (which carry no id) without inspecting their values,
+  // without a migration and without rewriting stored state.
+  const acts=(wallet.transactions||[]).filter(t=>!!usableTxId(t&&t.txid));
+  // UTXOs are individual spendable notes that compose the balance, not transaction
+  // history, so they are no longer rendered here. wallet.notes is untouched: it still
+  // hydrates from Iris and still drives balance and send construction. Presentation
+  // only -- this function neither reads nor mutates it, so the empty state now depends
+  // on eligible ACTIVITY alone (otherwise held notes would suppress the message).
+  if(!acts.length){
+    el.innerHTML='<div class="wallet-tx-empty">No Noltbook activity yet</div>';
+    el.classList.remove('has-more');
     return;
   }
   let html='';
-  // Show UTXOs (notes) as balance breakdown
-  if(wallet.notes.length){
-    html+='<div style="font-size:.65rem;color:#555;margin-bottom:.3rem;letter-spacing:.08em">UTXOS ('+wallet.notes.length+')</div>';
-    html+=wallet.notes.map(n=>{
-      const lockLabel=n.lock==='coinbase'?'⛏':'⚷';
+  html+='<div style="font-size:.65rem;color:#555;margin:.5rem 0 .3rem;letter-spacing:.08em">REPORTED VIA NOLTBOOK</div>';
+  html+='<div style="font-size:.6rem;color:#444;margin-bottom:.35rem">payment reports sent and received here — not full wallet history or chain-confirmed</div>';
+  {
+    // Every value below is stored or externally supplied and is therefore escaped.
+    // Amounts are INTEGER NICKS; formatNock() is the only place they become decimal.
+    html+='<div class="wallet-tx-scroll" tabindex="0" role="region" aria-label="Noltbook payment reports, scrollable">'+acts.map(tx=>{
+      const sent=tx.type==='sent';
+      const cls=sent?'sent':tx.type==='received'?'received':'';
+      const sign=sent?'-':tx.type==='received'?'+':'';
+      const nicks=Number(tx.amount);
+      const amt=Number.isFinite(nicks)?formatNock(nicks):'?';
+      const txid=usableTxId(tx.txid);
+      const when=tx.time==null?'':String(tx.time);
+      const shortId=txid.length>12?txid.slice(0,12)+'\u2026':txid;
       return '<div class="wallet-tx-item">'+
         '<div class="wallet-tx-row">'+
-          '<span class="wallet-tx-who">'+lockLabel+' '+(n.firstName?n.firstName.slice(0,8)+'...':'note')+'</span>'+
-          '<span class="wallet-tx-amount received">'+formatNock(n.assets)+' $NOCK</span>'+
+          '<span class="wallet-tx-party">'+
+            '<span class="wallet-tx-label">'+escHtml(sent?'To:':'From:')+'</span>'+
+            activityWhoHtml(tx.who)+
+          '</span>'+
+          '<span class="wallet-tx-amount '+escAttr(cls)+'">'+escHtml(sign+amt)+' $NOCK</span>'+
+        '</div>'+
+        '<div class="wallet-tx-time">'+escHtml(when)+
+          '<span class="wallet-tx-id" title="'+escAttr(escHtml(txid))+'">TX '+escHtml(shortId)+'</span>'+
         '</div>'+
       '</div>';
-    }).join('');
-  }
-  // Show local transaction log
-  if(wallet.transactions.length){
-    html+='<div style="font-size:.65rem;color:#555;margin:.5rem 0 .3rem;letter-spacing:.08em">ACTIVITY</div>';
-    html+=wallet.transactions.map(tx=>{
-      const sign=tx.type==='sent'?'-':tx.type==='received'?'+':'⟵';
-      const cls=tx.type==='sent'?'sent':tx.type==='received'?'received':'';
-      return '<div class="wallet-tx-item">'+
-        '<div class="wallet-tx-row">'+
-          '<span class="wallet-tx-who">'+(tx.type==='sent'?'To: ':'From: ')+tx.who+'</span>'+
-          '<span class="wallet-tx-amount '+cls+'">'+sign+tx.amount.toFixed(4)+' $NOCK</span>'+
-        '</div>'+
-        '<div class="wallet-tx-time">'+tx.time+(tx.txid?' • '+tx.txid.slice(0,12)+'...':'')+'</div>'+
-      '</div>';
-    }).join('');
+    }).join('')+'</div>';
   }
   el.innerHTML=html;
+  const sc=el.querySelector('.wallet-tx-scroll');
+  if(!sc){el.classList.remove('has-more');return}
+  sc.addEventListener('scroll',function(){updateWalletActivityOverflow(sc)},{passive:true});
+  ensureWalletOverflowResize();
+  // measure after layout settles, then once more on the next frame
+  updateWalletActivityOverflow(sc);
+  if(typeof requestAnimationFrame==='function')requestAnimationFrame(function(){updateWalletActivityOverflow(sc)});
 }
 
 // --- Connect flow ---
@@ -9263,12 +9331,91 @@ const RUMOR_SAYINGS=[
   'rumor mill says...'
 ];
 function isNockSend(text){return text&&text.startsWith(NOCK_SEND_PREFIX)}
-function parseNockSend(text){
-  // Format: $$NOCK_SEND$$ sent 1.0000 $NOCK to ~wet (tx:abc123...)
-  try{
-    const body=text.slice(NOCK_SEND_PREFIX.length).trim();
-    return body;
-  }catch(e){return text}
+// The EXACT grammar walletSend() emits, and nothing else:
+//   $$NOCK_SEND$$ sent <d.dddd> $NOCK to <@p>[ (tx:<prefix>...)]
+// The ship token is bounded here and canonicalised below; the amount and tx prefix
+// are restricted to characters that cannot carry markup, and are escaped anyway.
+const NOCK_SEND_RE=/^sent (\d{1,15}\.\d{4}) \$NOCK to (~[a-z-]{3,60})(?: \(tx:([0-9a-zA-Z_-]{1,32})\.\.\.\))?$/;
+// Canonicalise a receipt's ship token through the ONE existing validator
+// (normalizeShipCandidate -> obLib.patp2dec). No second validator is introduced.
+// That helper deliberately rejects our own @p -- it exists to find OTHER ships --
+// but a receipt addressed to ourselves is still a valid receipt, so allow that
+// single case through without duplicating any validation logic.
+function receiptShip(tok){
+  if(!tok)return null;
+  const t=String(tok).trim().toLowerCase();
+  if(api.ship&&t==='~'+String(api.ship).toLowerCase())return t;
+  return normalizeShipCandidate(t);
+}
+// Single render path for message bodies, used by every message surface.
+// Returns {html, receipt}; receipt is true ONLY for a fully validated receipt, so
+// nothing else can wear the green .nock-send styling. Anything malformed -- or
+// hostile text that merely starts with the marker -- goes through renderText(),
+// which escapes. The recipient name is resolved at RENDER time, so stored receipts
+// are never rewritten and a later profile rename shows up on the next render.
+function renderMsgBody(text){
+  if(!isNockSend(text))return{html:renderText(text),receipt:false};
+  let m=null;
+  try{m=NOCK_SEND_RE.exec(String(text).slice(NOCK_SEND_PREFIX.length).trim())}catch(e){m=null}
+  const ship=m?receiptShip(m[2]):null;
+  if(!ship)return{html:renderText(text),receipt:false};
+  const who='<span class="nock-recip" title="'+escAttr(ship)+'" onclick="event.stopPropagation();viewProfile(\''+escAttr(ship)+'\')">'+escHtml(displayName(ship))+'</span>';
+  // The stored text keeps its optional (tx:...) suffix -- that is the only link between
+  // a receipt and its NOLTBOOK ACTIVITY row -- but it is never shown in conversation.
+  // m[3] is intentionally parsed and discarded.
+  return{html:'sent '+escHtml(m[1])+' $NOCK to '+who,receipt:true};
+}
+// Plain-TEXT receipt formatter for surfaces that escape their own output (sidebar
+// preview, search results). Returns TEXT, never HTML, so no second HTML path exists
+// and callers keep their existing escHtml(). Same grammar and same ship validation as
+// renderMsgBody; anything that fails to parse comes back untouched, so hostile or
+// malformed marker text is escaped by the caller exactly as it is today.
+function receiptPlainText(text){
+  if(!isNockSend(text))return text;
+  let m=null;
+  try{m=NOCK_SEND_RE.exec(String(text).slice(NOCK_SEND_PREFIX.length).trim())}catch(e){m=null}
+  const ship=m?receiptShip(m[2]):null;
+  if(!ship)return text;
+  return 'sent '+m[1]+' $NOCK to '+displayName(ship);
+}
+// A usable identifier is the minimum for an ACTIVITY row: without one the row cannot be
+// reconciled with anything. Deliberately format-agnostic -- extractTxHash accepts any
+// shape Iris returns, so we require only a non-empty, bounded, control-character-free
+// string and escape it at render. Returns '' when unusable.
+function usableTxId(v){
+  if(v==null)return '';
+  const s=String(v).trim();
+  if(!s||s.length>128)return '';
+  if(/[\u0000-\u001f\u007f]/.test(s))return '';
+  return s;
+}
+// Reverse wallet-address -> @p index. walletAddress is SELF-ASSERTED in profiles, so
+// two ships can claim one address; we never pick a winner (see activityWhoHtml).
+function walletAddrOwners(addr){
+  const out=[];
+  if(!addr)return out;
+  const a=String(addr);
+  const profs=state.profiles||{};
+  for(const ship in profs){const pr=profs[ship];if(pr&&pr.walletAddress===a)out.push(ship)}
+  return out;
+}
+// Counterparty cell for NOLTBOOK ACTIVITY. Every value is escaped, and only a
+// canonical validated @p is ever allowed into the inline handler.
+function activityWhoHtml(who){
+  const raw=(who==null?'':String(who));
+  // escAttr() escapes quotes only; escHtml() escapes & < >. Attribute values built
+  // from untrusted data compose BOTH -- no new escaper, full coverage.
+  const attr=(v)=>escAttr(escHtml(v));
+  if(!raw)return '<span class="wallet-tx-who">\u2014</span>';
+  const direct=receiptShip(raw);
+  if(direct)return '<span class="wallet-tx-who nock-recip" title="'+escAttr(direct)+'" onclick="event.stopPropagation();viewProfile(\''+escAttr(direct)+'\')">'+escHtml(displayName(direct))+'</span>';
+  const owners=walletAddrOwners(raw);
+  if(owners.length===1){
+    const o=receiptShip(owners[0]);
+    if(o)return '<span class="wallet-tx-who nock-recip" title="'+attr(o+' \u2014 '+raw)+'" onclick="event.stopPropagation();viewProfile(\''+escAttr(o)+'\')">'+escHtml(displayName(o))+'</span>';
+  }
+  // 0 claimants, or a contested address: show the address itself, never a guess.
+  return '<span class="wallet-tx-who" title="'+attr(raw)+'">'+escHtml(truncatePkh(raw))+'</span>';
 }
 
 // Single source of truth for the send request. Modern Iris API 1.0.0: object
@@ -9287,6 +9434,7 @@ function buildWalletSendEnvelope(recipientPkh,nicks){
 function extractTxHash(r){
   if(typeof r==='string')return r;
   if(r&&typeof r==='object'){
+    if(r.txid)return r.txid;
     if(r.txId)return r.txId;
     if(r.txHash)return r.txHash;
     if(r.id)return r.id;
@@ -9402,10 +9550,26 @@ async function walletSend(){
     console.log('[wallet] sendTransaction result:',r);
     const txHash=extractTxHash(r);
 
-    // Notify backend
-    api.poke('noltbook','noltbook-action',{action:'nock-send-confirmed',data:{
-      to:recipientName,amount:amount,txHash:txHash
-    }});
+    // Record this send in NOLTBOOK ACTIVITY. Iris has already broadcast, so nothing
+    // below may undo or re-report the payment. amount is INTEGER NICKS -- the exact
+    // value handed to Iris -- because the Hoon side parses @ud and a fractional JS
+    // number fails that parse and drops the row silently.
+    // NOTE ON THE GUARANTEE: api.poke resolves on the Eyre channel PUT. That confirms
+    // the request reached the ship; it does NOT prove Gall accepted or applied it.
+    // No usable id means no ACTIVITY row (it could never be reconciled). The payment
+    // itself already succeeded, so this is a warning, never a failure.
+    if(!usableTxId(txHash)){
+      console.warn('[wallet] Iris returned no usable transaction id; no activity row recorded');
+      alert("Payment sent, but no transaction ID was returned — it won't appear in Noltbook activity.");
+    }else{
+      let _recorded=false;
+      try{
+        _recorded=await api.poke('noltbook','noltbook-action',{action:'nock-send-confirmed',data:{
+          to:recipientName,amount:nicks,txHash:txHash
+        }});
+      }catch(_e){console.error('[wallet] activity record failed:',_e)}
+      if(!_recorded)alert('Payment sent, but Noltbook activity could not be saved.');
+    }
 
     // Post the payment message (tx already succeeded).
     if(recipientName.startsWith('~')){
@@ -9475,12 +9639,8 @@ function walletRequest(){
   const amount=parseFloat(document.getElementById('requestAmount').value);
   if(!from){alert('Enter who to request from');return}
   if(!amount||amount<=0){alert('Enter a valid amount');return}
-  wallet.transactions.unshift({
-    type:'requested',who:from,amount:amount,
-    time:new Date().toLocaleString(),
-    txid:null
-  });
-  renderWalletNotes();
+  // A request is not a transaction: it never touches NOLTBOOK ACTIVITY. Request
+  // delivery itself is unchanged and still pending (see the alert below).
   closeRequestModal();
   alert('Payment request for '+amount+' NOCK sent to '+from+'\n(Chat integration pending)');
 }

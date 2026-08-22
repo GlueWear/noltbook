@@ -557,6 +557,14 @@
       [%remote-dm-content-gone eyre-id=@ta tomb=dm-artifact-tomb]
       ::  dedicated protocol advertisement (does NOT modify %remote-profile).
       [%remote-proto-advertise version=@ud]
+      ::  wallet activity report: "I submitted a payment to you through Noltbook".
+      ::  Counterparty and timestamp deliberately DO NOT travel -- the receiver uses
+      ::  src.bowl and now.bowl -- so a sender cannot claim to be another ship or
+      ::  backdate a row. Ames/Gall authenticate WHICH ship reported this; that is
+      ::  not proof the payment exists or is confirmed on Nockchain. A non-blocked
+      ::  ship can still lie; retention bounds the clutter it can create.
+      ::  amount is INTEGER NICKS (65,536 nicks = 1 NOCK).
+      [%remote-wallet-activity amount=@ud tx-hash=@t]
   ==
 ::  directed attention (Phase A scaffold). A single durable list per note that
 ::  unifies @-mentions (today) with reply / note-SEND attention (future phases).

@@ -2962,6 +2962,35 @@
   |=  [=wire who=@p rem=remote:noltbook]
   ^-  card
   [%pass wire %agent [who %noltbook] %poke %noltbook-remote !>(rem)]
+::  wallet-id-clean: an opaque transaction identifier must carry no ASCII control
+::  characters -- it is rendered (escaped) in the client, and a control byte would
+::  corrupt the row. Format-agnostic otherwise: we never assume hex or base58.
+++  wallet-id-clean
+  |=  t=@t
+  ^-  ?
+  =/  b=(list @)  (rip 3 t)
+  |-
+  ?~  b  %.y
+  ?:  |((lth i.b 0x20) =(i.b 0x7f))  %.n
+  $(b t.b)
+::  wallet-retain: ROLLING retention for an incoming %received row.
+::  Newest-first. Keeps at most 25 %received rows per counterparty: when a 26th
+::  arrives, that same sender's OLDEST received row is dropped -- never a %sent row,
+::  never another sender's row -- and the new one is kept. Future rows are therefore
+::  never rejected for being over the cap. The overall newest-100 cap is applied last.
+++  wallet-retain
+  |=  [new=transaction:noltbook old=(list transaction:noltbook) who=@p]
+  ^-  (list transaction:noltbook)
+  =/  cp=@t  (scot %p who)
+  =|  kept=(list transaction:noltbook)
+  =/  seen=@ud  0
+  =/  walk=(list transaction:noltbook)  [new old]
+  |-
+  ?~  walk  (scag 100 (flop kept))
+  ?.  &(=(%received type.i.walk) =(cp counterparty.i.walk))
+    $(walk t.walk, kept [i.walk kept])
+  ?:  (gte seen 25)  $(walk t.walk)
+  $(walk t.walk, kept [i.walk kept], seen +(seen))
 ::  ===== CALL STATE: host-authoritative, generation-ordered =====
 ::  Every ship stores exactly one call-snapshot per note it knows about, including
 ::  EMPTY ones, so a cleared call keeps its generation. Only the note creator writes a
@@ -6375,6 +6404,44 @@
           ~[(gf-paths ~[/notes/[lnid]] upd) (gf-notes upd)]
           pin-clear-cards
       ==
+    ::
+        %remote-wallet-activity
+      ::  An authenticated ship reports it submitted a payment to us through Noltbook.
+      ::  TRUST BOUNDARY: Ames/Gall prove WHICH ship said this. They do not prove the
+      ::  payment exists, that it is confirmed on Nockchain, that it is final, or that
+      ::  the sender controls any wallet address. A non-blocked ship can lie about a
+      ::  payment it never made; retention is what bounds the clutter. Only chain
+      ::  verification could do better, and that is out of scope.
+      ::  Every check below returns before any state change, fact or card.
+      ?:  (~(has in pal-blocked) src.bowl)  `state
+      ?:  =(0 amount.rem)  `state
+      ::  the client receives amount as a JSON number, so anything past 2^53-1 would
+      ::  silently lose precision there. Reject rather than display a wrong figure.
+      ?:  (gth amount.rem 9.007.199.254.740.991)  `state
+      =/  idb=@ud  (met 3 tx-hash.rem)
+      ?:  =(0 idb)  `state
+      ?:  (gth idb 128)  `state
+      ?.  (wallet-id-clean tx-hash.rem)  `state
+      ::  Dedup key: direction + counterparty + FULL identifier. Counterparty is the
+      ::  authenticated sender, never a payload field. A duplicate or replay is a silent
+      ::  no-op: no row, no %wallet-update, no card, no slog.
+      ::  LIMIT: this compares against RETAINED activity only. An identifier that has
+      ::  aged out of the newest 100 is no longer replay-protected. Deliberate -- no
+      ::  tombstone map and no migration in this pass.
+      =/  cp=@t  (scot %p src.bowl)
+      =/  dup=?
+        %+  lien  transactions
+        |=  t=transaction:noltbook
+        ?&  =(%received type.t)
+            =(cp counterparty.t)
+            =(tx-hash.rem tx-hash.t)
+        ==
+      ?:  dup  `state
+      =/  tx=transaction:noltbook  [%received cp amount.rem tx-hash.rem now.bowl]
+      =/  new-txs=(list transaction:noltbook)  (wallet-retain tx transactions src.bowl)
+      =/  upd=update:noltbook  [%wallet-update new-txs]
+      :_  state(transactions new-txs)
+      ~[(gf-notes upd)]
     ==
 ::  action-vase: action:noltbook -> vase. One !> of the action type-noun lives here
 ::  so the API->action re-entries recurse through vase without re-embedding the cast 59x.
@@ -6835,6 +6902,10 @@
       |=(p=@p (pal-sync-card p pal-outgoing pal-incoming pal-blocked))
     =/  contactupd=update:noltbook  [%contact-list ~(tap in contacts)]
     =/  dialupd=update:noltbook  [%dial-update dial]
+    ::  NOLTBOOK ACTIVITY reload hydration. %wallet-update is an authoritative
+    ::  REPLACEMENT on the client (it assigns, never appends), so re-sending the
+    ::  whole list on every /notes watch cannot duplicate rows.
+    =/  walletupd=update:noltbook  [%wallet-update transactions]
     ::  send all current mention states (eid stored natively since state-23)
     =/  mention-cards=(list card)
       %+  murn  ~(tap by mentions)
@@ -7005,6 +7076,7 @@
           (gf-paths ~ palupd)
           (gf-paths ~ contactupd)
           (gf-paths ~ dialupd)
+          (gf-paths ~ walletupd)
       ==
     ::  Part 11: authoritative per-DM %file reference snapshots (only DMs that have refs).
     =/  dm-ref-cards=(list card)
@@ -10746,11 +10818,32 @@
       [(gf-notes upd) peer-cards]
     ::
         %nock-send-confirmed
+      ::  Durable record of a send SUBMITTED through Noltbook: Iris reported success
+      ::  and returned an id. That is NOT independent chain confirmation, and this
+      ::  list is not whole-wallet history -- only sends started from this client.
+      ::  amount is INTEGER NICKS (65,536 nicks = 1 NOCK), matching the value handed
+      ::  to Iris. Retention: newest 100 rows, older activity is dropped.
       =/  tx=transaction:noltbook  [%sent to.act amount.act tx-hash.act now.bowl]
-      =/  new-txs=(list transaction:noltbook)  [tx transactions]
+      =/  new-txs=(list transaction:noltbook)  (scag 100 `(list transaction:noltbook)`[tx transactions])
       =/  upd=update:noltbook  [%wallet-update new-txs]
+      ::  Tell the recipient, so they get a %received row. to.act is whatever the
+      ::  client resolved: a canonical @p when it identified a ship, otherwise a raw
+      ::  wallet address. Only a parseable @p is notified -- the backend never guesses
+      ::  address->ship, so contested address ownership can never misattribute a row.
+      ::  Sent to a raw address, or to ourselves, this stays sender-only activity.
+      ::  Carries the FULL id and exact nicks, and depends on no DM -- which is what
+      ::  keeps it clear of the new-DM creation race.
+      =/  peer=(unit @p)  (slaw %p to.act)
+      =/  peer-cards=(list card)
+        ?~  peer  ~
+        ?:  =(u.peer our.bowl)  ~
+        :_  ~
+        %^    rpoke
+            /wact/(scot %p u.peer)
+          u.peer
+        `remote:noltbook`[%remote-wallet-activity amount.act tx-hash.act]
       :_  this(transactions new-txs)
-      ~[(gf-notes upd)]
+      [(gf-notes upd) peer-cards]
     ::
         %search-messages
       ::  Phase 2 sidebar search — now via the shared api-search-scan helper.
