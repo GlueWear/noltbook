@@ -390,6 +390,12 @@
       ::  can recreate the DM locally if they previously left it. No
       ::  separate invite is sent; receiver does not subscribe.
       [%remote-dm-message note=note msg=message via=(unit via-app)]
+      ::  ordinary-DM shared message pin, compare-and-set. target=[~ eid] sets/replaces;
+      ::  target=~ clears. `expect` is the target the sender believed was pinned (~ = none)
+      ::  and the receiver applies the operation only when it matches its own current pin.
+      ::  No note-id, no kind, no attribution: the receiver resolves its own canonical DM
+      ::  root from {our.bowl src.bowl}, hardcodes %message, and stamps pinned-by/at itself.
+      [%remote-note-pin target=(unit @uv) expect=(unit @uv)]
       [%remote-ars msg=message hops=@ud]
       [%remote-ars-ref env=envelope hops=@ud]
       [%remote-fetch-cover-msg requester=@p msg-id=@da eid=(unit @uv)]

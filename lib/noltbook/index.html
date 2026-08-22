@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="nb-build" content="v81p7gn88l">
+<meta name="nb-build" content="7gifgodc8c">
 <title>NOLTBOOK</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20355.9%20355.9%22%20width=%22355.9%22%20height=%22355.9%22%3E%3Cg%20fill=%22%23ffffff%22%20transform=%22translate(-10.9901536%2036.4439936)%20scale(1.06235712)%22%3E%3Cpolygon%20points=%2266%20159.5%2066%2021.2%20204.3%2021.2%20204.3%2080.8%20204.3%20112.5%20204.3%20159.5%20160.7%20159.5%20160.7%20180.7%20225.5%20180.7%20225.5%20112.5%20225.5%2080.8%20225.5%200%2044.8%200%2044.8%20180.7%20121%20180.7%20121%20159.5%2066%20159.5%22/%3E%3Cpolygon%20points=%22234.7%2085.7%20234.7%20106.9%20289.8%20106.9%20289.8%20245.3%20151.4%20245.3%20151.4%20186.8%20151.4%20180.7%20151.4%20159.5%20151.4%20155.1%20151.4%20106.9%20195%20106.9%20195%2085.7%20130.2%2085.7%20130.2%20151.8%20130.2%20159.5%20130.2%20180.7%20130.2%20183.5%20130.2%20266.4%20310.9%20266.4%20310.9%2085.7%20234.7%2085.7%22/%3E%3C/g%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -4186,7 +4186,17 @@ function renderPinnedMessageHtml(msg){
 }
 // ===== pinned surface (Phase 2): one active pin per note =====
 // notebook/group/gossip only (mirrors backend); creator/host manages; one pin.
-function pinNoteOk(noteId){const n=state.notes[noteId];return !!n&&(n.type==='notebook'||n.type==='group'||n.type==='gossip')}
+function pinNoteOk(noteId){const n=state.notes[noteId];return !!n&&(n.type==='notebook'||n.type==='group'||n.type==='gossip'||n.type==='dm')}
+// an ordinary two-person DM: either current, non-removed participant may pin, replace
+// or clear the ONE shared %message pin. Artifact pins stay unsupported in DMs.
+function dmPinOk(noteId){
+  const n=state.notes[noteId],me='~'+api.ship;
+  if(!n||n.type!=='dm')return false;
+  if(!Array.isArray(n.users)||n.users.length!==2)return false;
+  if(!n.users.includes(me))return false;
+  if(Array.isArray(n.removed)&&n.removed.includes(me))return false;
+  return true;
+}
 function isPinnedTarget(noteId,eid){const p=state.notePins[noteId];return !!eid&&!!p&&p.target===eid}
 // resolve a %artifact pin's target to a %file/%app artifact in this note, or null
 function resolvePinArtifact(noteId,pin){
@@ -4222,7 +4232,12 @@ function clearNotePin(noteId){api.poke('noltbook','noltbook-action',{action:'cle
 // on a pinnable note. kind is 'message' or 'artifact'. %code excluded by the caller.
 // closeAfter appends toggleMsgActions(this,false) (messages use the toggle menu).
 function pinBtnHtml(noteId,eid,kind,closeAfter){
-  if(!eid||!pinNoteOk(noteId)||getMyRole(noteId)!=='host')return'';
+  if(!eid||!pinNoteOk(noteId))return'';
+  const n=state.notes[noteId];
+  if(n&&n.type==='dm'){
+    // DM: symmetric participant authority, messages only -- never artifacts
+    if(kind!=='message'||!dmPinOk(noteId))return'';
+  }else if(getMyRole(noteId)!=='host')return'';
   const tail=closeAfter?";toggleMsgActions(this,false)":"";
   if(isPinnedTarget(noteId,eid))
     return`<button class="msg-action-btn" onclick="clearNotePin('${noteId}')${tail}">UNPIN</button>`;
@@ -4275,7 +4290,11 @@ function renderPinSurface(noteId){
   // (re)build
   teardownPinBridgeIfInSurface();
   destroyPluginFramesWithin(el);
-  const canManage=getMyRole(noteId)==='host'; // creator-only, mirrors backend
+  // creator-only for hosted notes, mirroring the untouched backend helpers; either
+  // participant for an ordinary DM, but only for a %message pin.
+  const canManage=(state.notes[noteId]&&state.notes[noteId].type==='dm')
+    ?(dmPinOk(noteId)&&pin&&pin.kind==='message')
+    :(getMyRole(noteId)==='host');
   const xBtn=canManage?`<button class="pin-surface-x" title="Unpin" onclick="clearNotePin('${noteId}')">&times;</button>`:'';
   const head=`<div class="pin-surface-head"><span>PINNED</span>${xBtn}</div>`;
   if(art&&art.type==='app'){

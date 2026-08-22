@@ -252,6 +252,43 @@
   ?:  (is-write-blocked nid hs nmap who)  [%.n %rejected]
   ?.  =(who creator.u.nt-u)  [%.n %rejected]
   [%.y ~]
+::  ===== ordinary-DM shared message pin =====
+::  Deliberately SEPARATE from apply-set-pin / apply-clear-pin, which remain the
+::  creator-only hosted path. Leaving those untouched is what keeps the developer API
+::  rejecting %dm (it calls them, and pin-note-ok still excludes %dm) and keeps
+::  notebook/group/gossip authority byte-equivalent.
+::  In an ordinary two-person DM either current participant may pin, replace or clear
+::  the one shared %message pin. Artifact pins are NOT enabled here.
+++  dm-pin-ok
+  |=  $:  who=@p  us=@p  nid=@ta
+          nmap=(map @ta note:noltbook)
+          hs=(map @ta ?(%host-deleted %host-unreachable))
+      ==
+  ^-  ?
+  =/  nt-u  (~(get by nmap) nid)
+  ?~  nt-u  %.n
+  ?.  (is-ordinary-dm u.nt-u)  %.n
+  ?.  (~(has in users.u.nt-u) who)  %.n
+  ?.  (~(has in users.u.nt-u) us)  %.n
+  ?:  (~(has in removed.u.nt-u) who)  %.n
+  ?:  (is-write-blocked nid hs nmap us)  %.n
+  %.y
+::  dm-pin-target: our current %message pin target, or ~. An artifact pin (only
+::  reachable from malformed old state) reads as ~ so it is never compared or cleared.
+++  dm-pin-target
+  |=  [nid=@ta pins=(map @ta note-pin:noltbook)]
+  ^-  (unit @uv)
+  =/  pn  (~(get by pins) nid)
+  ?~  pn  ~
+  ?.  =(%message kind.u.pn)  ~
+  `target.u.pn
+::  dm-peer-of: the other participant of a two-person DM.
+++  dm-peer-of
+  |=  [n=note:noltbook us=@p]
+  ^-  (unit @p)
+  =/  others=(list @p)  (skim ~(tap in users.n) |=(p=@p !=(p us)))
+  ?~  others  ~
+  `i.others
 ::  ===== developer/API-only note "active" status =====
 ::  active-cards: broadcast the authoritative active status on /notes + /notes/[nid].
 ++  active-cards
@@ -3403,6 +3440,30 @@
       =.  via-by-eid  (api-via-put via-by-eid via.rem local-msg)
       :_  state(notes (~(put by notes) target-nid upd-note), messages (~(put by messages) target-nid new-cur), seq-counters (~(put by seq-counters) target-nid nxt-seq), note-activity (put-activity note-activity target-nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity target-nid now.bowl), import-only-dms (~(del in import-only-dms) target-nid))
       :(weld note-cards msg-cards ~[(activity-fact target-nid now.bowl) (unread-activity-fact target-nid now.bowl)])
+    ::
+        %remote-note-pin
+      ::  Ordinary-DM shared message pin, compare-and-set. NO ECHO: this handler emits
+      ::  local facts only and never rpokes, so an operation cannot bounce between the
+      ::  pair. Attribution is stamped from authenticated local information -- the wire
+      ::  carries no note-id, no kind, no pinned-by and no pinned-at.
+      ?:  (~(has in pal-blocked) src.bowl)  `state
+      ::  resolve OUR canonical root from the participant pair; never trust a sender id
+      =/  dm-u  (find-dm-root notes (sy ~[our.bowl src.bowl]))
+      ?~  dm-u  `state
+      =/  nid=@ta  id.u.dm-u
+      ?.  (dm-pin-ok src.bowl our.bowl nid notes host-status)  `state
+      ::  compare-and-set: apply only when our current target is the one the sender saw
+      =/  cur=(unit @uv)  (dm-pin-target nid note-pins)
+      ?.  =(cur expect.rem)  `state
+      ?~  target.rem
+        ::  clear -- `expect` already proved a %message pin is present and matches
+        ?~  cur  `state
+        :_  state(note-pins (~(del by note-pins) nid))
+        (pin-cards nid ~)
+      ?.  (pin-target-ok nid u.target.rem %message messages artifacts)  `state
+      =/  new-pin=note-pin:noltbook  [u.target.rem %message src.bowl now.bowl]
+      :_  state(note-pins (~(put by note-pins) nid new-pin))
+      (pin-cards nid `new-pin)
     ::
         %remote-dm-app-artifact-create  `state
     ::
@@ -11097,6 +11158,28 @@
       ~[(note-read-fact note-id.act now.bowl)]
     ::
         %set-note-pin
+      ::  ---- ordinary DM: symmetric participant authority, %message only ----
+      ::  `expect` MUST be read here, BEFORE the local pin is replaced, so the peer's
+      ::  compare-and-set tests the pin we actually saw rather than the one we just set.
+      =/  pin-nt  (~(get by notes) note-id.act)
+      =/  pin-is-dm=?  ?~(pin-nt %.n (is-ordinary-dm u.pin-nt))
+      ?:  pin-is-dm
+        ?~  pin-nt  `this                       ::  unreachable; re-narrows for the compiler
+        ?.  =(%message kind.act)  `this         ::  DM artifact pins stay unsupported
+        ?.  (dm-pin-ok our.bowl our.bowl note-id.act notes host-status)  `this
+        ?.  (pin-target-ok note-id.act target.act %message messages artifacts)  `this
+        =/  expect=(unit @uv)  (dm-pin-target note-id.act note-pins)
+        =/  new-pin=note-pin:noltbook  [target.act %message our.bowl now.bowl]
+        =/  peer  (dm-peer-of u.pin-nt our.bowl)
+        ::  one poke, on the SAME wire as %remote-dm-message, so a pin can never
+        ::  overtake the message it targets and PIN->UNPIN stays ordered.
+        =/  peer-cards=(list card)
+          ?~  peer  ~
+          ~[(rpoke /dm-msg/[note-id.act] u.peer `remote:noltbook`[%remote-note-pin `target.act expect])]
+        :_  this(note-pins (~(put by note-pins) note-id.act new-pin))
+        %+  weld
+          (human-note-cards note-id.act our.bowl note-members notes (pin-cards note-id.act `new-pin))
+        peer-cards
       ::  creator-only + host-authoritative; broadcast live to subscribers. Since
       ::  creator == host, a non-creator member just fails here (no forwarding).
       ::  Setting replaces any existing pin for this note.
@@ -11107,6 +11190,24 @@
       (human-note-cards note-id.act our.bowl note-members notes (pin-cards note-id.act `p.res))
     ::
         %clear-note-pin
+      ::  ---- ordinary DM: either participant may clear, whoever set it ----
+      =/  cpin-nt  (~(get by notes) note-id.act)
+      =/  cpin-is-dm=?  ?~(cpin-nt %.n (is-ordinary-dm u.cpin-nt))
+      ?:  cpin-is-dm
+        ?~  cpin-nt  `this                      ::  unreachable; re-narrows
+        ?.  (dm-pin-ok our.bowl our.bowl note-id.act notes host-status)  `this
+        =/  expect=(unit @uv)  (dm-pin-target note-id.act note-pins)
+        ::  nothing pinned (or an artifact pin from malformed state): idempotent no-op,
+        ::  no state change, no fact, and no remote card.
+        ?~  expect  `this
+        =/  peer  (dm-peer-of u.cpin-nt our.bowl)
+        =/  peer-cards=(list card)
+          ?~  peer  ~
+          ~[(rpoke /dm-msg/[note-id.act] u.peer `remote:noltbook`[%remote-note-pin ~ expect])]
+        :_  this(note-pins (~(del by note-pins) note-id.act))
+        %+  weld
+          (human-note-cards note-id.act our.bowl note-members notes (pin-cards note-id.act ~))
+        peer-cards
       =/  res  (apply-clear-pin our.bowl note-id.act notes host-status)
       ?:  ?=(%.n -.res)  `this
       ::  idempotent: if nothing was pinned, no state change and no broadcast.
