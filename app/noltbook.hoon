@@ -9219,6 +9219,11 @@
       ==
     [(give-simple-payload:app:server eyre-id simple-payload) this]
       %noltbook-action
+    ::  SAME-SHIP ONLY: this is the local client protocol. Every handler
+    ::  below acts with our.bowl authority. Cross-ship Noltbook traffic
+    ::  must use %noltbook-remote, which authenticates its sender.
+    ?.  =(src.bowl our.bowl)
+      `this
     =/  act  !<(action:noltbook vase)
     ?-  -.act
         %switch-note
