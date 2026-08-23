@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="nb-build" content="q6erp7h2en">
+<meta name="nb-build" content="a4aqaq1a75">
 <title>NOLTBOOK</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20355.9%20355.9%22%20width=%22355.9%22%20height=%22355.9%22%3E%3Cg%20fill=%22%23ffffff%22%20transform=%22translate(-10.9901536%2036.4439936)%20scale(1.06235712)%22%3E%3Cpolygon%20points=%2266%20159.5%2066%2021.2%20204.3%2021.2%20204.3%2080.8%20204.3%20112.5%20204.3%20159.5%20160.7%20159.5%20160.7%20180.7%20225.5%20180.7%20225.5%20112.5%20225.5%2080.8%20225.5%200%2044.8%200%2044.8%20180.7%20121%20180.7%20121%20159.5%2066%20159.5%22/%3E%3Cpolygon%20points=%22234.7%2085.7%20234.7%20106.9%20289.8%20106.9%20289.8%20245.3%20151.4%20245.3%20151.4%20186.8%20151.4%20180.7%20151.4%20159.5%20151.4%20155.1%20151.4%20106.9%20195%20106.9%20195%2085.7%20130.2%2085.7%20130.2%20151.8%20130.2%20159.5%20130.2%20180.7%20130.2%20183.5%20130.2%20266.4%20310.9%20266.4%20310.9%2085.7%20234.7%2085.7%22/%3E%3C/g%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -5490,7 +5490,10 @@ function xEmbedHtml(handle,id,href){
     +'<div class="x-embed-mount"></div></div>';
 }
 // A raw http(s) token -> HTML. Returns null to fall back to escaped text.
-function renderHttpUrl(tok){
+// solo=true only when this token is the ENTIRE message apart from surrounding whitespace.
+// Every existing classification runs first and is untouched; the probe candidate is the
+// last resort, replacing nothing.
+function renderHttpUrl(tok,solo){
   let url=tok,trail='';
   for(;;){
     const c=url.slice(-1);
@@ -5518,7 +5521,20 @@ function renderHttpUrl(tok){
   if(xm)return xEmbedHtml(xm[1],xm[2],href)+tail;
   const gh=ghClassify(u);
   if(gh)return ghCardHtml(gh,href)+tail;
-  return '<a class="msg-link" href="'+escAttr(href)+'" target="_blank" rel="noopener noreferrer">'+escHtml(url)+'</a>'+tail;
+  const link='<a class="msg-link" href="'+escAttr(href)+'" target="_blank" rel="noopener noreferrer">'+escHtml(url)+'</a>';
+  // Extensionless image candidate. Only a bare URL that is the whole message qualifies --
+  // never one inside prose, inline code, or alongside other text -- and only after every
+  // other classification has declined it. Trailing punctuation disqualifies it too, since
+  // that reads as prose. A proven URL renders as an image immediately on later renders; a
+  // proven failure stays an ordinary link and is never probed again.
+  if(solo&&!trail){
+    const c=_imgProbeCache.get(href);
+    if(c==='ok')return '<div class="inline-img-box" data-href="'+escAttr(href)+'"><img src="'+escAttr(href)+'" alt="" referrerpolicy="no-referrer" decoding="async"></div>';
+    if(c!=='fail'){
+      return '<span class="img-probe" data-img-url="'+escDataAttr(href)+'" data-img-state="waiting">'+link+'</span>';
+    }
+  }
+  return link+tail;
 }
 function renderNoteRef(tok){
   const m=/^~ref\[([^\]|]+)\|([^\]|]+)(?:\|([^\]]*))?\]$/.exec(tok);
@@ -5580,6 +5596,7 @@ function renderMention(tok){
 function renderText(text){
   if(!text)return'';
   const src=String(text);
+  const _solo=src.trim();          // the whole message, minus surrounding whitespace
   let out='',last=0,m;
   MSG_TOKEN_RE.lastIndex=0;
   while((m=MSG_TOKEN_RE.exec(src))!==null){
@@ -5587,7 +5604,7 @@ function renderText(text){
     let piece=null;
     if(g.code!=null)piece='<code class="inline-code">'+escHtml(g.code.slice(1,-1))+'</code>';
     else if(g.dataimg!=null)piece=renderDataImage(g.dataimg);
-    else if(g.url!=null)piece=renderHttpUrl(g.url);
+    else if(g.url!=null)piece=renderHttpUrl(g.url,g.url===_solo);
     else if(g.gnote!=null)piece=renderGnoteRef(g.gnote);
     else if(g.gref!=null)piece=renderGossipRef(g.gref);
     else if(g.appref!=null)piece=renderAppRef(g.appref);
@@ -5922,26 +5939,86 @@ function hydrateGhCard(el){
     ghApplyMeta(el,rec.meta);                // no-ops for a detached container
   }).catch(function(){if(el.isConnected)el.setAttribute('data-gh-state','failed')});
 }
+// ---- extensionless image candidates ----
+// A bare URL that is the whole message and matched nothing else is probed with an Image
+// element: the browser decides whether it is an image by actually decoding it. No fetch,
+// no HEAD, no proxy, no MIME sniffing in JS, and the bytes never touch Noltbook state --
+// only the browser's own image cache. Page-lifetime only; nothing is persisted anywhere.
+const _imgProbeCache=new Map();     // normalised url -> 'ok' | 'fail'
+const _imgProbeInflight=new Map();  // normalised url -> shared promise
+// Resolves with the LOADED Image element on success, or null. Concurrent candidates for
+// the same url share one probe rather than issuing parallel requests.
+function probeImage(url){
+  if(_imgProbeInflight.has(url))return _imgProbeInflight.get(url);
+  const p=new Promise(function(resolve){
+    const img=new Image();
+    img.referrerPolicy='no-referrer';   // do not leak the Noltbook origin to the host
+    img.decoding='async';
+    img.alt='';
+    // deliberately NOT crossOrigin: ordinary display needs no CORS, and requiring it
+    // would make most legitimate images fail.
+    let done=false,timer=null;
+    const finish=function(okv){
+      if(done)return;
+      done=true;
+      if(timer){clearTimeout(timer);timer=null}
+      img.onload=null;img.onerror=null;
+      _imgProbeCache.set(url,okv?'ok':'fail');
+      _imgProbeInflight.delete(url);
+      resolve(okv?img:null);
+    };
+    timer=setTimeout(function(){try{img.src=''}catch(e){}finish(false)},NB_EMBED_TIMEOUT);
+    img.onload=function(){finish(img.naturalWidth>0&&img.naturalHeight>0)};
+    img.onerror=function(){finish(false)};
+    img.src=url;
+  });
+  _imgProbeInflight.set(url,p);
+  return p;
+}
+function hydrateImgProbe(el){
+  if(!el||el.getAttribute('data-img-state')!=='waiting')return;
+  el.setAttribute('data-img-state','loading');
+  const url=el.getAttribute('data-img-url')||'';
+  if(!/^https?:\/\//.test(url)){el.setAttribute('data-img-state','failed');return}
+  probeImage(url).then(function(img){
+    // removed by a rebuild while loading: touch nothing
+    if(!el.isConnected)return;
+    if(!img){el.setAttribute('data-img-state','failed');return}   // link stays, no retry
+    const box=document.createElement('div');
+    box.className='inline-img-box';
+    box.setAttribute('data-href',url);          // keeps the existing error-fallback path
+    // reuse the exact Image that loaded for the FIRST live candidate; a later occurrence
+    // gets a fresh element served from the browser cache, never a second probe.
+    let node=img;
+    if(img.parentNode){
+      node=new Image();
+      node.referrerPolicy='no-referrer';node.decoding='async';node.alt='';node.src=url;
+    }
+    box.appendChild(node);
+    el.replaceWith(box);
+  }).catch(function(){if(el.isConnected)el.setAttribute('data-img-state','failed')});
+}
 // ---- discovery: one observer pair over the Noltbook message roots only ----
 let _embedIO=null,_embedMO=null;
 function embedHydrate(el){
   if(el.classList.contains('x-embed'))hydrateXEmbed(el);
   else if(el.classList.contains('gh-card'))hydrateGhCard(el);
+  else if(el.classList.contains('img-probe'))hydrateImgProbe(el);
 }
 // Removed placeholders must stop being observed, or repeated timeline rebuilds would
 // accumulate detached targets in the shared observer. The observer itself is never
 // disconnected and is never recreated per card or per render.
 function embedUnobserve(n){
   if(!_embedIO||!n)return;
-  if(n.classList&&(n.classList.contains('x-embed')||n.classList.contains('gh-card')))_embedIO.unobserve(n);
+  if(n.classList&&(n.classList.contains('x-embed')||n.classList.contains('gh-card')||n.classList.contains('img-probe')))_embedIO.unobserve(n);
   if(n.querySelectorAll){
-    const list=n.querySelectorAll('.x-embed,.gh-card');
+    const list=n.querySelectorAll('.x-embed,.gh-card,.img-probe');
     for(let i=0;i<list.length;i++)_embedIO.unobserve(list[i]);
   }
 }
 function embedObserve(root){
   if(!root||!_embedIO)return;
-  const list=root.querySelectorAll?root.querySelectorAll('.x-embed[data-x-state="waiting"],.gh-card[data-gh-state="waiting"]'):[];
+  const list=root.querySelectorAll?root.querySelectorAll('.x-embed[data-x-state="waiting"],.gh-card[data-gh-state="waiting"],.img-probe[data-img-state="waiting"]'):[];
   for(let i=0;i<list.length;i++)_embedIO.observe(list[i]);
 }
 function initEmbedManager(){
@@ -5973,7 +6050,7 @@ function initEmbedManager(){
         for(let j=0;j<added.length;j++){
           const n=added[j];
           if(!n||n.nodeType!==1)continue;
-          if(n.classList&&(n.classList.contains('x-embed')||n.classList.contains('gh-card')))_embedIO.observe(n);
+          if(n.classList&&(n.classList.contains('x-embed')||n.classList.contains('gh-card')||n.classList.contains('img-probe')))_embedIO.observe(n);
           embedObserve(n);
         }
       }
