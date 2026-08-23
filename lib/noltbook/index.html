@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="nb-build" content="776ph5m26u">
+<meta name="nb-build" content="0mgje5thia">
 <title>NOLTBOOK</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20355.9%20355.9%22%20width=%22355.9%22%20height=%22355.9%22%3E%3Cg%20fill=%22%23ffffff%22%20transform=%22translate(-10.9901536%2036.4439936)%20scale(1.06235712)%22%3E%3Cpolygon%20points=%2266%20159.5%2066%2021.2%20204.3%2021.2%20204.3%2080.8%20204.3%20112.5%20204.3%20159.5%20160.7%20159.5%20160.7%20180.7%20225.5%20180.7%20225.5%20112.5%20225.5%2080.8%20225.5%200%2044.8%200%2044.8%20180.7%20121%20180.7%20121%20159.5%2066%20159.5%22/%3E%3Cpolygon%20points=%22234.7%2085.7%20234.7%20106.9%20289.8%20106.9%20289.8%20245.3%20151.4%20245.3%20151.4%20186.8%20151.4%20180.7%20151.4%20159.5%20151.4%20155.1%20151.4%20106.9%20195%20106.9%20195%2085.7%20130.2%2085.7%20130.2%20151.8%20130.2%20159.5%20130.2%20180.7%20130.2%20183.5%20130.2%20266.4%20310.9%20266.4%20310.9%2085.7%20234.7%2085.7%22/%3E%3C/g%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -19,6 +19,9 @@
   --border:#222;--border2:#2a2a2a;
   --text:#ddd;--text-dim:#666;--text-muted:#888;
   --font:'IBM Plex Mono',monospace;
+  /* shared bottom inset so the WALLET button, composer row and call controls
+     share one desktop baseline across the three columns */
+  --nb-footer-inset:1.5rem;
 }
 html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg);color:var(--text);overflow:hidden}
 .app{display:flex;flex-direction:column;height:100vh}
@@ -30,7 +33,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .logo:hover{background:var(--bg2)}
 .logo-badge{position:absolute;top:2px;right:-2px;width:8px;height:8px;border-radius:50%;background:#ff4444;display:none}
 .logo.has-notif .logo-badge{display:block}
-.user-info{display:flex;align-items:center;gap:.75rem;margin-right:48px}
+.user-info{display:flex;align-items:center;gap:.75rem;margin-right:16px}
 .ship-name{font-size:1.5rem;cursor:pointer;padding:.2rem .4rem}
 .header-avatar{width:2.2rem;height:2.2rem;border-radius:3px;overflow:hidden;cursor:pointer;background:#000;flex-shrink:0;display:flex;align-items:center;justify-content:center;border:2px solid transparent}
 .header-avatar:hover{border-color:#ffaa00}
@@ -73,6 +76,14 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
   background:var(--bg2);border:1px solid #00ff88;border-right:none;color:#00ff88;
   cursor:pointer;writing-mode:vertical-rl;transition:box-shadow .15s}
 .call-restore.show{display:block}
+/* bio links: Noltbook amber, never browser blue/purple. Green stays reserved for
+   call/payment/positive state. :visited is pinned so it cannot fall back. */
+.bio-link,.bio-link:visited{color:var(--urbit);text-decoration:underline;text-underline-offset:2px}
+.bio-link:hover,.bio-link:focus-visible{color:#ffc44d;text-decoration-thickness:2px}
+/* the tab sits ON the boundary in both states: right:0 puts its edge on the divider
+   line (border-right:none makes them read as one piece). It only covers the divider
+   across its own short vertical band, and dragging the tab now does what the divider
+   does, so nothing is lost there. */
 .call-restore:hover,.call-restore:focus-visible{box-shadow:0 0 10px currentColor;background:rgba(0,255,136,.12)}
 /* the participant-count indicator is a real button */
 .call-indicator{background:transparent;border:none;font-family:var(--font);padding:0}
@@ -122,7 +133,12 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .section-body.open{display:block}
 .note-item{padding:.4rem 1rem;cursor:pointer;display:flex;align-items:flex-start;gap:.3rem;position:relative;border-bottom:1px solid var(--border)}
 .note-item:hover{background:var(--bg2)}
-.note-item.active{background:var(--bg2);border-left:2px solid #ffaa00}
+/* layout-neutral selection bar: an overlay, not a border, so no child moves when a
+   row becomes active. .note-item is already position:relative. */
+.note-item.active{background:var(--bg2)}
+.note-item.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:#ffaa00;pointer-events:none}
+/* inline `code` -- distinct from body text, still compact and not a code block */
+.inline-code{background:#2f2f2f;color:#e6e6e6;padding:.05rem .3rem;border:1px solid #3a3a3a;border-radius:2px;font-size:.95em}
 .note-item.depth-1{padding-left:2rem}
 .note-item.depth-2{padding-left:3rem}
 .note-item.depth-3{padding-left:4rem}
@@ -162,6 +178,11 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
   cursor:pointer;user-select:none;white-space:nowrap}
 .build-badge.stale{color:#ff4444}
 .chat-header{display:flex;align-items:center;justify-content:space-between;padding:0 1rem;height:42px;border-bottom:1px solid var(--border);flex-shrink:0}
+/* name + READ ONLY are ONE header child, so a long name truncates instead of
+   pushing CALL/SHARE out of the row. */
+.chat-note-wrap{display:flex;align-items:baseline;gap:.4rem;min-width:0;overflow:hidden}
+.chat-note-wrap .chat-note-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.read-only-tag{display:none;font-size:.6rem;color:#ff6b6b;letter-spacing:.06em;flex:none;text-decoration:underline;text-underline-offset:2px}
 .chat-note-name{font-size:1.1rem;color:#ffaa00;cursor:pointer;text-decoration:underline;padding:.2rem .4rem}
 .chat-note-name:hover{background:var(--bg2)}
 .share-btn{font-family:var(--font);font-size:.8rem;padding:.25rem .5rem;background:transparent;border:1px solid #ffaa00;color:#ffaa00;cursor:pointer;display:none;min-width:3.2rem;text-align:center;box-sizing:border-box;margin-left:auto}
@@ -190,7 +211,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .search-hit-mark{background:#ffaa00;color:#111;padding:0 .08em;border-radius:2px}
 .msg:hover{background:rgba(255,255,255,.04)}
 .msg.selected{background:rgba(255,255,255,.06)}
-.msg-actions{display:none;flex-direction:column;gap:.25rem;position:absolute;right:1rem;top:1.5rem;background:var(--bg2);padding:.25rem;border:1px solid var(--border);border-radius:3px;z-index:10;min-width:5rem}
+.msg-actions{display:none;flex-direction:column;gap:.25rem;position:fixed;left:0;top:0;max-width:min(92vw,320px);overscroll-behavior:contain;background:var(--bg2);padding:.25rem;border:1px solid var(--border);border-radius:3px;z-index:10;min-width:5rem}
 .msg.show-actions .msg-actions{display:flex}
 .pin-app-name{font-size:1rem;color:var(--text)}
 .pin-art-meta{font-size:.8rem;color:var(--text-dim);flex-shrink:0}
@@ -237,7 +258,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .paste-app-btn{font-family:var(--font);font-size:.68rem;padding:.25rem .55rem;border:1px solid var(--border2);background:transparent;color:var(--text-dim);cursor:pointer;white-space:nowrap}
 .paste-app-btn.primary{border-color:#ffaa00;color:#ffaa00}
 .paste-app-btn:hover{border-color:#ffaa00;color:#ffaa00}
-.chat-input-area{border-top:1px solid var(--border);padding:1rem 1rem 1.5rem;flex-shrink:0;background:var(--bg)}
+.chat-input-area{padding:1rem 1rem var(--nb-footer-inset);flex-shrink:0;background:var(--bg)}
 .chat-input-row{display:flex;align-items:flex-end;gap:.5rem}
 .attach-wrap{position:relative;flex-shrink:0;display:flex}
 .attach-btn{font-family:var(--font);font-size:1rem;line-height:1;padding:.4rem .55rem;background:transparent;border:1px solid var(--border2);color:var(--text-dim);cursor:pointer;display:block;width:100%}
@@ -502,7 +523,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .inline-app-icon{font-size:.9rem}
 .inline-app-name{color:var(--text)}
 /* wallet */
-.wallet-sidebar-btn{font-family:var(--font);font-size:.8rem;color:var(--urbit);background:transparent;border:1px solid var(--urbit);padding:.4rem .9rem;cursor:pointer;letter-spacing:.08em;display:flex;align-items:center;justify-content:center;gap:.3rem;margin:1rem .75rem 1.5rem;flex-shrink:0;white-space:nowrap}
+.wallet-sidebar-btn{font-family:var(--font);font-size:.8rem;color:var(--urbit);background:transparent;border:1px solid var(--urbit);padding:.4rem .9rem;cursor:pointer;letter-spacing:.08em;display:flex;align-items:center;justify-content:center;gap:.3rem;margin:1rem .75rem var(--nb-footer-inset);flex-shrink:0;white-space:nowrap}
 .wallet-sidebar-btn:hover{background:rgba(255,170,0,.1)}
 .wallet-sidebar-panel{display:none;flex-direction:column;border-top:1px solid var(--urbit);flex:1;min-height:0;overflow:hidden}
 .wallet-sidebar-panel.open{display:flex}
@@ -690,7 +711,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 /* the staged tile grows with the rail; fitting rules below are never overridden */
 .call-rail:fullscreen #callMedia .media-tile.staged,
 .call-rail.rail-fs-fallback #callMedia .media-tile.staged{max-height:70vh}
-.call-controls{display:flex;gap:.5rem;padding:.75rem;border-top:1px solid var(--border);flex-shrink:0;justify-content:center}
+.call-controls{display:flex;gap:.5rem;padding:.75rem .75rem var(--nb-footer-inset);border-top:1px solid var(--border);flex-shrink:0;justify-content:center}
 .call-ctrl-btn{font-family:var(--font);font-size:.7rem;padding:.35rem .6rem;background:transparent;cursor:pointer;letter-spacing:.05em;transition:box-shadow .15s}
 /* explicit state classes -- exactly one of .on/.off/.idle is set by syncCallControls() */
 .call-ctrl-btn.on{border:1px solid #00ff88;color:#00ff88}
@@ -749,6 +770,8 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
   .logo-mark{width:112px;height:18.12px}
   .build-badge{margin-left:calc(.3rem + 23.4px)}
   .user-info{margin-right:0;gap:.4rem}
+  /* desktop footer baseline does not apply on a phone */
+  .call-controls{padding:.75rem}
   /* the long ship name is 188px of the 543px desktop header -- the single biggest
      saving. Identity stays reachable through the avatar, whose handler is unchanged. */
   #shipDisplay{display:none}
@@ -955,8 +978,10 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
     </aside>
     <section class="chat">
       <div class="chat-header">
-        <span class="chat-note-name" id="chatNoteName" onclick="openCurrentNoteMenu(event)">Cover</span>
-        <span id="readOnlyBadge" style="display:none;font-size:.6rem;padding:.1rem .4rem;border:1px solid #ff4444;color:#ff4444;letter-spacing:.06em;margin-left:.4rem;vertical-align:middle">READ ONLY</span>
+        <span class="chat-note-wrap">
+          <span class="chat-note-name" id="chatNoteName" onclick="openCurrentNoteMenu(event)">Cover</span>
+          <span id="readOnlyBadge" class="read-only-tag">READ ONLY</span>
+        </span>
         <button class="call-indicator" id="callIndicator" type="button" onclick="toggleCallRail()"
           style="cursor:pointer" title="Show call view" aria-label="Show call view"><span class="call-dot"></span><span id="callParticipantCount">0</span> in call</button>
         <button class="share-btn" id="shareBtn" onclick="openSharePrompt()">SHARE</button>
@@ -5257,9 +5282,34 @@ function showUserDropdown(inputEl,containerEl,onSelect,opts){
   _activeDropdown={dd,update,inputEl};
   return{update,destroy:function(){dd.remove();inputEl.removeEventListener('input',update);inputEl.removeEventListener('keydown',handleKey)}};
 }
-function renderText(text){if(!text)return'';var out=escHtml(text);out=out.replace(/`([^`]+)`/g,'<code style="background:var(--bg3);padding:.1rem .3rem">$1</code>');out=out.replace(/(data:image\/[^\s"]+)/g,function(m){var raw=m.replace(/&amp;/g,'&').replace(/&quot;/g,'"');return '<div class="inline-img-box"><img src="'+raw+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'});out=out.replace(/(https?:\/\/[^\s]+)/g,function(url){var raw=url.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/[.,;:!?\)]+$/,'');if(/\.(png|jpe?g|gif|webp|svg|bmp|ico)(\?[^\s]*)?$/i.test(raw)){return '<div class="inline-img-box"><img src="'+escAttr(raw)+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'}var yt=raw.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/);if(yt){return '<div style="margin:.35rem 0;max-width:480px;aspect-ratio:16/9"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[1]+'" style="width:100%;height:100%;border:1px solid var(--border)" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe></div>'}var tw=raw.match(/(?:twitter\.com|x\.com)\/(\w+)\/status\/(\d+)/);if(tw){return '<div class="tweet-embed" style="margin:.35rem 0;max-width:480px"><blockquote class="twitter-tweet" data-theme="dark" data-conversation="none"><a href="https://twitter.com/'+tw[1]+'/status/'+tw[2]+'"></a></blockquote></div>'}return '<a href="'+escAttr(raw)+'" target="_blank" rel="noopener" style="color:#ffaa00">'+url+'</a>'});out=out.replace(/~ref\[([^\]|]+)\|([^\]|]+)(?:\|([^\]]*))?\]/g,function(m,nid,cr,enc){var name='';if(enc!=null&&enc!==''){try{name=decodeURIComponent(enc)}catch(e){name=enc}}if(!name){var n=state.notes[nid]||state.discoveryNotes[nid];if(n)name=noteDisplayName(n)||n.name||''}if(!name)name='Note Link';return '<span class="note-ref" title="'+escAttr(nid+' · '+cr)+'" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-name">'+escHtml(name)+'</span></span>'});out=out.replace(/~gnote\[([^\]|]+)\|([^\]|]+)\|([^\]|]*)\|([^\]|]*)\|([^\]]*)\]/g,function(m,nid,sharer,en,ed,ei){var nm='';if(en){try{nm=decodeURIComponent(en)}catch(e){nm=en}}if(!nm)nm='Gossip note';return '<span class="note-ref" title="'+escAttr(nid+' gossip from '+sharer)+'" onclick="clickGossipNoteLink(\''+escAttr(nid)+'\',\''+escAttr(sharer)+'\',\''+escAttr(en)+'\',\''+escAttr(ed)+'\',\''+escAttr(ei)+'\')"><span class="note-ref-name">'+escHtml(nm)+'</span></span>'});out=out.replace(/~gref\[([^\]|]+)\|([^\]|]+)\|([^\]|]*)\|([^\]]+)\]/g,function(m,nid,author,eid,mid){if(state.palStatus[author]==='blocked')return '<span style="color:#ff4444;font-size:.8rem">[blocked user ref]</span>';var n=state.notes[nid];var noteName=n?noteDisplayName(n):'gossip note';var authorName=displayName(author);var excerpt='';if(n){var msgs=state.messages[nid]||[];var found=msgs.find(function(msg){if(eid&&getMsgEid(msg)===eid)return true;return String(msg.id)===mid});if(found&&found.text)excerpt=found.text.slice(0,60)}var excerptHtml=excerpt?'<span class="gossip-ref-excerpt">\u2014 '+escHtml(excerpt)+'</span>':'<span class="gossip-ref-unavail">gossip post</span>';return '<span class="gossip-ref" onclick="clickGossipRef(\''+escAttr(nid)+'\',\''+escAttr(author)+'\',\''+escAttr(eid)+'\',\''+escAttr(mid)+'\')"><span class="gossip-ref-author">'+escHtml(authorName)+'</span><span class="gossip-ref-note">in '+escHtml(noteName)+'</span>'+excerptHtml+'</span>'});out=out.replace(/~app\[(~[a-z][a-z0-9-]*)\|%?([a-z][a-z0-9-]*)\|([^\]]*)\]/g,function(m,pub,desk,enc){var nm='';if(enc){try{nm=decodeURIComponent(enc)}catch(e){nm=enc}}var label=nm||('%'+desk);return '<span class="app-ref" title="'+escAttr(pub+'/'+desk)+'" onclick="event.stopPropagation();clickAppRef(\''+escAttr(pub)+'\',\''+escAttr(desk)+'\',\''+escAttr(enc||'')+'\',event)">'+escHtml(label)+'</span>'});out=out.replace(/@(~[a-z][\w-]*)/g,function(m,ship){var canon=normalizeShipCandidate(ship)||(ship===('~'+api.ship)?ship:null);if(!canon){var dn0=displayName(ship);var lbl0=(dn0&&dn0!==ship)?dn0:ship.replace(/^~/,'');return '<span class="msg-mention" style="color:'+shipColor(ship)+';font-weight:500" title="'+escAttr(ship)+'">'+escHtml(lbl0)+'</span>'}var dn=displayName(canon);var label=(dn&&dn!==canon)?dn:canon.replace(/^~/,'');return '<span class="msg-mention" style="color:'+shipColor(canon)+';font-weight:500;cursor:pointer" title="'+escAttr(canon)+'" onclick="event.stopPropagation();clickMention(\''+escAttr(canon)+'\',event)">'+escHtml(label)+'</span>'});return out}
+function renderText(text){if(!text)return'';var out=escHtml(text);out=out.replace(/`([^`]+)`/g,'<code class="inline-code">$1</code>');out=out.replace(/(data:image\/[^\s"]+)/g,function(m){var raw=m.replace(/&amp;/g,'&').replace(/&quot;/g,'"');return '<div class="inline-img-box"><img src="'+raw+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'});out=out.replace(/(https?:\/\/[^\s]+)/g,function(url){var raw=url.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/[.,;:!?\)]+$/,'');if(/\.(png|jpe?g|gif|webp|svg|bmp|ico)(\?[^\s]*)?$/i.test(raw)){return '<div class="inline-img-box"><img src="'+escAttr(raw)+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'}var yt=raw.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/);if(yt){return '<div style="margin:.35rem 0;max-width:480px;aspect-ratio:16/9"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[1]+'" style="width:100%;height:100%;border:1px solid var(--border)" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe></div>'}var tw=raw.match(/(?:twitter\.com|x\.com)\/(\w+)\/status\/(\d+)/);if(tw){return '<div class="tweet-embed" style="margin:.35rem 0;max-width:480px"><blockquote class="twitter-tweet" data-theme="dark" data-conversation="none"><a href="https://twitter.com/'+tw[1]+'/status/'+tw[2]+'"></a></blockquote></div>'}return '<a href="'+escAttr(raw)+'" target="_blank" rel="noopener" style="color:#ffaa00">'+url+'</a>'});out=out.replace(/~ref\[([^\]|]+)\|([^\]|]+)(?:\|([^\]]*))?\]/g,function(m,nid,cr,enc){var name='';if(enc!=null&&enc!==''){try{name=decodeURIComponent(enc)}catch(e){name=enc}}if(!name){var n=state.notes[nid]||state.discoveryNotes[nid];if(n)name=noteDisplayName(n)||n.name||''}if(!name)name='Note Link';return '<span class="note-ref" title="'+escAttr(nid+' · '+cr)+'" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-name">'+escHtml(name)+'</span></span>'});out=out.replace(/~gnote\[([^\]|]+)\|([^\]|]+)\|([^\]|]*)\|([^\]|]*)\|([^\]]*)\]/g,function(m,nid,sharer,en,ed,ei){var nm='';if(en){try{nm=decodeURIComponent(en)}catch(e){nm=en}}if(!nm)nm='Gossip note';return '<span class="note-ref" title="'+escAttr(nid+' gossip from '+sharer)+'" onclick="clickGossipNoteLink(\''+escAttr(nid)+'\',\''+escAttr(sharer)+'\',\''+escAttr(en)+'\',\''+escAttr(ed)+'\',\''+escAttr(ei)+'\')"><span class="note-ref-name">'+escHtml(nm)+'</span></span>'});out=out.replace(/~gref\[([^\]|]+)\|([^\]|]+)\|([^\]|]*)\|([^\]]+)\]/g,function(m,nid,author,eid,mid){if(state.palStatus[author]==='blocked')return '<span style="color:#ff4444;font-size:.8rem">[blocked user ref]</span>';var n=state.notes[nid];var noteName=n?noteDisplayName(n):'gossip note';var authorName=displayName(author);var excerpt='';if(n){var msgs=state.messages[nid]||[];var found=msgs.find(function(msg){if(eid&&getMsgEid(msg)===eid)return true;return String(msg.id)===mid});if(found&&found.text)excerpt=found.text.slice(0,60)}var excerptHtml=excerpt?'<span class="gossip-ref-excerpt">\u2014 '+escHtml(excerpt)+'</span>':'<span class="gossip-ref-unavail">gossip post</span>';return '<span class="gossip-ref" onclick="clickGossipRef(\''+escAttr(nid)+'\',\''+escAttr(author)+'\',\''+escAttr(eid)+'\',\''+escAttr(mid)+'\')"><span class="gossip-ref-author">'+escHtml(authorName)+'</span><span class="gossip-ref-note">in '+escHtml(noteName)+'</span>'+excerptHtml+'</span>'});out=out.replace(/~app\[(~[a-z][a-z0-9-]*)\|%?([a-z][a-z0-9-]*)\|([^\]]*)\]/g,function(m,pub,desk,enc){var nm='';if(enc){try{nm=decodeURIComponent(enc)}catch(e){nm=enc}}var label=nm||('%'+desk);return '<span class="app-ref" title="'+escAttr(pub+'/'+desk)+'" onclick="event.stopPropagation();clickAppRef(\''+escAttr(pub)+'\',\''+escAttr(desk)+'\',\''+escAttr(enc||'')+'\',event)">'+escHtml(label)+'</span>'});out=out.replace(/@(~[a-z][\w-]*)/g,function(m,ship){var canon=normalizeShipCandidate(ship)||(ship===('~'+api.ship)?ship:null);if(!canon){var dn0=displayName(ship);var lbl0=(dn0&&dn0!==ship)?dn0:ship.replace(/^~/,'');return '<span class="msg-mention" style="color:'+shipColor(ship)+';font-weight:500" title="'+escAttr(ship)+'">'+escHtml(lbl0)+'</span>'}var dn=displayName(canon);var label=(dn&&dn!==canon)?dn:canon.replace(/^~/,'');return '<span class="msg-mention" style="color:'+shipColor(canon)+';font-weight:500;cursor:pointer" title="'+escAttr(canon)+'" onclick="event.stopPropagation();clickMention(\''+escAttr(canon)+'\',event)">'+escHtml(label)+'</span>'});return out}
 function openImageFullscreen(url){var o=document.createElement('div');o.id='file-fullscreen';o.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.92);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer';o.innerHTML='<img src="'+url+'" style="max-width:95%;max-height:90vh">';o.onclick=function(){o.remove()};document.body.appendChild(o)}
+// ---- composer single-flight guard ----
+// Acquired BEFORE the first await, so click-then-Enter in the same frame, key repeat,
+// double-click and mobile double-tap all collapse to one submission. Released in finally.
+let _sendLock=false;
+let _sendSeq=0;
+function _setSendBusy(busy){
+  const b=document.querySelector('.send-btn');
+  if(!b)return;
+  b.disabled=!!busy;
+  b.setAttribute('aria-busy',busy?'true':'false');
+}
+// The composer may only be cleared by the submission that still owns it. If the user
+// changed note, retyped, or started a different reply/edit while the poke was in flight,
+// that newer state is theirs and we leave it alone. The poke itself already targets the
+// captured note, so it is never redirected.
+function _composerStillOwned(cap){
+  if(state.currentNoteId!==cap.nid)return false;
+  const cur=document.getElementById('chatInput');
+  if(cur!==cap.input)return false;
+  if(cur.value!==cap.raw)return false;
+  if(state.replyingTo!==cap.replyingTo||state.replyingToEid!==cap.replyingToEid)return false;
+  if(state.editingMsgId!==cap.editingMsgId||state.editingEid!==cap.editingEid)return false;
+  return true;
+}
 async function sendMessage(){
+  if(_sendLock)return;
   const input=document.getElementById('chatInput');const raw=input.value;if(!raw.trim())return;const text=raw.replace(/\s+$/,'');
   const _nid=state.currentNoteId;const _note=state.notes[_nid];
   const _me='~'+api.ship;const _muted=(state.noteMuted[_nid]||[]).includes(_me);
@@ -5268,22 +5318,32 @@ async function sendMessage(){
   const _role=getMyRole(_nid);
   if(_ro&&_role!=='host'&&_role!=='admin')return;
   if(_note&&_note.type==='dm'){const _cp=dmCounterparty(_note);if(_cp&&(state.palStatus[_cp]==='blocked'||state.blockedBy[_cp]))return}
+  const cap={token:++_sendSeq,nid:_nid,input:input,raw:raw,
+             replyingTo:state.replyingTo,replyingToEid:state.replyingToEid,
+             editingMsgId:state.editingMsgId,editingEid:state.editingEid};
+  _sendLock=true;_setSendBusy(true);
+  try{
   if(state.editingMsgId){
     const msgId=state.editingMsgId;
     // P1.3: the backend targets EID-first; send the exact EID captured at edit start.
     const eid=state.editingEid||null;
-    const editData={noteId:state.currentNoteId,msgId,text};
+    const editData={noteId:cap.nid,msgId,text};
     if(eid)editData.eid=eid;
     await api.poke('noltbook','noltbook-action',{action:'edit-message',data:editData});
-    input.value='';resetChatInputHeight();cancelEdit();updateInputMirror();
+    if(_composerStillOwned(cap)){input.value='';resetChatInputHeight();cancelEdit();updateInputMirror()}
     return;
   }
   const data={noteId:_nid,text};if(state.replyingTo)data.replyTo=state.replyingTo;if(state.replyingToEid)data.replyToEid=state.replyingToEid;
   // own send/reply: pin the next render of this note to bottom regardless of
   // which fact path renders it (new-message, message-list, generic scheduleRender).
   ScrollCo.beginOwnAction(_nid);
-  const ok=await api.poke('noltbook','noltbook-action',{action:'send-message',data});if(!ok){ScrollCo.cancelOwnAction(_nid);console.error('[sendMessage] poke failed, retrying after reconnect');if(!api.reconnecting)api.reconnect();return}input.value='';resetChatInputHeight();cancelReply();updateInputMirror()
-  clearPastedAppArtifact();
+  const ok=await api.poke('noltbook','noltbook-action',{action:'send-message',data});if(!ok){ScrollCo.cancelOwnAction(_nid);console.error('[sendMessage] poke failed, retrying after reconnect');if(!api.reconnecting)api.reconnect();return}
+  // success: clear exactly once, and only if this submission still owns the composer
+  if(_composerStillOwned(cap)){
+    input.value='';resetChatInputHeight();cancelReply();updateInputMirror();
+    clearPastedAppArtifact();
+  }
+  }finally{_sendLock=false;_setSendBusy(false)}
 }
 let mentionState={active:false,startPos:0,idx:-1};
 function getMentionQuery(){
@@ -5359,6 +5419,23 @@ function handleInputKey(e){
     if(e.key==='Enter'&&mentionState.idx>=0){e.preventDefault();const el=items[mentionState.idx];const ship=el.dataset.ship;const prof=state.profiles[ship]||{};insertMention({ship,displayName:prof.displayName||''});return}
     if(e.key==='Escape'){e.preventDefault();dd.classList.remove('open');mentionState.active=false;return}
     if(e.key==='Tab'&&items.length>0){e.preventDefault();const el=items[Math.max(0,mentionState.idx)];const ship=el.dataset.ship;const prof=state.profiles[ship]||{};insertMention({ship,displayName:prof.displayName||''});return}
+  }
+  if(e.key==='ArrowUp'&&!e.shiftKey&&!e.ctrlKey&&!e.metaKey&&!e.altKey){
+    const inp=e.target||document.getElementById('chatInput');
+    // exactly empty composer, nothing else already occupying the composer
+    if(inp&&inp.value===''&&!state.editingMsgId&&!state.replyingTo&&!state.replyingToEid){
+      const nid=state.currentNoteId;
+      const msgs=state.messages[nid]||[];
+      let target=null;
+      for(let i=msgs.length-1;i>=0;i--){if(messageCanEdit(msgs[i],nid)){target=msgs[i];break}}
+      if(target){
+        e.preventDefault();                       // only when an edit really opens
+        editMessage(target.id,(target.meta&&target.meta.eid)||null);
+        const ci=document.getElementById('chatInput');
+        if(ci){ci.focus();const L=ci.value.length;try{ci.setSelectionRange(L,L)}catch(_e){}}
+        return;
+      }
+    }
   }
   if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage()}if(e.key==='Escape'){if(state.editingMsgId)cancelEdit();else if(state.replyingTo||state.replyingToEid)cancelReply()}
 }
@@ -5454,17 +5531,41 @@ function startReply(targetId,author,eid){
   document.getElementById('chatInput').focus();
 }
 function cancelReply(){state.replyingTo=null;state.replyingToEid=null;document.getElementById('replyBar').classList.remove('visible')}
+// Single source of truth for "may I edit here?". The EDIT button, editMessage() and
+// the Arrow-Up shortcut all ask this, so they can no longer disagree.
+function noteAllowsEdit(nid){
+  const note=state.notes[nid];
+  const me='~'+api.ship;
+  if((state.noteMuted[nid]||[]).includes(me))return false;
+  const ro=note&&note.writable===false&&note.type==='group';
+  const role=getMyRole(nid);
+  if(ro&&role!=='host'&&role!=='admin')return false;
+  if(note&&note.type==='dm'){
+    const cp=dmCounterparty(note);
+    if(cp&&(state.palStatus[cp]==='blocked'||state.blockedBy[cp]))return false;
+  }
+  return true;
+}
+// Is THIS message an ordinary editable text post of ours? Excludes control/call markers
+// (leading \x01), payment receipts, artifacts/envelopes (no plain text body), tombstones
+// and anything not authored by us.
+function messageCanEdit(msg,nid){
+  if(!msg)return false;
+  if(!noteAllowsEdit(nid))return false;
+  if(msg.author!=='~'+api.ship)return false;
+  if(msg.deleted||msg.tombstoned)return false;
+  const t=msg.text;
+  if(typeof t!=='string'||!t)return false;
+  if(t.charCodeAt(0)===1)return false;            // hidden control/call marker
+  if(isNockSend(t))return false;                  // payment receipt, not a user post
+  if(msg.kind==='artifact'||msg.artifactId||msg.aid)return false;
+  return true;
+}
 function editMessage(msgId,eid){
   cancelReply();
   eid=eid||null;
-  const _nid=state.currentNoteId;const _me='~'+api.ship;
-  const _note=state.notes[_nid];
-  const _muted=(state.noteMuted[_nid]||[]).includes(_me);
-  if(_muted)return;
-  const _ro=_note&&_note.writable===false&&_note.type==='group';
-  const _role=getMyRole(_nid);
-  if(_ro&&_role!=='host'&&_role!=='admin')return;
-  if(_note&&_note.type==='dm'){const _cp=dmCounterparty(_note);if(_cp&&(state.palStatus[_cp]==='blocked'||state.blockedBy[_cp]))return}
+  const _nid=state.currentNoteId;
+  if(!noteAllowsEdit(_nid))return;
   const msgs=state.messages[_nid]||[];
   // P1.3: prefer the exact EID target; fall back to id only when no EID was supplied.
   const msg=eid?msgs.find(m=>m.meta&&m.meta.eid===eid):msgs.find(m=>String(m.id)===String(msgId));
@@ -6838,9 +6939,40 @@ function vpAvatarContent(ship,sc){
   return '<img src="'+escAttr(url)+'" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\'">'+sigil;
 }
 // Bio row markup (stored field is still azimuthAddress — UI label only).
+// Bio linkifier. Deliberately NOT escape-then-regex: we scan the RAW text, then escape
+// each piece for the context it lands in -- ordinary text and the visible label with
+// escHtml, the href with escAttr(escHtml(..)) so & becomes a correct entity. Only
+// http(s) is ever matched, so javascript:/data: can never become an href. Nothing else
+// from renderText() (images, embeds, mentions, refs) is available to a bio.
+const BIO_URL_RE=/https?:\/\/[^\s<>"']+/g;
+function bioHtml(raw){
+  const src=(raw==null?'':String(raw));
+  let out='',last=0,m;
+  BIO_URL_RE.lastIndex=0;
+  while((m=BIO_URL_RE.exec(src))!==null){
+    let url=m[0],trail='';
+    // give back sentence punctuation, and a ')' that closes nothing inside the URL
+    for(;;){
+      const c=url.slice(-1);
+      if('.,;:!?'.indexOf(c)>=0&&c!==''){trail=c+trail;url=url.slice(0,-1);continue}
+      if(c===')'&&(url.split('(').length-1)<(url.split(')').length-1)){trail=c+trail;url=url.slice(0,-1);continue}
+      break;
+    }
+    out+=escHtml(src.slice(last,m.index));
+    if(url){
+      out+='<a class="bio-link" href="'+escAttr(escHtml(url))+'" target="_blank" rel="noopener noreferrer"'
+         +' onclick="event.stopPropagation()">'+escHtml(url)+'</a>'+escHtml(trail);
+    }else{
+      out+=escHtml(m[0]);
+    }
+    last=m.index+m[0].length;
+  }
+  out+=escHtml(src.slice(last));
+  return out.replace(/\n/g,'<br>');
+}
 function vpBioHtml(p){
   if(!p||!p.azimuthAddress)return '';
-  return '<span class="profile-field-label">Bio:</span> <span style="color:var(--text)">'+escHtml(p.azimuthAddress)+'</span>';
+  return '<span class="profile-field-label">Bio:</span> <span style="color:var(--text)">'+bioHtml(p.azimuthAddress)+'</span>';
 }
 // Status strip above the bottom action row. Hidden (so the flex gap collapses with
 // it) unless a lookup is running or failed. 'unreachable' is a real button: click,
@@ -7617,7 +7749,7 @@ function openNoteDetailModal(noteId){
     ${desc}
     ${membersHtml}
     <div style="display:flex;gap:.5rem;justify-content:flex-end;margin-top:.25rem">
-      ${noteCanCopyRef(n)?'<button class="modal-btn" id="ndCopyRef" style="margin-right:auto;font-size:.65rem">COPY NOTE LINK</button>':''}
+      ${noteCanCopyRef(n)?'<button class="modal-btn amber" id="ndCopyRef" style="margin-right:auto">COPY NOTE LINK</button>':''}
       <button class="modal-btn cancel-red" id="ndClose">CLOSE</button>
       ${btnHtml}
     </div>`;
@@ -7881,6 +8013,58 @@ function openGroupMembersModalClick(ship,noteId){
   }
   viewProfile(ship);
 }
+// ONE positioning path for every .msg-actions producer (messages, grouped, artifacts,
+// envelopes/refs, cover/gossip, imports). The menu is position:fixed so the scrolling
+// .chat-messages viewport cannot clip it; it is measured only after it is visible.
+const MSG_ACT_GUTTER=8;
+function positionMsgActions(menu,x,y){
+  if(!menu)return;
+  menu.style.maxHeight='';
+  const r=menu.getBoundingClientRect();          // measured while shown
+  const vw=window.innerWidth,vh=window.innerHeight;
+  const G=MSG_ACT_GUTTER;
+  const below=vh-y-G, above=y-G;
+  let top;
+  if(r.height<=below){                            // prefer below the pointer
+    top=y+2;
+  }else if(r.height<=above){                      // else flip above
+    top=y-r.height-2;
+  }else{                                          // neither fits: take the larger side
+    if(below>=above){top=y+2;menu.style.maxHeight=Math.max(48,below-2)+'px'}
+    else{menu.style.maxHeight=Math.max(48,above-2)+'px';top=G}
+  }
+  const h2=menu.getBoundingClientRect().height;
+  top=Math.max(G,Math.min(top,vh-h2-G));          // never below/outside the viewport
+  let left=Math.max(G,Math.min(x+2,vw-r.width-G));
+  menu.style.left=left+'px';
+  menu.style.top=top+'px';
+}
+function showMsgActionsFor(msg,x,y){
+  bindMsgActionsDismiss();
+  msg.classList.add('show-actions');
+  const menu=msg.querySelector('.msg-actions');
+  if(!menu)return;
+  if(x==null||y==null){                           // keyboard / no pointer: use the row
+    const mr=msg.getBoundingClientRect();
+    x=Math.min(mr.right-24,window.innerWidth-24);y=mr.top+Math.min(24,mr.height/2);
+  }
+  positionMsgActions(menu,x,y);
+}
+function closeAllMsgActions(){
+  document.querySelectorAll('.msg.show-actions').forEach(m=>m.classList.remove('show-actions'));
+}
+// A fixed menu does not travel with the content it belongs to, so scrolling the chat or
+// resizing the window closes it. Bound once; the scroller is looked up each time.
+let _msgActBound=false;
+function bindMsgActionsDismiss(){
+  if(_msgActBound)return;
+  _msgActBound=true;
+  const cm=document.getElementById('chatMessages');
+  if(cm)cm.addEventListener('scroll',closeAllMsgActions,{passive:true});
+  window.addEventListener('resize',closeAllMsgActions,{passive:true});
+  const ps=document.getElementById('pinSurface');
+  if(ps)ps.addEventListener('scroll',closeAllMsgActions,{passive:true});
+}
 function toggleMsgActions(el,force,event){
   const msg=el.closest('.msg');if(!msg)return;
   if(event){
@@ -7888,9 +8072,9 @@ function toggleMsgActions(el,force,event){
     if(t.tagName==='A'||t.tagName==='BUTTON'||t.tagName==='INPUT'||t.tagName==='IFRAME'||t.closest('.msg-actions'))return;
   }
   const isOpen=msg.classList.contains('show-actions');
-  document.querySelectorAll('.msg.show-actions').forEach(m=>m.classList.remove('show-actions'));
+  closeAllMsgActions();
   if(force===false){return}
-  if(!isOpen)msg.classList.add('show-actions');
+  if(!isOpen)showMsgActionsFor(msg,event?event.clientX:null,event?event.clientY:null);
 }
 document.addEventListener('click',(e)=>{
   const m=e.target.closest('.msg');
@@ -7898,8 +8082,8 @@ document.addEventListener('click',(e)=>{
   const t=e.target;
   if(t.closest('.msg-actions')||t.closest('.msg-avatar')||t.tagName==='A'||t.tagName==='BUTTON'||t.tagName==='INPUT'||t.closest('iframe')||t.closest('.msg-author'))return;
   const isOpen=m.classList.contains('show-actions');
-  document.querySelectorAll('.msg.show-actions').forEach(x=>x.classList.remove('show-actions'));
-  if(!isOpen)m.classList.add('show-actions');
+  closeAllMsgActions();
+  if(!isOpen)showMsgActionsFor(m,e.clientX,e.clientY);
 });
 function rebuildDurableNotifications(){
   state.blockNotifications=state.blockNotifications.filter(bn=>bn.type!=='host-deleted-status'&&bn.type!=='removed-status');
@@ -8734,7 +8918,7 @@ function openNoteInfoModal(note){
       <label class="modal-label" style="font-size:.65rem">TITLE</label>
       <input class="modal-input" id="noteInfoTitle" value="${escAttr(note.name)}" ${titleRo} style="font-size:.85rem">
     </div>
-    ${note.type==='gossip'?'<div style="margin-top:-.25rem"><button class="modal-btn" id="noteInfoGossipLink" style="font-size:.65rem;padding:.25rem .5rem">COPY NOTE LINK</button></div>':(noteCanCopyRef(note)?'<div style="margin-top:-.25rem"><button class="modal-btn" id="noteInfoCopyRef" style="font-size:.65rem;padding:.25rem .5rem">COPY NOTE LINK</button></div>':'')}
+    ${note.type==='gossip'?'<div style="margin-top:-.25rem"><button class="modal-btn amber" id="noteInfoGossipLink">COPY NOTE LINK</button></div>':(noteCanCopyRef(note)?'<div style="margin-top:-.25rem"><button class="modal-btn amber" id="noteInfoCopyRef">COPY NOTE LINK</button></div>':'')}
     <div class="modal-field">
       <label class="modal-label" style="font-size:.65rem">DESCRIPTION</label>
       <textarea class="modal-textarea" id="noteInfoDesc" rows="3" placeholder="purpose, rules, intent..." ${descRo} style="font-size:.8rem;resize:vertical;min-height:3rem">${escHtml(descVal)}</textarea>
@@ -10133,8 +10317,15 @@ function placeCallBtn(){
   const btn=document.getElementById('callBtn');
   const rail=document.getElementById('callRail');
   if(!btn||!rail)return;
-  const open=rail.classList.contains('open')&&btn.style.display!=='none';
-  const slot=document.getElementById(open?'callRailSlot':'callBtnSlot');
+  // Once we are IN a call the action button is END, and END belongs to the call column.
+  // It stays in the rail slot even while the view is hidden -- it simply hides with the
+  // rail, and the green CALL VIEW tab is how you get back to it. It must never teleport
+  // into the message header. When we are not joined, the ordinary CALL/join button lives
+  // in the message header exactly as before. Still exactly one #callBtn: appendChild
+  // MOVES the node, it never clones.
+  const joined=!!state.inCall;
+  const useRail=joined&&btn.style.display!=='none';
+  const slot=document.getElementById(useRail?'callRailSlot':'callBtnSlot');
   if(!slot)return;
   if(btn.parentNode!==slot)slot.appendChild(btn);
 }
@@ -11198,10 +11389,10 @@ function updateCallRestoreUI(){
   const nid=state.currentNoteId;
   const relevant=!!state.inCall||!!state.activeCalls[nid];
   if(handle){
-    const show=!open&&relevant;
-    handle.classList.toggle('show',show);
-    const inCall=state.inCall===nid||!!state.inCall;
-    handle.title=inCall?'Show call view':'Show the active call';
+    // the tab stays up in BOTH states now: closed it opens the view, open it hides it.
+    handle.classList.toggle('show',relevant);
+    handle.classList.toggle('rail-open',open);
+    handle.title=open?'Hide call view':'Show call view';
     handle.setAttribute('aria-label',handle.title);
   }
   if(indicator){
@@ -11507,12 +11698,17 @@ window.addEventListener('pagehide',()=>{
   const railStart=(el,fromRestore)=>(e)=>{
     if(e.button!==undefined&&e.button!==0)return;
     e.preventDefault();
-    const inTheater=!fromRestore&&!!_theaterKey;
-    let startW=fromRestore?0:rail.getBoundingClientRect().width;
+    // The tab lives on the boundary in BOTH states. Dragging it while the rail is OPEN
+    // must behave exactly like dragging the divider -- one width algorithm, no second
+    // implementation -- so only a drag from the CLOSED tab uses the restore semantics.
+    const railOpenNow=rail.classList.contains('open');
+    const asDivider=!fromRestore||railOpenNow;
+    const inTheater=asDivider&&!!_theaterKey;
+    let startW=asDivider?rail.getBoundingClientRect().width:0;
     // register BEFORE beginRailLayoutDrag: a superseded-gesture abort resets the scope
     // flags, so it has to happen before this gesture installs its own
     const _tok=beginLayoutGesture(
-      inTheater?'theater-split':(fromRestore?'rail-restore':'main-divider'),el,e.pointerId);
+      inTheater?'theater-split':(asDivider?'main-divider':'rail-restore'),el,e.pointerId);
     let fsExited=false;
     const prevManualW=_theaterManualW;
     if(inTheater){
@@ -11536,9 +11732,9 @@ window.addEventListener('pagehide',()=>{
     }
     // One allocator, distinct ownership. Both main-divider modes may collapse an open
     // Notes/Contacts panel. CHAT and rail-restore gestures never control that panel.
-    beginRailLayoutDrag(inTheater?'theater-main':(fromRestore?'rail':'all'),startW);
-    r={x:e.clientX,w:startW,moved:false,fromRestore:fromRestore,el:el,theater:inTheater,
-       fsExited:fsExited,prevManualW:prevManualW,token:_tok};
+    beginRailLayoutDrag(inTheater?'theater-main':(asDivider?'all':'rail'),startW);
+    r={x:e.clientX,w:startW,moved:false,fromRestore:fromRestore,asDivider:asDivider,
+       el:el,theater:inTheater,fsExited:fsExited,prevManualW:prevManualW,token:_tok};
     try{el.setPointerCapture(e.pointerId)}catch(err){}
     rail.classList.add('dragging');dragChrome(true);
   };
@@ -11548,7 +11744,7 @@ window.addEventListener('pagehide',()=>{
     const dx=e.clientX-r.x;
     if(!r.moved&&Math.abs(dx)<DRAG_SLOP)return;
     r.moved=true;
-    if(r.fromRestore&&!rail.classList.contains('open')){
+    if(!r.asDivider&&!rail.classList.contains('open')){
       rail.classList.add('open');placeCallBtn();updateCallRestoreUI();renderCallRail();
     }
     // one path for both modes: railDragTo allocates, rzApply writes it to whichever
@@ -11560,6 +11756,7 @@ window.addEventListener('pagehide',()=>{
     if(!r)return;
     if(!layoutGestureValid(r.token)){r=null;return}
     const wasDrag=r.moved, el=r.el, fromRestore=r.fromRestore, inTheater=r.theater;
+    const r_asDivider=r.asDivider;
     const r_fsExited=r.fsExited, r_prevManualW=r.prevManualW;
     // retire the record now: this handler may itself close the rail, and the teardown
     // that follows would otherwise abort a gesture that has already finished
@@ -11582,7 +11779,12 @@ window.addEventListener('pagehide',()=>{
       // A short click on the open rail's divider is a NO-OP: a missed grab must not
       // hide the call view. Hiding is a real drag past the threshold, or Enter/Space
       // on the focused separator. The restore handle keeps its click-to-open.
-      if(fromRestore){clearRailWidth();openCallRail()}
+      if(fromRestore){
+        // short click TOGGLES the view. Hiding uses the view-only path: theater is
+        // parked, no poke, no peer/track teardown, media elements untouched.
+        if(rail.classList.contains('open'))closeCallRail({keepTheater:true,reason:'view-toggle'});
+        else{clearRailWidth();openCallRail()}
+      }
       return;
     }
     if(inTheater&&_theaterKey){
@@ -11599,7 +11801,7 @@ window.addEventListener('pagehide',()=>{
       setRailWidth(railDragTo(Math.max(RAIL_MIN,w)));railSettleLayout();
       // drag-opening the rail from its restore handle is a reopen too: unpark, and keep
       // the width the drag chose as the theater split rather than discarding it
-      if(fromRestore&&_theaterParked){
+      if(!r_asDivider&&_theaterParked){
         const _pw=w;
         unparkTheater();
         if(_theaterKey){
@@ -11644,7 +11846,11 @@ window.addEventListener('pagehide',()=>{
     if(e.key==='Enter'||e.key===' '){e.preventDefault();fn()}
   };
   if(sbRestore)sbRestore.addEventListener('keydown',restoreKey(()=>setSidebarCollapsed(false,true)));
-  if(railRestore)railRestore.addEventListener('keydown',restoreKey(()=>openCallRail()));
+  if(railRestore)railRestore.addEventListener('keydown',restoreKey(()=>{
+    const _r=document.getElementById('callRail');
+    if(_r&&_r.classList.contains('open'))closeCallRail({keepTheater:true,reason:'keyboard-hide'});
+    else{clearRailWidth();openCallRail()}
+  }));
   // ---- collapsed chat: click opens at the normal width, click-and-drag sizes it ----
   // The handle sits on the chat/rail boundary, so dragging it RIGHT gives chat room by
   // taking it back from the rail -- the same boundary the call divider drives.
