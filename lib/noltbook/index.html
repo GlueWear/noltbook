@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="nb-build" content="0mgje5thia">
+<meta name="nb-build" content="q6erp7h2en">
 <title>NOLTBOOK</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20355.9%20355.9%22%20width=%22355.9%22%20height=%22355.9%22%3E%3Cg%20fill=%22%23ffffff%22%20transform=%22translate(-10.9901536%2036.4439936)%20scale(1.06235712)%22%3E%3Cpolygon%20points=%2266%20159.5%2066%2021.2%20204.3%2021.2%20204.3%2080.8%20204.3%20112.5%20204.3%20159.5%20160.7%20159.5%20160.7%20180.7%20225.5%20180.7%20225.5%20112.5%20225.5%2080.8%20225.5%200%2044.8%200%2044.8%20180.7%20121%20180.7%20121%20159.5%2066%20159.5%22/%3E%3Cpolygon%20points=%22234.7%2085.7%20234.7%20106.9%20289.8%20106.9%20289.8%20245.3%20151.4%20245.3%20151.4%20186.8%20151.4%20180.7%20151.4%20159.5%20151.4%20155.1%20151.4%20106.9%20195%20106.9%20195%2085.7%20130.2%2085.7%20130.2%20151.8%20130.2%20159.5%20130.2%20180.7%20130.2%20183.5%20130.2%20266.4%20310.9%20266.4%20310.9%2085.7%20234.7%2085.7%22/%3E%3C/g%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -737,6 +737,44 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 /* inline images inside text posts — own stable footprint (smaller than artifact
    cards) so async image loads inside a message don't grow the post height. */
 .inline-img-box{display:block;max-width:360px;height:240px;background:var(--bg2);border:1px solid var(--border);margin:.35rem 0;overflow:hidden;cursor:pointer}
+.msg-link{color:#ffaa00}
+/* X placeholder. The fallback is visible from the moment the message renders and stays
+   visible while the official widget loads; the widget is mounted lazily, only when the
+   card nears the viewport, and the fallback is removed ONLY after createTweet() succeeds.
+   Any failure -- blocked script, timeout, deleted or protected post -- keeps the
+   fallback, so the card is never blank. */
+.x-embed{margin:.35rem 0;max-width:480px;min-width:0}
+.x-embed-fallback{display:flex;align-items:center;gap:.55rem;padding:.55rem .7rem;background:var(--bg2);
+  border:1px solid var(--border2);border-radius:4px;text-decoration:none;color:var(--text)}
+.x-embed-fallback:hover{border-color:var(--urbit)}
+.x-mark{font-size:1.15rem;line-height:1;flex:none}
+.x-fb-body{display:flex;flex-direction:column;min-width:0;flex:1}
+.x-fb-handle{font-size:.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.x-fb-cta{font-size:.6rem;letter-spacing:.08em;color:var(--urbit)}
+.x-fb-dot{width:6px;height:6px;border-radius:50%;background:var(--urbit);flex:none;opacity:.55;
+  animation:nbPulse 1.4s ease-in-out infinite}
+.x-embed[data-x-state="failed"] .x-fb-dot{display:none}
+.x-embed[data-x-state="ready"] .x-embed-mount{margin:0}
+@keyframes nbPulse{0%,100%{opacity:.25}50%{opacity:.85}}
+@media (prefers-reduced-motion:reduce){.x-fb-dot{animation:none;opacity:.5}}
+.gh-card{margin:.35rem 0;max-width:480px;min-width:0}
+.gh-card-link{display:flex;align-items:flex-start;gap:.55rem;padding:.55rem .7rem;background:var(--bg2);
+  border:1px solid var(--border2);border-radius:4px;text-decoration:none;color:var(--text);min-height:3.1rem}
+.gh-card-link:hover{border-color:var(--urbit)}
+.gh-mark{font-size:1rem;line-height:1.2;color:var(--text-muted);flex:none}
+.gh-body{display:flex;flex-direction:column;gap:.15rem;min-width:0;flex:1}
+.gh-title{font-size:.8rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gh-sub{font-size:.7rem;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis}
+.gh-meta{display:flex;flex-wrap:wrap;align-items:center;gap:.3rem;margin-top:.1rem}
+.gh-desc{font-size:.65rem;color:var(--text-dim);width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gh-chip{font-size:.6rem;padding:.05rem .3rem;border:1px solid var(--border2);border-radius:2px;color:var(--text-muted)}
+.gh-chip.gh-warn{border-color:#8a6d3b;color:#c9a227}
+.gh-chip.gh-ok{border-color:#3b7a57;color:#6A9955}
+.gh-chip.gh-state-open{border-color:#3b7a57;color:#6A9955}
+.gh-chip.gh-state-closed{border-color:#8a3b3b;color:#cc4444}
+.gh-chip.gh-state-merged{border-color:#6b4a8a;color:#b088cc}
+.gh-avatar{width:16px;height:16px;border-radius:50%;flex:none}
+.gh-cta{font-size:.6rem;letter-spacing:.08em;color:var(--urbit)}
 .inline-img-box>img{display:block;width:100%;height:100%;object-fit:contain}
 .new-messages-divider{display:flex;align-items:center;gap:.5rem;margin:.6rem .75rem;color:#ffaa00;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase}
 .new-messages-divider>.line{flex:1;height:1px;background:#ffaa00;opacity:.5}
@@ -878,7 +916,6 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
   .app-body>#sidebar,.app-body>.chat,.app-body>#callRail{transition:none}
 }
 </style>
-<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 </head>
 <body>
 <div class="app" data-mview="notes">
@@ -1703,7 +1740,7 @@ const api = {
     console.log('[SSE] replaced, re-subscribed to',oldMeta.length,'paths');
   }
 };
-const state={notes:{},messages:{},artifacts:{},profiles:{},callGens:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,editingEid:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteUnreadActivity:{},noteRead:{},coverPreview:null,notePins:{},pinArtId:null,noteActive:{},appNotifications:{},artifactRefs:{},pendingRedirect:null,pendingDmTransition:null};
+const state={notes:{},messages:{},artifacts:{},profiles:{},callGens:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),manualExpanded:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,editingEid:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteUnreadActivity:{},noteRead:{},coverPreview:null,notePins:{},pinArtId:null,noteActive:{},appNotifications:{},artifactRefs:{},pendingRedirect:null,pendingDmTransition:null};
 // Phase G4 freshness: resolved profiles are fresh for 10 min; negative results
 // (missing/invalid) cool down 5 min; unreachable cools down 2 min. Render cycles
 // poke only when fresh-expired AND past the cooldown (and not in flight).
@@ -1941,6 +1978,7 @@ async function boot(){
   document.getElementById('shipDisplay').style.color=shipColor('~'+ship);
   updateSidebarSigil();
   renderBuildBadge();
+  initEmbedManager();
   loadReadCursors();
   await api.subscribe('noltbook','/notes',handleUpdate);
   api.open();
@@ -2480,7 +2518,7 @@ function handleUpdate(upd){
   if(upd['note-list']){console.log('[note-list]',JSON.stringify(upd['note-list']));mergeNoteListSnapshot(upd['note-list']);rebuildDurableNotifications();updateLogoBadge();scheduleNoteList()}
   else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));const _dmT=state.pendingDmTransition;const _dmHit=!!(_dmT&&_dmT.phase==='waiting-created'&&_dmT.to===n.id);if((state.pendingRedirect&&state.pendingRedirect.to===n.id)||_dmHit){state.notes[n.id]=n;if(!n.localImport)hydrateDmNoteProfile(n);state.pendingRedirect=null;if(_dmHit)dmTransitionClear(_dmT);if(state.currentNoteId===n.id)scheduleRender(n.id);scheduleNoteList();return;}const wasPendingJoin=!!state.pendingJoins[n.id];const wasAcceptedFork=state.acceptingForkRoots.has(n.id);if(wasAcceptedFork)state.acceptingForkRoots.delete(n.id);delete state.pendingJoins[n.id];delete state.removedFromNotes[n.id];state.notes[n.id]=n;if(!n.localImport)hydrateDmNoteProfile(n);if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id)}if(state.pendingWalletMsg&&n.type==='dm'){const pw=state.pendingWalletMsg;if(n.users&&n.users.length===2&&n.users.includes(pw.ship)){api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:n.id,text:pw.text}});state.pendingWalletMsg=null}}if(n.creator==='~'+api.ship){if(n.parent)state.expandedNotes.add(n.parent);openNote(n.id)}else if(wasAcceptedFork){if(state.palsView)switchView('notes');openNote(n.id)}else if(wasPendingJoin){document.querySelectorAll('.profile-flow-modal').forEach(el=>el.remove());state.viewingProfileShip=null;if(state.palsView)switchView('notes');if(n.visibility==='public'){openNote(n.id)}else{state.notifications.add(n.id)}}else if(state.pendingGossipFetch&&state.pendingGossipFetch.nid===n.id){clearTimeout(state.pendingGossipFetch.timer);state.pendingGossipFetch=null;if(state.palsView)switchView('notes');openNote(n.id)}else{if(state.palsView)switchView('notes');state.notifications.add(n.id)}scheduleNoteList()}
   else if(upd['note-renamed']){const{id,name}=upd['note-renamed'];if(state.notes[id]){state.notes[id].name=name;renderNoteList()}if(state.currentNoteId===id)document.getElementById('chatNoteName').textContent=state.notes[id]?noteDisplayName(state.notes[id]):name}
-  else if(upd['note-deleted']){const{id}=upd['note-deleted'];const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];delete state.noteAdmins[id];delete state.noteMuted[id];delete state.notePins[id];delete state.noteActive[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];delete state.attention[id];state.notifications.delete(id);state.notificationAcks.delete(notifAckKey('removed-status',id));state.notificationAcks.delete(notifAckKey('host-deleted-status',id));delete state.noteActivity[id];delete state.noteUnreadActivity[id];delete state.noteRead[id];for(const _e in state.artifactRefs){if(state.artifactRefs[_e].noteId===id)delete state.artifactRefs[_e]}(function(){
+  else if(upd['note-deleted']){const{id}=upd['note-deleted'];const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];state.expandedNotes.delete(id);state.manualExpanded.delete(id);delete state.noteAdmins[id];delete state.noteMuted[id];delete state.notePins[id];delete state.noteActive[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];delete state.attention[id];state.notifications.delete(id);state.notificationAcks.delete(notifAckKey('removed-status',id));state.notificationAcks.delete(notifAckKey('host-deleted-status',id));delete state.noteActivity[id];delete state.noteUnreadActivity[id];delete state.noteRead[id];for(const _e in state.artifactRefs){if(state.artifactRefs[_e].noteId===id)delete state.artifactRefs[_e]}(function(){
     const t=state.pendingDmTransition;
     if(t&&t.from===id&&t.phase==='waiting-delete'){
       if(state.currentNoteId!==id){dmTransitionClear(t);return}   // user moved on; don't hijack
@@ -2719,16 +2757,62 @@ function handleUpdate(upd){
   else if(upd['note-unread-activity']){const d=upd['note-unread-activity'];const cur=state.noteUnreadActivity[d.noteId]||0;if(d.activity>cur)state.noteUnreadActivity[d.noteId]=d.activity;rederiveNoteUnread(d.noteId);scheduleNoteList()}
   else if(upd['note-sidebar-signal']){const{noteId,author,preview,kind,time}=upd['note-sidebar-signal'];if(noteId==='cover'){if(preview!==null)state.coverPreview={author:author,preview:preview};scheduleNoteList()}else{if(preview!==null&&state.notes[noteId]){state.notes[noteId].lastAuthor=author;state.notes[noteId].lastPreview=preview}if(state.currentNoteId===noteId){state.notifications.delete(noteId);markOpenNoteReadSoon(noteId)}else if(author!==('~'+api.ship)){state.notifications.add(noteId)}scheduleNoteList()}}
 }
-function revealNoteInTree(id){
-  // expand ancestors and open the containing section so the note is visible
-  const me='~'+api.ship;
-  let cur=state.notes[id]; if(!cur&&id!=='cover')return;
-  // climb to root, expanding each ancestor
-  let node=cur;
-  while(node&&node.parent){
-    state.expandedNotes.add(node.parent);
-    node=state.notes[node.parent];
+// ===== sidebar expansion: active-branch model =====
+// expandedNotes stays the ONLY set rendering and notification trickling read.
+// manualExpanded records user intent (chevron / double-click) so navigation can tell an
+// expansion the user asked for apart from one we walked past. Both are session-only.
+const NOTE_LINEAGE_MAX=64;
+// [root, ..., id]; [] for anything with no local note (cover, %Rumors, unknown ids).
+// Iterative, visited-guarded and depth-capped, so a malformed cyclic parent chain
+// terminates instead of hanging, and a parent missing locally simply ends the climb --
+// the highest note we can resolve becomes the root.
+function noteLineage(id){
+  const out=[];
+  if(!id||!state.notes[id])return out;
+  const seen=new Set();
+  let cur=id,depth=0;
+  while(cur&&state.notes[cur]&&!seen.has(cur)&&depth<NOTE_LINEAGE_MAX){
+    seen.add(cur);
+    out.unshift(cur);
+    cur=state.notes[cur].parent||null;
+    depth++;
   }
+  return out;
+}
+function noteRootOf(id){
+  const chain=noteLineage(id);
+  return chain.length?chain[0]:null;
+}
+// The one place expansion is decided. Leaving a root DELETES that root's manual entries
+// rather than hiding them, so returning later cannot resurrect a branch the user opened
+// during a previous visit. expandedNotes is then replaced wholesale -- never merged with
+// the previous automatic state -- so nothing can accumulate across a session.
+function reconcileNoteExpansion(prevId,destId){
+  const prevRoot=noteRootOf(prevId);
+  const destRoot=noteRootOf(destId);
+  if(prevRoot&&prevRoot!==destRoot){
+    for(const m of Array.from(state.manualExpanded)){
+      if(noteRootOf(m)===prevRoot)state.manualExpanded.delete(m);
+    }
+  }
+  // housekeeping: entries whose note no longer resolves can never match a root again
+  for(const m of Array.from(state.manualExpanded)){
+    if(!state.notes[m])state.manualExpanded.delete(m);
+  }
+  const next=new Set(noteLineage(destId));      // ancestors + the destination itself
+  if(destRoot){
+    for(const m of state.manualExpanded){
+      if(noteRootOf(m)===destRoot)next.add(m);  // manual work inside the destination tree
+    }
+  }
+  state.expandedNotes=next;                     // atomic swap
+}
+function revealNoteInTree(id){
+  // section-opening only: ancestor expansion is owned by reconcileNoteExpansion()
+  const me='~'+api.ship;
+  if(!state.notes[id]&&id!=='cover')return;
+  const _chain=noteLineage(id);
+  const node=_chain.length?state.notes[_chain[0]]:null;
   // open the section containing the root
   let section='notes';
   if(id==='cover'||id==='ars-rumors')section='ars';
@@ -2817,9 +2901,12 @@ async function openNote(id,opts){
   hideGossipLoading();ScrollCo.stop();cancelPendingRender();state.currentNoteId=id;state.notifications.delete(id);state.lastMsgAuthor=null;
   state._mentionJumpDone=false;
   revealNoteInTree(id);
-  // expand the explicitly-opened note so its children are visible. Notification
-  // state never drives expansion (folders do not auto-open for notifications).
-  if(state.notes[id]){state.expandedNotes.add(id)}
+  // Active-branch expansion: the destination and its ancestors are expanded, the branch
+  // being left is collapsed, and manual expansion survives only inside the destination
+  // root. Notification state never drives expansion. Sits with the currentNoteId claim
+  // above, so expansion and "which note is active" change in one synchronous block; the
+  // existing renderNoteList() later in openNote() is still the only sidebar render.
+  reconcileNoteExpansion(prevNoteId,id);
   if(state.notes[id]&&!state.notes[id].localImport)hydrateDmNoteProfile(state.notes[id]);
   document.getElementById('chatNoteName').textContent=id==='cover'?'Cover':id==='ars-rumors'?'%Rumors':(state.notes[id]?noteDisplayName(state.notes[id]):id);
   document.getElementById('shareBtn').style.display=canShareNote(state.notes[id])?'block':'none';
@@ -3628,8 +3715,10 @@ function expandToNotifications(noteId){
   return true;
 }
 function toggleNoteExpand(id){
-  if(state.expandedNotes.has(id)){state.expandedNotes.delete(id)}
-  else{state.expandedNotes.add(id)}
+  // manual intent is mirrored into manualExpanded so navigation can preserve it inside
+  // the current root; a manual collapse clears it from both.
+  if(state.expandedNotes.has(id)){state.expandedNotes.delete(id);state.manualExpanded.delete(id)}
+  else{state.expandedNotes.add(id);state.manualExpanded.add(id)}
   renderNoteList();
 }
 function toggleSection(name){
@@ -4842,7 +4931,6 @@ function renderMessages(noteId,target){
   // attention observer and ordinary bottom/unread logic can move the viewport
   // or interpret the programmatic jump as reading/clearing an attention item.
   if(applySearchNavigation(noteId)){
-    if(window.twttr&&twttr.widgets)twttr.widgets.load(el);
     return;
   }
   // set up mention observer on every render for current note
@@ -4921,7 +5009,6 @@ function renderMessages(noteId,target){
     if(wasNearBottom&&dividerInfo)markNoteReadTo(noteId,latestMsgOrder(noteId));
     ScrollCo.pin(noteId,'preserve',anchor);
   }
-  if(window.twttr&&twttr.widgets)twttr.widgets.load(el);
   // after layout settles, sweep visible messages and advance the read cursor.
   requestAnimationFrame(markVisibleMessagesRead);
 }
@@ -5282,7 +5369,618 @@ function showUserDropdown(inputEl,containerEl,onSelect,opts){
   _activeDropdown={dd,update,inputEl};
   return{update,destroy:function(){dd.remove();inputEl.removeEventListener('input',update);inputEl.removeEventListener('keydown',handleKey)}};
 }
-function renderText(text){if(!text)return'';var out=escHtml(text);out=out.replace(/`([^`]+)`/g,'<code class="inline-code">$1</code>');out=out.replace(/(data:image\/[^\s"]+)/g,function(m){var raw=m.replace(/&amp;/g,'&').replace(/&quot;/g,'"');return '<div class="inline-img-box"><img src="'+raw+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'});out=out.replace(/(https?:\/\/[^\s]+)/g,function(url){var raw=url.replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/[.,;:!?\)]+$/,'');if(/\.(png|jpe?g|gif|webp|svg|bmp|ico)(\?[^\s]*)?$/i.test(raw)){return '<div class="inline-img-box"><img src="'+escAttr(raw)+'" alt="" ondblclick="openImageFullscreen(this.src)"></div>'}var yt=raw.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/);if(yt){return '<div style="margin:.35rem 0;max-width:480px;aspect-ratio:16/9"><iframe src="https://www.youtube-nocookie.com/embed/'+yt[1]+'" style="width:100%;height:100%;border:1px solid var(--border)" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe></div>'}var tw=raw.match(/(?:twitter\.com|x\.com)\/(\w+)\/status\/(\d+)/);if(tw){return '<div class="tweet-embed" style="margin:.35rem 0;max-width:480px"><blockquote class="twitter-tweet" data-theme="dark" data-conversation="none"><a href="https://twitter.com/'+tw[1]+'/status/'+tw[2]+'"></a></blockquote></div>'}return '<a href="'+escAttr(raw)+'" target="_blank" rel="noopener" style="color:#ffaa00">'+url+'</a>'});out=out.replace(/~ref\[([^\]|]+)\|([^\]|]+)(?:\|([^\]]*))?\]/g,function(m,nid,cr,enc){var name='';if(enc!=null&&enc!==''){try{name=decodeURIComponent(enc)}catch(e){name=enc}}if(!name){var n=state.notes[nid]||state.discoveryNotes[nid];if(n)name=noteDisplayName(n)||n.name||''}if(!name)name='Note Link';return '<span class="note-ref" title="'+escAttr(nid+' · '+cr)+'" onclick="clickNoteRef(\''+escAttr(nid)+'\',\''+escAttr(cr)+'\')"><span class="note-ref-name">'+escHtml(name)+'</span></span>'});out=out.replace(/~gnote\[([^\]|]+)\|([^\]|]+)\|([^\]|]*)\|([^\]|]*)\|([^\]]*)\]/g,function(m,nid,sharer,en,ed,ei){var nm='';if(en){try{nm=decodeURIComponent(en)}catch(e){nm=en}}if(!nm)nm='Gossip note';return '<span class="note-ref" title="'+escAttr(nid+' gossip from '+sharer)+'" onclick="clickGossipNoteLink(\''+escAttr(nid)+'\',\''+escAttr(sharer)+'\',\''+escAttr(en)+'\',\''+escAttr(ed)+'\',\''+escAttr(ei)+'\')"><span class="note-ref-name">'+escHtml(nm)+'</span></span>'});out=out.replace(/~gref\[([^\]|]+)\|([^\]|]+)\|([^\]|]*)\|([^\]]+)\]/g,function(m,nid,author,eid,mid){if(state.palStatus[author]==='blocked')return '<span style="color:#ff4444;font-size:.8rem">[blocked user ref]</span>';var n=state.notes[nid];var noteName=n?noteDisplayName(n):'gossip note';var authorName=displayName(author);var excerpt='';if(n){var msgs=state.messages[nid]||[];var found=msgs.find(function(msg){if(eid&&getMsgEid(msg)===eid)return true;return String(msg.id)===mid});if(found&&found.text)excerpt=found.text.slice(0,60)}var excerptHtml=excerpt?'<span class="gossip-ref-excerpt">\u2014 '+escHtml(excerpt)+'</span>':'<span class="gossip-ref-unavail">gossip post</span>';return '<span class="gossip-ref" onclick="clickGossipRef(\''+escAttr(nid)+'\',\''+escAttr(author)+'\',\''+escAttr(eid)+'\',\''+escAttr(mid)+'\')"><span class="gossip-ref-author">'+escHtml(authorName)+'</span><span class="gossip-ref-note">in '+escHtml(noteName)+'</span>'+excerptHtml+'</span>'});out=out.replace(/~app\[(~[a-z][a-z0-9-]*)\|%?([a-z][a-z0-9-]*)\|([^\]]*)\]/g,function(m,pub,desk,enc){var nm='';if(enc){try{nm=decodeURIComponent(enc)}catch(e){nm=enc}}var label=nm||('%'+desk);return '<span class="app-ref" title="'+escAttr(pub+'/'+desk)+'" onclick="event.stopPropagation();clickAppRef(\''+escAttr(pub)+'\',\''+escAttr(desk)+'\',\''+escAttr(enc||'')+'\',event)">'+escHtml(label)+'</span>'});out=out.replace(/@(~[a-z][\w-]*)/g,function(m,ship){var canon=normalizeShipCandidate(ship)||(ship===('~'+api.ship)?ship:null);if(!canon){var dn0=displayName(ship);var lbl0=(dn0&&dn0!==ship)?dn0:ship.replace(/^~/,'');return '<span class="msg-mention" style="color:'+shipColor(ship)+';font-weight:500" title="'+escAttr(ship)+'">'+escHtml(lbl0)+'</span>'}var dn=displayName(canon);var label=(dn&&dn!==canon)?dn:canon.replace(/^~/,'');return '<span class="msg-mention" style="color:'+shipColor(canon)+';font-weight:500;cursor:pointer" title="'+escAttr(canon)+'" onclick="event.stopPropagation();clickMention(\''+escAttr(canon)+'\',event)">'+escHtml(label)+'</span>'});return out}
+// ===== message text rendering =====
+// SEGMENTED single-pass renderer over the RAW message text. Every token is matched on
+// the original characters; each piece is escaped exactly once for the context it lands
+// in; and no pass ever runs a regex over HTML produced by an earlier pass. This replaces
+// the previous escape-everything-then-partially-unescape chain, under which a crafted
+// data:image value could close the src attribute and introduce an event handler.
+// escDataAttr: FULL attribute escaping for renderer-emitted data-* values. escAttr()
+// only handles quotes, which is fine for a plain attribute but was never sufficient for
+// anything that HTML-decodes into a scripting context. Renderer data attributes use this
+// one; the global escAttr() is deliberately left alone (its other call sites are not
+// audited by this pass). dataset round-trips these values exactly.
+function escDataAttr(v){
+  return String(v)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#39;');
+}
+// Ceiling on the BASE64 PAYLOAD of an inline data: image, measured after DATA_IMG_RE
+// validates the token. This is a RENDERER-SPECIFIC safety limit chosen by this frontend
+// -- it is NOT a message-size invariant. NB_PLUGIN_MAX_PUBLISH_BYTES governs plugin
+// operations, and the agent-side 64.000-byte text check belongs to %import-dm-message,
+// not ordinary %send-message. Neither bounds an ordinary message to 64 KB.
+const NB_DATA_IMG_MAX_B64=65536;
+const DATA_IMG_RE=/^data:image\/(png|jpeg|gif|webp);base64,([A-Za-z0-9+/]+={0,2})$/;
+const IMG_EXT_RE=/\.(png|jpe?g|gif|webp|bmp|ico|svg)$/;
+const TWIMG_FMT=['jpg','jpeg','png','gif','webp'];
+const X_STATUS_RE=/^https?:\/\/(?:www\.)?(?:x|twitter)\.com\/([A-Za-z0-9_]{1,15})\/status\/(\d{1,25})(?:[/?#]|$)/;
+const YT_ID_RE=/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/;
+// One alternation, scanned once. Inline code comes FIRST, so a URL inside backticks is
+// consumed as code and never re-examined as a link.
+const MSG_TOKEN_RE=/(?<code>`[^`]+`)|(?<dataimg>data:image\/[^\s"'<>]+)|(?<url>https?:\/\/[^\s<>"]+)|(?<gnote>~gnote\[[^\]]*\])|(?<gref>~gref\[[^\]]*\])|(?<appref>~app\[[^\]]*\])|(?<noteref>~ref\[[^\]]*\])|(?<mention>@~[a-z][\w-]*)/g;
+// Strict data: image. Only these four types, only base64, only base64 characters with
+// valid terminal padding, bounded length. SVG/HTML/XML, extra parameters, whitespace,
+// quotes and control characters all fail here and fall through to escaped text.
+function renderDataImage(tok){
+  const m=DATA_IMG_RE.exec(tok);
+  if(!m)return null;
+  const b64=m[2];
+  if(b64.length>NB_DATA_IMG_MAX_B64)return null;   // measure the payload, not the token
+  if(b64.length%4!==0)return null;
+  return '<div class="inline-img-box"><img src="'+escAttr(tok)+'" alt=""></div>';
+}
+// Conservative image classification. Tier 1 keys on the PATHNAME, so query strings,
+// fragments, uppercase extensions and signed URLs all work while /jpg-guide and
+// /picture.jpg.html correctly stay links. Tier 2 is one narrowly verified CDN shape --
+// deliberately not a heuristic list. Nothing is ever probed with HEAD or fetch.
+function imageTier(u){
+  if(IMG_EXT_RE.test(u.pathname.toLowerCase()))return 1;
+  if(u.host==='pbs.twimg.com'&&u.pathname.indexOf('/media/')===0){
+    let f='';
+    try{f=(u.searchParams.get('format')||'').toLowerCase()}catch(e){f=''}
+    if(TWIMG_FMT.indexOf(f)>=0)return 2;
+  }
+  return 0;
+}
+// GitHub URL classification. Host must match EXACTLY, so github.com.evil.example and any
+// Enterprise host fall through to an ordinary link. Only the five documented shapes are
+// recognised; blobs, trees, compare, actions, discussions, gists etc. stay links.
+const GH_OWNER_RE=/^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
+const GH_REPO_RE=/^[A-Za-z0-9._-]{1,100}$/;
+const GH_NUM_RE=/^\d{1,10}$/;
+const GH_SHA_RE=/^[0-9a-fA-F]{7,40}$/;
+function ghClassify(u){
+  if(u.protocol!=='https:')return null;
+  if(u.host!=='github.com'&&u.host!=='www.github.com')return null;
+  // Split WITHOUT collapsing empties: '/o//r' must not be read as the repo 'o/r', or the
+  // card would describe (and fetch metadata for) a resource the link does not point at.
+  // One optional trailing slash is allowed; any other empty segment is ambiguous.
+  const raw=u.pathname.split('/');
+  if(raw[0]!=='')return null;
+  let seg=raw.slice(1);
+  if(seg.length&&seg[seg.length-1]==='')seg=seg.slice(0,-1);
+  for(let i=0;i<seg.length;i++)if(seg[i]==='')return null;
+  if(seg.length<2)return null;
+  const owner=seg[0],repo=seg[1];
+  if(!GH_OWNER_RE.test(owner)||!GH_REPO_RE.test(repo))return null;
+  if(seg.length===2)return{kind:'repo',owner:owner,repo:repo,ref:''};
+  if(seg.length===4&&seg[2]==='issues'&&GH_NUM_RE.test(seg[3]))return{kind:'issue',owner:owner,repo:repo,ref:seg[3]};
+  if(seg.length===4&&seg[2]==='pull'&&GH_NUM_RE.test(seg[3]))return{kind:'pull',owner:owner,repo:repo,ref:seg[3]};
+  if(seg.length===4&&seg[2]==='commit'&&GH_SHA_RE.test(seg[3]))return{kind:'commit',owner:owner,repo:repo,ref:seg[3]};
+  if(seg.length===5&&seg[2]==='releases'&&seg[3]==='tag'&&seg[4].length<=128)return{kind:'release',owner:owner,repo:repo,ref:seg[4]};
+  return null;
+}
+const GH_KIND_LABEL={repo:'Repository',issue:'Issue',pull:'Pull request',commit:'Commit',release:'Release'};
+function ghSubLabel(c){
+  if(c.kind==='issue'||c.kind==='pull')return GH_KIND_LABEL[c.kind]+' #'+c.ref;
+  if(c.kind==='commit')return 'Commit '+c.ref.slice(0,7);
+  if(c.kind==='release'){var t=c.ref;try{t=decodeURIComponent(c.ref)}catch(e){}return 'Release '+t}
+  return GH_KIND_LABEL[c.kind];
+}
+// Complete, self-contained fallback card built only from the URL. It already looks
+// intentional before any metadata arrives; hydration only adds to it.
+function ghCardHtml(c,href){
+  return '<div class="gh-card" data-gh-kind="'+escDataAttr(c.kind)+'" data-gh-owner="'+escDataAttr(c.owner)
+    +'" data-gh-repo="'+escDataAttr(c.repo)+'" data-gh-ref="'+escDataAttr(c.ref)+'" data-gh-url="'+escDataAttr(href)
+    +'" data-gh-state="waiting">'
+    +'<a class="gh-card-link" href="'+escAttr(href)+'" target="_blank" rel="noopener noreferrer">'
+    +'<span class="gh-mark" aria-hidden="true">&#9670;</span>'
+    +'<span class="gh-body">'
+    +'<span class="gh-title">'+escHtml(c.owner+'/'+c.repo)+'</span>'
+    +'<span class="gh-sub">'+escHtml(ghSubLabel(c))+'</span>'
+    +'<span class="gh-meta"></span>'
+    +'<span class="gh-cta">VIEW ON GITHUB</span>'
+    +'</span></a></div>';
+}
+// X placeholder: a visible clickable fallback at all times, plus an empty mount where
+// the official widget may insert its iframe. No blockquote, no inline handler, no
+// script reference -- hydration is driven entirely by the embed manager.
+function xEmbedHtml(handle,id,href){
+  return '<div class="x-embed" data-x-id="'+escDataAttr(id)+'" data-x-url="'+escDataAttr(href)
+    +'" data-x-handle="'+escDataAttr(handle)+'" data-x-state="waiting">'
+    +'<a class="x-embed-fallback" href="'+escAttr(href)+'" target="_blank" rel="noopener noreferrer">'
+    +'<span class="x-mark" aria-hidden="true">&#120143;</span>'
+    +'<span class="x-fb-body"><span class="x-fb-handle">@'+escHtml(handle)+'</span>'
+    +'<span class="x-fb-cta">OPEN ON X</span></span>'
+    +'<span class="x-fb-dot" aria-hidden="true"></span></a>'
+    +'<div class="x-embed-mount"></div></div>';
+}
+// A raw http(s) token -> HTML. Returns null to fall back to escaped text.
+function renderHttpUrl(tok){
+  let url=tok,trail='';
+  for(;;){
+    const c=url.slice(-1);
+    if(c&&'.,;:!?'.indexOf(c)>=0){trail=c+trail;url=url.slice(0,-1);continue}
+    if(c===')'&&(url.split('(').length-1)<(url.split(')').length-1)){trail=c+trail;url=url.slice(0,-1);continue}
+    break;
+  }
+  if(!url)return null;
+  let u;
+  try{u=new URL(url)}catch(e){return null}
+  if(u.protocol!=='http:'&&u.protocol!=='https:')return null;
+  // normalised form: new URL percent-encodes quotes, angle brackets, backslashes and
+  // control characters, so nothing structural survives into an attribute.
+  const href=u.href;
+  const tail=trail?escHtml(trail):'';
+  if(imageTier(u)){
+    return '<div class="inline-img-box" data-href="'+escAttr(href)+'"><img src="'+escAttr(href)
+      +'" alt=""></div>'+tail;
+  }
+  const yt=href.match(YT_ID_RE);
+  if(yt){
+    return '<div style="margin:.35rem 0;max-width:480px;aspect-ratio:16/9"><iframe src="https://www.youtube-nocookie.com/embed/'+escAttr(yt[1])+'" style="width:100%;height:100%;border:1px solid var(--border)" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe></div>'+tail;
+  }
+  const xm=href.match(X_STATUS_RE);
+  if(xm)return xEmbedHtml(xm[1],xm[2],href)+tail;
+  const gh=ghClassify(u);
+  if(gh)return ghCardHtml(gh,href)+tail;
+  return '<a class="msg-link" href="'+escAttr(href)+'" target="_blank" rel="noopener noreferrer">'+escHtml(url)+'</a>'+tail;
+}
+function renderNoteRef(tok){
+  const m=/^~ref\[([^\]|]+)\|([^\]|]+)(?:\|([^\]]*))?\]$/.exec(tok);
+  if(!m)return null;
+  const nid=m[1],cr=m[2],enc=m[3];
+  var name='';
+  if(enc!=null&&enc!==''){try{name=decodeURIComponent(enc)}catch(e){name=enc}}
+  if(!name){var n=state.notes[nid]||state.discoveryNotes[nid];if(n)name=noteDisplayName(n)||n.name||''}
+  if(!name)name='Note Link';
+  return '<span class="note-ref" data-msg-action="note-ref" data-nid="'+escDataAttr(nid)+'" data-creator="'+escDataAttr(cr)+'" title="'+escDataAttr(nid+' · '+cr)+'"><span class="note-ref-name">'+escHtml(name)+'</span></span>';
+}
+function renderGnoteRef(tok){
+  const m=/^~gnote\[([^\]|]+)\|([^\]|]+)\|([^\]|]*)\|([^\]|]*)\|([^\]]*)\]$/.exec(tok);
+  if(!m)return null;
+  const nid=m[1],sharer=m[2],en=m[3],ed=m[4],ei=m[5];
+  var nm='';
+  if(en){try{nm=decodeURIComponent(en)}catch(e){nm=en}}
+  if(!nm)nm='Gossip note';
+  return '<span class="note-ref" data-msg-action="gossip-note-ref" data-nid="'+escDataAttr(nid)+'" data-sharer="'+escDataAttr(sharer)+'" data-enc-name="'+escDataAttr(en)+'" data-enc-desc="'+escDataAttr(ed)+'" data-enc-icon="'+escDataAttr(ei)+'" title="'+escDataAttr(nid+' gossip from '+sharer)+'"><span class="note-ref-name">'+escHtml(nm)+'</span></span>';
+}
+function renderGossipRef(tok){
+  const m=/^~gref\[([^\]|]+)\|([^\]|]+)\|([^\]|]*)\|([^\]]+)\]$/.exec(tok);
+  if(!m)return null;
+  const nid=m[1],author=m[2],eid=m[3],mid=m[4];
+  if(state.palStatus[author]==='blocked')return '<span style="color:#ff4444;font-size:.8rem">[blocked user ref]</span>';
+  var n=state.notes[nid];
+  var noteName=n?noteDisplayName(n):'gossip note';
+  var authorName=displayName(author);
+  var excerpt='';
+  if(n){
+    var msgs=state.messages[nid]||[];
+    var found=msgs.find(function(msg){if(eid&&getMsgEid(msg)===eid)return true;return String(msg.id)===mid});
+    if(found&&found.text)excerpt=found.text.slice(0,60);
+  }
+  var excerptHtml=excerpt?'<span class="gossip-ref-excerpt">— '+escHtml(excerpt)+'</span>':'<span class="gossip-ref-unavail">gossip post</span>';
+  return '<span class="gossip-ref" data-msg-action="gossip-post-ref" data-nid="'+escDataAttr(nid)+'" data-author="'+escDataAttr(author)+'" data-eid="'+escDataAttr(eid)+'" data-mid="'+escDataAttr(mid)+'"><span class="gossip-ref-author">'+escHtml(authorName)+'</span><span class="gossip-ref-note">in '+escHtml(noteName)+'</span>'+excerptHtml+'</span>';
+}
+function renderAppRef(tok){
+  const m=/^~app\[(~[a-z][a-z0-9-]*)\|%?([a-z][a-z0-9-]*)\|([^\]]*)\]$/.exec(tok);
+  if(!m)return null;
+  const pub=m[1],desk=m[2],enc=m[3];
+  var nm='';
+  if(enc){try{nm=decodeURIComponent(enc)}catch(e){nm=enc}}
+  var label=nm||('%'+desk);
+  return '<span class="app-ref" data-msg-action="app-ref" data-pub="'+escDataAttr(pub)+'" data-desk="'+escDataAttr(desk)+'" data-enc-name="'+escDataAttr(enc||'')+'" title="'+escDataAttr(pub+'/'+desk)+'">'+escHtml(label)+'</span>';
+}
+function renderMention(tok){
+  const ship=tok.slice(1);
+  var canon=normalizeShipCandidate(ship)||(ship===('~'+api.ship)?ship:null);
+  if(!canon){
+    var dn0=displayName(ship);
+    var lbl0=(dn0&&dn0!==ship)?dn0:ship.replace(/^~/,'');
+    return '<span class="msg-mention" style="color:'+shipColor(ship)+';font-weight:500" title="'+escAttr(ship)+'">'+escHtml(lbl0)+'</span>';
+  }
+  var dn=displayName(canon);
+  var label=(dn&&dn!==canon)?dn:canon.replace(/^~/,'');
+  return '<span class="msg-mention" style="color:'+shipColor(canon)+';font-weight:500;cursor:pointer" data-msg-action="mention" data-ship="'+escDataAttr(canon)+'" title="'+escDataAttr(canon)+'">'+escHtml(label)+'</span>';
+}
+function renderText(text){
+  if(!text)return'';
+  const src=String(text);
+  let out='',last=0,m;
+  MSG_TOKEN_RE.lastIndex=0;
+  while((m=MSG_TOKEN_RE.exec(src))!==null){
+    const g=m.groups;
+    let piece=null;
+    if(g.code!=null)piece='<code class="inline-code">'+escHtml(g.code.slice(1,-1))+'</code>';
+    else if(g.dataimg!=null)piece=renderDataImage(g.dataimg);
+    else if(g.url!=null)piece=renderHttpUrl(g.url);
+    else if(g.gnote!=null)piece=renderGnoteRef(g.gnote);
+    else if(g.gref!=null)piece=renderGossipRef(g.gref);
+    else if(g.appref!=null)piece=renderAppRef(g.appref);
+    else if(g.noteref!=null)piece=renderNoteRef(g.noteref);
+    else if(g.mention!=null)piece=renderMention(g.mention);
+    out+=escHtml(src.slice(last,m.index));
+    out+=(piece==null?escHtml(m[0]):piece);   // unrecognised token stays inert text
+    last=m.index+m[0].length;
+  }
+  out+=escHtml(src.slice(last));
+  return out;
+}
+// ONE delegated click listener for every interactive token the renderer emits. Values
+// live in data-* attributes and are read through dataset -- they are never compiled as
+// JavaScript, which is what the previous inline onclick= form did. Registered once at
+// module scope, so rerendering can never accumulate duplicate listeners.
+// Capture phase on document: app-ref and mention previously called stopPropagation()
+// from their inline handler, which prevented the document-level msg-actions toggle from
+// seeing the click. Stopping here reproduces that exactly; the other actions do not
+// stop, so the message-actions behaviour they had is unchanged.
+document.addEventListener('click',function(e){
+  const t=e.target;
+  if(!t||!t.closest)return;
+  const el=t.closest('[data-msg-action]');
+  if(!el)return;
+  const d=el.dataset;
+  switch(d.msgAction){
+    case 'note-ref':
+      clickNoteRef(d.nid,d.creator);
+      break;
+    case 'gossip-note-ref':
+      clickGossipNoteLink(d.nid,d.sharer,d.encName,d.encDesc,d.encIcon);
+      break;
+    case 'gossip-post-ref':
+      clickGossipRef(d.nid,d.author,d.eid,d.mid);
+      break;
+    case 'app-ref':
+      e.stopPropagation();
+      clickAppRef(d.pub,d.desk,d.encName,e);
+      break;
+    case 'mention':
+      e.stopPropagation();
+      clickMention(d.ship,e);
+      break;
+    default:
+      return;
+  }
+},true);
+// Delegated fullscreen for inline image previews, replacing the former
+// ondblclick="openImageFullscreen(this.src)". Reads the browser-normalised img.src, so
+// no renderer value is ever placed in a scripting context.
+document.addEventListener('dblclick',function(e){
+  const img=e.target;
+  if(!img||img.tagName!=='IMG'||!img.closest)return;
+  if(!img.closest('.inline-img-box'))return;
+  openImageFullscreen(img.src);
+});
+// Delegated, capture-phase (load errors do not bubble). A failed HTTP(S) preview is
+// replaced by the ordinary amber link built with DOM APIs -- no user text ever enters
+// an inline handler -- so the fixed-height box leaves no gap. A validated data: image
+// has no external URL to fall back to, so its box is simply removed. Fires once per
+// element; nothing retries.
+document.addEventListener('error',function(e){
+  const img=e.target;
+  if(!img||img.tagName!=='IMG')return;
+  const box=img.closest&&img.closest('.inline-img-box');
+  if(!box)return;
+  const href=box.getAttribute('data-href');
+  if(href){
+    const a=document.createElement('a');
+    a.className='msg-link';
+    a.href=href;
+    a.textContent=href;
+    a.target='_blank';
+    a.rel='noopener noreferrer';
+    box.replaceWith(a);
+  }else{
+    box.remove();
+  }
+},true);
+// ===== embed manager: X posts and GitHub cards =====
+// One manager discovers .x-embed and .gh-card placeholders inside the Noltbook message
+// roots and hydrates them when they approach the viewport. Nothing here runs at boot:
+// no X script is fetched and no GitHub request is made until a card is actually near
+// view. Every path is bounded -- one script per page, one request per resource, one
+// timeout per card, and no retry loop anywhere.
+const NB_EMBED_MARGIN='300px';
+const NB_EMBED_TIMEOUT=9000;
+// The official widgets script. docs.x.com/x-for-websites/embedded-posts still documents
+// platform.twitter.com/widgets.js as the factory bundle that defines twttr.widgets;
+// x.com serves no separate equivalent bundle, so this is the supported URL.
+const NB_X_SCRIPT='https://platform.twitter.com/widgets.js';
+let _xScriptPromise=null;
+// Singleton loader. Injects at most ONE script per page lifetime, resolves only when
+// twttr.widgets.createTweet is actually callable, and rejects once on error or timeout.
+// No polling, no retry timer.
+function loadXWidgets(){
+  if(_xScriptPromise)return _xScriptPromise;
+  _xScriptPromise=new Promise(function(resolve,reject){
+    if(window.twttr&&window.twttr.widgets&&window.twttr.widgets.createTweet){resolve(window.twttr);return}
+    let settled=false;
+    const done=function(fn,v){if(settled)return;settled=true;fn(v)};
+    const timer=setTimeout(function(){done(reject,new Error('x-widgets-timeout'))},NB_EMBED_TIMEOUT);
+    const finish=function(){
+      const t=window.twttr;
+      if(t&&t.widgets&&t.widgets.createTweet){clearTimeout(timer);done(resolve,t)}
+      else{clearTimeout(timer);done(reject,new Error('x-widgets-unavailable'))}
+    };
+    const s=document.createElement('script');
+    s.async=true;
+    s.charset='utf-8';
+    s.src=NB_X_SCRIPT;
+    s.onerror=function(){clearTimeout(timer);done(reject,new Error('x-widgets-blocked'))};
+    s.onload=function(){
+      const t=window.twttr;
+      if(t&&typeof t.ready==='function')t.ready(finish);
+      else finish();
+    };
+    (document.head||document.body||document.documentElement).appendChild(s);
+  });
+  return _xScriptPromise;
+}
+function embedFail(el){
+  if(!el||!el.isConnected)return;
+  el.setAttribute('data-x-state','failed');
+  const mount=el.querySelector('.x-embed-mount');
+  if(mount)mount.remove();
+}
+// Hydrate ONE placeholder. Guarded by data-x-state so repeated observer callbacks,
+// re-observation and rerenders can never create a second embed in the same container.
+function hydrateXEmbed(el){
+  if(!el||el.getAttribute('data-x-state')!=='waiting')return;
+  el.setAttribute('data-x-state','loading');
+  const id=el.getAttribute('data-x-id')||'';
+  if(!/^\d{1,25}$/.test(id)){embedFail(el);return}
+  const mount=el.querySelector('.x-embed-mount');
+  if(!mount){embedFail(el);return}
+  let settled=false;
+  const fail=function(){if(settled)return;settled=true;embedFail(el)};
+  const timer=setTimeout(fail,NB_EMBED_TIMEOUT);
+  loadXWidgets().then(function(twttr){
+    // the container may have been torn out by a full rerender while the script loaded
+    if(settled||!el.isConnected){clearTimeout(timer);return}
+    const width=Math.max(220,Math.min(480,(el.clientWidth||480)));
+    return twttr.widgets.createTweet(id,mount,{theme:'dark',conversation:'none',dnt:true,width:width});
+  }).then(function(node){
+    clearTimeout(timer);
+    // a late completion, a detached container, or a post X could not render
+    if(settled||!el.isConnected||!node){fail();return}
+    settled=true;
+    el.setAttribute('data-x-state','ready');
+    const fb=el.querySelector('.x-embed-fallback');
+    if(fb)fb.remove();
+  }).catch(function(){clearTimeout(timer);fail()});
+}
+// ---- GitHub ----
+const GH_API='https://api.github.com';
+const GH_ACCEPT='application/vnd.github+json';
+const GH_API_VERSION='2022-11-28';
+const GH_AVATAR_HOSTS=['avatars.githubusercontent.com'];
+// resource key -> {ok:true,meta} on success, or GH_FAIL on a TERMINAL failure. Both are
+// cached, so a resource whose request was actually ATTEMPTED is never requested again for
+// the page lifetime -- a rebuilt timeline re-reads the cache instead of refetching. Only
+// requests that were never attempted (suppressed by the global rate gate) stay uncached.
+const GH_FAIL=Object.freeze({ok:false});
+const _ghCache=new Map();
+const _ghInflight=new Map();  // resource key -> shared promise
+let _ghBlockedUntil=0;        // rate-limit gate; no request is issued before this
+function ghKey(c){return c.kind+':'+c.owner+'/'+c.repo+(c.ref?'#'+c.ref:'')}
+function ghEndpoint(c){
+  const base=GH_API+'/repos/'+encodeURIComponent(c.owner)+'/'+encodeURIComponent(c.repo);
+  if(c.kind==='repo')return base;
+  if(c.kind==='issue')return base+'/issues/'+encodeURIComponent(c.ref);
+  if(c.kind==='pull')return base+'/pulls/'+encodeURIComponent(c.ref);
+  if(c.kind==='commit')return base+'/commits/'+encodeURIComponent(c.ref);
+  if(c.kind==='release'){
+    let t=c.ref;try{t=decodeURIComponent(c.ref)}catch(e){}
+    return base+'/releases/tags/'+encodeURIComponent(t);
+  }
+  return null;
+}
+// Only GitHub-owned https avatars are ever assigned to an <img>.
+function ghSafeAvatar(v){
+  if(typeof v!=='string')return null;
+  let u;try{u=new URL(v)}catch(e){return null}
+  if(u.protocol!=='https:')return null;
+  if(GH_AVATAR_HOSTS.indexOf(u.host)<0)return null;
+  return u.href;
+}
+function ghStr(v,max){return (typeof v==='string')?v.slice(0,max||300):''}
+function ghNum(v){return (typeof v==='number'&&isFinite(v))?v:null}
+// Normalise the API response down to the small set of fields the cards display.
+// Nothing else is retained, and no HTML or Markdown body is ever kept.
+function ghNormalise(kind,j){
+  if(!j||typeof j!=='object')return null;
+  if(kind==='repo')return{kind:kind,name:ghStr(j.full_name,140),desc:ghStr(j.description,200),
+    lang:ghStr(j.language,40),stars:ghNum(j.stargazers_count),forks:ghNum(j.forks_count),
+    archived:j.archived===true,avatar:ghSafeAvatar(j.owner&&j.owner.avatar_url)};
+  if(kind==='issue')return{kind:kind,title:ghStr(j.title,200),num:ghNum(j.number),
+    state:ghStr(j.state,20),comments:ghNum(j.comments),login:ghStr(j.user&&j.user.login,60),
+    avatar:ghSafeAvatar(j.user&&j.user.avatar_url),
+    labels:Array.isArray(j.labels)?j.labels.slice(0,3).map(function(l){return ghStr(l&&l.name,30)}).filter(Boolean):[]};
+  if(kind==='pull')return{kind:kind,title:ghStr(j.title,200),num:ghNum(j.number),
+    state:j.merged_at?'merged':(j.draft===true?'draft':ghStr(j.state,20)),
+    comments:ghNum(j.comments),login:ghStr(j.user&&j.user.login,60),
+    avatar:ghSafeAvatar(j.user&&j.user.avatar_url),
+    head:ghStr(j.head&&j.head.ref,80),base:ghStr(j.base&&j.base.ref,80)};
+  if(kind==='commit'){
+    const cm=j.commit||{};
+    return{kind:kind,sha:ghStr(j.sha,40).slice(0,7),
+      msg:ghStr(cm.message,200).split('\n')[0],
+      login:ghStr((j.author&&j.author.login)||(cm.author&&cm.author.name),60),
+      date:ghStr(cm.author&&cm.author.date,40),
+      verified:!!(cm.verification&&cm.verification.verified)};
+  }
+  if(kind==='release')return{kind:kind,title:ghStr(j.name||j.tag_name,140),tag:ghStr(j.tag_name,140),
+    login:ghStr(j.author&&j.author.login,60),date:ghStr(j.published_at,40),
+    pre:j.prerelease===true,draft:j.draft===true};
+  return null;
+}
+function ghNoteRateLimit(res){
+  const rem=res.headers&&res.headers.get&&res.headers.get('x-ratelimit-remaining');
+  const rst=res.headers&&res.headers.get&&res.headers.get('x-ratelimit-reset');
+  if(res.status===403||res.status===429||rem==='0'){
+    const t=Number(rst);
+    _ghBlockedUntil=(isFinite(t)&&t>0)?t*1000:(Date.now()+60000);
+    return true;
+  }
+  return false;
+}
+// At most ONE attempted request per resource per page lifetime. Concurrent cards share
+// one promise via _ghInflight; every completion -- success OR terminal failure -- is
+// written to _ghCache, so a full timeline rebuild re-reads the cache and issues nothing.
+// There is no retry timer, no polling and no retry on rerender; a page reload starts over.
+// Returns {ok:true,meta} | GH_FAIL | null, where null means "not attempted" (rate gate).
+function ghFetchMeta(c){
+  const key=ghKey(c);
+  if(_ghCache.has(key))return Promise.resolve(_ghCache.get(key));   // .has(): GH_FAIL is a real hit
+  if(_ghInflight.has(key))return _ghInflight.get(key);
+  // suppressed by the global gate: never attempted, so nothing is negatively cached
+  if(Date.now()<_ghBlockedUntil)return Promise.resolve(null);
+  const url=ghEndpoint(c);
+  if(!url)return Promise.resolve(null);
+  const ac=new AbortController();
+  let timer=setTimeout(function(){ac.abort()},NB_EMBED_TIMEOUT);
+  let done=false;
+  // The timeout bounds the WHOLE operation including reading the body: it is cleared only
+  // here, never merely because response headers arrived. settle() runs exactly once on
+  // every path and is the single place _ghInflight is cleared and _ghCache written.
+  const settle=function(rec){
+    if(done)return _ghCache.get(key);
+    done=true;
+    if(timer){clearTimeout(timer);timer=null}
+    _ghInflight.delete(key);
+    _ghCache.set(key,rec);
+    return rec;
+  };
+  const p=fetch(url,{signal:ac.signal,credentials:'omit',referrerPolicy:'no-referrer',
+      headers:{'Accept':GH_ACCEPT,'X-GitHub-Api-Version':GH_API_VERSION}})
+    .then(function(res){
+      // a 403/429 IS an attempted request: it sets the global gate and is cached for
+      // this resource, so this card never asks again even after the gate expires.
+      const limited=ghNoteRateLimit(res);
+      if(limited||!res.ok)return settle(GH_FAIL);
+      return res.json().then(function(j){
+        const m=ghNormalise(c.kind,j);
+        return settle(m?{ok:true,meta:m}:GH_FAIL);   // invalid/unusable JSON is terminal
+      },function(){return settle(GH_FAIL)});         // invalid JSON / aborted body read
+    },function(){return settle(GH_FAIL)})            // network failure / abort / timeout
+    .catch(function(){return settle(GH_FAIL)});      // anything thrown above
+  _ghInflight.set(key,p);
+  return p;
+}
+function ghChip(cls,text){
+  const s=document.createElement('span');
+  s.className=cls;
+  s.textContent=text;
+  return s;
+}
+// Hydration is DOM-only: createElement + textContent. No API string ever becomes HTML.
+function ghApplyMeta(el,m){
+  if(!el||!el.isConnected||!m)return;
+  const meta=el.querySelector('.gh-meta');
+  if(!meta)return;
+  const sub=el.querySelector('.gh-sub');
+  const frag=document.createDocumentFragment();
+  if(m.avatar){
+    const img=document.createElement('img');
+    img.className='gh-avatar';img.alt='';img.src=m.avatar;
+    frag.appendChild(img);
+  }
+  if(m.kind==='repo'){
+    if(m.desc)frag.appendChild(ghChip('gh-desc',m.desc));
+    if(m.lang)frag.appendChild(ghChip('gh-chip',m.lang));
+    if(m.stars!=null)frag.appendChild(ghChip('gh-chip','★ '+m.stars));
+    if(m.forks!=null)frag.appendChild(ghChip('gh-chip','⑂ '+m.forks));
+    if(m.archived)frag.appendChild(ghChip('gh-chip gh-warn','archived'));
+  }else if(m.kind==='issue'||m.kind==='pull'){
+    if(sub&&m.title)sub.textContent=m.title;
+    if(m.state)frag.appendChild(ghChip('gh-chip gh-state-'+(/^[a-z]+$/.test(m.state)?m.state:'x'),m.state));
+    if(m.login)frag.appendChild(ghChip('gh-chip','@'+m.login));
+    if(m.comments!=null)frag.appendChild(ghChip('gh-chip','💬 '+m.comments));
+    if(m.kind==='pull'&&m.head&&m.base)frag.appendChild(ghChip('gh-chip',m.head+' → '+m.base));
+    if(m.kind==='issue'&&m.labels)m.labels.forEach(function(l){frag.appendChild(ghChip('gh-chip',l))});
+  }else if(m.kind==='commit'){
+    if(sub&&m.msg)sub.textContent=m.msg;
+    frag.appendChild(ghChip('gh-chip',m.sha));
+    if(m.login)frag.appendChild(ghChip('gh-chip','@'+m.login));
+    if(m.date)frag.appendChild(ghChip('gh-chip',m.date.slice(0,10)));
+    if(m.verified)frag.appendChild(ghChip('gh-chip gh-ok','verified'));
+  }else if(m.kind==='release'){
+    if(sub&&m.title)sub.textContent=m.title;
+    if(m.tag)frag.appendChild(ghChip('gh-chip',m.tag));
+    if(m.login)frag.appendChild(ghChip('gh-chip','@'+m.login));
+    if(m.date)frag.appendChild(ghChip('gh-chip',m.date.slice(0,10)));
+    if(m.draft)frag.appendChild(ghChip('gh-chip gh-warn','draft'));
+    else if(m.pre)frag.appendChild(ghChip('gh-chip gh-warn','prerelease'));
+  }
+  meta.textContent='';
+  meta.appendChild(frag);
+  el.setAttribute('data-gh-state','ready');
+}
+function hydrateGhCard(el){
+  if(!el||el.getAttribute('data-gh-state')!=='waiting')return;
+  el.setAttribute('data-gh-state','loading');
+  const c={kind:el.getAttribute('data-gh-kind')||'',owner:el.getAttribute('data-gh-owner')||'',
+           repo:el.getAttribute('data-gh-repo')||'',ref:el.getAttribute('data-gh-ref')||''};
+  if(!GH_KIND_LABEL[c.kind]){el.setAttribute('data-gh-state','failed');return}
+  ghFetchMeta(c).then(function(rec){
+    // null (never attempted) and GH_FAIL both leave the URL-derived fallback card intact
+    if(!rec||rec.ok!==true){if(el.isConnected)el.setAttribute('data-gh-state','failed');return}
+    ghApplyMeta(el,rec.meta);                // no-ops for a detached container
+  }).catch(function(){if(el.isConnected)el.setAttribute('data-gh-state','failed')});
+}
+// ---- discovery: one observer pair over the Noltbook message roots only ----
+let _embedIO=null,_embedMO=null;
+function embedHydrate(el){
+  if(el.classList.contains('x-embed'))hydrateXEmbed(el);
+  else if(el.classList.contains('gh-card'))hydrateGhCard(el);
+}
+// Removed placeholders must stop being observed, or repeated timeline rebuilds would
+// accumulate detached targets in the shared observer. The observer itself is never
+// disconnected and is never recreated per card or per render.
+function embedUnobserve(n){
+  if(!_embedIO||!n)return;
+  if(n.classList&&(n.classList.contains('x-embed')||n.classList.contains('gh-card')))_embedIO.unobserve(n);
+  if(n.querySelectorAll){
+    const list=n.querySelectorAll('.x-embed,.gh-card');
+    for(let i=0;i<list.length;i++)_embedIO.unobserve(list[i]);
+  }
+}
+function embedObserve(root){
+  if(!root||!_embedIO)return;
+  const list=root.querySelectorAll?root.querySelectorAll('.x-embed[data-x-state="waiting"],.gh-card[data-gh-state="waiting"]'):[];
+  for(let i=0;i<list.length;i++)_embedIO.observe(list[i]);
+}
+function initEmbedManager(){
+  if(_embedIO||typeof IntersectionObserver!=='function')return;
+  _embedIO=new IntersectionObserver(function(entries){
+    for(let i=0;i<entries.length;i++){
+      const e=entries[i];
+      if(!e.isIntersecting)continue;
+      _embedIO.unobserve(e.target);          // one shot per element
+      embedHydrate(e.target);
+    }
+  },{rootMargin:NB_EMBED_MARGIN});
+  const roots=['chatMessages','pinSurface'].map(function(id){return document.getElementById(id)}).filter(Boolean);
+  roots.forEach(embedObserve);
+  if(typeof MutationObserver==='function'){
+    _embedMO=new MutationObserver(function(muts){
+      // REMOVALS FIRST, then additions: a node moved between roots appears in both lists,
+      // and this ordering leaves it observed exactly once rather than unobserved.
+      for(let i=0;i<muts.length;i++){
+        const removed=muts[i].removedNodes;
+        for(let j=0;j<removed.length;j++){
+          const n=removed[j];
+          if(!n||n.nodeType!==1)continue;
+          embedUnobserve(n);
+        }
+      }
+      for(let i=0;i<muts.length;i++){
+        const added=muts[i].addedNodes;
+        for(let j=0;j<added.length;j++){
+          const n=added[j];
+          if(!n||n.nodeType!==1)continue;
+          if(n.classList&&(n.classList.contains('x-embed')||n.classList.contains('gh-card')))_embedIO.observe(n);
+          embedObserve(n);
+        }
+      }
+    });
+    roots.forEach(function(r){_embedMO.observe(r,{childList:true,subtree:true})});
+  }
+}
 function openImageFullscreen(url){var o=document.createElement('div');o.id='file-fullscreen';o.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.92);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer';o.innerHTML='<img src="'+url+'" style="max-width:95%;max-height:90vh">';o.onclick=function(){o.remove()};document.body.appendChild(o)}
 // ---- composer single-flight guard ----
 // Acquired BEFORE the first await, so click-then-Enter in the same frame, key repeat,
