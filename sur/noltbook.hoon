@@ -386,6 +386,14 @@
 +$  remote
   $%  [%remote-invite note-id=@ta name=@t type=note-type creator=@p users=(set @p) visibility=note-visibility writable=?]
       [%remote-message note-id=@ta msg=message directed-kind=(unit attention-kind) via=(unit via-app)]
+      ::  host -> original sender. A %poke-ack is Gall delivery, not application
+      ::  acceptance: a rejected %remote-message still acks positively. These two
+      ::  give the sender the missing application-level answer. Both are accepted
+      ::  only from the note's authoritative creator, and carry no reason code.
+      [%remote-message-rejected note-id=@ta msg-id=@da]
+      ::  the host already stored this [author msg-id]: replay the stored copy so a
+      ::  retry reconciles instead of leaving the sender failed forever.
+      [%remote-message-confirmed note-id=@ta msg=message]
       ::  atomic DM message: carries enough note metadata so the receiver
       ::  can recreate the DM locally if they previously left it. No
       ::  separate invite is sent; receiver does not subscribe.
@@ -594,7 +602,20 @@
       ::  directed-kind: explicit NOTE SEND marker (Phase C). %send => the
       ::  resulting reply attention is classified kind=%send instead of %reply.
       ::  Normal messages and wallet/DM SEND omit it (~).
-      [%send-message note-id=@ta text=@t reply-to=(unit @da) reply-to-eid=(unit @uv) directed-kind=(unit attention-kind) via=(unit via-app)]
+      ::  client-id: a browser-generated correlation token for the optimistic row.
+      ::  SAME-SHIP ONLY -- it is echoed straight back on the local %send-pending
+      ::  fact and NEVER crosses Ames, enters `message`, or reaches the host.
+      ::  msg-id: the caller's PREDETERMINED message id, fixed before the first network
+      ::  attempt so every retry reuses it and the host's [author msg-id] dedupe stays
+      ::  the final authority. Honored ONLY on the same-ship optimistic path into a
+      ::  remotely hosted %group/%notebook; every other caller omits it and keeps the
+      ::  existing now.bowl behavior untouched.
+      [%send-message note-id=@ta text=@t reply-to=(unit @da) reply-to-eid=(unit @uv) directed-kind=(unit attention-kind) via=(unit via-app) client-id=(unit @t) msg-id=(unit @da)]
+      ::  retry of a send our own %send-message already forwarded to a remote host.
+      ::  Reuses the ORIGINAL msg-id so the host's [author msg-id] dedupe collapses
+      ::  every ordering to exactly one durable message. Remotely-hosted
+      ::  %group/%notebook only; never DM, cover, gossip or rumors.
+      [%resend-message note-id=@ta msg-id=@da text=@t reply-to=(unit @da) reply-to-eid=(unit @uv) directed-kind=(unit attention-kind) via=(unit via-app)]
       [%edit-message note-id=@ta msg-id=@da eid=(unit @uv) text=@t]
       [%delete-message note-id=@ta msg-id=@da eid=(unit @uv)]
       ::  Local-only removal for externally imported DM history. Never emits Ames.
@@ -895,6 +916,12 @@
       ::  non-host members classify reply attention as %send (Phase C). JSON shape
       ::  is unchanged (enjs emits the message directly); ~ for normal/sys/DM.
       [%new-message msg=message directed-kind=(unit attention-kind) via=(unit via-app) import=(unit dm-import)]
+      ::  LOCAL FACTS ONLY -- never sent to another ship. %send-pending binds the
+      ::  browser's client-id to the exact message our own agent generated, so the
+      ::  optimistic row learns its authoritative [note-id author msg-id] identity.
+      [%send-pending client-id=@t msg=message]
+      ::  the host refused the post. Generic by design: no reason is carried.
+      [%send-rejected note-id=@ta msg-id=@da]
       [%message-edited note-id=@ta msg=message]
       [%message-deleted note-id=@ta msg-id=@da eid=(unit @uv)]
       [%artifact-created artifact=artifact]

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="nb-build" content="l5gd719ir6">
+<meta name="nb-build" content="vt85l0qijb">
 <title>NOLTBOOK</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20355.9%20355.9%22%20width=%22355.9%22%20height=%22355.9%22%3E%3Cg%20fill=%22%23ffffff%22%20transform=%22translate(-10.9901536%2036.4439936)%20scale(1.06235712)%22%3E%3Cpolygon%20points=%2266%20159.5%2066%2021.2%20204.3%2021.2%20204.3%2080.8%20204.3%20112.5%20204.3%20159.5%20160.7%20159.5%20160.7%20180.7%20225.5%20180.7%20225.5%20112.5%20225.5%2080.8%20225.5%200%2044.8%200%2044.8%20180.7%20121%20180.7%20121%20159.5%2066%20159.5%22/%3E%3Cpolygon%20points=%22234.7%2085.7%20234.7%20106.9%20289.8%20106.9%20289.8%20245.3%20151.4%20245.3%20151.4%20186.8%20151.4%20180.7%20151.4%20159.5%20151.4%20155.1%20151.4%20106.9%20195%20106.9%20195%2085.7%20130.2%2085.7%20130.2%20151.8%20130.2%20159.5%20130.2%20180.7%20130.2%20183.5%20130.2%20266.4%20310.9%20266.4%20310.9%2085.7%20234.7%2085.7%22/%3E%3C/g%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -231,6 +231,13 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .msg-action-btn.send-msg:hover{border-color:#00ff88;color:#00ff88}
 .msg-action-btn.delete-msg{color:#666;border-color:#333}
 .msg-action-btn.delete-msg:hover{border-color:#ff4444;color:#ff4444;background:rgba(255,68,68,.15)}
+.msg-send-failed{display:flex;align-items:center;gap:.35rem;margin-top:.25rem;font-size:.7rem;letter-spacing:.05em}
+.msg-failed-label{color:#ff4444}
+.msg-failed-dot{color:var(--text-dim)}
+.msg-retry-btn{font-family:var(--font);font-size:.7rem;letter-spacing:.05em;padding:.1rem .4rem;background:transparent;border:1px solid #ff4444;color:#ff4444;cursor:pointer}
+.msg-retry-btn:hover:not(:disabled){background:rgba(255,68,68,.15)}
+.msg-retry-btn:focus-visible{outline:2px solid #ffaa00;outline-offset:1px}
+.msg-retry-btn:disabled{opacity:.5;cursor:default}
 .msg-edited{font-size:.65rem;color:var(--text-dim);font-style:italic;margin-left:.4rem}
 .msg-import-badge{display:inline-block;margin-left:.45rem;padding:.08rem .3rem;border:1px solid #4a5568;color:#94a3b8;font-size:.62rem;letter-spacing:.04em;vertical-align:middle}
 .msg-text.nock-send{color:#00ff88}
@@ -1740,7 +1747,7 @@ const api = {
     console.log('[SSE] replaced, re-subscribed to',oldMeta.length,'paths');
   }
 };
-const state={notes:{},messages:{},artifacts:{},profiles:{},callGens:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),manualExpanded:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,editingEid:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteUnreadActivity:{},noteRead:{},coverPreview:null,notePins:{},pinArtId:null,noteActive:{},appNotifications:{},artifactRefs:{},pendingRedirect:null,pendingDmTransition:null};
+const state={notes:{},messages:{},pendingSends:{},artifacts:{},profiles:{},callGens:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),manualExpanded:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,editingEid:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteUnreadActivity:{},noteRead:{},coverPreview:null,notePins:{},pinArtId:null,noteActive:{},appNotifications:{},artifactRefs:{},pendingRedirect:null,pendingDmTransition:null};
 // Phase G4 freshness: resolved profiles are fresh for 10 min; negative results
 // (missing/invalid) cool down 5 min; unreachable cools down 2 min. Render cycles
 // poke only when fresh-expired AND past the cooldown (and not in flight).
@@ -2518,7 +2525,7 @@ function handleUpdate(upd){
   if(upd['note-list']){console.log('[note-list]',JSON.stringify(upd['note-list']));mergeNoteListSnapshot(upd['note-list']);rebuildDurableNotifications();updateLogoBadge();scheduleNoteList()}
   else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));const _dmT=state.pendingDmTransition;const _dmHit=!!(_dmT&&_dmT.phase==='waiting-created'&&_dmT.to===n.id);if((state.pendingRedirect&&state.pendingRedirect.to===n.id)||_dmHit){state.notes[n.id]=n;if(!n.localImport)hydrateDmNoteProfile(n);state.pendingRedirect=null;if(_dmHit)dmTransitionClear(_dmT);if(state.currentNoteId===n.id)scheduleRender(n.id);scheduleNoteList();return;}const wasPendingJoin=!!state.pendingJoins[n.id];const wasAcceptedFork=state.acceptingForkRoots.has(n.id);if(wasAcceptedFork)state.acceptingForkRoots.delete(n.id);delete state.pendingJoins[n.id];delete state.removedFromNotes[n.id];state.notes[n.id]=n;if(!n.localImport)hydrateDmNoteProfile(n);if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id)}if(state.pendingWalletMsg&&n.type==='dm'){const pw=state.pendingWalletMsg;if(n.users&&n.users.length===2&&n.users.includes(pw.ship)){api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:n.id,text:pw.text}});state.pendingWalletMsg=null}}if(n.creator==='~'+api.ship){if(n.parent)state.expandedNotes.add(n.parent);openNote(n.id)}else if(wasAcceptedFork){if(state.palsView)switchView('notes');openNote(n.id)}else if(wasPendingJoin){document.querySelectorAll('.profile-flow-modal').forEach(el=>el.remove());state.viewingProfileShip=null;if(state.palsView)switchView('notes');if(n.visibility==='public'){openNote(n.id)}else{state.notifications.add(n.id)}}else if(state.pendingGossipFetch&&state.pendingGossipFetch.nid===n.id){clearTimeout(state.pendingGossipFetch.timer);state.pendingGossipFetch=null;if(state.palsView)switchView('notes');openNote(n.id)}else{if(state.palsView)switchView('notes');state.notifications.add(n.id)}scheduleNoteList()}
   else if(upd['note-renamed']){const{id,name}=upd['note-renamed'];if(state.notes[id]){state.notes[id].name=name;renderNoteList()}if(state.currentNoteId===id)document.getElementById('chatNoteName').textContent=state.notes[id]?noteDisplayName(state.notes[id]):name}
-  else if(upd['note-deleted']){const{id}=upd['note-deleted'];const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];state.expandedNotes.delete(id);state.manualExpanded.delete(id);delete state.noteAdmins[id];delete state.noteMuted[id];delete state.notePins[id];delete state.noteActive[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];delete state.attention[id];state.notifications.delete(id);state.notificationAcks.delete(notifAckKey('removed-status',id));state.notificationAcks.delete(notifAckKey('host-deleted-status',id));delete state.noteActivity[id];delete state.noteUnreadActivity[id];delete state.noteRead[id];for(const _e in state.artifactRefs){if(state.artifactRefs[_e].noteId===id)delete state.artifactRefs[_e]}(function(){
+  else if(upd['note-deleted']){const{id}=upd['note-deleted'];clearPendingSendsForNote(id);const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];state.expandedNotes.delete(id);state.manualExpanded.delete(id);delete state.noteAdmins[id];delete state.noteMuted[id];delete state.notePins[id];delete state.noteActive[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];delete state.attention[id];state.notifications.delete(id);state.notificationAcks.delete(notifAckKey('removed-status',id));state.notificationAcks.delete(notifAckKey('host-deleted-status',id));delete state.noteActivity[id];delete state.noteUnreadActivity[id];delete state.noteRead[id];for(const _e in state.artifactRefs){if(state.artifactRefs[_e].noteId===id)delete state.artifactRefs[_e]}(function(){
     const t=state.pendingDmTransition;
     if(t&&t.from===id&&t.phase==='waiting-delete'){
       if(state.currentNoteId!==id){dmTransitionClear(t);return}   // user moved on; don't hijack
@@ -2531,6 +2538,10 @@ function handleUpdate(upd){
     if(state.currentNoteId===id)openNote('cover');
   })();renderNoteList()}
   else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];
+    /* Optimistic reconciliation runs FIRST -- before the _lastMsgHash early return,
+       before state.messages is replaced, before any render is scheduled, and before
+       renderPendingSends() could re-append a row the snapshot has already confirmed. */
+    reconcilePendingFromSnapshot(noteId,messages);
     // The subscription snapshot is authoritative. If a result was deleted
     // between search and click, abandon only the pending jump and open the note
     // normally instead of leaving a stale highlight target alive forever.
@@ -2557,7 +2568,9 @@ function handleUpdate(upd){
       return;
     }
     _lastMsgHash[noteId]=hash;state.messages[noteId]=messages;for(const a of artifacts)state.artifacts[a.id]=a;if(state.currentNoteId===noteId){if(!ScrollCo.consumeOpenIntent(noteId))scheduleRender(noteId);renderPinSurface(noteId)}updateCoverPreview();scheduleNoteList()}
-  else if(upd['new-message']){const msg=upd['new-message'];if(!state.messages[msg.noteId])state.messages[msg.noteId]=[];/* Part 1B: EID-first dedup. A modern msg dups only by matching eid; a legacy msg only by [author,id]. Same @da id with different eids both survive. */if(state.messages[msg.noteId].some(m=>msgKeyOf(m)===msgKeyOf(msg)))return;state.messages[msg.noteId].push(msg);/* call markers stay stored but have no UI effect: no preview, no notification, no unread divider, no render */if(isHiddenCallMsg(msg))return;if(state.notes[msg.noteId]&&state.notes[msg.noteId].type==='dm'&&!msg.import){state.notes[msg.noteId].localImport=false;hydrateDmNoteProfile(state.notes[msg.noteId])}/* correction 5: a \01SYS:art-delete deletion marker must never become the sidebar preview; preserve the preceding preview/source so live and reload agree (backend leaves note.last-preview untouched). */if(state.notes[msg.noteId]&&!isArtDeleteControl(msg.text)){state.notes[msg.noteId].lastAuthor=msg.author;state.notes[msg.noteId].lastPreview=msg.text}if(state.currentNoteId===msg.noteId){const isOwn=msg.author===('~'+api.ship);if(!isOwn){const _cmEl=document.getElementById('chatMessages');if(_cmEl&&!isNearBottom(_cmEl)&&!state.unreadDividers[msg.noteId]){const _ord=msgOrder(msg);if(typeof _ord==='number')state.unreadDividers[msg.noteId]={order:_ord,until:_ord}}}appendMessage(msg,isOwn)}else state.notifications.add(msg.noteId);updateCoverPreview();markOpenNoteReadSoon(msg.noteId);scheduleNoteList()}
+  else if(upd['new-message']){const msg=upd['new-message'];if(!state.messages[msg.noteId])state.messages[msg.noteId]=[];/* optimistic reconciliation runs FIRST: a replayed fact (host duplicate confirmation) must still convert a pending row even though the dedup below will drop the message itself. */const _nbRec=reconcilePendingSend(msg);/* Part 1B: EID-first dedup. A modern msg dups only by matching eid; a legacy msg only by [author,id]. Same @da id with different eids both survive. */if(state.messages[msg.noteId].some(m=>msgKeyOf(m)===msgKeyOf(msg)))return;state.messages[msg.noteId].push(msg);/* call markers stay stored but have no UI effect: no preview, no notification, no unread divider, no render */if(isHiddenCallMsg(msg))return;if(state.notes[msg.noteId]&&state.notes[msg.noteId].type==='dm'&&!msg.import){state.notes[msg.noteId].localImport=false;hydrateDmNoteProfile(state.notes[msg.noteId])}/* correction 5: a \01SYS:art-delete deletion marker must never become the sidebar preview; preserve the preceding preview/source so live and reload agree (backend leaves note.last-preview untouched). */if(state.notes[msg.noteId]&&!isArtDeleteControl(msg.text)){state.notes[msg.noteId].lastAuthor=msg.author;state.notes[msg.noteId].lastPreview=msg.text}if(state.currentNoteId===msg.noteId){const isOwn=msg.author===('~'+api.ship);if(_nbRec){updateCoverPreview();markOpenNoteReadSoon(msg.noteId);scheduleNoteList();return}if(!isOwn){const _cmEl=document.getElementById('chatMessages');if(_cmEl&&!isNearBottom(_cmEl)&&!state.unreadDividers[msg.noteId]){const _ord=msgOrder(msg);if(typeof _ord==='number')state.unreadDividers[msg.noteId]={order:_ord,until:_ord}}}appendMessage(msg,isOwn)}else state.notifications.add(msg.noteId);updateCoverPreview();markOpenNoteReadSoon(msg.noteId);scheduleNoteList()}
+  else if(upd['send-pending']){const d=upd['send-pending'];bindPendingSend(d.clientId,d.msgId,d.message)}
+  else if(upd['send-rejected']){const d=upd['send-rejected'];rejectPendingSend(d.noteId,d.msgId)}
   else if(upd['artifact-created']){const a=upd['artifact-created'];state.artifacts[a.id]=a;if((a.type==='app'||a.type==='file')&&a.noteId===state.currentNoteId){scheduleRender(a.noteId);renderPinSurface(a.noteId)}}
   else if(upd['artifact-updated']){
     const a=upd['artifact-updated'];state.artifacts[a.id]=a;
@@ -2609,7 +2622,7 @@ function handleUpdate(upd){
     if(isInternalNoteIcon(d.id,n.iconUrl))bumpNoteIconRevision(d.id);else clearNoteIconRevision(d.id);
     renderNoteList();if(d.id===state.currentNoteId){updateMuteUI();const _sb=document.getElementById('shareBtn');if(_sb)_sb.style.display=canShareNote(n)?'block':'none'}}}
   else if(upd['note-type-updated']){const d=upd['note-type-updated'];const n=state.notes[d.id];if(n){n.type=d.type;renderNoteList();if(d.id===state.currentNoteId){scheduleRender(d.id);updateMuteUI()}}}
-  else if(upd['note-host-status']){const d=upd['note-host-status'];if(d.status)state.noteHostStatus[d.id]=d.status;else delete state.noteHostStatus[d.id];if(d.status!=='host-deleted')state.notificationAcks.delete(notifAckKey('host-deleted-status',d.id));rebuildDurableNotifications();updateLogoBadge();if(d.id===state.currentNoteId)updateMuteUI();renderNoteList()}
+  else if(upd['note-host-status']){const d=upd['note-host-status'];if(d.status)state.noteHostStatus[d.id]=d.status;else delete state.noteHostStatus[d.id];if(d.status!=='host-deleted')state.notificationAcks.delete(notifAckKey('host-deleted-status',d.id));rebuildDurableNotifications();updateLogoBadge();if(d.status==='host-unreachable'||d.status==='host-deleted')failPendingForNote(d.id);if(d.id===state.currentNoteId)updateMuteUI();renderNoteList()}
   else if(upd['note-state-refreshed']){
     const d=upd['note-state-refreshed'];
     const incomingIds=new Set((d.notes||[]).map(n=>n.id));
@@ -2710,6 +2723,7 @@ function handleUpdate(upd){
     }
     const _wasOpen=(state.currentNoteId===oldId);
     if(state.notes[oldId]&&!state.notes[newId]){state.notes[newId]=Object.assign({},state.notes[oldId],{id:newId});}
+    clearPendingSendsForNote(oldId);
     delete state.notes[oldId];delete state.messages[oldId];state.notifications.delete(oldId);
     if(_wasOpen){
       state.pendingRedirect={from:oldId,to:newId};state.currentNoteId=newId;
@@ -2732,13 +2746,13 @@ function handleUpdate(upd){
   else if(upd['call-snap']){if(applyCallSnap(upd['call-snap'])){updateCallUI();scheduleNoteList()}}
   else if(upd['call-list']){applyCallList(upd['call-list']);updateCallUI();scheduleNoteList()}
   else if(upd['call-signal']){const{noteId,from,sigType,payload}=upd['call-signal'];console.log('[call-signal]',noteId,from,sigType);if(state.inCall===noteId)rtcManager.handleSignal(from,sigType,payload)}
-  else if(upd['kick-notification']){const{noteId,noteName,from}=upd['kick-notification'];state.blockNotifications.push({noteId,noteName,from,time:Date.now()});state.removedFromNotes[noteId]=from;updateLogoBadge()}
+  else if(upd['kick-notification']){const{noteId,noteName,from}=upd['kick-notification'];clearPendingSendsForNote(noteId);state.blockNotifications.push({noteId,noteName,from,time:Date.now()});state.removedFromNotes[noteId]=from;updateLogoBadge()}
   else if(upd['blocked-notification']){const{from}=upd['blocked-notification'];state.blockedBy[from]=true;state.blockNotifications.push({noteId:null,noteName:null,from,time:Date.now(),type:'blocked'});updateLogoBadge();if(state.currentNoteId){const cn=state.notes[state.currentNoteId];if(cn&&cn.type==='dm'){const cp=dmCounterparty(cn);if(cp===from)updateMuteUI()}}}
   else if(upd['unblocked-notification']){const{from}=upd['unblocked-notification'];delete state.blockedBy[from];if(state.currentNoteId){const cn=state.notes[state.currentNoteId];if(cn&&cn.type==='dm'){const cp=dmCounterparty(cn);if(cp===from)updateMuteUI()}}}
   else if(upd['blocked-by-list']){const ships=upd['blocked-by-list'];state.blockedBy={};ships.forEach(s=>{state.blockedBy[s]=true});if(state.currentNoteId){const cn=state.notes[state.currentNoteId];if(cn&&cn.type==='dm')updateMuteUI()}}
   else if(upd['join-requested']){const{noteId,host}=upd['join-requested'];state.pendingJoins[noteId]=host;console.log('[join-requested] pending',noteId,host)}
   else if(upd['join-denied']){const{noteId,host}=upd['join-denied'];delete state.pendingJoins[noteId];const _pne=document.querySelector('#viewProfileNotes .profile-note-entry[data-note-id="'+noteId+'"]');if(_pne){const _b=_pne.querySelector('[data-badge]');if(_b)_b.remove()}const ndBtn=document.getElementById('ndJoinBtn');if(ndBtn&&ndBtn.dataset.noteId===noteId){const dn=state.discoveryNotes[noteId];const pub=dn&&dn.visibility==='public';ndBtn.textContent=pub?'JOIN':'REQUEST JOIN';ndBtn.disabled=false;ndBtn.className='note-detail-btn '+(pub?'join':'request')}console.log('[join-denied]',noteId,host)}
-  else if(upd['join-removed']){const{noteId,host}=upd['join-removed'];delete state.pendingJoins[noteId];state.removedFromNotes[noteId]=host;const _pne=document.querySelector('#viewProfileNotes .profile-note-entry[data-note-id="'+noteId+'"]');if(_pne){let _b=_pne.querySelector('[data-badge]');if(!_b){_b=document.createElement('div');_b.dataset.badge='1';_b.style.marginLeft='auto';_pne.appendChild(_b)}_b.innerHTML='<span style="color:#ff4444;font-size:.65rem">REMOVED</span>'}const ndBtn=document.getElementById('ndJoinBtn');if(ndBtn){ndBtn.textContent='REMOVED';ndBtn.disabled=true;ndBtn.className='note-detail-btn removed'}console.log('[join-removed]',noteId,host)}
+  else if(upd['join-removed']){const{noteId,host}=upd['join-removed'];clearPendingSendsForNote(noteId);delete state.pendingJoins[noteId];state.removedFromNotes[noteId]=host;const _pne=document.querySelector('#viewProfileNotes .profile-note-entry[data-note-id="'+noteId+'"]');if(_pne){let _b=_pne.querySelector('[data-badge]');if(!_b){_b=document.createElement('div');_b.dataset.badge='1';_b.style.marginLeft='auto';_pne.appendChild(_b)}_b.innerHTML='<span style="color:#ff4444;font-size:.65rem">REMOVED</span>'}const ndBtn=document.getElementById('ndJoinBtn');if(ndBtn){ndBtn.textContent='REMOVED';ndBtn.disabled=true;ndBtn.className='note-detail-btn removed'}console.log('[join-removed]',noteId,host)}
   else if(upd['join-request-received']){const{noteId,ship,noteName}=upd['join-request-received'];if(!state.joinRequests.some(r=>r.noteId===noteId&&r.ship===ship)){state.joinRequests.push({noteId,ship,noteName,time:Date.now()})}updateLogoBadge();console.log('[join-request-received]',noteId,ship,noteName)}
   else if(upd['join-request-list']){const list=upd['join-request-list'];state.joinRequests=list.map(r=>({noteId:r.noteId,ship:r.ship,noteName:r.noteName,time:Date.now()}));updateLogoBadge();refreshGrimoireIfOpen();console.log('[join-request-list]',list.length,'requests')}
   else if(upd['note-deleted-notification']){const{noteId,noteName}=upd['note-deleted-notification'];state.blockNotifications.push({noteId,noteName,from:null,time:Date.now(),type:'deleted'});updateLogoBadge()}
@@ -5014,6 +5028,9 @@ function renderMessages(noteId,target){
     if(wasNearBottom&&dividerInfo)markNoteReadTo(noteId,latestMsgOrder(noteId));
     ScrollCo.pin(noteId,'preserve',anchor);
   }
+  // a full rebuild wipes the container, so redraw any optimistic rows this note
+  // still has outstanding (including their FAILED / RETRY state).
+  renderPendingSends(noteId);
   // after layout settles, sweep visible messages and advance the read cursor.
   requestAnimationFrame(markVisibleMessagesRead);
 }
@@ -5097,6 +5114,33 @@ function renderMsg(el,msg,depth,isThreadAnchor){
   const editedStamp=msg.edited?(msg.meta&&msg.meta.rev>0?`<span class="msg-edited" title="updated ${new Date(msg.meta.updated).toLocaleString()}">(edited r${msg.meta.rev})</span>`:'<span class="msg-edited">(edited)</span>'):'';
   const me='~'+api.ship;
   const note=state.notes[msg.noteId]||state.notes[state.currentNoteId]||{};
+  // an unconfirmed optimistic row gets NO action menu: it has no authoritative host
+  // EID or sequence yet, so EDIT/DELETE/REPLY/SEND would target nothing. The identical
+  // markup is injected by reconcilePendingSend() once the host confirms.
+  const actions=msg._nbPending?'':msgActionsHtml(msg,note,isThreadAnchor);
+  const div=document.createElement('div');
+  const depthClass=depth>0?' depth-'+Math.min(depth,5):'';
+  const _mb=renderMsgBody(msg.text);
+  const nockSendClass=_mb.receipt?' nock-send':'';
+  const msgDisplay=_mb.html;
+  const importBadge=importBadgeHtml(msg);
+  if(grouped){
+    div.className='msg grouped'+depthClass;
+    div.id=msgDomId(msg,msg.noteId)+idSuf;
+    const groupedBody=`<div class="msg-text${nockSendClass}" style="flex:1">${msgDisplay}${editedStamp}${importBadge}</div>`;
+    div.innerHTML=`<div style="display:flex;align-items:baseline;padding-left:calc(2.8rem + .6rem)">${groupedBody}${actions}</div>`;
+  }else{
+    div.className='msg'+depthClass;
+    div.id=msgDomId(msg,msg.noteId)+idSuf;
+    const authorColor=isUrbit?shipColor(msg.author):'var(--visitor)';
+      div.innerHTML=`<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar" style="cursor:pointer" onclick="event.stopPropagation();viewProfile('${escAttr(msg.author)}')">${avatarHtml(msg.author)}</div><div class="msg-body"><div class="msg-header"><span class="msg-author" style="color:${authorColor};cursor:pointer" onclick="event.stopPropagation();viewProfile('${escAttr(msg.author)}')">${escHtml(displayName(msg.author))}</span><span class="msg-time">${timeStr}</span>${actions}</div><div class="msg-text${nockSendClass}">${msgDisplay}${editedStamp}${importBadge}</div></div></div>`;
+  }
+  el.appendChild(div);
+}
+// The message action menu, factored out of renderMsg unchanged so that exactly one
+// builder produces it for both the live render and optimistic reconciliation.
+function msgActionsHtml(msg,note,isThreadAnchor){
+  const me='~'+api.ship;
   const isAuthor=msg.author===me;
   const isCreator=note.creator===me;
   const canEdit=isAuthor&&!msg.import;
@@ -5118,24 +5162,7 @@ function renderMsg(el,msg,depth,isThreadAnchor){
   const pinBtn=pinBtnHtml(msg.noteId,msg.meta&&msg.meta.eid,'message',true);
   const _sendBtn=isOwnPost(msg.author)?'':`<button class="msg-action-btn send-msg" data-act="send" onclick="sendToUser('${escAttr(msg.author)}','${msg.id}','${_mEid}');toggleMsgActions(this,false)">SEND</button>`;
   const actions=`<div class="msg-actions" data-note="${escAttr(msg.noteId||'')}" onclick="event.stopPropagation()">${origBtn}<button class="msg-action-btn" data-act="reply" onclick="startReply('${msg.id}','${escAttr(msg.author)}','${_mEid}');toggleMsgActions(this,false)">REPLY</button>${editBtn}${refBtn}${pinBtn}${_sendBtn}${delBtn}${removeImportBtn}</div>`;
-  const div=document.createElement('div');
-  const depthClass=depth>0?' depth-'+Math.min(depth,5):'';
-  const _mb=renderMsgBody(msg.text);
-  const nockSendClass=_mb.receipt?' nock-send':'';
-  const msgDisplay=_mb.html;
-  const importBadge=importBadgeHtml(msg);
-  if(grouped){
-    div.className='msg grouped'+depthClass;
-    div.id=msgDomId(msg,msg.noteId)+idSuf;
-    const groupedBody=`<div class="msg-text${nockSendClass}" style="flex:1">${msgDisplay}${editedStamp}${importBadge}</div>`;
-    div.innerHTML=`<div style="display:flex;align-items:baseline;padding-left:calc(2.8rem + .6rem)">${groupedBody}${actions}</div>`;
-  }else{
-    div.className='msg'+depthClass;
-    div.id=msgDomId(msg,msg.noteId)+idSuf;
-    const authorColor=isUrbit?shipColor(msg.author):'var(--visitor)';
-      div.innerHTML=`<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar" style="cursor:pointer" onclick="event.stopPropagation();viewProfile('${escAttr(msg.author)}')">${avatarHtml(msg.author)}</div><div class="msg-body"><div class="msg-header"><span class="msg-author" style="color:${authorColor};cursor:pointer" onclick="event.stopPropagation();viewProfile('${escAttr(msg.author)}')">${escHtml(displayName(msg.author))}</span><span class="msg-time">${timeStr}</span>${actions}</div><div class="msg-text${nockSendClass}">${msgDisplay}${editedStamp}${importBadge}</div></div></div>`;
-  }
-  el.appendChild(div);
+  return actions;
 }
 function revealBlockedMsg(msgId){
   _revealedBlockedMsgs.add(parseInt(msgId));
@@ -6067,6 +6094,353 @@ function openImageFullscreen(url){var o=document.createElement('div');o.id='file
 // ---- composer single-flight guard ----
 // Acquired BEFORE the first await, so click-then-Enter in the same frame, key repeat,
 // double-click and mobile double-tap all collapse to one submission. Released in finally.
+
+// ===================== OPTIMISTIC POSTS (guest -> remote host) =====================
+// A post into a note ANOTHER ship hosts is not stored locally: our agent forwards it
+// and returns bare `this`, so nothing exists until the host validates, stamps and fans
+// the authoritative %new-message back. That is a full two-hop Ames round trip. Host
+// posts, DMs, cover, gossip and rumors all store locally and are already instant, so
+// they never take this path.
+//
+// The optimistic row is TEMPORARY LOCAL UI STATE ONLY. It is never written into
+// state.messages (which is EID-first authoritative), never persisted, and carries no
+// action menu until the host confirms. Identity chain:
+//   clientId  -> browser-local correlation token, never crosses Ames
+//   %send-pending -> local fact binding clientId to our agent's exact [noteId,author,id]
+//   %new-message  -> host-authoritative; matched on [noteId, author, id]
+const NB_SEND_TRACE=false;              // disabled-by-default timing instrumentation
+const NB_SEND_TIMEOUT_MS=8000;          // matches the agent's existing ~s8 host deadline
+let _nbPendSeq=0;
+// The message id is fixed HERE, before any network attempt, and every retry reuses it.
+// Retry safety rests entirely on this: the host's [author msg-id] dedupe can only
+// collapse attempts that name the SAME id, so an id minted per-attempt would let a
+// retry create a duplicate whenever the original was accepted but its answer was lost.
+//
+// It is a CANONICAL @da string, not a millisecond number. A millisecond id is unique
+// only within one page: two independent tabs (or two windows of the same ship) share a
+// wall clock, so both could allocate the same value in one tick and the host's
+// [author msg-id] dedupe would then collapse two genuinely different messages into one
+// -- silently losing a post. A page-local monotonic counter cannot fix that, because
+// neither tab can see the other's counter.
+//
+// Shape: the real UTC second, plus a 64-bit crypto-random fraction:
+//   ~2026.08.24..11.31.25..a1b2.c3d4.e5f6.0789
+// Rendering matches +scot exactly (verified against the ship): month/day/hour/min/sec
+// zero-padded to two digits, four lowercase 4-hex-digit fraction groups, trailing
+// all-zero groups dropped, and the whole fraction suffix omitted when it is zero.
+// That makes scot(slav(x)) === x for every value this produces.
+// Collision probability between two tabs is 2^-64 per shared second.
+function nbHasStrongRandom(){
+  try{return typeof crypto!=='undefined'&&typeof crypto.getRandomValues==='function'}
+  catch(e){return false}
+}
+function nbRandomBytes(n){
+  const b=new Uint8Array(n);
+  crypto.getRandomValues(b);
+  return b;
+}
+function allocRawMsgId(){
+  const d=new Date();
+  const p2=(n)=>(n<10?'0':'')+n;
+  const stamp='~'+d.getUTCFullYear()+'.'+p2(d.getUTCMonth()+1)+'.'+p2(d.getUTCDate())
+    +'..'+p2(d.getUTCHours())+'.'+p2(d.getUTCMinutes())+'.'+p2(d.getUTCSeconds());
+  const b=nbRandomBytes(8);                       // 64 bits of fraction
+  const g=[];
+  for(let i=0;i<8;i+=2){
+    const v=(b[i]<<8)|b[i+1];
+    g.push(('000'+v.toString(16)).slice(-4));
+  }
+  while(g.length&&g[g.length-1]==='0000')g.pop(); // +scot drops trailing zero groups
+  return g.length?(stamp+'..'+g.join('.')):stamp;
+}
+// clientId must also be unique across tabs: it keys the browser-local pending row and
+// is echoed back on %send-pending, so a shared value would let one tab's fact bind to
+// another tab's row. 128 crypto-random bits.
+function allocClientId(){
+  const b=nbRandomBytes(16);
+  let out='cs-';
+  for(let i=0;i<b.length;i++)out+=('0'+b[i].toString(16)).slice(-2);
+  return out;
+}
+function nbTrace(){if(NB_SEND_TRACE)console.log.apply(console,['[send]'].concat([].slice.call(arguments)))}
+// only a remotely hosted group/notebook needs optimism; everything else is already
+// stored in the same event as the poke.
+function sendNeedsOptimistic(nid){
+  const n=state.notes[nid];
+  if(!n)return false;
+  if(n.type!=='group'&&n.type!=='notebook')return false;
+  return n.creator!==('~'+api.ship);
+}
+function pendingList(nid){
+  if(!state.pendingSends[nid])state.pendingSends[nid]=[];
+  return state.pendingSends[nid];
+}
+function findPendingByClient(cid){
+  for(const nid in state.pendingSends){
+    const a=state.pendingSends[nid];
+    for(let i=0;i<a.length;i++)if(a[i].clientId===cid)return a[i];
+  }
+  return null;
+}
+function pendingDomId(pend){return 'msg-'+pend.tempId}
+// the pseudo-message is shaped exactly like a real one so it goes through the SAME
+// renderMsg/renderMsgBody escaping path. No second renderer, no new sink.
+function pendingMsgObj(pend){
+  return {id:pend.tempId,noteId:pend.noteId,author:pend.author,text:pend.text,
+          timestamp:pend.at,replyTo:pend.replyTo,edited:false,
+          meta:pend.replyToEid?{replyToEid:pend.replyToEid}:null,
+          _nbPending:pend.clientId};
+}
+function createPendingSend(o){
+  const pend={clientId:o.clientId,noteId:o.noteId,author:'~'+api.ship,text:o.text,
+              replyTo:o.replyTo||null,replyToEid:o.replyToEid||null,
+              directedKind:o.directedKind||null,
+              tempId:'nbp-'+(++_nbPendSeq)+'-'+Date.now(),
+              // the canonical @da identity, fixed BEFORE the first poke, never changed
+              // and reused verbatim by every retry.
+              rawId:allocRawMsgId(),
+              at:Date.now(),status:'sent',timer:null,retrying:false};
+  pendingList(pend.noteId).push(pend);
+  return pend;
+}
+function armPendingTimer(pend){
+  clearPendingTimer(pend);
+  pend.timer=setTimeout(()=>{pend.timer=null;failPendingSend(pend)},NB_SEND_TIMEOUT_MS);
+}
+function clearPendingTimer(pend){if(pend.timer){clearTimeout(pend.timer);pend.timer=null}}
+function dropPendingSend(pend){
+  clearPendingTimer(pend);
+  const a=state.pendingSends[pend.noteId];
+  if(!a)return;
+  const i=a.indexOf(pend);
+  if(i>=0)a.splice(i,1);
+  if(!a.length)delete state.pendingSends[pend.noteId];
+}
+// depth of a rendered row, read straight off the class renderMsg wrote.
+function rowDepth(el){
+  if(!el||!el.className)return 0;
+  const m=/(?:^|\s)depth-(\d)(?:\s|$)/.exec(el.className);
+  return m?parseInt(m[1],10):0;
+}
+// Insert the row. Top-level: append, keeping natural grouping. Reply: place it after
+// the LAST node of the parent's subtree, exactly where the full renderer's depth-first
+// flatten would put it -- never appended to the bottom as a top-level post.
+function insertPendingRow(pend){
+  const el=document.getElementById('chatMessages');
+  if(!el||state.currentNoteId!==pend.noteId)return null;
+  const pseudo=pendingMsgObj(pend);
+  if(!pend.replyTo&&!pend.replyToEid){
+    renderMsg(el,pseudo,0,false);
+    const node=el.lastElementChild;
+    if(node)node.setAttribute('data-nb-pending',pend.clientId);
+    el.scrollTop=el.scrollHeight;
+    return node;
+  }
+  const parent=msgElByEid(pend.replyToEid,pend.replyTo);
+  if(!parent){                                   // parent not on screen: append
+    renderMsg(el,pseudo,0,false);
+    const node=el.lastElementChild;
+    if(node)node.setAttribute('data-nb-pending',pend.clientId);
+    el.scrollTop=el.scrollHeight;
+    return node;
+  }
+  const pd=rowDepth(parent);
+  // walk past the parent's whole subtree
+  let after=parent;
+  while(after.nextElementSibling&&rowDepth(after.nextElementSibling)>pd)after=after.nextElementSibling;
+  // a mid-list insert has no valid grouping predecessor, so force a full (ungrouped)
+  // row and restore the append-cursor the timeline render left behind.
+  const sa=state.lastMsgAuthor,sd=state.lastMsgDepth;
+  state.lastMsgAuthor=null;state.lastMsgDepth=-1;
+  const holder=document.createElement('div');
+  renderMsg(holder,pseudo,Math.min(pd+1,5),false);
+  state.lastMsgAuthor=sa;state.lastMsgDepth=sd;
+  const node=holder.firstElementChild;
+  if(!node)return null;
+  node.setAttribute('data-nb-pending',pend.clientId);
+  after.parentNode.insertBefore(node,after.nextSibling);
+  if(node.scrollIntoView)node.scrollIntoView({block:'nearest'});
+  return node;
+}
+// redraw after a full timeline rebuild wiped the container
+function renderPendingSends(noteId){
+  const a=state.pendingSends[noteId];
+  if(!a||!a.length)return;
+  for(const pend of a){
+    const node=insertPendingRow(pend);
+    if(node&&pend.status==='failed')markRowFailed(node,pend);
+  }
+}
+function pendingRowEl(pend){
+  return document.querySelector('[data-nb-pending="'+CSS.escape(pend.clientId)+'"]');
+}
+// FAILED is plain status text; RETRY is a real <button>, focusable and Enter/Space
+// activated by the browser with no extra key handling.
+function markRowFailed(node,pend){
+  if(!node||node.querySelector('.msg-send-failed'))return;
+  const tx=node.querySelector('.msg-text');
+  if(!tx)return;
+  const html='<div class="msg-send-failed"><span class="msg-failed-label">FAILED</span>'
+    +'<span class="msg-failed-dot">·</span>'
+    +'<button type="button" class="msg-retry-btn" data-nb-retry="'+escAttr(pend.clientId)+'"'
+    +' aria-label="Retry sending this message">RETRY</button></div>';
+  tx.insertAdjacentHTML('beforeend',html);
+}
+function failPendingSend(pend){
+  if(!pend||pend.status==='failed'){if(pend)pend.retrying=false;return}
+  clearPendingTimer(pend);
+  pend.status='failed';pend.retrying=false;
+  nbTrace('failed',pend.clientId);
+  const node=pendingRowEl(pend);
+  if(node)markRowFailed(node,pend);
+}
+// %send-pending: our own agent echoing back the exact @da it used. Purely
+// CONFIRMATORY now -- the row generated that id itself, so reconciliation and retry
+// work whether this fact arrives early, late, or never. It never overwrites the id; a
+// mismatch would mean the agent declined our id, which is worth surfacing under trace.
+// A binding for a row already reconciled finds nothing and changes nothing.
+function bindPendingSend(clientId,rawId,message){
+  const pend=findPendingByClient(clientId);
+  if(!pend)return;
+  if(rawId&&pend.rawId&&rawId!==pend.rawId)nbTrace('BINDING MISMATCH',pend.rawId,rawId);
+  nbTrace('bound',clientId,rawId);
+}
+// Authoritative success. Correlates on [noteId, author, msg-id] -- never text or time.
+// Runs BEFORE the handler's EID dedup so a REPLAYED fact (host duplicate confirmation)
+// still reconciles a row the original fact never reached.
+//
+// Identity is [note-id, author, msgIdRaw] and NOTHING else. The numeric `id` field is
+// milliseconds derived by da-to-ms and is lossy, so it is never used to correlate --
+// it stays purely for display, ordering, replies and existing consumers. There is no
+// millisecond fallback: an authoritative message without msgIdRaw simply does not
+// match, and the ordinary render path handles it.
+function pendMatchesMsg(p,msg){
+  if(p.author!==msg.author)return false;
+  if(!p.rawId||!msg.msgIdRaw)return false;
+  return msg.msgIdRaw===p.rawId;
+}
+function reconcilePendingSend(msg){
+  const a=state.pendingSends[msg.noteId];
+  if(!a||!a.length)return false;
+  let pend=null;
+  for(const p of a){if(pendMatchesMsg(p,msg)){pend=p;break}}
+  if(!pend)return false;
+  dropPendingSend(pend);
+  const node=pendingRowEl(pend);
+  if(!node)return false;                       // not on screen: normal render handles it
+  // SURGICAL: the row's body, images, embeds and iframes are never touched. Only the
+  // DOM id changes and the action menu is added, so nothing repaints or reloads.
+  const fail=node.querySelector('.msg-send-failed');
+  if(fail)fail.remove();
+  node.removeAttribute('data-nb-pending');
+  node.id=msgDomId(msg,msg.noteId);
+  const note=state.notes[msg.noteId]||{};
+  const html=msgActionsHtml(msg,note,false);
+  const host=node.querySelector('.msg-header')||node.firstElementChild;
+  if(host)host.insertAdjacentHTML('beforeend',html);
+  nbTrace('reconciled',pend.clientId,msg.id);
+  return true;
+}
+// Authoritative permission/membership rejection: remove silently. No toast, no label,
+// no retry, and the text is NOT restored -- the composer lock already explains why.
+// Matched on the exact raw @da only -- the row has owned that id since before the
+// first poke, so no binding is needed and the lossy millisecond form is never used.
+function rejectPendingSend(noteId,rawId){
+  const a=state.pendingSends[noteId];
+  if(!a)return;
+  for(const p of a.slice()){
+    if(rawId&&p.rawId===rawId){
+      const node=pendingRowEl(p);
+      dropPendingSend(p);
+      if(node)node.remove();
+      nbTrace('rejected',p.clientId);
+    }
+  }
+}
+// An authoritative %message-list snapshot is the OTHER way a confirmed message can
+// reach us: if the live %new-message fact was missed while the SSE channel was down,
+// the message appears only in the reconnect snapshot. Without this, the pending row
+// survives the snapshot and renderPendingSends() re-appends it beside the authoritative
+// copy -- two visible rows, one of them possibly still showing FAILED / RETRY.
+//
+// Reuses reconcilePendingSend unchanged, so a snapshot resolves a pending row by exactly
+// the same rule and the same surgical DOM path as a live fact: raw-id-only matching,
+// timer cleared, FAILED control removed, entry dropped from state.pendingSends (which is
+// what stops renderPendingSends from re-adding it). When the note is not on screen the
+// row lookup simply finds nothing and only the bookkeeping resolves.
+// Messages absent from the snapshot are left strictly alone -- a stale snapshot is not
+// a rejection signal.
+function reconcilePendingFromSnapshot(noteId,messages){
+  const a=state.pendingSends[noteId];
+  if(!a||!a.length||!messages||!messages.length)return;
+  for(const m of messages){
+    if(!m||!m.msgIdRaw)continue;                  // raw id is the ONLY key
+    reconcilePendingSend(m);
+    if(!state.pendingSends[noteId])break;         // all resolved
+  }
+}
+// A note can leave local state entirely -- deleted by its host, or we were kicked or
+// removed. Any optimistic row for it can never be confirmed again, so drop the whole
+// bucket: clear every timer (otherwise one fires later against a note that no longer
+// exists), clear retrying state, remove any visible optimistic or FAILED row, and
+// delete the map entry so renderPendingSends can never re-add one.
+// Idempotent, silent, and navigation-free. NOT called on an ordinary note switch, a
+// temporary channel failure, or a stale snapshot -- those must keep their pending rows.
+function clearPendingSendsForNote(noteId){
+  const a=state.pendingSends[noteId];
+  if(!a)return;
+  for(const p of a.slice()){
+    clearPendingTimer(p);
+    p.retrying=false;
+    const node=pendingRowEl(p);
+    if(node)node.remove();
+  }
+  delete state.pendingSends[noteId];
+  nbTrace('cleared for removed note',noteId);
+}
+function failPendingForNote(noteId){
+  const a=state.pendingSends[noteId];
+  if(!a)return;
+  for(const p of a.slice())failPendingSend(p);
+}
+function retryPendingSend(clientId){
+  const pend=findPendingByClient(clientId);
+  if(!pend||pend.retrying)return;
+  pend.retrying=true;
+  const node=pendingRowEl(pend);
+  const btn=node?node.querySelector('.msg-retry-btn'):null;
+  if(btn)btn.disabled=true;
+  const done=(ok)=>{
+    pend.retrying=false;
+    if(btn)btn.disabled=false;
+    if(!ok){failPendingSend(pend);return}
+    // clear the failure control and wait for the authoritative answer again
+    pend.status='sent';
+    const n2=pendingRowEl(pend);
+    const f=n2?n2.querySelector('.msg-send-failed'):null;
+    if(f)f.remove();
+    armPendingTimer(pend);
+  };
+  // ALWAYS %resend-message with the ORIGINAL predetermined id -- there is no
+  // "fresh send" path any more. A missing %send-pending binding does NOT mean the
+  // original never reached Gall: the HTTP response can be lost, the fact delayed or
+  // dropped, the SSE channel recovering, or success may simply have overtaken it.
+  // Minting a new id in that state bypasses the host's [author msg-id] dedupe and
+  // duplicates the message. Reusing the id makes every ordering collapse to one:
+  // if the host already has it, it replays confirmation instead of storing again.
+  const d={noteId:pend.noteId,msgId:pend.rawId,text:pend.text};
+  if(pend.replyTo!=null)d.replyTo=pend.replyTo;
+  if(pend.replyToEid)d.replyToEid=pend.replyToEid;
+  if(pend.directedKind)d.directedKind=pend.directedKind;
+  api.poke('noltbook','noltbook-action',{action:'resend-message',data:d}).then(done);
+}
+document.addEventListener('click',(e)=>{
+  const b=e.target.closest?e.target.closest('[data-nb-retry]'):null;
+  if(!b)return;
+  e.preventDefault();e.stopPropagation();
+  retryPendingSend(b.getAttribute('data-nb-retry'));
+});
+
 let _sendLock=false;
 let _sendSeq=0;
 function _setSendBusy(busy){
@@ -6117,11 +6491,41 @@ async function sendMessage(){
   // own send/reply: pin the next render of this note to bottom regardless of
   // which fact path renders it (new-message, message-list, generic scheduleRender).
   ScrollCo.beginOwnAction(_nid);
-  const ok=await api.poke('noltbook','noltbook-action',{action:'send-message',data});if(!ok){ScrollCo.cancelOwnAction(_nid);console.error('[sendMessage] poke failed, retrying after reconnect');if(!api.reconnecting)api.reconnect();return}
-  // success: clear exactly once, and only if this submission still owns the composer
+  // OPTIMISTIC POST. A note hosted by ANOTHER ship stores nothing locally, so without
+  // this the message is invisible for a full two-hop Ames round trip. Order matters:
+  // capture (done above, in `cap`) -> clear the composer -> draw the row -> poke.
+  // Reply state is read from `cap`, because cancelReply() is about to clear it.
+  // No strong randomness means no collision-free identity, and a colliding
+  // [author msg-id] would let the host's dedupe silently swallow a genuinely different
+  // message. Degrade to the ordinary (pre-optimistic) path instead: the agent mints its
+  // own now.bowl id exactly as it always did. The post is never at risk, only instant.
+  const _optimistic=sendNeedsOptimistic(_nid)&&nbHasStrongRandom();
+  let _pend=null;
+  if(_optimistic){
+    _pend=createPendingSend({clientId:allocClientId(),noteId:_nid,text,
+                             replyTo:cap.replyingTo||null,replyToEid:cap.replyingToEid||null});
+    data.clientId=_pend.clientId;
+    // the SAME canonical @da the retry will use. Fixed before the first attempt.
+    data.msgId=_pend.rawId;
+  }
+  // clear exactly once, and only if this submission still owns the composer. Moved
+  // ahead of the poke so the composer empties on Enter; nothing is ever written back
+  // into it afterwards, so newer typing can never be overwritten.
   if(_composerStillOwned(cap)){
     input.value='';resetChatInputHeight();cancelReply();updateInputMirror();
     clearPastedAppArtifact();
+  }
+  if(_pend){insertPendingRow(_pend);armPendingTimer(_pend);nbTrace('inserted',_pend.clientId)}
+  const ok=await api.poke('noltbook','noltbook-action',{action:'send-message',data});
+  nbTrace('put',ok);
+  if(!ok){
+    ScrollCo.cancelOwnAction(_nid);
+    console.error('[sendMessage] poke failed, retrying after reconnect');
+    // local transport failure is a GENUINE delivery failure: keep the row and offer
+    // RETRY. The text is not restored -- it is still visible in the row itself.
+    if(_pend)failPendingSend(_pend);
+    if(!api.reconnecting)api.reconnect();
+    return;
   }
   }finally{_sendLock=false;_setSendBusy(false)}
 }

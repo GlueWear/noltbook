@@ -107,8 +107,57 @@
         ?.  ?=([%s *] u.dk-raw)  ~
         ?:  =('send' p.u.dk-raw)  `%send
         ~
+      ::  clientId: opaque browser correlation token, echoed back on %send-pending.
+      ::  Bounded and same-ship only; never forwarded to the host.
+      =/  cid-raw  (~(get by d) 'clientId')
+      =/  cid=(unit @t)
+        ?~  cid-raw  ~
+        ?.  ?=([%s *] u.cid-raw)  ~
+        ?:  (gth (met 3 p.u.cid-raw) 128)  ~
+        `p.u.cid-raw
+      ::  msgId: the CANONICAL @da string the browser generated, parsed straight back
+      ::  with slaw. Not milliseconds: a millisecond id is only unique within one page,
+      ::  so two tabs sharing a clock tick could mint the same [author msg-id] and the
+      ::  host's dedupe would collapse two DIFFERENT messages into one. The string
+      ::  carries the real UTC second plus 64 bits of crypto-random fraction, and
+      ::  slaw/scot round-trip it exactly. Malformed input parses to ~, which simply
+      ::  falls back to the agent's now.bowl behavior.
+      =/  mid-raw  (~(get by d) 'msgId')
+      =/  mid=(unit @da)
+        ?~  mid-raw  ~
+        ?.  ?=([%s *] u.mid-raw)  ~
+        (slaw %da p.u.mid-raw)
       ::  via attribution is API-only; frontend sends are never attributed.
-      [%send-message `@ta`p.nid-nd p.txt-nd rt rte dk ~]
+      [%send-message `@ta`p.nid-nd p.txt-nd rt rte dk ~ cid mid]
+    ::  resend-message: retry carrying the ORIGINAL message identity, in the SAME
+    ::  canonical @da string form %send-message accepts, so the first attempt and every
+    ::  retry name the identical @da and the host's [author msg-id] dedupe collapses
+    ::  them to one durable message.
+    ?:  =('resend-message' tag)
+      =/  nid-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] nid-nd)
+      =/  mid-nd  (need (~(get by d) 'msgId'))
+      ?>  ?=([%s *] mid-nd)
+      =/  mid=@da  (need (slaw %da p.mid-nd))
+      =/  txt-nd  (need (~(get by d) 'text'))
+      ?>  ?=([%s *] txt-nd)
+      =/  rt-raw  (~(get by d) 'replyTo')
+      =/  rt=(unit @da)
+        ?~  rt-raw  ~
+        ?.  ?=([%n *] u.rt-raw)  ~
+        ``@da`(add ~1970.1.1 (mul (rash p.u.rt-raw dem) (div ~s1 1.000)))
+      =/  rte-raw  (~(get by d) 'replyToEid')
+      =/  rte=(unit @uv)
+        ?~  rte-raw  ~
+        ?.  ?=([%s *] u.rte-raw)  ~
+        `(slav %uv p.u.rte-raw)
+      =/  dk-raw  (~(get by d) 'directedKind')
+      =/  dk=(unit attention-kind:noltbook)
+        ?~  dk-raw  ~
+        ?.  ?=([%s *] u.dk-raw)  ~
+        ?:  =('send' p.u.dk-raw)  `%send
+        ~
+      [%resend-message `@ta`p.nid-nd mid p.txt-nd rt rte dk ~]
     ::  edit-message
     ?:  =('edit-message' tag)
       =/  nid-nd  (need (~(get by d) 'noteId'))

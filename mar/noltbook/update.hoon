@@ -125,6 +125,24 @@
         %new-message
       (frond 'new-message' (msg-json-context msg.upd import.upd))
     ::
+    ::  LOCAL FACTS ONLY. msgId is the RAW @da as a string: the millisecond form used
+    ::  for display ids is lossy, and a retry must reproduce the id EXACTLY or it will
+    ::  miss the host's [author msg-id] dedupe and store a second message.
+        %send-pending
+      %+  frond  'send-pending'
+      %-  pairs
+      :~  ['clientId' s+client-id.upd]
+          ['msgId' s+(scot %da id.msg.upd)]
+          ['message' (msg-to-json msg.upd)]
+      ==
+    ::
+        %send-rejected
+      %+  frond  'send-rejected'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['msgId' s+(scot %da msg-id.upd)]
+      ==
+    ::
         %message-edited
       %+  frond  'message-edited'
       %-  pairs
@@ -655,6 +673,11 @@
       |=  m=message:noltbook
       %-  pairs
       :~  ['id' (numb (da-to-ms id.m))]
+          ::  msgIdRaw: the EXACT @da, additively. 'id' above is milliseconds and stays
+          ::  the field display, ordering, replies and every existing consumer use --
+          ::  but it is lossy for an id minted from now.bowl, so exact correlation
+          ::  (optimistic-post reconciliation) compares this instead.
+          ['msgIdRaw' s+(scot %da id.m)]
           ['noteId' s+(crip (trip note-id.m))]
           ['author' s+(scot %p author.m)]
           ['text' s+text.m]

@@ -3600,23 +3600,93 @@
     ::  poke can no longer create a duplicate full %app artifact on the counterparty.
         %remote-dm-app-artifact-delete  `state
     ::
+        %remote-message-rejected
+      ::  the host refused a message we forwarded. Accepted ONLY from that note's
+      ::  authoritative creator, and only for a non-DM note; anything else is ignored
+      ::  outright, so a forged poke from a non-host cannot erase a pending row.
+      ::  No reason travels -- the local composer lock already explains mute,
+      ::  read-only, removal and membership.
+      =/  rnt  (~(get by notes) note-id.rem)
+      ?~  rnt  `state
+      ?.  =(src.bowl creator.u.rnt)  `state
+      ?:  =(%dm type.u.rnt)  `state
+      :_  state
+      ~[(gf-notes `update:noltbook`[%send-rejected note-id.rem msg-id.rem])]
+    ::
+        %remote-message-confirmed
+      ::  the host already had this message (our retry raced the original). Store it if
+      ::  we somehow missed the subscription fact, then emit the ordinary %new-message
+      ::  fact so the optimistic row reconciles through the SAME path as a live post.
+      =/  cnt  (~(get by notes) note-id.rem)
+      ?~  cnt  `state
+      ?.  =(src.bowl creator.u.cnt)  `state
+      ?:  =(%dm type.u.cnt)  `state
+      ?.  =(note-id.rem note-id.msg.rem)  `state
+      ::  only ever our OWN message comes back this way
+      ?.  =(our.bowl author.msg.rem)  `state
+      =/  cmsgs=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
+      =/  cupd=update:noltbook  [%new-message msg.rem ~ ~ ~]
+      =/  ccards=(list card)
+        ~[(gf-paths ~[/notes/[note-id.rem]] cupd) (gf-notes cupd)]
+      ::  ALREADY STORED (the ordinary subscription fact arrived): that path already did
+      ::  every durable write. Stay mutation-free and only re-emit, so a duplicate
+      ::  confirmation can never inflate activity or move the sidebar a second time.
+      ::  The fact still lets the browser reconcile an optimistic row.
+      ?:  (lien cmsgs |=(m=message:noltbook =(id.m id.msg.rem)))
+        :_(state ccards)
+      ::  GENUINELY MISSING: we never received the subscription fact, so this poke is
+      ::  the only delivery. Mirror the durable bookkeeping that ingestion performs for
+      ::  a message of OUR OWN -- sidebar preview and recency -- and, exactly as the
+      ::  gossip own-message branch establishes, advance note-read alongside
+      ::  note-unread-activity so our own recovered post is never a false unread.
+      ::  Deliberately NOT done here: mentions and attention (ingestion suppresses both
+      ::  for a self-authored message via host-self), and any fan-out. No eid and no
+      ::  sequence are allocated -- the host stamped this message and stays its only
+      ::  authority; msg.rem is stored exactly as received.
+      =.  notes
+        (~(put by notes) note-id.rem u.cnt(last-author `author.msg.rem, last-preview `text.msg.rem))
+      =.  note-activity  (put-activity note-activity note-id.rem now.bowl)
+      =.  note-unread-activity  (put-unread-activity note-unread-activity note-id.rem now.bowl)
+      =.  note-read  (put-read note-read note-id.rem now.bowl)
+      :_  state(messages (~(put by messages) note-id.rem (snoc cmsgs msg.rem)))
+      %+  weld  ccards
+      ^-  (list card)
+      :~  (activity-fact note-id.rem now.bowl)
+          (unread-activity-fact note-id.rem now.bowl)
+          (note-read-fact note-id.rem now.bowl)
+      ==
+    ::
         %remote-message
       ::  a remote user sent a message to a note we host
       ::  reject if sender is blocked
       ?:  (~(has in pal-blocked) src.bowl)  `state
       =/  old  (~(get by notes) note-id.rem)
       ?~  old  `state
+      ::  OPTIMISTIC POST, host side. A %poke-ack is Gall delivery, not application
+      ::  acceptance -- every rejection below acks POSITIVELY today, so the sender is
+      ::  left with no signal at all. When WE are the authoritative host of a non-DM
+      ::  note, answer a refusal explicitly. We stay silent when we are not the
+      ::  authority (unknown note, not creator), for DMs (unchanged behavior), for a
+      ::  blocked sender, and for forged/malformed payloads.
+      =/  host-nondm=?  &(=(our.bowl creator.u.old) !=(%dm type.u.old))
+      =/  rej-cards=(list card)
+        ?.  host-nondm  ~
+        :~  %+  rpoke
+              /msg-reject/(scot %p src.bowl)/[note-id.rem]
+            [src.bowl `remote:noltbook`[%remote-message-rejected note-id.rem id.msg.rem]]
+        ==
       ::  reject if sender was removed from note
-      ?:  (~(has in removed.u.old) src.bowl)  `state
+      ?:  (~(has in removed.u.old) src.bowl)  :_(state rej-cards)
       ::  verify: we must be creator (or DM peer), sender must be in users
       ?.  ?|  =(our.bowl creator.u.old)
               =(%dm type.u.old)
           ==
         `state
-      ?.  (~(has in users.u.old) src.bowl)  `state
+      ?.  (~(has in users.u.old) src.bowl)  :_(state rej-cards)
       ::  read-only %group: ordinary members may not post. Before sequence allocation,
       ::  target mutation, facts, cards, previews, activity, unread and forwarding.
-      ?.  (can-mutate-message note-id.rem src.bowl notes note-admins note-muted)  `state
+      ?.  (can-mutate-message note-id.rem src.bowl notes note-admins note-muted)
+        :_(state rej-cards)
       ::  INTEGRITY. src.bowl is the authenticated Gall sender, so the embedded
       ::  author must always be that ship. This was previously enforced for %dm
       ::  only, which let any member of a hosted group/notebook post under another
@@ -3631,6 +3701,25 @@
       ::  DM only: no entry-meta means no seq to replace, so order would fall back to the
       ::  sender-controlled id. Hosted notes are unaffected -- they get host-assigned meta.
       ?:  &(=(%dm type.u.old) ?=(~ meta.msg.rem))  `state
+      ::  HOSTED-NOTE DUPLICATE (retry of a message we already stored). Keyed on the
+      ::  stable sender identity [author msg-id] -- never text, timestamp or reply
+      ::  content. Placed BEFORE sequence allocation, entry-meta stamping, insertion,
+      ::  preview, mention, attention, activity, unread, facts and fan-out, so a
+      ::  duplicate consumes no eid and no sequence and changes nothing.
+      ::  It is NOT silently dropped: we replay the stored copy to the sender so the
+      ::  optimistic row reconciles instead of staying failed forever.
+      ::  DM keeps its own existing dedup below, untouched.
+      =/  dup-hit=(list message:noltbook)
+        ?:  =(%dm type.u.old)  ~
+        %+  skim  (fall (~(get by messages) note-id.rem) ~)
+        |=  m=message:noltbook
+        &(=(id.m id.msg.rem) =(author.m author.msg.rem))
+      ?^  dup-hit
+        :_  state
+        :~  %+  rpoke
+              /msg-confirm/(scot %p src.bowl)/[note-id.rem]
+            [src.bowl `remote:noltbook`[%remote-message-confirmed note-id.rem i.dup-hit]]
+        ==
       ::  host assigns authoritative entry-meta for regular notes
       =/  is-regular=?
         ?&  !=(%cover type.u.old)
@@ -7857,7 +7946,7 @@
         (api-result-card request-id.aa %.n %not-participant 'host user is not a logical participant of this note' `note-id.aa ~ ~)
       =+  conf=(api-send-confirm note-id.aa nt our.bowl now.bowl seq-counters)
       =^  cards  this
-        $(mark %noltbook-action, vase (action-vase `action:noltbook`[%send-message note-id.aa text.aa ~ reply-to-eid.aa ~ via]))
+        $(mark %noltbook-action, vase (action-vase `action:noltbook`[%send-message note-id.aa text.aa ~ reply-to-eid.aa ~ via ~ ~]))
       :_  this
       %+  weld  cards
       (api-result-card request-id.aa %.y code.conf 'message sent' `note-id.aa mid.conf eid.conf)
@@ -7894,7 +7983,7 @@
         (api-result-card request-id.aa %.n %not-participant 'host user is not a logical participant of this note' `note-id.aa ~ ~)
       =+  conf=(api-send-confirm note-id.aa nt our.bowl now.bowl seq-counters)
       =^  cards  this
-        $(mark %noltbook-action, vase (action-vase `action:noltbook`[%send-message note-id.aa p.res ~ ~ ~ via]))
+        $(mark %noltbook-action, vase (action-vase `action:noltbook`[%send-message note-id.aa p.res ~ ~ ~ via ~ ~]))
       :_  this
       %+  weld  cards
       (api-result-card request-id.aa %.y code.conf 'app ref sent' `note-id.aa mid.conf eid.conf)
@@ -9883,6 +9972,46 @@
       :_  this
       ~[(rpoke /gossip-req/(scot %p from.act)/[note-id.act] from.act `remote:noltbook`[%remote-gossip-request note-id.act])]
     ::
+        %resend-message
+      ::  RETRY. Reuses the ORIGINAL msg-id, so the host's [author msg-id] dedupe makes
+      ::  every ordering -- original first, retry first, both in flight -- collapse to
+      ::  exactly one durable message. Deliberately narrow: remotely-hosted
+      ::  %group/%notebook only. Locally stored notes never take the forward path at
+      ::  all, and cover/gossip/rumors order by msg.id, which a caller-supplied id
+      ::  could otherwise perturb. Same-ship only via the %noltbook-action guard.
+      =/  r-exists  (~(get by notes) note-id.act)
+      ?~  r-exists  `this
+      ?.  ?|(=(%group type.u.r-exists) =(%notebook type.u.r-exists))  `this
+      ?:  =(our.bowl creator.u.r-exists)  `this
+      ?:  (is-write-blocked note-id.act host-status notes our.bowl)  `this
+      ?.  (human-sees-note note-id.act our.bowl note-members notes)  `this
+      ?.  (can-mutate-message note-id.act our.bowl notes note-admins note-muted)  `this
+      ::  rebuild the message byte-for-byte as %send-message built it: id and timestamp
+      ::  were both now.bowl of the original event. The sender-side entry-meta carries
+      ::  only the reply pointer -- the host discards eid/seq and stamps its own,
+      ::  exactly as on the first attempt, so nothing sender-supplied becomes
+      ::  authoritative.
+      =/  r-meta=(unit entry-meta:noltbook)
+        `[(sham [our.bowl msg-id.act 0]) 0 0 msg-id.act msg-id.act reply-to-eid.act]
+      =/  r-msg=message:noltbook
+        :*  msg-id.act  note-id.act  our.bowl  text.act  msg-id.act  reply-to.act  %.n  r-meta
+        ==
+      =/  r-fwd=card
+        (rpoke /msg-fwd/[note-id.act] creator.u.r-exists `remote:noltbook`[%remote-message note-id.act r-msg directed-kind.act via.act])
+      =/  r-arm=?
+        ?&  =(%group type.u.r-exists)
+            !(is-host-deleted note-id.act host-status)
+        ==
+      ?.  r-arm
+        :_  this
+        ~[r-fwd]
+      =/  r-deadline=@da  (add now.bowl ~s8)
+      =/  r-dl-cord=@ta  (scot %da r-deadline)
+      =/  r-wait=card
+        [%pass /host-check/[note-id.act]/[r-dl-cord] %arvo %b %wait r-deadline]
+      :_  this(host-checks (~(put by host-checks) note-id.act r-deadline))
+      ~[r-fwd r-wait]
+    ::
         %send-message
       =/  sys-note=?  ?|(=(note-id.act %cover) =(note-id.act %ars-rumors))
       =/  sys  (ensure-system-notes notes messages our.bowl)
@@ -9899,6 +10028,21 @@
       ?.  (can-mutate-message note-id.act our.bowl notes note-admins note-muted)  `this
       =/  exists  (~(get by notes) note-id.act)
       ?~  exists  `this
+      ::  PREDETERMINED ID. Honored ONLY for the same-ship optimistic path into a note
+      ::  ANOTHER ship hosts -- the one path that forwards instead of storing, and so
+      ::  the only one whose sender may have to retry. Everywhere else (our own notes,
+      ::  DMs, cover, gossip, rumors, and any caller that omits msg-id) eff-id is
+      ::  exactly now.bowl, so behavior is byte-identical to before.
+      ::  Fixing the id before the first attempt is what makes retry safe: the host's
+      ::  [author msg-id] dedupe can only collapse attempts that name the same id.
+      =/  id-eligible=?
+        ?&  ?|(=(%group type.u.exists) =(%notebook type.u.exists))
+            !=(our.bowl creator.u.exists)
+        ==
+      =/  eff-id=@da
+        ?~  msg-id.act  now.bowl
+        ?.  id-eligible  now.bowl
+        u.msg-id.act
       ::  entry-meta for hosted, cover, and gossip notes. Rumors use
       ::  content-hash identity (anonymous — no author for eid/seq).
       =/  is-regular=?
@@ -9923,9 +10067,9 @@
         `eid.u.meta.i.parent
       =/  em=(unit entry-meta:noltbook)
         ?.  is-regular  ~
-        `[(sham [our.bowl now.bowl nxt-seq]) nxt-seq 0 now.bowl now.bowl reply-eid]
+        `[(sham [our.bowl eff-id nxt-seq]) nxt-seq 0 eff-id eff-id reply-eid]
       =/  msg=message:noltbook
-        :*  now.bowl  note-id.act  our.bowl  text.act  now.bowl  reply-to.act  %.n  em
+        :*  eff-id  note-id.act  our.bowl  text.act  eff-id  reply-to.act  %.n  em
         ==
       ::  ARS NOTORIA: store locally and gossip to all peers
       ?:  =(note-id.act %cover)
@@ -10038,6 +10182,14 @@
         =/  fwd-card=card
           ::  carry the explicit NOTE SEND marker to the host (regular/group)
           (rpoke /msg-fwd/[note-id.act] creator.u.exists `remote:noltbook`[%remote-message note-id.act msg directed-kind.act via.act])
+        ::  OPTIMISTIC POST, sender side. Nothing is stored -- an unaccepted post is
+        ::  never a durable message. This LOCAL fact simply tells our own browser the
+        ::  exact identity we just generated, binding its client-id to
+        ::  [note-id author msg-id] so the row it already drew can reconcile against
+        ::  the host's authoritative %new-message. Never leaves this ship.
+        =/  pend-cards=(list card)
+          ?~  client-id.act  ~
+          ~[(gf-notes `update:noltbook`[%send-pending u.client-id.act msg])]
         ::  for remote %group sends, arm the 8s host reachability timer so
         ::  we surface %host-unreachable even when Ames swallows the ack.
         =/  arm-timer=?
@@ -10046,13 +10198,13 @@
           ==
         ?.  arm-timer
           :_  this
-          ~[fwd-card]
+          (weld pend-cards ^-((list card) ~[fwd-card]))
         =/  deadline=@da  (add now.bowl ~s8)
         =/  deadline-cord=@ta  (scot %da deadline)
         =/  wait-card=card
           [%pass /host-check/[note-id.act]/[deadline-cord] %arvo %b %wait deadline]
         :_  this(host-checks (~(put by host-checks) note-id.act deadline))
-        ~[fwd-card wait-card]
+        (weld pend-cards ^-((list card) ~[fwd-card wait-card]))
       ::  local note: store and fan out (host posts own message). Carry the NOTE
       ::  SEND marker so member-recipients classify attention as %send.
       =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
@@ -13375,6 +13527,18 @@
         ::  recency: a genuinely-new subscribed message bumps this note.
         =.  note-activity  (put-activity note-activity nid now.bowl)
         =.  note-unread-activity  (put-unread-activity note-unread-activity nid now.bowl)
+        ::  OWN-AUTHOR READ. A ship's own authored message must never leave that ship's
+        ::  own note durably unread. Both gossip ingestion branches already advance
+        ::  note-read alongside note-unread-activity for a self-authored message; this
+        ::  regular-note branch did not. The browser normally papers over it by poking
+        ::  %mark-note-read -- but with the EventSource closed that poke never happens,
+        ::  so note-unread-activity > note-read survived the reload and the sender saw a
+        ::  green unread dot on its own post. Same now.bowl on both, so they compare
+        ::  equal. Reached only after dedup and the call-marker return, so a duplicate
+        ::  mutates nothing and a hidden call marker is exempt. Another ship's message
+        ::  is untouched and stays unread exactly as before.
+        =/  own-msg=?  (host-self author.msg our.bowl)
+        =?  note-read  own-msg  (put-read note-read nid now.bowl)
         ::  mention detection for subscribed notes
         =/  msg-eid=(unit @uv)
           ?~  meta.msg  ~
@@ -13410,6 +13574,9 @@
               (activity-fact nid now.bowl)
           ==
         =.  base-cards  (snoc base-cards (unread-activity-fact nid now.bowl))
+        ::  tell the browser the read cursor moved too, so a live client agrees with
+        ::  what a reload will hydrate.
+        =?  base-cards  own-msg  (snoc base-cards (note-read-fact nid now.bowl))
         :_  this
         :(weld base-cards mention-cards ac.ar)
       ::
