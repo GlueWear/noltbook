@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="nb-build" content="vt85l0qijb">
+<meta name="nb-build" content="eeurgpg3jh">
 <title>NOLTBOOK</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20355.9%20355.9%22%20width=%22355.9%22%20height=%22355.9%22%3E%3Cg%20fill=%22%23ffffff%22%20transform=%22translate(-10.9901536%2036.4439936)%20scale(1.06235712)%22%3E%3Cpolygon%20points=%2266%20159.5%2066%2021.2%20204.3%2021.2%20204.3%2080.8%20204.3%20112.5%20204.3%20159.5%20160.7%20159.5%20160.7%20180.7%20225.5%20180.7%20225.5%20112.5%20225.5%2080.8%20225.5%200%2044.8%200%2044.8%20180.7%20121%20180.7%20121%20159.5%2066%20159.5%22/%3E%3Cpolygon%20points=%22234.7%2085.7%20234.7%20106.9%20289.8%20106.9%20289.8%20245.3%20151.4%20245.3%20151.4%20186.8%20151.4%20180.7%20151.4%20159.5%20151.4%20155.1%20151.4%20106.9%20195%20106.9%20195%2085.7%20130.2%2085.7%20130.2%20151.8%20130.2%20159.5%20130.2%20180.7%20130.2%20183.5%20130.2%20266.4%20310.9%20266.4%20310.9%2085.7%20234.7%2085.7%22/%3E%3C/g%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -145,6 +145,11 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .note-item.depth-4{padding-left:5rem}
 .note-item.depth-5{padding-left:6rem}
 .note-icon{width:3.5rem;height:3.5rem;border-radius:3px;flex-shrink:0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;align-items:center;justify-items:center;font-size:.75rem;background:#000;color:#bbb;line-height:1}
+.note-char-seal{grid-column:1/-1;grid-row:1/-1;width:100%;height:100%;padding:.18rem;display:grid;grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(2,1fr);align-items:center;justify-items:center;color:#bbb;font-family:"Arial Unicode MS","Noto Sans Symbols 2","Segoe UI Symbol",sans-serif;font-size:1.3rem;font-weight:600;font-style:normal;line-height:1}
+.note-char-seal>span{display:grid;place-items:center;min-width:0;min-height:0;font-style:normal}
+.note-char-seal>span.off{font-size:.75rem;opacity:.13}
+.note-detail-icon .note-char-seal{font-size:1.55rem}
+.note-detail-icon .note-char-seal>span.off{font-size:.9rem}
 /* layered note icons: fallback renders in flow, image overlays it; on error the
    image hides itself and the fallback underneath shows through. */
 .note-icon,.profile-note-icon,.note-detail-icon{position:relative}
@@ -1948,10 +1953,30 @@ function getLastMessage(noteId){
   if(!msgs.length)return null;
   return msgs[msgs.length-1];
 }
-function noteInitials(name){
-  const clean=name.replace(/[^a-zA-Z0-9]/g,'');
-  const chars=(clean.length>=4?clean.slice(0,4):clean.padEnd(4,' ')).toUpperCase();
-  return `<span>${chars[0]}</span><span>${chars[1]}</span><span>${chars[2]}</span><span>${chars[3]}</span>`;
+const NOTE_SEAL_GLYPHS=Array.from('⌁⌇⌖⌬⌭⌯⍀⍉⍊⍋⍎⍑⍟⍜⍝⍞⎔⎋⎊⏣⋈⋔⋇⋉⋊⊕⊗⊙⊚⊛⊞⊟⊠⊡⫶⫷⫸⧉⧖⧗⧘⧙⧚⧛⧜⧝⧞⧟⧫⧬⨳⨷⩚⩛⩞⩤⩥⩪⩫⩬⩭⩯');
+function noteSealValues(noteId){
+  const text=String(noteId||'');
+  let a=1779033703|0,b=3144134277|0,c=1013904242|0,d=2773480762|0;
+  for(let i=0;i<text.length;i++){
+    const k=text.charCodeAt(i);
+    a=b^Math.imul(a^k,597399067);b=c^Math.imul(b^k,2869860233);
+    c=d^Math.imul(c^k,951274213);d=a^Math.imul(d^k,2716044179);
+  }
+  a=Math.imul(c^(a>>>18),597399067);b=Math.imul(d^(b>>>22),2869860233);
+  c=Math.imul(a^(c>>>17),951274213);d=Math.imul(b^(d>>>19),2716044179);
+  const out=[];
+  for(let i=0;i<32;i++){
+    const t=(((a+b)|0)+d)|0;d=(d+1)|0;a=b^(b>>>9);b=(c+(c<<3))|0;c=((c<<21)|(c>>>11));c=(c+t)|0;out.push(t>>>0);
+  }
+  return out;
+}
+function noteCharacterSeal(noteId){
+  const vals=noteSealValues(noteId);let cells='';
+  for(let i=0;i<4;i++){
+    const on=(vals[i]&255)<224;
+    cells+='<span'+(on?'':' class="off"')+'>'+(on?NOTE_SEAL_GLYPHS[vals[i+4]%NOTE_SEAL_GLYPHS.length]:'·')+'</span>';
+  }
+  return '<span class="note-char-seal" aria-hidden="true">'+cells+'</span>';
 }
 function updateCoverPreview(){}
 function noteIdParamOk(id){
@@ -3520,7 +3545,7 @@ function noteDisplayIconHtml(note){
     return iconWithFallbackHtml(url,avatarHtml(cp),'border-radius:3px');
   }
   const url=resolveNoteIconUrl(note);
-  return iconWithFallbackHtml(url,noteInitials(note.name),'border-radius:3px');
+  return iconWithFallbackHtml(url,noteCharacterSeal(note.id),'border-radius:3px');
 }
 
 function findDmRoot(ship){
@@ -8098,7 +8123,7 @@ function renderProfileNotesHtml(ship,fallback){
   const all=[...pubNotes,...privNotes];
   if(all.length===0)return '<span style="color:var(--dim)">'+escHtml(fallback)+'</span>';
   return all.map(n=>{
-    const _icU=resolveNoteIconUrl(n);const ic=iconWithFallbackHtml(_icU,noteInitials(n.name));
+    const _icU=resolveNoteIconUrl(n);const ic=iconWithFallbackHtml(_icU,noteCharacterSeal(n.id));
     const vis=n.visibility==='public'?'public':'private';
     const isMember=state.notes[n.id]&&(state.notes[n.id].users||[]).includes(me);
     const isPending=!!state.pendingJoins[n.id];
@@ -8375,7 +8400,7 @@ async function openProfileModal(){
   const privNotes=hostedNotes.filter(n=>n.visibility==='private').sort((a,b)=>a.name.localeCompare(b.name));
   const sharedNotes=[...pubNotes,...privNotes];
   if(sharedNotes.length===0){notesListEl.textContent='none available'}
-  else{notesListEl.innerHTML=sharedNotes.map(n=>{const ic=n.iconUrl?`<img src="${escAttr(n.iconUrl)}">`:(noteInitials(n.name));const vis=n.visibility==='public'?'public':'private';const desc=n.headline||'';return `<div class="profile-note-entry"><div class="profile-note-icon">${ic}</div><div class="profile-note-text"><span class="profile-note-name">${escHtml(n.name)}</span><div class="profile-note-desc"><input type="text" value="${escAttr(desc)}" placeholder="add a description..." data-note-id="${n.id}" onchange="updateNoteDescription(this)" maxlength="120"></div><span class="profile-note-vis">${vis}</span></div></div>`}).join('')}
+  else{notesListEl.innerHTML=sharedNotes.map(n=>{const ic=n.iconUrl?`<img src="${escAttr(n.iconUrl)}">`:(noteCharacterSeal(n.id));const vis=n.visibility==='public'?'public':'private';const desc=n.headline||'';return `<div class="profile-note-entry"><div class="profile-note-icon">${ic}</div><div class="profile-note-text"><span class="profile-note-name">${escHtml(n.name)}</span><div class="profile-note-desc"><input type="text" value="${escAttr(desc)}" placeholder="add a description..." data-note-id="${n.id}" onchange="updateNoteDescription(this)" maxlength="120"></div><span class="profile-note-vis">${vis}</span></div></div>`}).join('')}
   const sponsorEl=document.getElementById('profileSponsors');
   sponsorEl.textContent='loading...';
   document.getElementById('profileModal').classList.add('open');
@@ -8887,7 +8912,7 @@ function openNoteDetailModal(noteId){
   const isRemoved=!!state.removedFromNotes[noteId]||(n.removed&&n.removed.includes(me));
   const isPublic=n.visibility==='public';
   const _icU=resolveNoteIconUrl(n);
-  const ic=iconWithFallbackHtml(_icU,noteInitials(n.name));
+  const ic=iconWithFallbackHtml(_icU,noteCharacterSeal(n.id));
   let desc=n.headline?'<div style="font-size:.85rem;color:#bbb;line-height:1.4">'+escHtml(n.headline)+'</div>':'';
   if(isRemoved)desc+='<div style="font-size:.8rem;color:#ff4444;margin-top:.3rem">You were removed from this note.</div>';
   const isReadOnly=n.writable===false&&n.type==='group';
