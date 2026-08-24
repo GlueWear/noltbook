@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="nb-build" content="a4aqaq1a75">
+<meta name="nb-build" content="l5gd719ir6">
 <title>NOLTBOOK</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20355.9%20355.9%22%20width=%22355.9%22%20height=%22355.9%22%3E%3Cg%20fill=%22%23ffffff%22%20transform=%22translate(-10.9901536%2036.4439936)%20scale(1.06235712)%22%3E%3Cpolygon%20points=%2266%20159.5%2066%2021.2%20204.3%2021.2%20204.3%2080.8%20204.3%20112.5%20204.3%20159.5%20160.7%20159.5%20160.7%20180.7%20225.5%20180.7%20225.5%20112.5%20225.5%2080.8%20225.5%200%2044.8%200%2044.8%20180.7%20121%20180.7%20121%20159.5%2066%20159.5%22/%3E%3Cpolygon%20points=%22234.7%2085.7%20234.7%20106.9%20289.8%20106.9%20289.8%20245.3%20151.4%20245.3%20151.4%20186.8%20151.4%20180.7%20151.4%20159.5%20151.4%20155.1%20151.4%20106.9%20195%20106.9%20195%2085.7%20130.2%2085.7%20130.2%20151.8%20130.2%20159.5%20130.2%20180.7%20130.2%20183.5%20130.2%20266.4%20310.9%20266.4%20310.9%2085.7%20234.7%2085.7%22/%3E%3C/g%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -2949,7 +2949,12 @@ function updateMuteUI(){
   const nid=state.currentNoteId;
   const note=state.notes[nid];
   const muted=(state.noteMuted[nid]||[]).includes(me);
+  // PERMISSION lock: %group only. Notebooks have no membership/mute/admin model,
+  // so read-only there is metadata, never an enforcement state.
   const isReadOnly=note&&note.writable===false&&note.type==='group';
+  // DISPLAY only: the header badge also reflects a read-only notebook. It feeds
+  // nothing but roBadge.style.display -- never roLock, locked, or any send path.
+  const showReadOnlyBadge=!!(note&&note.writable===false&&(note.type==='group'||note.type==='notebook'));
   const role=getMyRole(nid);
   const isHostOrAdmin=role==='host'||role==='admin';
   // DM block state
@@ -2999,7 +3004,7 @@ function updateMuteUI(){
     if(lockBar)lockBar.style.display='none';
   }
   const roBadge=document.getElementById('readOnlyBadge');
-  if(roBadge)roBadge.style.display=isReadOnly?'inline':'none';
+  if(roBadge)roBadge.style.display=showReadOnlyBadge?'inline':'none';
 }
 function acceptForkInvite(rootId){
   // optimistic: mark pending invite as fetching so the banner shows progress
@@ -5104,15 +5109,15 @@ function renderMsg(el,msg,depth,isThreadAnchor){
   // P1.3: carry the message EID into every action so the exact stored entry is targeted,
   // never a same-id message from the other participant.
   const _mEid=(msg.meta&&msg.meta.eid)||'';
-  const editBtn=canEdit?`<button class="msg-action-btn" onclick="editMessage('${msg.id}','${_mEid}');toggleMsgActions(this,false)">EDIT</button>`:'';
-  const delBtn=canDelete?`<button class="msg-action-btn delete-msg" onclick="deleteMessage('${msg.id}','${_mEid}');toggleMsgActions(this,false)">DELETE</button>`:'';
+  const editBtn=canEdit?`<button class="msg-action-btn" data-act="edit" onclick="editMessage('${msg.id}','${_mEid}');toggleMsgActions(this,false)">EDIT</button>`:'';
+  const delBtn=canDelete?`<button class="msg-action-btn delete-msg" data-act="delete" onclick="deleteMessage('${msg.id}','${_mEid}');toggleMsgActions(this,false)">DELETE</button>`:'';
   const removeImportBtn=msg.import&&_mEid?`<button class="msg-action-btn delete-msg" onclick="removeDmImport('${escAttr(msg.noteId)}','${escAttr(_mEid)}');toggleMsgActions(this,false)">REMOVE IMPORT</button>`:'';
   const origBtn=isThreadAnchor?`<button class="msg-action-btn" onclick="jumpToOriginal('${msg.id}','${_mEid}');toggleMsgActions(this,false)">ORIGINAL</button>`:'';
   const isGossipRef=note.type==='gossip'&&msg.noteId!=='cover'&&msg.noteId!=='ars-rumors';
   const refBtn=isGossipRef?`<button class="msg-action-btn" onclick="copyGossipRef('${escAttr(msg.noteId)}','${escAttr(msg.author)}','${msg.meta&&msg.meta.eid?escAttr(msg.meta.eid):''}','${msg.id}');toggleMsgActions(this,false)">REF</button>`:'';
   const pinBtn=pinBtnHtml(msg.noteId,msg.meta&&msg.meta.eid,'message',true);
-  const _sendBtn=isOwnPost(msg.author)?'':`<button class="msg-action-btn send-msg" onclick="sendToUser('${escAttr(msg.author)}','${msg.id}','${_mEid}');toggleMsgActions(this,false)">SEND</button>`;
-  const actions=`<div class="msg-actions" onclick="event.stopPropagation()">${origBtn}<button class="msg-action-btn" onclick="startReply('${msg.id}','${escAttr(msg.author)}','${_mEid}');toggleMsgActions(this,false)">REPLY</button>${editBtn}${refBtn}${pinBtn}${_sendBtn}${delBtn}${removeImportBtn}</div>`;
+  const _sendBtn=isOwnPost(msg.author)?'':`<button class="msg-action-btn send-msg" data-act="send" onclick="sendToUser('${escAttr(msg.author)}','${msg.id}','${_mEid}');toggleMsgActions(this,false)">SEND</button>`;
+  const actions=`<div class="msg-actions" data-note="${escAttr(msg.noteId||'')}" onclick="event.stopPropagation()">${origBtn}<button class="msg-action-btn" data-act="reply" onclick="startReply('${msg.id}','${escAttr(msg.author)}','${_mEid}');toggleMsgActions(this,false)">REPLY</button>${editBtn}${refBtn}${pinBtn}${_sendBtn}${delBtn}${removeImportBtn}</div>`;
   const div=document.createElement('div');
   const depthClass=depth>0?' depth-'+Math.min(depth,5):'';
   const _mb=renderMsgBody(msg.text);
@@ -8814,11 +8819,36 @@ function positionMsgActions(menu,x,y){
   menu.style.left=left+'px';
   menu.style.top=top+'px';
 }
+// ONE shared frontend permission decision, mirroring the backend can-mutate-message
+// rule: host and current admins always may; an ordinary member may not in a read-only
+// %group, nor while muted. Other note types are not reinterpreted. Evaluated when the
+// menu OPENS, so a %muted-updated or %note-meta-updated fact takes effect on the next
+// open with no message-list rebuild, no scroll jump and no artifact reload.
+function msgWriteAllowed(noteId){
+  const n=state.notes[noteId];
+  if(!n)return true;                       // unknown note: the action guards still apply
+  const me='~'+api.ship;
+  if(n.creator===me)return true;
+  if((state.noteAdmins[noteId]||[]).includes(me))return true;
+  if(n.type==='group'&&n.writable===false)return false;
+  if((state.noteMuted[noteId]||[]).includes(me))return false;
+  return true;
+}
 function showMsgActionsFor(msg,x,y){
   bindMsgActionsDismiss();
-  msg.classList.add('show-actions');
+  // hide the write-gated controls when message mutation is not permitted right now.
+  // ORIGINAL, REF and PIN keep their own independent rules.
   const menu=msg.querySelector('.msg-actions');
   if(!menu)return;
+  const allow=msgWriteAllowed(menu.getAttribute('data-note')||state.currentNoteId);
+  const gated=menu.querySelectorAll('[data-act]');
+  for(let i=0;i<gated.length;i++)gated[i].style.display=allow?'':'none';
+  // never open an empty action box
+  let visible=0;
+  const all=menu.querySelectorAll('.msg-action-btn');
+  for(let i=0;i<all.length;i++)if(all[i].style.display!=='none')visible++;
+  if(!visible)return;
+  msg.classList.add('show-actions');
   if(x==null||y==null){                           // keyboard / no pointer: use the row
     const mr=msg.getBoundingClientRect();
     x=Math.min(mr.right-24,window.innerWidth-24);y=mr.top+Math.min(24,mr.height/2);

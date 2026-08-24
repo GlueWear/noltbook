@@ -453,6 +453,70 @@
   ^-  (map @ta @ud)
   ?~  ids  revs
   $(ids t.ids, revs (bump-member-rev i.ids revs))
+::  ===== Phase 2: note-scoped ROLE state follows a membership cascade =====
+::  The users/removed/logical-member cascade already exists (add-ship-to-ids,
+::  add-member-to-ids, del-member-from-ids). What did not cascade was per-note ROLE
+::  state: note-admins and note-muted were only ever adjusted on the ROOT, so a
+::  descendant kept a stale admin row after a removal, and a descendant read-only
+::  %group never auto-muted a member added through its parent. These two helpers own
+::  that, and every cascade path routes through them. Neither copies a parent's roles
+::  into a child -- each note keeps its own settings.
+::
+::  cascade-roles-add: for each id, decide roles for a ship being (re)added.
+::  `pre` is the roster BEFORE the users cascade, so "already a member here" is
+::  answerable. Already a member => untouched, so an idempotent add can never demote a
+::  sitting admin or clear a valid mute. Not a member => a genuine (re)join: stale admin
+::  and mute from a previous membership are dropped, then a read-only %group re-mutes
+::  them unless they are its creator.
+++  cascade-roles-add
+  |=  $:  ship=@p  ids=(list @ta)
+          pre=(map @ta note:noltbook)
+          admins=(map @ta (set @p))
+          muted=(map @ta (set @p))
+      ==
+  ^-  [(map @ta (set @p)) (map @ta (set @p))]
+  ?~  ids  [admins muted]
+  =/  cur=(unit note:noltbook)  (~(get by pre) i.ids)
+  ?~  cur  $(ids t.ids)
+  ?:  (~(has in users.u.cur) ship)  $(ids t.ids)
+  =/  a-set=(set @p)  (~(del in (fall (~(get by admins) i.ids) ~)) ship)
+  =/  m-set=(set @p)  (~(del in (fall (~(get by muted) i.ids) ~)) ship)
+  =/  needs-mute=?  &(=(%group type.u.cur) !writable.u.cur !=(ship creator.u.cur))
+  =?  m-set  needs-mute  (~(put in m-set) ship)
+  $(ids t.ids, admins (~(put by admins) i.ids a-set), muted (~(put by muted) i.ids m-set))
+::  cascade-roles-remove: a ship leaving/removed from a subtree keeps no role anywhere
+::  in it. Rows are always written, including empty ones, so the emitted facts can
+::  clear a client's cached role state.
+++  cascade-roles-remove
+  |=  $:  ship=@p  ids=(list @ta)
+          admins=(map @ta (set @p))
+          muted=(map @ta (set @p))
+      ==
+  ^-  [(map @ta (set @p)) (map @ta (set @p))]
+  ?~  ids  [admins muted]
+  =/  a-set=(set @p)  (~(del in (fall (~(get by admins) i.ids) ~)) ship)
+  =/  m-set=(set @p)  (~(del in (fall (~(get by muted) i.ids) ~)) ship)
+  $(ids t.ids, admins (~(put by admins) i.ids a-set), muted (~(put by muted) i.ids m-set))
+::  build-roles-updated-cards: authoritative %admins-updated + %muted-updated per id on
+::  both /notes and /notes/[id]. ALWAYS emitted, including an empty list -- an empty
+::  authoritative value is exactly what clears a stale client cache.
+++  build-roles-updated-cards
+  |=  $:  ids=(list @ta)
+          admins=(map @ta (set @p))
+          muted=(map @ta (set @p))
+      ==
+  ^-  (list card:agent:gall)
+  %-  zing
+  %+  turn  ids
+  |=  nid=@ta
+  ^-  (list card:agent:gall)
+  =/  a-upd=update:noltbook  [%admins-updated nid ~(tap in (fall (~(get by admins) nid) ~))]
+  =/  m-upd=update:noltbook  [%muted-updated nid ~(tap in (fall (~(get by muted) nid) ~))]
+  :~  (gf-notes a-upd)
+      (gf-paths ~[/notes/[nid]] a-upd)
+      (gf-notes m-upd)
+      (gf-paths ~[/notes/[nid]] m-upd)
+  ==
 ::  build-users-updated-cards: emit %note-users-updated facts on both /notes
 ::  and /notes/[id] for each id, reading current users/removed/rev from
 ::  nmap + revs.
@@ -1491,11 +1555,17 @@
     ?:  is-host-unreach     %host-unreachable
     ?:  &(!is-member !exempt)  %not-participant
     %none
+  ::  message mutation additionally requires the read-only/mute gate. This calls the
+  ::  SAME helper the enforcement paths use, so reporting cannot drift from behaviour --
+  ::  in particular the read-only restriction stays %group-only. Artifact capability
+  ::  reporting is deliberately unchanged.
+  =/  can-write-msg=?
+    &(can-post (can-mutate-message nid our nmap admins muted-map))
   :~  ['canRead' b+can-read]
-      ['canPost' b+can-post]
+      ['canPost' b+can-write-msg]
       ['canUploadArtifact' b+can-upload]
-      ['canEditOwnMessages' b+can-post]
-      ['canDeleteOwnMessages' b+can-post]
+      ['canEditOwnMessages' b+can-write-msg]
+      ['canDeleteOwnMessages' b+can-write-msg]
       ['canManageMembers' b+?&(!write-blocked !is-dm is-shared has-mod)]
       ['canManageAdmins' b+?&(!write-blocked !is-dm is-creator)]
       ['canMuteMembers' b+?&(!write-blocked !is-dm is-shared has-mod)]
@@ -3283,6 +3353,32 @@
       =/  orphan-children=(list @ta)  (find-orphan-children note-id.rem notes)
       =/  new-note=note:noltbook
         new-note(children (merge-children children.new-note orphan-children))
+      ::  REINVITE REPAIR: %remote-kick preserves the local subtree but strips us from
+      ::  users and writes an EXPLICIT (possibly empty) note-members row. Reinstalling
+      ::  the incoming note restores users/removed so the composer unlocks -- but the
+      ::  authoritative logical row still excludes us, human-sees-note fails, and our
+      ::  own %send-message returns bare `this`. Repair the logical row here, and never
+      ::  wipe the messages we preserved while unsubscribed.
+      =/  is-shared-invite=?
+        ?&  !=(%dm type.rem)
+            ?|(=(%group type.rem) =(%notebook type.rem))
+        ==
+      ::  malformed roster: an invite that does not actually list us grants nothing.
+      ?:  ?&  is-shared-invite
+              ?|  !(~(has in users.new-note) our.bowl)
+                  (~(has in removed.new-note) our.bowl)
+              ==
+          ==
+        `state
+      =/  had-note=?  (~(has by notes) note-id.rem)
+      =/  notes-after=(map @ta note:noltbook)  (~(put by notes) note-id.rem new-note)
+      ::  a fresh install still initializes an empty list; a reinvite keeps its history.
+      =/  msgs-after=(map @ta (list message:noltbook))
+        ?:  had-note  messages
+        (~(put by messages) note-id.rem ~)
+      =/  members-after=(map @ta (set @p))
+        ?.  is-shared-invite  note-members
+        (put-logical-member note-id.rem our.bowl note-members notes-after)
       ::  root-uniqueness: dedup dm roots (one root per exact user pair)
       =/  dup
         ?.  =(%dm type.rem)  ~
@@ -3341,11 +3437,11 @@
       =/  upd=update:noltbook  [%note-created new-note]
       ::  subscribe to creator for live updates (skip cover — ars handles it)
       ?:  =(note-id.rem %cover)
-        :_  state(notes (~(put by notes) note-id.rem new-note), messages (~(put by messages) note-id.rem ~), peers new-peers)
+        :_  state(notes notes-after, messages msgs-after, peers new-peers)
         :(weld [(gf-notes upd) ~] ars-cards)
       =/  sub-card=card
         [%pass /remote-note/[note-id.rem] %agent [creator.rem %noltbook] %watch /notes/[note-id.rem]]
-      :_  state(notes (~(put by notes) note-id.rem new-note), messages (~(put by messages) note-id.rem ~), peers new-peers, note-activity (put-activity note-activity note-id.rem now.bowl), note-unread-activity (put-unread-activity note-unread-activity note-id.rem now.bowl))
+      :_  state(notes notes-after, messages msgs-after, note-members members-after, peers new-peers, note-activity (put-activity note-activity note-id.rem now.bowl), note-unread-activity (put-unread-activity note-unread-activity note-id.rem now.bowl))
       :(weld [sub-card (gf-notes upd) (activity-fact note-id.rem now.bowl) (unread-activity-fact note-id.rem now.bowl) ~] ars-cards)
     ::
         %remote-gossip-invite
@@ -3512,14 +3608,15 @@
       ?~  old  `state
       ::  reject if sender was removed from note
       ?:  (~(has in removed.u.old) src.bowl)  `state
-      ::  reject if sender is muted in this note
-      ?:  (~(has in (fall (~(get by note-muted) note-id.rem) ~)) src.bowl)  `state
       ::  verify: we must be creator (or DM peer), sender must be in users
       ?.  ?|  =(our.bowl creator.u.old)
               =(%dm type.u.old)
           ==
         `state
       ?.  (~(has in users.u.old) src.bowl)  `state
+      ::  read-only %group: ordinary members may not post. Before sequence allocation,
+      ::  target mutation, facts, cards, previews, activity, unread and forwarding.
+      ?.  (can-mutate-message note-id.rem src.bowl notes note-admins note-muted)  `state
       ::  INTEGRITY. src.bowl is the authenticated Gall sender, so the embedded
       ::  author must always be that ship. This was previously enforced for %dm
       ::  only, which let any member of a hosted group/notebook post under another
@@ -4379,8 +4476,8 @@
           ==
         `state
       ?.  (~(has in users.u.old) src.bowl)  `state
-      ::  reject if muted
-      ?:  (~(has in (fall (~(get by note-muted) note-id.rem) ~)) src.bowl)  `state
+      ::  read-only %group: ordinary members may not mutate message content
+      ?.  (can-mutate-message note-id.rem src.bowl notes note-admins note-muted)  `state
       =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
       ::  eid-first lookup, fall back to msg-id
       =/  found=(list message:noltbook)
@@ -4446,6 +4543,54 @@
       =/  attach-changed=?  !=(new-children children.u.old-par)
       =/  new-par=note:noltbook  u.old-par(children new-children)
       ?:  have-child
+        =/  cur-child=(unit note:noltbook)  (~(get by notes) id.note.rem)
+        ?~  cur-child  `state
+        ::  three distinct situations arrive on this same poke:
+        ::    1. preserved-child REINVITE -- %remote-kick stripped us from the stored
+        ::       child's users, marked us removed and unsubscribed. Refresh the note
+        ::       from the host's authoritative copy, restore logical membership and
+        ::       re-establish exactly one watch so role hydration runs again.
+        ::    2. logical row only -- physical membership is already current but the
+        ::       explicit note-members row omits us. Repair the row, no second watch.
+        ::    3. ordinary duplicate poke -- keep the existing idempotent attach-only
+        ::       behavior: no watch, no message reset, no notification.
+        ::  The sender/creator/parent/users/removed guards above already established
+        ::  that the incoming child is authoritative.
+        =/  phys-stale=?
+          ?|  !(~(has in users.u.cur-child) our.bowl)
+              (~(has in removed.u.cur-child) our.bowl)
+          ==
+        =/  logical-ok=?
+          (~(has in (logical-members-of id.note.rem note-members notes)) our.bowl)
+        ?:  phys-stale
+          ::  install the host's copy, but keep locally known grandchildren attached
+          ::  and keep the child's preserved messages (never reset to ~).
+          =/  kids=(list @ta)
+            (merge-children children.note.rem (find-orphan-children id.note.rem notes))
+          =/  fresh-child=note:noltbook  note.rem(children kids)
+          =/  new-notes=(map @ta note:noltbook)
+            (~(put by (~(put by notes) id.note.rem fresh-child)) parent-id.rem new-par)
+          =/  sub-card=card
+            [%pass /remote-note/[id.note.rem] %agent [creator.note.rem %noltbook] %watch /notes/[id.note.rem]]
+          =/  upd=update:noltbook  [%note-created fresh-child]
+          :_  %=  state
+                notes  new-notes
+                note-members  (put-logical-member id.note.rem our.bowl note-members new-notes)
+                note-activity  (put-activity note-activity id.note.rem now.bowl)
+                note-unread-activity  (put-unread-activity note-unread-activity id.note.rem now.bowl)
+              ==
+          :~  sub-card
+              (gf-notes upd)
+              (activity-fact id.note.rem now.bowl)
+              (unread-activity-fact id.note.rem now.bowl)
+          ==
+        ?.  logical-ok
+          ::  row repair only -- we never left, so no second subscription.
+          :_  %=  state
+                notes  ?:(attach-changed (~(put by notes) parent-id.rem new-par) notes)
+                note-members  (put-logical-member id.note.rem our.bowl note-members notes)
+              ==
+          ~
         ::  already stored — only ensure parent is attached
         ?.  attach-changed  `state
         :_  state(notes (~(put by notes) parent-id.rem new-par))
@@ -4516,8 +4661,8 @@
           ==
         `state
       ?.  (~(has in users.u.old) src.bowl)  `state
-      ::  reject if muted
-      ?:  (~(has in (fall (~(get by note-muted) note-id.rem) ~)) src.bowl)  `state
+      ::  read-only %group: ordinary members may not mutate message content
+      ?.  (can-mutate-message note-id.rem src.bowl notes note-admins note-muted)  `state
       =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.rem) ~)
       ::  eid-first lookup, fall back to msg-id
       =/  found=(list message:noltbook)
@@ -4598,6 +4743,12 @@
       =.  notes-after
         ?:  =(~ group-descs)  notes-after
         (clear-ship-from-ids src.bowl group-descs notes-after)
+      ::  Phase 2: a leaver keeps no role anywhere in the subtree. clean-admins/
+      ::  clean-muted already handle the root and seed the descendant pass.
+      =/  desc-roles  (cascade-roles-remove src.bowl group-descs clean-admins clean-muted)
+      =/  desc-role-cards=(list card)
+        ?:  =(~ group-descs)  ~
+        (build-roles-updated-cards group-descs -.desc-roles +.desc-roles)
       =/  new-revs=(map @ta @ud)
         (bump-member-revs [note-id.rem group-descs] member-revs)
       =/  users-upd=update:noltbook
@@ -4609,8 +4760,8 @@
       =/  desc-users-cards=(list card)
         ?:  =(~ group-descs)  ~
         (build-users-updated-cards group-descs notes-after new-revs)
-      :_  state(notes notes-after, note-admins clean-admins, note-muted clean-muted, member-revs new-revs, note-members (del-member-from-ids src.bowl [note-id.rem group-descs] note-members notes))
-      :(weld base-cards admin-cards muted-cards desc-users-cards)
+      :_  state(notes notes-after, note-admins -.desc-roles, note-muted +.desc-roles, member-revs new-revs, note-members (del-member-from-ids src.bowl [note-id.rem group-descs] note-members notes))
+      :(weld base-cards admin-cards muted-cards desc-role-cards desc-users-cards)
     ::
         %remote-root-exists
       ::  bound the icon on the incoming canonical note before any use below.
@@ -4702,6 +4853,10 @@
         =/  nu=(set @p)  (~(del in users.u.cur) our.bowl)
         =/  nr=(set @p)  (~(put in removed.u.cur) our.bowl)
         $(todo t.todo, acc (~(put by acc) i.todo u.cur(users nu, removed nr)))
+      ::  Phase 2: being kicked from the subtree drops our roles throughout it.
+      =/  kick-roles  (cascade-roles-remove our.bowl subtree-ids note-admins note-muted)
+      =.  note-admins  -.kick-roles
+      =.  note-muted   +.kick-roles
       =/  unsub-cards=(list card)
         %+  turn  subtree-ids
         |=  nid=@ta
@@ -4709,11 +4864,18 @@
         [%pass /remote-note/[nid] %agent [src.bowl %noltbook] %leave ~]
       =/  users-updated-cards=(list card)
         (build-users-updated-cards subtree-ids notes-after member-revs)
+      ::  Phase 2: this path UNSUBSCRIBES and never re-subscribes, so watch hydration
+      ::  cannot deliver the new roles -- the facts must be emitted here. Empty lists
+      ::  included, so the frontend clears our stale admin/muted rows.
+      ::  member-revs is deliberately NOT bumped: the host owns the authoritative
+      ::  revision and this path already reports the existing one.
+      =/  kick-role-cards=(list card)
+        (build-roles-updated-cards subtree-ids -.kick-roles +.kick-roles)
       ::  1B.3: we were kicked — drop our.bowl from the subtree's logical members (the
       ::  note is preserved read-only, but we are no longer a logical participant).
       :_  state(notes notes-after, note-members (del-member-from-ids our.bowl subtree-ids note-members notes))
       ^-  (list card)
-      :(weld unsub-cards users-updated-cards ^-((list card) ~[(gf-notes kick-upd)]))
+      :(weld unsub-cards users-updated-cards kick-role-cards ^-((list card) ~[(gf-notes kick-upd)]))
     ::
         %remote-blocked
       ::  someone blocked us — persist in blocked-by and notify frontend
@@ -4813,7 +4975,14 @@
       =/  desc-ids=(list @ta)  (collect-group-descendants root-id.rem notes)
       =/  subtree-ids=(list @ta)  [root-id.rem desc-ids]
       =/  is-acceptance=?  (~(has in invs) src.bowl)
+      ::  Phase 2: snapshot BEFORE the add so a genuine (re)join is distinguishable.
+      =/  pre-notes=(map @ta note:noltbook)  notes
       =/  notes  ?.(is-acceptance notes (add-ship-to-ids src.bowl subtree-ids notes))
+      =/  fork-roles
+        ?.  is-acceptance  [note-admins note-muted]
+        (cascade-roles-add src.bowl subtree-ids pre-notes note-admins note-muted)
+      =.  note-admins  -.fork-roles
+      =.  note-muted   +.fork-roles
       =/  new-invitees=(set @p)  (~(del in invs) src.bowl)
       =/  fork-invitees-after=(map @ta (set @p))
         ?.  is-acceptance  fork-invitees
@@ -4826,6 +4995,12 @@
       =/  member-cards=(list card)
         ?.  is-acceptance  ~
         (build-users-updated-cards subtree-ids notes new-revs)
+      ::  Phase 2: a genuine acceptance changes host-side roles too, so emit the
+      ::  authoritative role facts for the same subtree. An idempotent re-fetch is not
+      ::  an acceptance (src.bowl is no longer in invs), so it emits no churn.
+      =/  fork-role-cards=(list card)
+        ?.  is-acceptance  ~
+        (build-roles-updated-cards subtree-ids -.fork-roles +.fork-roles)
       ::  build payload from current (post-add) state
       =/  src-root-id=@ta
         =/  fo  (~(get by fork-of) root-id.rem)
@@ -4870,8 +5045,8 @@
             root-id.rem  src-root-id  u.root  desc-pairs
             src-origin  fork-ver  parent-ver  fork-art-envs
         ==
-      :_  state(notes notes, fork-invitees fork-invitees-after, member-revs new-revs)
-      %+  weld  member-cards
+      :_  state(notes notes, fork-invitees fork-invitees-after, member-revs new-revs, note-members ?.(is-acceptance note-members (add-member-to-ids src.bowl subtree-ids note-members notes)))
+      %+  weld  (weld member-cards fork-role-cards)
       ^-  (list card)
       ~[(rpoke /fork-pay/(scot %p src.bowl)/[root-id.rem] src.bowl pload)]
     ::
@@ -5056,8 +5231,13 @@
       =/  subtree-ids=(list @ta)  [root-id.rem (collect-group-descendants root-id.rem notes)]
       =/  notes-after=(map @ta note:noltbook)  (clear-ship-from-ids src.bowl subtree-ids notes)
       =/  new-revs=(map @ta @ud)  (bump-member-revs subtree-ids member-revs)
-      :_  state(notes notes-after, fork-invitees fork-invitees-after, member-revs new-revs)
-      (build-users-updated-cards subtree-ids notes-after new-revs)
+      ::  Phase 2: roles follow the same subtree clear.
+      =/  desc-roles  (cascade-roles-remove src.bowl subtree-ids note-admins note-muted)
+      :_  state(notes notes-after, fork-invitees fork-invitees-after, member-revs new-revs, note-admins -.desc-roles, note-muted +.desc-roles, note-members (del-member-from-ids src.bowl subtree-ids note-members notes-after))
+      %-  zing
+      :~  (build-users-updated-cards subtree-ids notes-after new-revs)
+          (build-roles-updated-cards subtree-ids -.desc-roles +.desc-roles)
+      ==
     ::
     ::  ===== REMOTE CALL HANDLERS =====
     ::
@@ -5268,6 +5448,13 @@
         =.  notes-after
           ?:  =(~ group-descs)  notes-after
           (add-ship-to-ids src.bowl group-descs notes-after)
+        ::  Phase 2: note-scoped roles follow the same cascade.
+        =/  desc-roles  (cascade-roles-add src.bowl group-descs notes note-admins note-muted)
+        =.  note-admins  -.desc-roles
+        =.  note-muted   +.desc-roles
+        =/  desc-role-cards=(list card)
+          ?:  =(~ group-descs)  ~
+          (build-roles-updated-cards group-descs note-admins note-muted)
         =/  new-revs=(map @ta @ud)
           (bump-member-revs [note-id.rem group-descs] member-revs)
         =/  users-upd=update:noltbook  [%note-users-updated note-id.rem type.u.old ~(tap in new-users) ~(tap in new-removed) (member-rev-of note-id.rem new-revs)]
@@ -5286,7 +5473,7 @@
           =/  mute-upd=update:noltbook  [%muted-updated nid ~(tap in ro-muted)]
           ~[(gf-notes mute-upd) (gf-paths ~[/notes/[nid]] mute-upd)]
         :_  state(notes notes-after, peers new-peers, note-muted (~(put by note-muted) nid ro-muted), member-revs new-revs, note-members (add-member-to-ids src.bowl [nid group-descs] note-members notes))
-        :(weld [poke-card (gf-notes users-upd) (gf-paths ~[/notes/[note-id.rem]] users-upd) ~] ars-cards ro-mute-cards desc-users-cards desc-child-pokes)
+        :(weld [poke-card (gf-notes users-upd) (gf-paths ~[/notes/[note-id.rem]] users-upd) ~] ars-cards ro-mute-cards desc-role-cards desc-users-cards desc-child-pokes)
       ::  private notes: queue pending request
       =/  pending=(set @p)  (fall (~(get by join-requests) note-id.rem) *(set @p))
       ::  already pending? send pending confirmation, no duplicate
@@ -5370,22 +5557,31 @@
         =.  notes-after
           ?:  =(~ group-descs)  notes-after
           (remove-ship-from-ids target.rem group-descs notes-after)
+        ::  Phase 2: note-scoped roles follow the same cascade. clean-admins/clean-muted
+        ::  already handle the ROOT, so they seed the descendant pass and the composed
+        ::  result is what gets written -- neither overrides the other.
+        =/  desc-roles  (cascade-roles-remove target.rem group-descs clean-admins clean-muted)
+        =/  desc-role-cards=(list card)
+          ?:  =(~ group-descs)  ~
+          (build-roles-updated-cards group-descs -.desc-roles +.desc-roles)
         =/  new-revs=(map @ta @ud)
           (bump-member-revs [note-id.rem group-descs] member-revs)
         =/  users-upd=update:noltbook  [%note-users-updated note-id.rem type.u.old ~(tap in new-users) ~(tap in new-removed) (member-rev-of note-id.rem new-revs)]
         =/  desc-users-cards=(list card)
           ?:  =(~ group-descs)  ~
           (build-users-updated-cards group-descs notes-after new-revs)
-        :_  state(notes notes-after, messages (~(put by messages) note-id.rem new-msgs), note-admins clean-admins, note-muted clean-muted, member-revs new-revs)
-        %+  weld
-          ^-  (list card)
-          :~  kick-card
-              (gf-notes users-upd)
-              (gf-paths ~[/notes/[note-id.rem]] users-upd)
-              (gf-notes msg-upd)
-              (gf-paths ~[/notes/[note-id.rem]] msg-upd)
-          ==
-        desc-users-cards
+        :_  state(notes notes-after, messages (~(put by messages) note-id.rem new-msgs), note-admins -.desc-roles, note-muted +.desc-roles, member-revs new-revs, note-members (del-member-from-ids target.rem [note-id.rem group-descs] note-members notes-after))
+        %-  zing
+        :~  ^-  (list card)
+            :~  kick-card
+                (gf-notes users-upd)
+                (gf-paths ~[/notes/[note-id.rem]] users-upd)
+                (gf-notes msg-upd)
+                (gf-paths ~[/notes/[note-id.rem]] msg-upd)
+            ==
+            desc-role-cards
+            desc-users-cards
+        ==
       ::
           %mute-member
         ?.  is-admin  `state
@@ -5402,6 +5598,14 @@
       ::
           %unmute-member
         ?.  is-admin  `state
+        ::  a read-only %group requires its ordinary members to stay muted; a remote
+        ::  admin cannot lift that either. Promotion to admin is the valid route.
+        ?:  ?&  !writable.u.old
+                =(%group type.u.old)
+                !=(target.rem creator.u.old)
+                !(~(has in (fall (~(get by note-admins) note-id.rem) ~)) target.rem)
+            ==
+          `state
         =/  cur-muted=(set @p)  (fall (~(get by note-muted) note-id.rem) ~)
         ?.  (~(has in cur-muted) target.rem)  `state
         =/  new-muted=(set @p)  (~(del in cur-muted) target.rem)
@@ -5457,6 +5661,13 @@
         =.  notes-after
           ?:  =(~ group-descs)  notes-after
           (add-ship-to-ids target.rem group-descs notes-after)
+        ::  Phase 2: note-scoped roles follow the same cascade.
+        =/  desc-roles  (cascade-roles-add target.rem group-descs notes note-admins note-muted)
+        =.  note-admins  -.desc-roles
+        =.  note-muted   +.desc-roles
+        =/  desc-role-cards=(list card)
+          ?:  =(~ group-descs)  ~
+          (build-roles-updated-cards group-descs note-admins note-muted)
         =/  new-revs=(map @ta @ud)
           (bump-member-revs [note-id.rem group-descs] member-revs)
         =/  users-upd=update:noltbook  [%note-users-updated note-id.rem type.u.old ~(tap in new-users) ~(tap in new-removed) (member-rev-of note-id.rem new-revs)]
@@ -5466,8 +5677,8 @@
         =/  desc-child-pokes=(list card)
           ?:  =(~ group-descs)  ~
           (build-remote-child-notes-to-ship target.rem group-descs notes-after)
-        :_  state(notes notes-after, peers new-peers, note-muted (~(put by note-muted) note-id.rem ro-muted), member-revs new-revs)
-        :(weld [poke-card (gf-notes users-upd) (gf-paths ~[/notes/[note-id.rem]] users-upd) (gf-notes jr-upd) ~] ars-cards ro-mute-cards desc-users-cards desc-child-pokes)
+        :_  state(notes notes-after, peers new-peers, note-muted (~(put by note-muted) note-id.rem ro-muted), member-revs new-revs, note-members (add-member-to-ids target.rem [note-id.rem group-descs] note-members notes-after))
+        :(weld [poke-card (gf-notes users-upd) (gf-paths ~[/notes/[note-id.rem]] users-upd) (gf-notes jr-upd) ~] ars-cards ro-mute-cards desc-role-cards desc-users-cards desc-child-pokes)
       ::
           %deny-join
         ?.  is-admin  `state
@@ -5553,6 +5764,13 @@
         =.  notes-after
           ?:  =(~ group-descs)  notes-after
           (add-ship-to-ids target.rem group-descs notes-after)
+        ::  Phase 2: note-scoped roles follow the same cascade.
+        =/  desc-roles  (cascade-roles-add target.rem group-descs notes note-admins note-muted)
+        =.  note-admins  -.desc-roles
+        =.  note-muted   +.desc-roles
+        =/  desc-role-cards=(list card)
+          ?:  =(~ group-descs)  ~
+          (build-roles-updated-cards group-descs note-admins note-muted)
         =/  new-revs=(map @ta @ud)
           (bump-member-revs [note-id.rem group-descs] member-revs)
         =/  users-upd=update:noltbook  [%note-users-updated note-id.rem type.u.old ~(tap in new-users) ~(tap in new-removed) (member-rev-of note-id.rem new-revs)]
@@ -5562,8 +5780,8 @@
         =/  desc-child-pokes=(list card)
           ?:  =(~ group-descs)  ~
           (build-remote-child-notes-to-ship target.rem group-descs notes-after)
-        :_  state(notes notes-after, peers new-peers, note-muted (~(put by note-muted) note-id.rem ro-muted), member-revs new-revs)
-        :(weld ~[poke-card] ~[(gf-notes users-upd)] ~[(gf-paths ~[pax] users-upd)] ars-cards ro-mute-cards desc-users-cards desc-child-pokes)
+        :_  state(notes notes-after, peers new-peers, note-muted (~(put by note-muted) note-id.rem ro-muted), member-revs new-revs, note-members (add-member-to-ids target.rem [note-id.rem group-descs] note-members notes-after))
+        :(weld ~[poke-card] ~[(gf-notes users-upd)] ~[(gf-paths ~[pax] users-upd)] ars-cards ro-mute-cards desc-role-cards desc-users-cards desc-child-pokes)
       ==
     ::
         %remote-artifact-fetch
@@ -6699,6 +6917,27 @@
   |=  [nid=@ta n=note:noltbook]
   ^-  (unit @ta)
   ?:  (human-sees-note nid who nm nmap)  `nid  ~
+::  can-mutate-message: may `who` create, edit or delete ordinary message CONTENT in
+::  this note? Answers ONLY the read-only/mute question -- membership, removal, host
+::  availability, authorship and target lookup stay at the existing call sites.
+::  Read-only is a %group-only rule; DMs, Cover, gossip and notebooks are unchanged.
+::  The host and current admins are exempt, matching the artifact upload model.
+::  An unknown note returns %.y so the caller's own existence check still governs.
+++  can-mutate-message
+  |=  $:  nid=@ta  who=@p
+          nmap=(map @ta note:noltbook)
+          admins=(map @ta (set @p))
+          muted=(map @ta (set @p))
+      ==
+  ^-  ?
+  =/  nt-u  (~(get by nmap) nid)
+  ?~  nt-u  %.y
+  =/  nt=note:noltbook  u.nt-u
+  ?:  =(who creator.nt)  %.y
+  ?:  (~(has in (fall (~(get by admins) nid) ~)) who)  %.y
+  ?:  &(=(%group type.nt) !writable.nt)  %.n
+  ?:  (~(has in (fall (~(get by muted) nid) ~)) who)  %.n
+  %.y
 ::  can-user-post: the gate for human posting — not write-blocked AND a logical
 ::  member. The existing writable/muted/role checks remain at the call sites;
 ::  creator==our.bowl alone never satisfies this.
@@ -7181,12 +7420,12 @@
     =/  note-role-cards=(list card)
       =/  adms=(set @p)  (fall (~(get by note-admins) nid) ~)
       =/  mts=(set @p)  (fall (~(get by note-muted) nid) ~)
-      =/  out=(list card)  ~
-      =?  out  !=(~ adms)
-        [(gf-paths ~ `update:noltbook`[%admins-updated nid ~(tap in adms)]) out]
-      =?  out  !=(~ mts)
-        [(gf-paths ~ `update:noltbook`[%muted-updated nid ~(tap in mts)]) out]
-      out
+      ::  Phase 2: emitted UNCONDITIONALLY, including empty. A subscriber that cached
+      ::  roles from a previous visit needs the empty value to clear them; skipping the
+      ::  fact when the set is empty left stale admin/muted state on the client.
+      :~  (gf-paths ~ `update:noltbook`[%admins-updated nid ~(tap in adms)])
+          (gf-paths ~ `update:noltbook`[%muted-updated nid ~(tap in mts)])
+      ==
     ::  send the current pin snapshot so a (re)subscribing member renders the pin
     ::  even if it missed the live %note-pin-updated fact (durable, like roles).
     =/  pin-snapshot-cards=(list card)
@@ -7594,6 +7833,11 @@
       ?:  (is-write-blocked note-id.aa host-status notes our.bowl)
         :_  this
         (api-result-card request-id.aa %.n %rejected 'write blocked' `note-id.aa ~ ~)
+      ::  read-only %group / muted: the internal action will reject this, so the API
+      ::  must say so rather than reporting success or accepted.
+      ?.  (can-mutate-message note-id.aa our.bowl notes note-admins note-muted)
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'read-only or muted' `note-id.aa ~ ~)
       =/  nt=note:noltbook  (~(got by notes) note-id.aa)
       ::  the one extra no-op after existence/write-blocked: DM w/ blocked peer.
       ?:  (api-dm-blocked note-id.aa nt our.bowl pal-blocked)
@@ -7631,6 +7875,11 @@
       ?:  (is-write-blocked note-id.aa host-status notes our.bowl)
         :_  this
         (api-result-card request-id.aa %.n %rejected 'write blocked' `note-id.aa ~ ~)
+      ::  read-only %group / muted: the internal action will reject this, so the API
+      ::  must say so rather than reporting success or accepted.
+      ?.  (can-mutate-message note-id.aa our.bowl notes note-admins note-muted)
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'read-only or muted' `note-id.aa ~ ~)
       =/  nt=note:noltbook  (~(got by notes) note-id.aa)
       ?:  (api-dm-blocked note-id.aa nt our.bowl pal-blocked)
         :_  this
@@ -8209,6 +8458,11 @@
       ?:  (is-write-blocked note-id.aa host-status notes our.bowl)
         :_  this
         (api-result-card request-id.aa %.n %rejected 'write blocked' `note-id.aa ~ ~)
+      ::  read-only %group / muted: the internal action will reject this, so the API
+      ::  must say so rather than reporting success or accepted.
+      ?.  (can-mutate-message note-id.aa our.bowl notes note-admins note-muted)
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'read-only or muted' `note-id.aa ~ ~)
       =/  nt=note:noltbook  (~(got by notes) note-id.aa)
       =/  msgs=(list message:noltbook)  (fall (~(get by messages) note-id.aa) ~)
       =/  tgt=(unit message:noltbook)  (api-resolve-msg msgs eid.aa msg-id.aa)
@@ -8237,6 +8491,11 @@
       ?:  (is-write-blocked note-id.aa host-status notes our.bowl)
         :_  this
         (api-result-card request-id.aa %.n %rejected 'write blocked' `note-id.aa ~ ~)
+      ::  read-only %group / muted: the internal action will reject this, so the API
+      ::  must say so rather than reporting success or accepted.
+      ?.  (can-mutate-message note-id.aa our.bowl notes note-admins note-muted)
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'read-only or muted' `note-id.aa ~ ~)
       =/  nt=note:noltbook  (~(got by notes) note-id.aa)
       =/  msgs=(list message:noltbook)  (fall (~(get by messages) note-id.aa) ~)
       =/  tgt=(unit message:noltbook)  (api-resolve-msg msgs eid.aa msg-id.aa)
@@ -8340,6 +8599,17 @@
         %unmute-member
       =/  pre  (api-mod-pre %mod request-id.aa note-id.aa ship.aa notes our.bowl note-admins host-status)
       ?:  ?=(%.n -.pre)  [p.pre this]
+      ::  a read-only %group keeps its ordinary members muted, so the underlying action
+      ::  rejects this. Report it honestly instead of claiming unmuted/accepted.
+      =/  unm-nt  (~(get by notes) note-id.aa)
+      ?:  ?&  ?=(^ unm-nt)
+              !writable.u.unm-nt
+              =(%group type.u.unm-nt)
+              !=(who.p.pre creator.u.unm-nt)
+              !(~(has in (fall (~(get by note-admins) note-id.aa) ~)) who.p.pre)
+          ==
+        :_  this
+        (api-result-card request-id.aa %.n %rejected 'read-only group requires mute' `note-id.aa ~ ~)
       =^  cards  this
         $(mark %noltbook-action, vase (action-vase `action:noltbook`[%unmute-member note-id.aa who.p.pre]))
       :_  this
@@ -9625,6 +9895,8 @@
       ::  layer still returns %not-participant honestly (see %post-message).
       ?.  (human-sees-note note-id.act our.bowl note-members notes)
         `this
+      ::  read-only %group: ordinary members may not post, independently of note-muted
+      ?.  (can-mutate-message note-id.act our.bowl notes note-admins note-muted)  `this
       =/  exists  (~(get by notes) note-id.act)
       ?~  exists  `this
       ::  entry-meta for hosted, cover, and gossip notes. Rumors use
@@ -9818,6 +10090,8 @@
       ?:  (is-write-blocked note-id.act host-status notes our.bowl)  `this
       =/  exists  (~(get by notes) note-id.act)
       ?~  exists  `this
+      ::  read-only %group: ordinary members may not edit. Author-only remains below.
+      ?.  (can-mutate-message note-id.act our.bowl notes note-admins note-muted)  `this
       ::  DM: peer-authoritative — edit locally and replicate
       ?:  =(%dm type.u.exists)
         =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
@@ -9896,6 +10170,9 @@
       ?:  (is-write-blocked note-id.act host-status notes our.bowl)  `this
       =/  exists  (~(get by notes) note-id.act)
       ?~  exists  `this
+      ::  read-only %group: ordinary members may not delete. Existing authorship and
+      ::  hosted-group host-deletion authority remain unchanged below.
+      ?.  (can-mutate-message note-id.act our.bowl notes note-admins note-muted)  `this
       ::  cover/ordinary-gossip: HOSTLESS origin-authoritative deletion. The poster deletes
       ::  their OWN text; there is no note-creator authority (do NOT forward to note.creator).
       ::  Remove the local message + its text envelope, install a terminal eid tombstone,
@@ -10339,9 +10616,18 @@
         ~[(gf-notes mute-upd) (gf-paths ~[/notes/[id.act]] mute-upd)]
       ::  Phase 3: cascade membership to the shared subtree (root excluded).
       ::  share-descs already filters non-group/non-notebook ids.
+      ::  Phase 2: snapshot the roster BEFORE the cascade so cascade-roles-add can tell a
+      ::  genuine (re)join from an idempotent add on each descendant.
+      =/  pre-notes=(map @ta note:noltbook)  notes
       =.  notes
         ?:  =(~ share-descs)  notes
         (add-ship-to-ids ship.act share-descs notes)
+      ::  Phase 2: descendant ROLE state follows the same cascade. Stale admin/mute from
+      ::  a previous membership is dropped and a read-only %group child auto-mutes.
+      =/  desc-roles  (cascade-roles-add ship.act share-descs pre-notes note-admins note-muted)
+      =/  desc-role-cards=(list card)
+        ?:  =(~ share-descs)  ~
+        (build-roles-updated-cards share-descs -.desc-roles +.desc-roles)
       =/  new-revs=(map @ta @ud)
         (bump-member-revs [id.act share-descs] member-revs)
       =/  desc-users-cards=(list card)
@@ -10357,8 +10643,8 @@
         [%note-users-updated id.act type.new-note ~(tap in users.new-note) ~(tap in removed.new-note) (member-rev-of id.act new-revs)]
       =/  root-users-cards=(list card)
         ~[(gf-paths ~[/notes/[id.act]] root-users-upd)]
-      :_  this(notes (~(put by notes) id.act new-note), peers new-peers, note-muted (~(put by note-muted) id.act ro-muted), member-revs new-revs, note-members (add-member-to-ids ship.act [id.act share-descs] note-members notes))
-      :(weld type-updates [poke-card (gf-notes upd) ~] ars-cards ro-mute-cards desc-users-cards desc-child-pokes root-users-cards)
+      :_  this(notes (~(put by notes) id.act new-note), peers new-peers, note-admins -.desc-roles, note-muted (~(put by +.desc-roles) id.act ro-muted), member-revs new-revs, note-members (add-member-to-ids ship.act [id.act share-descs] note-members notes))
+      :(weld type-updates [poke-card (gf-notes upd) ~] ars-cards ro-mute-cards desc-role-cards desc-users-cards desc-child-pokes root-users-cards)
     ::
         %invite-to-note-batch
       ?:  (is-write-blocked id.act host-status notes our.bowl)  `this
@@ -10468,6 +10754,9 @@
       ::  cascade membership to shared subtree once; share-descs already
       ::  filters non-group/non-notebook ids. Explicit trap seeded with
       ::  current notes — `~(rep in ...)` would bunt nm to the empty map.
+      ::  Phase 2: roster BEFORE the cascade, so each ship's descendant roles are
+      ::  decided against its real prior membership.
+      =/  pre-notes=(map @ta note:noltbook)  notes
       =.  notes
         ?:  =(~ share-descs)  notes
         =/  ships=(list @p)  ~(tap in cleaned)
@@ -10475,6 +10764,18 @@
         |-  ^-  (map @ta note:noltbook)
         ?~  ships  nm
         $(ships t.ships, nm (add-ship-to-ids i.ships share-descs nm))
+      ::  Phase 2: fold the descendant role cascade over every invited ship.
+      =/  batch-roles
+        ?:  =(~ share-descs)  [note-admins note-muted]
+        =/  ships=(list @p)  ~(tap in cleaned)
+        =/  acc  [note-admins note-muted]
+        |-
+        ?~  ships  acc
+        $(ships t.ships, acc (cascade-roles-add i.ships share-descs pre-notes -.acc +.acc))
+      =.  note-admins  -.batch-roles
+      =/  desc-role-cards=(list card)
+        ?:  =(~ share-descs)  ~
+        (build-roles-updated-cards share-descs -.batch-roles +.batch-roles)
       =/  new-revs=(map @ta @ud)
         (bump-member-revs [id.act share-descs] member-revs)
       =/  desc-users-cards=(list card)
@@ -10496,8 +10797,8 @@
       =/  upd=update:noltbook  [%note-created new-note]
       =/  local-cards=(list card)
         ~[(gf-notes upd)]
-      :_  this(notes (~(put by notes) id.act new-note), peers new-peers, note-muted (~(put by note-muted) id.act new-muted), member-revs new-revs, note-members (add-ships-to-ids cleaned [id.act share-descs] note-members notes))
-      :(weld type-updates poke-cards local-cards ars-cards ro-mute-cards desc-users-cards desc-child-pokes root-users-cards)
+      :_  this(notes (~(put by notes) id.act new-note), peers new-peers, note-muted (~(put by +.batch-roles) id.act new-muted), member-revs new-revs, note-members (add-ships-to-ids cleaned [id.act share-descs] note-members notes))
+      :(weld type-updates poke-cards local-cards ars-cards ro-mute-cards desc-role-cards desc-users-cards desc-child-pokes root-users-cards)
     ::
         %create-artifact
       ?:  (is-write-blocked note-id.act host-status notes our.bowl)  `this
@@ -11000,14 +11301,17 @@
         ==
       =/  upd=update:noltbook  [%pal-update ship.act %blocked]
       ::  pass 1: remove blocked ship from blocker-hosted %group notes + clean role state
-      =/  removal-result=[new-notes=(map @ta note:noltbook) new-admins=(map @ta (set @p)) new-muted=(map @ta (set @p)) cards=(list card)]
+      ::  Phase 2: `ii` collects the touched ids so revisions, logical membership and
+      ::  role facts can all be handled once, after the pass, from one id list.
+      =/  removal-result=[new-notes=(map @ta note:noltbook) new-admins=(map @ta (set @p)) new-muted=(map @ta (set @p)) ids=(list @ta) cards=(list card)]
         =/  entries=(list [@ta note:noltbook])  ~(tap by notes)
         =/  nn=(map @ta note:noltbook)  notes
         =/  na=(map @ta (set @p))  note-admins
         =/  nm=(map @ta (set @p))  note-muted
+        =/  ii=(list @ta)  ~
         =/  cc=(list card)  ~
         |-
-        ?~  entries  [nn na nm cc]
+        ?~  entries  [nn na nm ii cc]
         =/  nid=@ta  -.i.entries
         =/  n=note:noltbook  +.i.entries
         ?.  ?&(=(our.bowl creator.n) =(%group type.n) (~(has in users.n) ship.act))
@@ -11015,7 +11319,6 @@
         =/  new-users=(set @p)  (~(del in users.n) ship.act)
         =/  new-removed=(set @p)  (~(put in removed.n) ship.act)
         =/  upd-note=note:noltbook  n(users new-users, removed new-removed)
-        =/  users-upd=update:noltbook  [%note-users-updated nid type.n ~(tap in new-users) ~(tap in new-removed) (member-rev-of nid member-revs)]
         =/  kick-card=card
           (rpoke /kick/(scot %p ship.act)/[nid] ship.act `remote:noltbook`[%remote-kick nid name.n])
         ::  clean admin/muted role state for removed ship
@@ -11029,16 +11332,17 @@
           ?:  (~(has in cur) ship.act)
             (~(put by nm) nid (~(del in cur) ship.act))
           nm
-        $(entries t.entries, nn (~(put by nn) nid upd-note), na new-na, nm new-nm, cc [kick-card (gf-notes users-upd) cc])
+        $(entries t.entries, nn (~(put by nn) nid upd-note), na new-na, nm new-nm, ii [nid ii], cc [kick-card cc])
       ::  pass 2: auto-leave all %group notes hosted by blocked ship
-      =/  leave-result=[new-notes=(map @ta note:noltbook) new-msgs=(map @ta (list message:noltbook)) new-arts=(map @ta artifact:noltbook) cards=(list card)]
+      =/  leave-result=[new-notes=(map @ta note:noltbook) new-msgs=(map @ta (list message:noltbook)) new-arts=(map @ta artifact:noltbook) ids=(list @ta) cards=(list card)]
         =/  entries=(list [@ta note:noltbook])  ~(tap by new-notes.removal-result)
         =/  nn=(map @ta note:noltbook)  new-notes.removal-result
         =/  nm=(map @ta (list message:noltbook))  messages
         =/  na=(map @ta artifact:noltbook)  artifacts
+        =/  ii=(list @ta)  ~
         =/  cc=(list card)  ~
         |-
-        ?~  entries  [nn nm na cc]
+        ?~  entries  [nn nm na ii cc]
         =/  nid=@ta  -.i.entries
         =/  n=note:noltbook  +.i.entries
         ?.  ?&(=(ship.act creator.n) =(%group type.n) (~(has in users.n) our.bowl))
@@ -11053,7 +11357,58 @@
           |=  [[k=@ta v=artifact:noltbook] a=(map @ta artifact:noltbook)]
           ?.  =(note-id.v nid)  (~(put by a) k v)
           a
-        $(entries t.entries, nn (~(del by nn) nid), nm (~(del by nm) nid), na cleaned-na, cc [unsub-card leave-card (gf-notes del-upd) cc])
+        $(entries t.entries, nn (~(del by nn) nid), nm (~(del by nm) nid), na cleaned-na, ii [nid ii], cc [unsub-card leave-card (gf-notes del-upd) cc])
+      ::  Phase 2: one place handles revisions, logical membership, role facts and the
+      ::  deleted-note row cleanup for both passes.
+      ::  pass 1 ids: the blocked ship left these notes -- bump each rev EXACTLY once,
+      ::  emit users facts with that NEW rev, drop logical membership, emit role facts.
+      ::  pass 1 only visits notes where the blocked ship is a PHYSICAL user, which
+      ::  is normally just the root: descendants carry LOGICAL membership without a
+      ::  users entry. Expand to the full hosted subtree so logical membership and
+      ::  role rows are cleaned there too. Deduped, so each rev bumps exactly once.
+      =/  blk-ids=(list @ta)
+        =/  seed=(list @ta)  ids.removal-result
+        =/  descs=(list @ta)
+          %-  zing
+          %+  turn  seed
+          |=  nid=@ta
+          ^-  (list @ta)
+          (collect-group-descendants nid notes)
+        =/  full=(list @ta)  (weld seed descs)
+        =|  seen=(set @ta)
+        |-  ^-  (list @ta)
+        ?~  full  ~
+        ?:  (~(has in seen) i.full)  $(full t.full)
+        [i.full $(full t.full, seen (~(put in seen) i.full))]
+      =/  blk-revs=(map @ta @ud)  (bump-member-revs blk-ids member-revs)
+      =/  blk-roles
+        (cascade-roles-remove ship.act blk-ids new-admins.removal-result new-muted.removal-result)
+      =/  blk-users-cards=(list card)
+        ?:  =(~ blk-ids)  ~
+        (build-users-updated-cards blk-ids new-notes.removal-result blk-revs)
+      =/  blk-role-cards=(list card)
+        ?:  =(~ blk-ids)  ~
+        (build-roles-updated-cards blk-ids -.blk-roles +.blk-roles)
+      ::  pass 2 ids: these notes were DELETED locally, so their note-scoped rows go too.
+      =/  del-ids=(list @ta)  ids.leave-result
+      =/  blk-members=(map @ta (set @p))
+        =/  m  (del-member-from-ids ship.act blk-ids note-members new-notes.removal-result)
+        (prune-note-members del-ids m)
+      =/  blk-admins=(map @ta (set @p))
+        %-  ~(rep by -.blk-roles)
+        |=  [[k=@ta v=(set @p)] a=(map @ta (set @p))]
+        ?:  (lien del-ids |=(d=@ta =(d k)))  a
+        (~(put by a) k v)
+      =/  blk-muted=(map @ta (set @p))
+        %-  ~(rep by +.blk-roles)
+        |=  [[k=@ta v=(set @p)] a=(map @ta (set @p))]
+        ?:  (lien del-ids |=(d=@ta =(d k)))  a
+        (~(put by a) k v)
+      =/  blk-revs-final=(map @ta @ud)
+        %-  ~(rep by blk-revs)
+        |=  [[k=@ta v=@ud] a=(map @ta @ud)]
+        ?:  (lien del-ids |=(d=@ta =(d k)))  a
+        (~(put by a) k v)
       ::  clean up any pending join-requests from blocked ship
       =/  new-jr=(map @ta (set @p))
         %-  ~(rep by join-requests)
@@ -11061,8 +11416,8 @@
         =/  cleaned=(set @p)  (~(del in ships) ship.act)
         ?:  =(~ cleaned)  acc
         (~(put by acc) nid cleaned)
-      :_  this(notes new-notes.leave-result, messages new-msgs.leave-result, artifacts new-arts.leave-result, note-admins new-admins.removal-result, note-muted new-muted.removal-result, pal-outgoing new-outgoing, pal-incoming new-incoming, pal-blocked new-blocked, join-requests new-jr)
-      :(weld [(gf-notes upd) (pal-sync-card ship.act new-outgoing new-incoming new-blocked) ~] bye-cards cards.removal-result cards.leave-result)
+      :_  this(notes new-notes.leave-result, messages new-msgs.leave-result, artifacts new-arts.leave-result, note-admins blk-admins, note-muted blk-muted, note-members blk-members, member-revs blk-revs-final, pal-outgoing new-outgoing, pal-incoming new-incoming, pal-blocked new-blocked, join-requests new-jr)
+      :(weld [(gf-notes upd) (pal-sync-card ship.act new-outgoing new-incoming new-blocked) ~] bye-cards cards.removal-result blk-users-cards blk-role-cards cards.leave-result)
     ::
         %unblock-pal
       ?:  =(ship.act our.bowl)  `this
@@ -11391,6 +11746,12 @@
       =.  notes-after
         ?:  =(~ group-descs)  notes-after
         (remove-ship-from-ids ship.act group-descs notes-after)
+      ::  Phase 2: a removed ship keeps no role anywhere in the subtree. Rows are always
+      ::  written, so the emitted facts clear cached client state even when empty.
+      =/  desc-roles  (cascade-roles-remove ship.act group-descs clean-admins clean-muted)
+      =/  desc-role-cards=(list card)
+        ?:  =(~ group-descs)  ~
+        (build-roles-updated-cards group-descs -.desc-roles +.desc-roles)
       =/  new-revs=(map @ta @ud)
         (bump-member-revs [id.act group-descs] member-revs)
       =/  users-upd=update:noltbook  [%note-users-updated id.act type.u.old ~(tap in new-users) ~(tap in new-removed) (member-rev-of id.act new-revs)]
@@ -11398,16 +11759,18 @@
       =/  desc-users-cards=(list card)
         ?:  =(~ group-descs)  ~
         (build-users-updated-cards group-descs notes-after new-revs)
-      :_  this(notes notes-after, messages (~(put by messages) id.act new-msgs), note-admins clean-admins, note-muted clean-muted, member-revs new-revs, note-members (del-member-from-ids ship.act [id.act group-descs] note-members notes))
-      %+  weld
-        ^-  (list card)
-        :~  kick-card
-            (gf-notes users-upd)
-            (gf-paths ~[/notes/[id.act]] users-upd)
-            (gf-notes msg-upd)
-            (gf-paths ~[/notes/[id.act]] msg-upd)
-        ==
-      desc-users-cards
+      :_  this(notes notes-after, messages (~(put by messages) id.act new-msgs), note-admins -.desc-roles, note-muted +.desc-roles, member-revs new-revs, note-members (del-member-from-ids ship.act [id.act group-descs] note-members notes))
+      %-  zing
+      :~  ^-  (list card)
+          :~  kick-card
+              (gf-notes users-upd)
+              (gf-paths ~[/notes/[id.act]] users-upd)
+              (gf-notes msg-upd)
+              (gf-paths ~[/notes/[id.act]] msg-upd)
+          ==
+          desc-role-cards
+          desc-users-cards
+      ==
     ::
         %leave-note
       =/  old  (~(get by notes) id.act)
@@ -12145,9 +12508,17 @@
       =/  group-descs=(list @ta)
         ?.  =(%group type.u.old)  ~
         (collect-group-descendants note-id.act notes)
+      ::  Phase 2: roster BEFORE the cascade, so a genuine (re)join is distinguishable
+      ::  from an idempotent add on each descendant.
+      =/  pre-notes=(map @ta note:noltbook)  notes
       =.  notes
         ?:  =(~ group-descs)  notes
         (add-ship-to-ids ship.act group-descs notes)
+      ::  Phase 2: descendant ROLE state follows the cascade.
+      =/  desc-roles  (cascade-roles-add ship.act group-descs pre-notes note-admins note-muted)
+      =/  desc-role-cards=(list card)
+        ?:  =(~ group-descs)  ~
+        (build-roles-updated-cards group-descs -.desc-roles +.desc-roles)
       =/  new-revs=(map @ta @ud)
         (bump-member-revs [note-id.act group-descs] member-revs)
       =/  users-upd=update:noltbook  [%note-users-updated note-id.act type.u.old ~(tap in new-users) ~(tap in new-removed) (member-rev-of note-id.act new-revs)]
@@ -12157,8 +12528,8 @@
       =/  desc-child-pokes=(list card)
         ?:  =(~ group-descs)  ~
         (build-remote-child-notes-to-ship ship.act group-descs notes)
-      :_  this(notes (~(put by notes) note-id.act new-note), peers new-peers, note-muted (~(put by note-muted) note-id.act ro-muted), member-revs new-revs, note-members (put-logical-member note-id.act ship.act note-members notes))
-      :(weld [poke-card (gf-notes users-upd) (gf-paths ~[/notes/[note-id.act]] users-upd) (gf-notes jr-upd) ~] ars-cards ro-mute-cards desc-users-cards desc-child-pokes)
+      :_  this(notes (~(put by notes) note-id.act new-note), peers new-peers, note-admins -.desc-roles, note-muted (~(put by +.desc-roles) note-id.act ro-muted), member-revs new-revs, note-members (add-member-to-ids ship.act [note-id.act group-descs] note-members notes))
+      :(weld [poke-card (gf-notes users-upd) (gf-paths ~[/notes/[note-id.act]] users-upd) (gf-notes jr-upd) ~] ars-cards ro-mute-cards desc-role-cards desc-users-cards desc-child-pokes)
     ::
         %deny-join
       ::  host or admin denies a pending join request (no block)
@@ -12314,6 +12685,14 @@
       ?:  (is-write-blocked id.act host-status notes our.bowl)  `this
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
+      ::  a read-only %group requires its ordinary members to stay muted; unmuting one
+      ::  would contradict the read-only rule. Promotion to admin is the valid route.
+      ?:  ?&  !writable.u.old
+              =(%group type.u.old)
+              !=(ship.act creator.u.old)
+              !(~(has in (fall (~(get by note-admins) id.act) ~)) ship.act)
+          ==
+        `this
       ::  remote admin: forward to host
       ?.  =(our.bowl creator.u.old)
         :_  this
