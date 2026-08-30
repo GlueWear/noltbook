@@ -588,6 +588,9 @@
           ['started' (numb (da-to-ms started.c))]
           ['participants' a+(turn ~(tap in participants.c) |=(p=@p s+(scot %p p)))]
           ['status' s+(crip (trip (scot %tas status.c)))]
+          ::  host-authored and fixed for the life of the call. The browser
+          ::  reads it from the authoritative snapshot and never infers it.
+          ['transport' s+(crip (trip (scot %tas transport.c)))]
       ==
     ::
     ++  da-to-ms

@@ -487,6 +487,32 @@
         ?.  ?=([%s *] u.aid-raw)  ~
         ``@ta`p.u.aid-raw
       [%clear-attention `@ta`p.nid-nd eid mid aid]
+    ::  configure-call-service (same-ship only; key='' preserves existing)
+    ?:  =('configure-call-service' tag)
+      =/  req-nd  (need (~(get by d) 'requestId'))
+      ?>  ?=([%n *] req-nd)
+      =/  broker-nd  (need (~(get by d) 'broker'))
+      ?>  ?=([%s *] broker-nd)
+      =/  broker  (need (slaw %p p.broker-nd))
+      =/  endpoint-nd  (need (~(get by d) 'endpoint'))
+      ?>  ?=([%s *] endpoint-nd)
+      =/  key-raw  (~(get by d) 'key')
+      =/  key=(unit @t)
+        ?~  key-raw  ~
+        ?.  ?=([%s *] u.key-raw)  ~
+        ?:  =('' p.u.key-raw)  ~
+        `p.u.key-raw
+      [%configure-call-service (rash p.req-nd dem) broker p.endpoint-nd key]
+    ::  test-call-service
+    ?:  =('test-call-service' tag)
+      =/  req-nd  (need (~(get by d) 'requestId'))
+      ?>  ?=([%n *] req-nd)
+      [%test-call-service (rash p.req-nd dem)]
+    ::  set-call-sfu
+    ?:  =('set-call-sfu' tag)
+      =/  on-nd  (need (~(get by d) 'on'))
+      ?>  ?=([%b *] on-nd)
+      [%set-call-sfu p.on-nd]
     ::  start-call
     ?:  =('start-call' tag)
       =/  nid-nd  (need (~(get by d) 'noteId'))
@@ -518,6 +544,11 @@
       =/  nid-nd  (need (~(get by d) 'noteId'))
       ?>  ?=([%s *] nid-nd)
       [%call-heartbeat `@ta`p.nid-nd]
+    ::  renew-call-access
+    ?:  =('renew-call-access' tag)
+      =/  nid-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] nid-nd)
+      [%renew-call-access `@ta`p.nid-nd]
     ::  sync-calls
     ?:  =('sync-calls' tag)
       [%sync-calls ~]

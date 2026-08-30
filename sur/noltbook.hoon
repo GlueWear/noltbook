@@ -343,6 +343,19 @@
   ==
 ::  call types
 +$  call-status  ?(%active %ended)
+::  call-transport: HOST-AUTHORED and fixed for the life of one call.
+::
+::  It is authored once, by the host, at the moment the call is created, and
+::  it travels inside the authoritative snapshot. Every participant therefore
+::  reads the SAME value from the SAME source.
+::
+::  This is deliberately not derived from a participant's local gate, not
+::  raced against a credential arriving, and never changed mid-call: any of
+::  those would let two participants in one call pick different transports,
+::  which is a broken call rather than a degraded one.
+::
+::  A gate change affects only calls created AFTER it.
++$  call-transport  ?(%mesh %sfu)
 +$  call-info
   $:  call-id=@ta
       note-id=@ta
@@ -350,6 +363,8 @@
       started=@da
       participants=(set @p)
       status=call-status
+      ::  authored by the host at creation; never mutated afterwards
+      transport=call-transport
   ==
 ::  call-snapshot: the HOST's authoritative record for one note, and the only shape any
 ::  call state travels in.
@@ -380,6 +395,27 @@
       author=@p
       timestamp=@da
       preview=@t
+  ==
+::
+::  ===== private call-access delivery =====
+::
+::  Deliberately NOT a variant of +update. The update mark is the general
+::  browser stream and converts every variant to JSON; putting a credential
+::  in that union would place it one careless case away from a shared
+::  subscription. This travels on its own mark, on its own path.
+::
+::  Emitted ONLY on /call-access, which this ship's own owner may subscribe
+::  to and no other ship can.
+::
+::  LIMITATION, stated plainly: Gall subscriptions are per-SHIP, not per-tab,
+::  so every tab belonging to this ship's owner can see it. That is
+::  ship-owner-local visibility, which is acceptable; visibility to another
+::  ship is not, and does not occur.
++$  call-access-fact
+  $%  ::  CREDENTIAL-BEARING. `access` is a jammed access grant.
+      [%granted note-id=@ta call-id=@ta gen=@ud access=@t]
+      ::  safe, carries no credential
+      [%failed note-id=@ta call-id=@ta gen=@ud reason=@tas]
   ==
 ::
 ::  ship-to-ship remote pokes
@@ -456,6 +492,9 @@
       [%remote-call-join note-id=@ta]
       [%remote-call-leave note-id=@ta]
       [%remote-call-heartbeat note-id=@ta]
+      ::  member -> HOST: "my managed credentials are about to expire".
+      ::  Only the host can mint; a member cannot ask the broker directly.
+      [%remote-call-renew-access note-id=@ta]
       ::  member -> host: "tell me the current call state of these notes". Answers
       ::  a reconnect, an agent reload, or time spent offline while a call ended.
       [%remote-call-sync note-ids=(list @ta)]
@@ -573,6 +612,21 @@
       ::  ship can still lie; retention bounds the clutter it can create.
       ::  amount is INTEGER NICKS (65,536 nicks = 1 NOCK).
       [%remote-wallet-activity amount=@ud tx-hash=@t]
+      ::  ===== managed SFU call access (backend only; gate defaults off) =====
+      ::  HOST -> PARTICIPANT. Carries a short-lived Galene join token and TURN
+      ::  credentials for ONE participant. It is sent to that participant ship
+      ::  alone -- never on /notes, never on a call fact, never broadcast.
+      ::
+      ::  The receiver MUST verify src.bowl is the note's authoritative creator
+      ::  and that note/call/gen still match, because a grant is only meaningful
+      ::  for the call incarnation it was minted for.
+      ::
+      ::  CREDENTIAL-BEARING: never logged, never scryable, never stored.
+      [%remote-call-access note-id=@ta call-id=@ta gen=@ud access=@t]
+      ::  host -> participant: this participant's access request is OVER and
+      ::  failed. Without it a remote participant waits forever on a request
+      ::  the host already knows was refused. Carries a safe category only.
+      [%remote-call-fail note-id=@ta call-id=@ta gen=@ud reason=@tas]
   ==
 ::  directed attention (Phase A scaffold). A single durable list per note that
 ::  unifies @-mentions (today) with reply / note-SEND attention (future phases).
@@ -659,12 +713,24 @@
       ::  Phase A: clear a directed-attention item (eid > msg-id > aid)
       [%clear-attention note-id=@ta eid=(unit @uv) msg-id=(unit @da) aid=(unit @ta)]
       ::  call actions
+      ::  local managed-call configuration. The browser reaches only this
+      ::  same-ship action; %noltbook forwards a typed noun to %noltbook-calls.
+      ::  A null/absent key preserves the broker-local secret.
+      [%configure-call-service request-id=@ud broker=@p endpoint=@t key=(unit @t)]
+      [%test-call-service request-id=@ud]
+      ::  Select the transport for NEW calls. Active calls keep the transport
+      ::  stamped into their existing call snapshot.
+      [%set-call-sfu on=?]
       [%start-call note-id=@ta]
       [%join-call note-id=@ta]
       [%leave-call note-id=@ta]
       ::  liveness: sent by the frontend ONLY while actually joined. Refreshes this
       ::  ship's own participant lease; a non-host forwards it to the host.
       [%call-heartbeat note-id=@ta]
+      ::  a participant's browser asks for FRESH managed credentials before the
+      ::  ones it holds expire. Driven by the grant's own renew-after, not by
+      ::  the heartbeat: renewal is rare and the heartbeat is not.
+      [%renew-call-access note-id=@ta]
       ::  ask every relevant host for current call state (frontend channel reconnect)
       [%sync-calls ~]
       [%call-signal note-id=@ta to=@p sig-type=@t payload=@t]

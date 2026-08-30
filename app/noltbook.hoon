@@ -1,4 +1,4 @@
-/-  noltbook
+/-  noltbook, noltbook-calls
 /+  default-agent, dbug, server
 |%
 ::  state-33: durable per-counterparty DM display prefs (name + icon-url).
@@ -78,8 +78,94 @@
 ::  the generation-bearing `calls` record plus per-participant `call-leases`. %75 above
 ::  is FROZEN -- it is the mold the saved noun was written against, and !< nests on the
 ::  mold, so nothing in it may be narrowed or renamed.
+::  ---- frozen pre-transport call shapes ----
+::  state-76 was SAVED before call-info carried a transport. These molds
+::  preserve that exact shape so !< can still read saved state. They are
+::  read-only history: nothing new is ever written in this shape.
++$  call-info-76
+  $:  call-id=@ta
+      note-id=@ta
+      started-by=@p
+      started=@da
+      participants=(set @p)
+      status=call-status:noltbook
+  ==
++$  call-snapshot-76
+  $:  note-id=@ta
+      gen=@ud
+      call=(unit call-info-76)
+  ==
 +$  state-76
   $:  %76
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      ::  calls: ONE authoritative record per note, empty snapshots included, so a
+      ::  cleared call keeps its generation and stays ordered. Replaces active-calls.
+      calls=(map @ta call-snapshot-76)
+      ::  call-leases: host-only liveness. note -> participant -> deadline. A lapsed
+      ::  lease removes ONLY that participant, so one crashed browser cannot end a
+      ::  call the others are still in.
+      call-leases=(map @ta (map @p @da))
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      note-unread-activity=(map @ta @da)
+      note-members=(map @ta (set @p))
+      app-notifications=(map [@tas @t] app-notification:noltbook)
+      dm-artifact-refs=(map @uv dm-artifact-ref:noltbook)
+      dm-artifact-tombs=(map @uv dm-artifact-tomb:noltbook)
+      dm-msg-tombs=(map dm-message-key:noltbook @da)
+      peer-proto=(map @p @ud)
+      pending-dm-fetches=(map @ta pending-dm-fetch:noltbook)
+      note-artifact-tombs=(map @ta note-artifact-tomb:noltbook)
+      mesh-tombs=(set @uv)
+      mesh-tomb-meta=(map @uv mesh-tomb:noltbook)
+      dm-imports=(map @uv dm-import:noltbook)
+      import-only-dms=(set @ta)
+      pending-icon-fetches=(map @ta pending-icon-fetch:noltbook)
+      pending-img-writes=(map @ta pending-img-write:noltbook)
+      pending-profile-lookups=(map @ud pending-profile-lookup:noltbook)
+  ==
++$  state-77
+  $:  %77
       notes=(map @ta note:noltbook)
       messages=(map @ta (list message:noltbook))
       artifacts=(map @ta artifact:noltbook)
@@ -146,6 +232,12 @@
       pending-icon-fetches=(map @ta pending-icon-fetch:noltbook)
       pending-img-writes=(map @ta pending-img-write:noltbook)
       pending-profile-lookups=(map @ud pending-profile-lookup:noltbook)
+  
+      ::  cached managed-call mode. %noltbook-calls owns the gate; this is a
+      ::  copy kept in sync by typed local pokes, so the call handlers never
+      ::  need a synchronous cross-agent scry. It is only ever read when a
+      ::  NEW call is created.
+      sfu-mode=call-transport:noltbook
   ==
 +$  card  card:agent:gall
 ::
@@ -1009,6 +1101,9 @@
       ['started' (numb:enjs:format (api-da-ms started.c))]
       ['participants' a+(turn ~(tap in participants.c) |=(p=@p `json`s+(scot %p p)))]
       ['status' s+(crip (trip (scot %tas status.c)))]
+      ::  agree with %noltbook-update: the API must not report a different
+      ::  transport from the one the snapshot fact carries.
+      ['transport' s+(crip (trip (scot %tas transport.c)))]
   ==
 ::  api-search-scan: pure case-insensitive substring scan over messages, shared by
 ::  the sidebar %search-messages handler and the API search action. only-note
@@ -1920,8 +2015,8 @@
 ::  lose==win. Group/fork/gossip-only fields hold no ordinary-DM data and are left
 ::  alone; pending-dm-fetches/dm-msg-tombs key by entry identity (not note-id).
 ++  reconcile-dm-roots
-  |=  [st=state-76 lose=@ta win=@ta cn=note:noltbook]
-  ^-  state-76
+  |=  [st=state-77 lose=@ta win=@ta cn=note:noltbook]
+  ^-  state-77
   ?:  =(lose win)  st
   =*  s  st
   ::  notes: install canonical winner, drop loser
@@ -2106,14 +2201,103 @@
 ::  empty lease map. A call in flight does NOT survive: every note that had one gets
 ::  a cleared record at generation 1 -- a real generation-bearing empty snapshot, so
 ::  the browser badge disappears on load and the next start allocates generation 2.
+++  upgrade-76-to-77
+  ::  Adds the host-authored call transport. Every call that already
+  ::  exists migrates as %mesh: it was created by a build that had no
+  ::  managed transport, so mesh is what it actually is. The cached
+  ::  mode also starts at %mesh, and %noltbook-calls re-syncs it.
+  |=  o=state-76
+  ^-  state-77
+  =/  migrated=(map @ta call-snapshot:noltbook)
+    %-  ~(gas by *(map @ta call-snapshot:noltbook))
+    %+  turn  ~(tap by calls.o)
+    |=  [nid=@ta sn=call-snapshot-76]
+    ^-  [@ta call-snapshot:noltbook]
+    ?~  call.sn  [nid [note-id.sn gen.sn ~]]
+    =/  c  u.call.sn
+    :-  nid
+    :+  note-id.sn  gen.sn
+    :-  ~
+    :*  call-id.c
+        note-id.c
+        started-by.c
+        started.c
+        participants.c
+        status.c
+        %mesh
+    ==
+  :*  %77
+      notes.o
+      messages.o
+      artifacts.o
+      profiles.o
+      transactions.o
+      current-note.o
+      peers.o
+      has-avatar.o
+      pal-outgoing.o
+      pal-incoming.o
+      pal-blocked.o
+      blocked-by.o
+      dial.o
+      gossip-hops.o
+      mentions.o
+      migrated
+      call-leases.o
+      gossip-envelopes.o
+      headlines.o
+      seq-counters.o
+      join-requests.o
+      note-admins.o
+      note-muted.o
+      artifact-envelopes.o
+      host-status.o
+      fork-origin.o
+      fork-version.o
+      fork-of.o
+      pending-fork-invites.o
+      fork-invitees.o
+      contacts.o
+      dm-prefs.o
+      member-revs.o
+      fork-parent-version.o
+      host-checks.o
+      notification-acks.o
+      note-activity.o
+      note-read.o
+      attention.o
+      cleared-mentions.o
+      via-by-eid.o
+      note-pins.o
+      note-apps.o
+      note-active.o
+      app-grants.o
+      note-unread-activity.o
+      note-members.o
+      app-notifications.o
+      dm-artifact-refs.o
+      dm-artifact-tombs.o
+      dm-msg-tombs.o
+      peer-proto.o
+      pending-dm-fetches.o
+      note-artifact-tombs.o
+      mesh-tombs.o
+      mesh-tomb-meta.o
+      dm-imports.o
+      import-only-dms.o
+      pending-icon-fetches.o
+      pending-img-writes.o
+      pending-profile-lookups.o
+      %mesh
+  ==
 ++  upgrade-75-to-76
   |=  o=state-75
   ^-  state-76
-  =/  cleared=(map @ta call-snapshot:noltbook)
-    %-  ~(gas by *(map @ta call-snapshot:noltbook))
+  =/  cleared=(map @ta call-snapshot-76)
+    %-  ~(gas by *(map @ta call-snapshot-76))
     %+  turn  ~(tap by active-calls.o)
     |=  [nid=@ta *]
-    [nid `call-snapshot:noltbook`[nid 1 ~]]
+    [nid `call-snapshot-76`[nid 1 ~]]
   :*  %76
       notes.o
       messages.o
@@ -2178,8 +2362,8 @@
       pending-profile-lookups.o
   ==
 ++  migrate-dm-artifacts
-  |=  [our=@p st=state-76]
-  ^-  state-76
+  |=  [our=@p st=state-77]
+  ^-  state-77
   =*  s  st
   =/  targets=(list [aid=@ta a=artifact:noltbook])
     %+  murn  ~(tap by artifacts.s)
@@ -2191,7 +2375,7 @@
     ?~  nt  ~
     ?.  (is-ordinary-dm u.nt)  ~
     `[aid a]
-  |-  ^-  state-76
+  |-  ^-  state-77
   ?~  targets  s
   =/  a=artifact:noltbook  a.i.targets
   =/  eid=@uv  (dm-artifact-eid a)
@@ -2699,7 +2883,7 @@
 ::  than relying on that. See FUTURE(cleanup-scope) above for why these exclusions are
 ::  a group and must be relaxed together, never individually.
 ++  notebook-subtree-private
-  |=  [our=@p ids=(list @ta) st=state-76]
+  |=  [our=@p ids=(list @ta) st=state-77]
   ^-  ?
   ::  an empty subtree proves nothing.
   ?~  ids  %.n
@@ -3073,6 +3257,189 @@
 ++  call-lease-ttl    ~m2         ::  participant deadline granted per heartbeat
 ::  call-eligible: the note kinds that may host a call. Mirrors the frontend's
 ::  noteSupportsCalls() exactly -- cover, %Rumors, gossip and notebooks never call.
+::  ===================================================================
+::  managed SFU call access (backend only). The gate defaults OFF in
+::  %noltbook-calls, so these local requests are dropped there and no
+::  managed-infrastructure traffic is produced.
+::
+::  AUTHORITY. Every arm here is only ever reached on the note's
+::  authoritative creator. Non-hosts forward through the existing
+::  %remote-call-* path, so a participant can never create a room in its
+::  own Warden namespace.
+::  ===================================================================
+::
+::  +sfu-room: the managed room key for one CALL INCARNATION.
+::
+::  Derived from the authoritative host, the note and the call id. The
+::  call id is deliberately included and the revision is deliberately NOT:
+::  call-id is stable across participant churn, so a join must not move
+::  the room, while a LATER call on the same note gets a fresh call-id and
+::  therefore a fresh room.
+::
+::  The Warden requires [A-Za-z0-9_-]{8,64}; a scot'd hash with the dot
+::  separators removed satisfies that and cannot collide across notes.
+++  sfu-room
+  |=  [host=@p nid=@ta cid=@ta]
+  ^-  @tas
+  =/  raw=@t  (scot %uv (sham [host nid cid]))
+  `@tas`(crip (skip (trip raw) |=(c=@tD =('.' c))))
+::
+::  +sfu-req: a STABLE request id for one logical operation. The same
+::  operation retried produces the same id, so a retry is an idempotent
+::  duplicate at the Warden rather than a second execution.
+++  sfu-req
+  |=  [nid=@ta cid=@ta gen=@ud op=@tas who=@p]
+  ^-  @ud
+  `@ud`(sham [nid cid gen op who])
+::
+::  +sfu-ctx: the opaque correlation token. It rides the Ames hop to the
+::  broker and back untouched, and never reaches the gateway or Warden,
+::  so it carries no secret and needs no sanitising.
+++  sfu-ctx
+  |=  [nid=@ta cid=@ta gen=@ud]
+  ^-  @t
+  (scot %uw (jam [nid cid gen]))
+::
+::  +sfu-ctx-of: recover the correlation token. A malformed token yields ~
+::  and the caller drops the response rather than guessing.
+++  sfu-ctx-of
+  |=  c=@t
+  ^-  (unit [nid=@ta cid=@ta gen=@ud])
+  =/  a=(unit @)  (slaw %uw c)
+  ?~  a  ~
+  =/  n  (cue u.a)
+  ?.  ?=([@ @ @] n)  ~
+  `[`@ta`-.n `@ta`+<.n `@ud`+>.n]
+::
+::  +sfu-poke: ask our LOCAL %noltbook-calls to perform one managed
+::  operation. It is always our own ship: the broker hop happens inside
+::  %noltbook-calls, which derives authority from src.bowl.
+++  sfu-poke
+  |=  [=bowl:gall act=action:noltbook-calls]
+  ^-  card:agent:gall
+  :*  %pass  /sfu/(scot %da now.bowl)
+      %agent  [our.bowl %noltbook-calls]
+      %poke  %noltbook-calls-action  !>(act)
+  ==
+::
+::  +sfu-grant-card: hand a credential-bearing grant to ONE participant
+::  ship. Never a fact, never a broadcast, never /notes.
+::  ---- lifecycle card builders ----
+::
+::  These builders emit only LOCAL pokes to %noltbook-calls. That agent owns
+::  the transport gate and drops every managed operation while it is off.
+::  Keeping the gate at the receiving boundary avoids a synchronous Gall
+::  cross-scry inside this state transition: such a scry can abort the entire
+::  call event before the ordinary call snapshot is committed.
+::
+::  +sfu-if: emit managed cards ONLY for a call whose HOST authored %sfu.
+::
+::  The service gate lives in %noltbook-calls and answers "is managed calling
+::  available at all". This answers a different question -- "is THIS call a
+::  managed one" -- and the two must not be conflated. The transport is fixed
+::  when a call is created, so flipping the gate can never change what an
+::  existing call does, and a %mesh call never consumes a room, a ticket or a
+::  TURN credential however the gate is set.
+++  sfu-if
+  |=  [t=call-transport:noltbook cards=(list card:agent:gall)]
+  ^-  (list card:agent:gall)
+  ?:  ?=(%sfu t)  cards
+  ~
+::
+::  +sfu-start-cards: the authoritative host performs one ordered room-start
+::  request. %noltbook-calls waits for ensure to succeed before it asks for
+::  access, so access cannot race a room that does not exist yet.
+++  sfu-start-cards
+  |=  [=bowl:gall nid=@ta cid=@ta gen=@ud ttl=@ud who=@p]
+  ^-  (list card:agent:gall)
+  =/  room=@tas  (sfu-room our.bowl nid cid)
+  =/  cx=@t      (sfu-ctx nid cid gen)
+  ~[(sfu-poke bowl [%ensure-access (sfu-req nid cid gen %ensure who) room ttl who %noltbook cx])]
+::
+::  +sfu-access-cards: the host asks for access on behalf of ONE participant
+::  it has already validated. Naming a participant grants that participant
+::  access to the host's room; it transfers no authority to them.
+++  sfu-access-cards
+  |=  [=bowl:gall nid=@ta cid=@ta gen=@ud who=@p]
+  ^-  (list card:agent:gall)
+  =/  room=@tas  (sfu-room our.bowl nid cid)
+  =/  cx=@t      (sfu-ctx nid cid gen)
+  ~[(sfu-poke bowl [%access (sfu-req nid cid gen %access who) room who %noltbook cx])]
+::
+::  +sfu-renew-cards: only the host renews, and renewal never changes the
+::  call incarnation. The request id is stable inside one five-minute
+::  window, so retries deduplicate while a continuing call still performs
+::  later renewals instead of reusing the first renewal forever.
+++  sfu-renew-cards
+  |=  [=bowl:gall nid=@ta cid=@ta gen=@ud ttl=@ud]
+  ^-  (list card:agent:gall)
+  =/  room=@tas    (sfu-room our.bowl nid cid)
+  =/  bucket=@ud  `@ud`(div now.bowl ~m5)
+  =/  req=@ud     `@ud`(sham [nid cid gen %renew our.bowl bucket])
+  ~[(sfu-poke bowl [%renew req room ttl])]
+::
+::  +sfu-renew-access-cards: fresh CREDENTIALS for one participant. It never
+::  touches the room: no lease change, no generation bump, no Galene group
+::  mutation, so a renewal cannot disturb media that is already flowing.
+::
+::  The request id is stable inside one five-minute window, exactly like the
+::  room renewal above. That is what makes a browser retry idempotent while
+::  still letting a long call renew again later, and it is BOUNDED: a
+::  participant cannot mint unbounded requests by pressing a button.
+++  sfu-renew-access-cards
+  |=  [=bowl:gall nid=@ta cid=@ta gen=@ud who=@p]
+  ^-  (list card:agent:gall)
+  =/  room=@tas   (sfu-room our.bowl nid cid)
+  =/  cx=@t       (sfu-ctx nid cid gen)
+  =/  bucket=@ud  `@ud`(div now.bowl ~m5)
+  =/  req=@ud     `@ud`(sham [nid cid gen %renew-access who bucket])
+  ~[(sfu-poke bowl [%renew-access req room who %noltbook cx])]
+::
+::  +sfu-evict-cards: bound to the CURRENT room, so a stale eviction cannot
+::  reach a later incarnation -- a later call has a different call-id and
+::  therefore a different room key.
+++  sfu-evict-cards
+  |=  [=bowl:gall nid=@ta cid=@ta gen=@ud who=@p]
+  ^-  (list card:agent:gall)
+  =/  room=@tas  (sfu-room our.bowl nid cid)
+  ~[(sfu-poke bowl [%evict (sfu-req nid cid gen %evict who) room who])]
+::
+::  +sfu-end-cards: the final teardown. The Warden revokes every ticket,
+::  kicks remaining clients and deletes the managed group.
+++  sfu-end-cards
+  |=  [=bowl:gall nid=@ta cid=@ta gen=@ud]
+  ^-  (list card:agent:gall)
+  =/  room=@tas  (sfu-room our.bowl nid cid)
+  ~[(sfu-poke bowl [%end (sfu-req nid cid gen %end our.bowl) room])]
+::
+++  sfu-grant-card
+  |=  [=bowl:gall to=@p nid=@ta cid=@ta gen=@ud acc=@t]
+  ^-  card:agent:gall
+  :*  %pass  /sfu-grant/(scot %p to)/[nid]
+      %agent  [to %noltbook]
+      %poke  %noltbook-remote
+      !>(`remote:noltbook`[%remote-call-access nid cid gen acc])
+  ==
+::
+::  +sfu-fail-card: tell ONE participant ship its access request failed.
+::  Same routing as the grant, carrying a safe category instead of a
+::  credential, so a refusal is as reliably delivered as a success.
+++  sfu-fail-card
+  |=  [=bowl:gall to=@p nid=@ta cid=@ta gen=@ud why=@tas]
+  ^-  card:agent:gall
+  :*  %pass  /sfu-fail/(scot %p to)/[nid]
+      %agent  [to %noltbook]
+      %poke  %noltbook-remote
+      !>(`remote:noltbook`[%remote-call-fail nid cid gen why])
+  ==
+::
+::  +sfu-private-cards: deliver a grant to THIS ship's own browser
+::  subscription only. /call-access is not a shared path: it carries no
+::  note membership and is never subscribed to by another ship.
+++  sfu-private-cards
+  |=  f=call-access-fact:noltbook
+  ^-  (list card:agent:gall)
+  ~[[%give %fact ~[/call-access] %noltbook-call-access !>(f)]]
 ++  call-eligible
   |=  [nid=@ta nt=note:noltbook]
   ^-  ?
@@ -3217,7 +3584,9 @@
 ::  host-start-snap: the host authors the generation, the call id AND the start time, so
 ::  every ship shows the same values instead of each reconstructing `started` locally.
 ++  host-start-snap
-  |=  [nid=@ta starter=@p now=@da prev-gen=@ud]
+  ::  `trans` is authored HERE, once, by the host, and then never changes.
+  ::  Every participant reads it from the same authoritative snapshot.
+  |=  [nid=@ta starter=@p now=@da prev-gen=@ud trans=call-transport:noltbook]
   ^-  call-snapshot:noltbook
   =/  g=@ud  +(prev-gen)
   =/  cid=@ta
@@ -3225,7 +3594,7 @@
     ;:  weld
       "call-"  (trip (scot %ud g))  "-"  (trip (scot %da now))
     ==
-  [nid g `[cid nid starter now (sy ~[starter]) %active]]
+  [nid g `[cid nid starter now (sy ~[starter]) %active trans]]
 ::  host-drop: remove exactly ONE participant from a live call, and end the call only
 ::  when that empties it. Either outcome is a host-authored change, so the revision
 ::  advances exactly once -- that is what makes a delayed earlier snapshot (which would
@@ -3329,11 +3698,11 @@
   ::  Option-1: the whole %noltbook-remote dispatch moved OUT of the on-poke battery.
   ::  =| / =* / =. re-expose state-67 faces exactly like the door, so handler bodies are
   ::  unchanged except this->state. on-poke delegates: =^ cards state (rem-handle bowl rem state).
-  |=  [=bowl:gall rem=remote:noltbook sin=state-76]
-  =|  state-76
+  |=  [=bowl:gall rem=remote:noltbook sin=state-77]
+  =|  state-77
   =*  state  -
   =.  state  sin
-  ^-  (quip card state-76)
+  ^-  (quip card state-77)
     ?-  -.rem
     ::
         %remote-invite
@@ -5343,7 +5712,7 @@
       ?:  ?&(?=(^ cur) ?=(^ call.u.cur))  `state
       =/  snap=call-snapshot:noltbook
         %-  norm-snap
-        (host-start-snap note-id.rem src.bowl now.bowl (call-gen calls note-id.rem))
+        (host-start-snap note-id.rem src.bowl now.bowl (call-gen calls note-id.rem) sfu-mode)
       ?~  call.snap  `state
       =/  dl=@da  (add now.bowl call-lease-ttl)
       =/  msg  (call-sys-msg now.bowl note-id.rem src.bowl (call-started-txt src.bowl))
@@ -5359,6 +5728,10 @@
         (call-local-cards snap)
         ~[(gf-paths ~[pax] msg-upd)]
         ~[(lease-wake note-id.rem call-id.u.call.snap src.bowl dl)]
+        ::  the room is created in OUR namespace: the requester gains access
+        ::  to it, never authority over it
+        %+  sfu-if  transport.u.call.snap
+        (sfu-start-cards bowl note-id.rem call-id.u.call.snap gen.snap 3.600 src.bowl)
       ==
     ::
         %remote-call-join
@@ -5373,11 +5746,16 @@
       ?~  call.u.cur  `state
       =/  ci  u.call.u.cur
       =/  dl=@da  (add now.bowl call-lease-ttl)
-      ::  already a participant: treat as liveness, refresh the lease only
+      ::  already a participant: refresh liveness and re-request access. This
+      ::  recovers a failed first grant and gives a returning browser fresh
+      ::  short-lived credentials without changing call membership.
       ?:  (~(has in participants.ci) src.bowl)
         =.  call-leases  (put-lease call-leases note-id.rem src.bowl dl)
         :_  state
-        ~[(lease-wake note-id.rem call-id.ci src.bowl dl)]
+        %+  weld
+          ~[(lease-wake note-id.rem call-id.ci src.bowl dl)]
+        %+  sfu-if  transport.ci
+        (sfu-access-cards bowl note-id.rem call-id.ci gen.u.cur src.bowl)
       =/  new-ci=call-info:noltbook
         ci(participants (~(put in participants.ci) src.bowl))
       ::  adding a participant is a host-authored change: advance the revision once, and
@@ -5397,6 +5775,8 @@
         (call-local-cards snap)
         ~[(gf-paths ~[pax] msg-upd)]
         ~[(lease-wake note-id.rem call-id.new-ci src.bowl dl)]
+        %+  sfu-if  transport.new-ci
+        (sfu-access-cards bowl note-id.rem call-id.new-ci gen.snap src.bowl)
       ==
     ::
         %remote-call-leave
@@ -5422,6 +5802,10 @@
         %+  turn  msgs.res
         |=  m=message:noltbook
         (gf-paths ~[pax] `update:noltbook`[%new-message m ~ ~ ~])
+        %+  sfu-if  transport.u.call.u.cur
+        ?:  ended.res
+          (sfu-end-cards bowl note-id.rem call-id.u.call.u.cur gen.out.res)
+        (sfu-evict-cards bowl note-id.rem call-id.u.call.u.cur gen.out.res src.bowl)
       ==
     ::
         %remote-call-heartbeat
@@ -5437,7 +5821,27 @@
       =/  dl=@da  (add now.bowl call-lease-ttl)
       =.  call-leases  (put-lease call-leases note-id.rem src.bowl dl)
       :_  state
-      ~[(lease-wake note-id.rem call-id.u.call.u.cur src.bowl dl)]
+      %+  weld
+        ~[(lease-wake note-id.rem call-id.u.call.u.cur src.bowl dl)]
+      %+  sfu-if  transport.u.call.u.cur
+      (sfu-renew-cards bowl note-id.rem call-id.u.call.u.cur gen.u.cur 3.600)
+    ::
+        ::  member -> HOST: mint fresh credentials for THAT member only.
+        ::  src.bowl is the participant; nothing in the payload names one, so
+        ::  a member can only ever renew its own access.
+        %remote-call-renew-access
+      =/  exists  (~(get by notes) note-id.rem)
+      ?~  exists  `state
+      ?.  =(our.bowl creator.u.exists)  `state
+      ?.  (can-user-post note-id.rem src.bowl host-status notes note-members)  `state
+      =/  cur  (~(get by calls) note-id.rem)
+      ?~  cur  `state
+      ?~  call.u.cur  `state
+      ?.  ?=(%active status.u.call.u.cur)  `state
+      ?.  ?=(%sfu transport.u.call.u.cur)  `state
+      ?.  (~(has in participants.u.call.u.cur) src.bowl)  `state
+      :_  state
+      (sfu-renew-access-cards bowl note-id.rem call-id.u.call.u.cur gen.u.cur src.bowl)
     ::
         %remote-call-sync
       ::  member -> HOST: "current call state of these notes". We answer only for notes
@@ -6712,6 +7116,49 @@
           pin-clear-cards
       ==
     ::
+        ::  ===== managed SFU: a grant arriving from the note's HOST =====
+        ::  CREDENTIAL-BEARING. Accepted only from the note's authoritative
+        ::  creator, only for the current call incarnation, and only when it
+        ::  names US. It is emitted on the private /call-access path and is
+        ::  never stored, never logged, and never placed on a shared path.
+        %remote-call-access
+      =/  ex  (~(get by notes) note-id.rem)
+      ?~  ex  `state
+      ::  ONLY the authoritative host may grant. A forged host is refused
+      ::  here, and src.bowl is the only identity considered.
+      ?.  =(src.bowl creator.u.ex)  `state
+      ::  the call must exist, be live, and be the SAME incarnation
+      =/  cur  (~(get by calls) note-id.rem)
+      ?~  cur  `state
+      ?~  call.u.cur  `state
+      ?.  =(call-id.u.call.u.cur call-id.rem)  `state
+      ::  a grant for a superseded revision is dropped
+      ?.  (gte gen.u.cur gen.rem)  `state
+      ::  and we must actually be in that call
+      ?.  (~(has in participants.u.call.u.cur) our.bowl)  `state
+      :_  state
+      %-  sfu-private-cards
+      `call-access-fact:noltbook`[%granted note-id.rem call-id.rem gen.rem access.rem]
+    ::
+        ::  The failure counterpart of %remote-call-access. Validated
+        ::  IDENTICALLY: only the authoritative host may say a request
+        ::  failed, and only about the current incarnation of a call we are
+        ::  actually in. Otherwise any ship could clear another ship's call
+        ::  UI by asserting a failure.
+        %remote-call-fail
+      =/  ex  (~(get by notes) note-id.rem)
+      ?~  ex  `state
+      ?.  =(src.bowl creator.u.ex)  `state
+      =/  cur  (~(get by calls) note-id.rem)
+      ?~  cur  `state
+      ?~  call.u.cur  `state
+      ?.  =(call-id.u.call.u.cur call-id.rem)  `state
+      ?.  (gte gen.u.cur gen.rem)  `state
+      ?.  (~(has in participants.u.call.u.cur) our.bowl)  `state
+      :_  state
+      %-  sfu-private-cards
+      `call-access-fact:noltbook`[%failed note-id.rem call-id.rem gen.rem reason.rem]
+    ::
         %remote-wallet-activity
       ::  An authenticated ship reports it submitted a payment to us through Noltbook.
       ::  TRUST BOUNDARY: Ames/Gall prove WHICH ship said this. They do not prove the
@@ -6890,8 +7337,8 @@
 ::  artifact, already-tombstoned, or unauthorized sender — is a harmless no-op ([~ st]), so
 ::  duplicate and replayed requests neither mutate state nor emit a marker.
 ++  delete-note-artifact
-  |=  [=bowl:gall sender=@p nid=@ta aid=@ta st=state-76]
-  ^-  [(list card:agent:gall) state-76]
+  |=  [=bowl:gall sender=@p nid=@ta aid=@ta st=state-77]
+  ^-  [(list card:agent:gall) state-77]
   =/  nt  (~(get by notes.st) nid)
   ?~  nt  [~ st]
   ::  we must host this note; shared %group/%notebook only
@@ -6947,7 +7394,7 @@
   =/  del-upd=update:noltbook  [%artifact-deleted aid]
   =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
   =/  pax=path  ~[%notes nid]
-  =/  st2=state-76
+  =/  st2=state-77
     %=  st
       artifacts             (~(del by artifacts.st) aid)
       note-pins             new-pins
@@ -7077,7 +7524,7 @@
   ~[(gf-paths paths `update:noltbook`[%app-notifications-updated ~(val by live)])]
 --
 %-  agent:dbug
-=|  state-76
+=|  state-77
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -7099,11 +7546,14 @@
   ::  exactly once) and %76 (our own, on every reload after that). Anything else is a
   ::  foreign or corrupt noun and fails loudly rather than being coerced. state-75 is
   ::  FROZEN -- !< nests on the mold, so narrowing anything in it breaks the decode.
-  ?>  ?|(?=([%75 *] q.old) ?=([%76 *] q.old))
-  =/  base=state-76
-    ?:  ?=([%76 *] q.old)  !<(state-76 old)
-    (upgrade-75-to-76 !<(state-75 old))
-  =/  based=state-76
+  ?>  ?|(?=([%75 *] q.old) ?=([%76 *] q.old) ?=([%77 *] q.old))
+  =/  base=state-77
+    ?:  ?=([%77 *] q.old)  !<(state-77 old)
+    ::  the ladder is walked at its terminus: %75 becomes %76, then %76
+    ::  becomes %77. state-76 is FROZEN, so its saved noun still decodes.
+    ?:  ?=([%76 *] q.old)  (upgrade-76-to-77 !<(state-76 old))
+    (upgrade-76-to-77 (upgrade-75-to-76 !<(state-75 old)))
+  =/  based=state-77
     %=  base
       note-members       (ensure-note-members note-members.base notes.base)
       app-notifications  (app-notifications-live app-notifications.base now.bowl)
@@ -7142,11 +7592,11 @@
     ^-  [@ta call-snapshot:noltbook]
     ?.  (~(has in ended) nid)  [nid sn]
     [nid [nid +(gen.sn) ~]]
-  =/  based=state-76
+  =/  based=state-77
     based(calls reloaded, call-leases *(map @ta (map @p @da)))
   ::  idempotent normalization of remote-owned ordinary-DM %file/%app artifacts into
   ::  content-free references (no content read/write; nothing serveable by a noncreator).
-  =/  loaded=state-76  (migrate-dm-artifacts our.bowl based)
+  =/  loaded=state-77  (migrate-dm-artifacts our.bowl based)
   ::  tell our own browser the full call list (which now includes any PRESERVED remote
   ::  cache), tell the members of every call we just ended that it is over, and ask every
   ::  remote host for its current truth. Those three are why a reload converges on both
@@ -7182,6 +7632,16 @@
       [%api %results ~]
     ::  same-ship %noltbook-api clients observe per-request result facts here.
     ::  No backlog/initial state: results are only emitted live going forward.
+    ?>  =(src.bowl our.bowl)
+    `this
+  ::
+      [%call-access ~]
+    ::  PRIVATE managed-call access. Same-ship only, and deliberately with NO
+    ::  backlog: a grant is short-lived, so a late subscriber must request a
+    ::  fresh one rather than replay an old credential.
+    ::
+    ::  Gall subscriptions are per-SHIP, so every tab belonging to this ship's
+    ::  owner can see these facts. Another ship cannot.
     ?>  =(src.bowl our.bowl)
     `this
   ::
@@ -12394,6 +12854,23 @@
     ::
     ::  ===== CALL ACTIONS =====
     ::
+        %configure-call-service
+      ::  This whole action union is already same-ship guarded. Forward a
+      ::  typed local noun; the secret never enters an Ames payload.
+      :_  this
+      ~[(sfu-poke bowl [%configure request-id.act broker.act endpoint.act key.act])]
+    ::
+        %test-call-service
+      ::  Health only: no room, ticket, access grant or TURN allocation.
+      :_  this
+      ~[(sfu-poke bowl [%status request-id.act])]
+    ::
+        %set-call-sfu
+      ::  Browser-reachable only through this agent's existing same-ship
+      ::  action boundary. %noltbook-calls remains noun-only to Eyre.
+      :_  this
+      ~[(sfu-poke bowl [%set-sfu-gate on.act])]
+    ::
         %start-call
       ::  Local user pressed CALL. If we host the note we allocate; otherwise we only
       ::  REQUEST and wait for the host's snapshot -- the frontend must not treat the
@@ -12413,7 +12890,7 @@
         ==
       =/  snap=call-snapshot:noltbook
         %-  norm-snap
-        (host-start-snap note-id.act our.bowl now.bowl (call-gen calls note-id.act))
+        (host-start-snap note-id.act our.bowl now.bowl (call-gen calls note-id.act) sfu-mode)
       ?~  call.snap  `this
       =/  dl=@da  (add now.bowl call-lease-ttl)
       =/  msg  (call-sys-msg now.bowl note-id.act our.bowl (call-started-txt our.bowl))
@@ -12430,6 +12907,9 @@
         (call-local-cards snap)
         ~[(gf-paths ~[pax] msg-upd)]
         ~[(lease-wake note-id.act call-id.u.call.snap our.bowl dl)]
+        ::  managed SFU: a no-op while the gate is off
+        %+  sfu-if  transport.u.call.snap
+        (sfu-start-cards bowl note-id.act call-id.u.call.snap gen.snap 3.600 our.bowl)
       ==
     ::
         %join-call
@@ -12451,7 +12931,10 @@
       =/  dl=@da  (add now.bowl call-lease-ttl)
       ?:  (~(has in participants.ci) our.bowl)
         :_  this(call-leases (put-lease call-leases note-id.act our.bowl dl))
-        ~[(lease-wake note-id.act call-id.ci our.bowl dl)]
+        %+  weld
+          ~[(lease-wake note-id.act call-id.ci our.bowl dl)]
+        %+  sfu-if  transport.ci
+        (sfu-access-cards bowl note-id.act call-id.ci gen.u.cur our.bowl)
       =/  new-ci=call-info:noltbook
         ci(participants (~(put in participants.ci) our.bowl))
       ::  same rule as the remote join: one revision per authored change
@@ -12471,6 +12954,8 @@
         (call-local-cards snap)
         ~[(gf-paths ~[pax] msg-upd)]
         ~[(lease-wake note-id.act call-id.new-ci our.bowl dl)]
+        %+  sfu-if  transport.new-ci
+        (sfu-access-cards bowl note-id.act call-id.new-ci gen.snap our.bowl)
       ==
     ::
         %leave-call
@@ -12505,6 +12990,11 @@
         %+  turn  msgs.res
         |=  m=message:noltbook
         (gf-paths ~[pax] `update:noltbook`[%new-message m ~ ~ ~])
+        ::  a departure evicts; the LAST departure ends the managed room
+        %+  sfu-if  transport.u.call.u.cur
+        ?:  ended.res
+          (sfu-end-cards bowl note-id.act call-id.u.call.u.cur gen.out.res)
+        (sfu-evict-cards bowl note-id.act call-id.u.call.u.cur gen.out.res our.bowl)
       ==
     ::
         %call-heartbeat
@@ -12524,7 +13014,34 @@
         ==
       =/  dl=@da  (add now.bowl call-lease-ttl)
       :_  this(call-leases (put-lease call-leases note-id.act our.bowl dl))
-      ~[(lease-wake note-id.act call-id.u.call.u.cur our.bowl dl)]
+      %+  weld
+        ~[(lease-wake note-id.act call-id.u.call.u.cur our.bowl dl)]
+      ::  only the host renews, and renewal never changes the incarnation
+      %+  sfu-if  transport.u.call.u.cur
+      (sfu-renew-cards bowl note-id.act call-id.u.call.u.cur gen.u.cur 3.600)
+    ::
+        %renew-call-access
+      ::  Our OWN browser wants fresh credentials. Every precondition is
+      ::  rechecked here rather than trusted from the browser: it can ask, it
+      ::  cannot assert. A mesh call has no credentials to renew.
+      =/  exists  (~(get by notes) note-id.act)
+      ?~  exists  `this
+      =/  cur  (~(get by calls) note-id.act)
+      ?~  cur  `this
+      ?~  call.u.cur  `this
+      ?.  ?=(%active status.u.call.u.cur)  `this
+      ?.  ?=(%sfu transport.u.call.u.cur)  `this
+      ?.  (~(has in participants.u.call.u.cur) our.bowl)  `this
+      ?.  =(our.bowl creator.u.exists)
+        ::  we are not the host, so we cannot mint: ask the host to.
+        :_  this
+        :~  %^    rpoke
+                /call-renew/(scot %p creator.u.exists)/[note-id.act]
+              creator.u.exists
+            `remote:noltbook`[%remote-call-renew-access note-id.act]
+        ==
+      :_  this
+      (sfu-renew-access-cards bowl note-id.act call-id.u.call.u.cur gen.u.cur our.bowl)
     ::
         %sync-calls
       ::  frontend channel reconnect: re-hydrate the browser from what we hold AND ask
@@ -12580,11 +13097,22 @@
         (call-snap-cards users.u.nt snap our.bowl)
       =/  next-calls=(map @ta call-snapshot:noltbook)
         (~(uni by calls) ended-map)
+      =/  sfu-cards=(list card)
+        %-  zing
+        %+  turn  ours
+        |=  [nid=@ta snap=call-snapshot:noltbook]
+        ^-  (list card)
+        ?~  call.snap  ~
+        %+  sfu-if  transport.u.call.snap
+        (sfu-end-cards bowl nid call-id.u.call.snap gen.snap)
       :_  this(calls next-calls, call-leases *(map @ta (map @p @da)))
       ;:  weld
         host-cards
         ~[(gf-notes `update:noltbook`[%call-list ~(val by next-calls)])]
         (call-sync-cards notes our.bowl)
+        ::  end every managed room we host. `ours` holds only calls whose
+        ::  authority is us, so this can never tear down another host's room.
+        sfu-cards
       ==
     ::
         %fetch-cover-msg
@@ -12860,6 +13388,74 @@
           (gf-paths ~[/notes/[id.act]] upd)
       ==
     ==
+      ::  ===== managed SFU: grant returned by our own %noltbook-calls =====
+      ::  Local only, credential-bearing: never logged, never stored, routed
+      ::  to exactly one participant and then dropped.
+      ::  ===== cached managed-call mode =====
+      ::  Pushed by our own %noltbook-calls whenever the gate changes and on
+      ::  every load, so this copy cannot drift after a restart. It affects
+      ::  only calls created AFTER it: an existing call keeps the transport
+      ::  its host authored.
+      %noltbook-sfu-mode
+    ?>  =(src.bowl our.bowl)
+    `this(sfu-mode !<(call-transport:noltbook vase))
+  ::
+      %noltbook-calls-access
+    ?>  =(src.bowl our.bowl)
+    =/  r  !<(call-result:noltbook-calls vase)
+    =/  cx  (sfu-ctx-of context.r)
+    ::  a result we cannot correlate is discarded, never guessed at
+    ?~  cx  `this
+    ::  who the result is ABOUT. A room-level failure belongs to no
+    ::  participant and is dropped here rather than delivered to everyone.
+    =/  par=(unit @p)
+      ?-  -.r
+        %granted  `participant.access.r
+        %failed   who.r
+      ==
+    ?~  par  `this
+    ::  ---- revalidation. Deliberately IDENTICAL for success and failure:
+    ::  a failure that skipped a check would be an unauthenticated way to
+    ::  tear down a call UI, and an answer that arrives after the world has
+    ::  moved on is stale in exactly the same way whichever outcome it is.
+    ::  Every rejection below is silent: a stale answer is not an error.
+    =/  ex  (~(get by notes) nid.u.cx)
+    ?~  ex  `this
+    ::  we must still be the authority for this note
+    ?.  =(our.bowl creator.u.ex)  `this
+    =/  cur  (~(get by calls) nid.u.cx)
+    ?~  cur  `this
+    ::  and the call must still be the SAME incarnation, at the SAME
+    ::  generation the request was issued under
+    ?.  =(gen.u.cur gen.u.cx)  `this
+    ?~  call.u.cur  `this
+    ?.  =(call-id.u.call.u.cur cid.u.cx)  `this
+    ?.  ?=(%active status.u.call.u.cur)  `this
+    ::  a managed credential is meaningless to a mesh call, and the host
+    ::  authored the transport once and for all
+    ?.  ?=(%sfu transport.u.call.u.cur)  `this
+    ::  the participant must still be in the call
+    ?.  (~(has in participants.u.call.u.cur) u.par)  `this
+    ?-    -.r
+        %granted
+      =/  blob=@t  (scot %uw (jam access.r))
+      ?:  =(u.par our.bowl)
+        ::  we are the participant: straight to our own private path
+        :_  this
+        %-  sfu-private-cards
+        `call-access-fact:noltbook`[%granted nid.u.cx cid.u.cx gen.u.cx blob]
+      :_  this
+      ~[(sfu-grant-card bowl u.par nid.u.cx cid.u.cx gen.u.cx blob)]
+    ::
+        %failed
+      ?:  =(u.par our.bowl)
+        :_  this
+        %-  sfu-private-cards
+        `call-access-fact:noltbook`[%failed nid.u.cx cid.u.cx gen.u.cx err.r]
+      :_  this
+      ~[(sfu-fail-card bowl u.par nid.u.cx cid.u.cx gen.u.cx err.r)]
+    ==
+  ::
       %noltbook-remote
     =/  rem  !<(remote:noltbook vase)
     =^  cards  state  (rem-handle bowl rem state)

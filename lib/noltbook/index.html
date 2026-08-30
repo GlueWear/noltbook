@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="nb-build" content="eeurgpg3jh">
+<meta name="nb-build" content="61kog0dc3j">
 <title>NOLTBOOK</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20355.9%20355.9%22%20width=%22355.9%22%20height=%22355.9%22%3E%3Cg%20fill=%22%23ffffff%22%20transform=%22translate(-10.9901536%2036.4439936)%20scale(1.06235712)%22%3E%3Cpolygon%20points=%2266%20159.5%2066%2021.2%20204.3%2021.2%20204.3%2080.8%20204.3%20112.5%20204.3%20159.5%20160.7%20159.5%20160.7%20180.7%20225.5%20180.7%20225.5%20112.5%20225.5%2080.8%20225.5%200%2044.8%200%2044.8%20180.7%20121%20180.7%20121%20159.5%2066%20159.5%22/%3E%3Cpolygon%20points=%22234.7%2085.7%20234.7%20106.9%20289.8%20106.9%20289.8%20245.3%20151.4%20245.3%20151.4%20186.8%20151.4%20180.7%20151.4%20159.5%20151.4%20155.1%20151.4%20106.9%20195%20106.9%20195%2085.7%20130.2%2085.7%20130.2%20151.8%20130.2%20159.5%20130.2%20180.7%20130.2%20183.5%20130.2%20266.4%20310.9%20266.4%20310.9%2085.7%20234.7%2085.7%22/%3E%3C/g%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -487,6 +487,28 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .grimoire-system-label{color:var(--text-dim,#888);min-width:8.5rem}
 .grimoire-system-value{color:var(--text,#ddd);text-align:right;overflow-wrap:anywhere}
 .grimoire-system-note{padding:.55rem .85rem;color:var(--text-dim,#888);font-size:.82rem;line-height:1.45}
+.call-service-form{padding:.35rem .85rem .8rem;display:flex;flex-direction:column;gap:.5rem;border-bottom:1px solid rgba(255,255,255,.05)}
+.call-service-field{display:grid;grid-template-columns:8.5rem minmax(0,1fr);gap:.8rem;align-items:center}
+.call-service-field label{font-size:.78rem;color:var(--text-dim,#888)}
+.call-service-input{box-sizing:border-box;width:100%;min-width:0;padding:.38rem .5rem;background:#0b0b0b;border:1px solid var(--border,#333);color:var(--text,#ddd);font:inherit;font-size:.78rem}
+.call-service-input:focus{outline:none;border-color:#ffaa00}
+.call-service-toggle{display:flex;align-items:center;justify-content:space-between;gap:.8rem;min-height:2rem}
+.call-service-toggle-copy{display:flex;flex-direction:column;gap:.12rem;font-size:.78rem;color:var(--text,#ddd)}
+.call-service-toggle-copy small{font-size:.68rem;color:var(--text-dim,#888);line-height:1.35}
+.call-service-switch{position:relative;display:inline-block;width:2.4rem;height:1.25rem;flex:0 0 auto}
+.call-service-switch input{position:absolute;opacity:0;width:1px;height:1px}
+.call-service-switch span{position:absolute;inset:0;border:1px solid #555;background:#191919;cursor:pointer;transition:background .12s,border-color .12s}
+.call-service-switch span:before{content:'';position:absolute;width:.75rem;height:.75rem;left:.2rem;top:.18rem;background:#777;transition:transform .12s,background .12s}
+.call-service-switch input:checked+span{border-color:#ffaa00;background:rgba(255,170,0,.16)}
+.call-service-switch input:checked+span:before{transform:translateX(1.12rem);background:#ffaa00}
+.call-service-switch input:focus-visible+span{outline:1px solid #ffaa00;outline-offset:2px}
+.call-service-switch input:disabled+span{opacity:.45;cursor:default}
+.call-service-actions{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;padding-top:.15rem}
+.call-service-actions button{font-family:var(--font);font-size:.7rem;letter-spacing:.06em;padding:.35rem .65rem;border:1px solid #ffaa00;background:transparent;color:#ffaa00;cursor:pointer}
+.call-service-actions button:disabled{opacity:.4;cursor:default}
+.call-service-status{font-size:.72rem;color:var(--text-dim,#888);line-height:1.4;overflow-wrap:anywhere}
+.call-service-status.ok{color:#57c777}.call-service-status.bad{color:#ff5555}.call-service-status.busy{color:#ffaa00}
+@media(max-width:520px){.call-service-field{grid-template-columns:1fr;gap:.2rem}}
 .context-menu-item.disabled{color:#555;cursor:not-allowed;opacity:.6}
 .context-menu-item.disabled:hover{background:transparent;color:#555}
 .context-menu-divider{height:1px;background:#333;margin:.25rem 0}
@@ -1091,7 +1113,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
         <span class="call-rail-slot" id="callRailSlot"></span>
       </div>
       <div class="call-rail-body" id="callRailBody">
-        <div style="font-size:.8rem;color:var(--text-dim)">No active call</div>
+        <div class="call-empty" style="font-size:.8rem;color:var(--text-dim)">No active call</div>
       </div>
       <div class="call-controls" id="callControls" style="display:none">
         <button class="call-ctrl-btn mute" id="muteBtn" onclick="toggleMute()">MIC</button>
@@ -1495,7 +1517,7 @@ const api = {
   // msgId is MONOTONIC for the whole page, never reset by newChannel(). Resetting it
   // let a replacement channel reissue a wire id an old alias still referred to, so a
   // stale entry could capture a brand-new live subscription.
-  ship:null,uid:null,url:null,msgId:0,subs:{},subMeta:{},es:null,reconnecting:false,lastAcked:-1,_ackTimer:null,_pendingAck:-1,
+  ship:null,uid:null,url:null,msgId:0,subs:{},subMeta:{},es:null,reconnecting:false,lastAcked:-1,_ackTimer:null,_pendingAck:-1,_ackBurst:0,
   // ---- channel recovery state ----
   // _esGen stamps every EventSource we create. Each callback captures its own stamp and
   // returns early when it no longer matches, so a retired stream can never act on the
@@ -1555,7 +1577,17 @@ const api = {
   },
   _resetAck(){
     if(this._ackTimer){clearTimeout(this._ackTimer);this._ackTimer=null}
-    this._pendingAck=-1;this.lastAcked=-1;
+    this._pendingAck=-1;this._ackBurst=0;this.lastAcked=-1;
+  },
+  // Send an ACK before a large synchronous render can starve the 100ms timer. Eyre
+  // drops a subscription after 50 unacked facts for 30s, so flushing every 10 keeps
+  // ample margin while preserving the sparse-event batching path.
+  _flushAck(gen){
+    if(gen!==this._esGen||this._pendingAck<0)return;
+    if(this._ackTimer){clearTimeout(this._ackTimer);this._ackTimer=null}
+    const eventId=this._pendingAck;
+    this._pendingAck=-1;this._ackBurst=0;
+    this.put([{id:++this.msgId,action:'ack','event-id':eventId}]);
   },
   init(ship){this.ship=ship;this.cleanupOldChannel();this.newChannel()},
   cleanupOldChannel(){
@@ -1621,18 +1653,22 @@ const api = {
       if(!isNaN(evId)&&evId>this.lastAcked){
         this.lastAcked=evId;
         this._pendingAck=evId;
-        if(!this._ackTimer){
+        this._ackBurst++;
+        if(this._ackBurst>=10)this._flushAck(gen);
+        else if(!this._ackTimer){
           this._ackTimer=setTimeout(()=>{
             this._ackTimer=null;
-            // a retired stream's ack must never be sent on the replacement channel:
-            // its event id belongs to a different channel's event sequence
-            if(gen!==this._esGen)return;
-            if(this._pendingAck>=0){
-              this.put([{id:++this.msgId,action:'ack','event-id':this._pendingAck}]);
-              this._pendingAck=-1;
-            }
+            this._flushAck(gen);
           },100);
         }
+      }
+      // Eyre sends quit when it has killed a clogged subscription. EventSource itself
+      // remains open, so onerror never fires; rebuild explicitly or the tab stays
+      // connected but permanently blind to future note and call facts.
+      if(d.response==='quit'&&this.subs[d.id]){
+        console.warn('[SSE] subscription '+d.id+' quit; rebuilding channel');
+        this._beginReplace('subscription '+d.id+' quit');
+        return;
       }
       if(d.response==='diff'&&this.subs[d.id])this.subs[d.id](d.json);
     };
@@ -1705,6 +1741,10 @@ const api = {
     // channel, so a request the server accepted but whose response was lost cannot become
     // a second live subscription.
     this.subs={};this.subMeta={};
+    // The private access subscription is being replaced. Anything granted to
+    // the old one is no longer backed by a live subscription, so it is dropped
+    // here rather than carried across a replacement.
+    try{sfuClearGrant('subscription-replaced')}catch(e){}
     const batch=[];
     const remap={};
     for(const m of oldMeta){
@@ -2013,6 +2053,10 @@ async function boot(){
   initEmbedManager();
   loadReadCursors();
   await api.subscribe('noltbook','/notes',handleUpdate);
+  // PRIVATE call-access path. Same-ship only and credential bearing. It is held
+  // in slot 'call-access', so however many times boot or a reconnect runs there
+  // is never more than one of them open.
+  await api.subscribe('noltbook','/call-access',handleCallAccess,{slot:'call-access'});
   api.open();
   // An explicit ?note= link is a request to view that note, so it opens in CHAT. A plain
   // launch initialises Cover without navigating: the phone stays on NOTES, and because
@@ -9380,7 +9424,9 @@ function grimoireSigilHtml(){
   }catch(e){}
   return '<span class="grimoire-sigil grimoire-sigil-fb"></span>';
 }
-let _grimoireSystem={state:'idle',pikes:{},charges:{},runtime:'',error:null};
+let _grimoireSystem={state:'idle',pikes:{},charges:{},runtime:'',error:null,
+  callConfig:null,callHealth:null,callDraft:null,callDirty:false,
+  callStatus:{kind:'',text:''},callOp:0};
 async function fetchRuntimeVersion(){
   try{
     const r=await fetch('/~/version',{credentials:'include'});
@@ -9400,12 +9446,23 @@ async function fetchRuntimeVersion(){
 async function loadGrimoireSystem(){
   const first=_grimoireSystem.state==='idle'||_grimoireSystem.state==='error';
   if(first){_grimoireSystem.state='loading';_grimoireSystem.error=null;refreshGrimoireIfOpen()}
-  const [pikesR,chargesR,runtimeR]=await Promise.allSettled([api.scry('hood','/kiln/pikes'),api.scry('docket','/charges'),fetchRuntimeVersion()]);
+  const [pikesR,chargesR,runtimeR,callCfgR,callHealthR]=await Promise.allSettled([
+    api.scry('hood','/kiln/pikes'),api.scry('docket','/charges'),fetchRuntimeVersion(),
+    api.scry('noltbook-calls','/config'),api.scry('noltbook-calls','/health')]);
   if(pikesR.status==='fulfilled'&&pikesR.value)_grimoireSystem.pikes=pikesR.value;
   else console.warn('[system] hood /kiln/pikes failed:',pikesR.reason);
   if(chargesR.status==='fulfilled'&&chargesR.value)_grimoireSystem.charges=chargesR.value.initial||{};
   else console.warn('[system] docket /charges failed:',chargesR.reason);
   if(runtimeR.status==='fulfilled')_grimoireSystem.runtime=runtimeR.value||'';
+  if(callCfgR.status==='fulfilled'&&callCfgR.value){
+    _grimoireSystem.callConfig=callCfgR.value;
+    if(!_grimoireSystem.callDraft||!_grimoireSystem.callDirty){
+      _grimoireSystem.callDraft={broker:callCfgR.value.broker||'~nolset',
+        endpoint:callCfgR.value.gatewayEndpoint||'http://127.0.0.1:8899'};
+      _grimoireSystem.callDirty=false;
+    }
+  }else console.warn('[system] call-service config unavailable');
+  if(callHealthR.status==='fulfilled')_grimoireSystem.callHealth=callHealthR.value||null;
   _grimoireSystem.state='loaded';
   if(!Object.keys(_grimoireSystem.pikes||{}).length&&!Object.keys(_grimoireSystem.charges||{}).length){
     _grimoireSystem.state='error';
@@ -9429,14 +9486,152 @@ function systemSource(desk){
 function systemRow(label,value){
   return '<div class="grimoire-system-row"><span class="grimoire-system-label">'+escHtml(label)+'</span><span class="grimoire-system-value">'+escHtml(value||'unknown')+'</span></div>';
 }
+function callServiceReq(){
+  _grimoireSystem.callReqSeq=(_grimoireSystem.callReqSeq||0)+1;
+  return Date.now()*100+(_grimoireSystem.callReqSeq%100);
+}
+function callServiceDraftChanged(){
+  const b=document.getElementById('callServiceBroker');
+  const e=document.getElementById('callServiceEndpoint');
+  if(!b||!e)return;
+  _grimoireSystem.callDraft={broker:b.value.trim(),endpoint:e.value.trim()};
+  const c=_grimoireSystem.callConfig;
+  _grimoireSystem.callDirty=!c||_grimoireSystem.callDraft.broker!==(c.broker||'')||
+    _grimoireSystem.callDraft.endpoint!==(c.gatewayEndpoint||'');
+}
+function callServiceBase(raw){
+  let u;
+  try{u=new URL(String(raw||'').trim())}catch(e){return null}
+  if(u.protocol!=='http:'&&u.protocol!=='https:')return null;
+  if(u.hostname!=='127.0.0.1'&&u.hostname!=='localhost')return null;
+  if(!u.port||u.username||u.password||u.search||u.hash)return null;
+  if(u.pathname!=='/'&&u.pathname!=='')return null;
+  const p=Number(u.port);if(!Number.isInteger(p)||p<1||p>65535)return null;
+  return u.protocol+'//'+u.hostname+':'+u.port;
+}
+function callServiceSetStatus(kind,text){
+  _grimoireSystem.callStatus={kind:kind||'',text:text||''};
+  refreshGrimoireIfOpen();
+}
+function callServiceStatusText(h){
+  if(!h)return {kind:'',text:'NOT TESTED'};
+  if(h.ok)return {kind:'ok',text:'HEALTHY · TURN NOT MEDIA-TESTED'};
+  if(!h.brokerReachable)return {kind:'bad',text:'BROKER UNREACHABLE'};
+  if(!h.gatewayAuthenticated)return {kind:'bad',text:'GATEWAY AUTH FAILED'};
+  if(!h.wardenReachable)return {kind:'bad',text:'WARDEN UNREACHABLE'};
+  if(!h.wardenAuthenticated)return {kind:'bad',text:'WARDEN AUTH FAILED'};
+  if(!h.dbReady)return {kind:'bad',text:'WARDEN DATABASE NOT READY'};
+  if(!h.galeneReachable)return {kind:'bad',text:'GALÈNE UNREACHABLE'};
+  return {kind:'bad',text:'CALL SERVICE DEGRADED'};
+}
+function callServiceSleep(ms){return new Promise(resolve=>setTimeout(resolve,ms))}
+async function callServiceWait(path,req,pick,op){
+  const deadline=Date.now()+15000;let delay=250;
+  while(Date.now()<deadline&&_grimoireSystem.callOp===op){
+    try{
+      const v=await api.scry('noltbook-calls',path);
+      const got=pick(v);
+      if(got&&Number(got.requestId)===req)return {view:v,result:got};
+    }catch(e){}
+    await callServiceSleep(delay);delay=Math.min(2000,delay*2);
+  }
+  return null;
+}
+async function saveCallService(){
+  const b=document.getElementById('callServiceBroker');
+  const e=document.getElementById('callServiceEndpoint');
+  const k=document.getElementById('callServiceKey');
+  if(!b||!e||!k)return;
+  const broker=b.value.trim().toLowerCase();
+  const endpoint=callServiceBase(e.value);
+  if(!/^~[a-z0-9-]+$/.test(broker)){callServiceSetStatus('bad','INVALID BROKER SHIP');return}
+  if(!endpoint){callServiceSetStatus('bad','ENDPOINT MUST BE LOCALHOST WITH A PORT');return}
+  if(k.value.length>1024){k.value='';callServiceSetStatus('bad','GATEWAY KEY TOO LONG');return}
+  const req=callServiceReq();const op=++_grimoireSystem.callOp;
+  const key=k.value;k.value='';
+  callServiceSetStatus('busy','SAVING…');
+  let sent=false;
+  try{sent=await api.poke('noltbook','noltbook-action',
+    {action:'configure-call-service',data:{requestId:req,broker,endpoint,key}})}catch(err){}
+  if(!sent||_grimoireSystem.callOp!==op){callServiceSetStatus('bad','SAVE FAILED');return}
+  const done=await callServiceWait('/config',req,v=>v&&v.lastSave,op);
+  if(!done){callServiceSetStatus('bad','SAVE TIMED OUT');return}
+  _grimoireSystem.callConfig=done.view;
+  _grimoireSystem.callDraft={broker:done.view.broker,endpoint:done.view.gatewayEndpoint};
+  _grimoireSystem.callDirty=false;
+  if(done.result.ok)callServiceSetStatus('ok','SAVED');
+  else callServiceSetStatus('bad',String(done.result.code||'SAVE REJECTED').replace(/^%/,'').replace(/-/g,' ').toUpperCase());
+}
+async function testCallService(){
+  callServiceDraftChanged();
+  if(_grimoireSystem.callDirty){callServiceSetStatus('bad','SAVE CHANGES BEFORE TESTING');return}
+  const req=callServiceReq();const op=++_grimoireSystem.callOp;
+  callServiceSetStatus('busy','TESTING CONNECTION…');
+  let sent=false;
+  try{sent=await api.poke('noltbook','noltbook-action',
+    {action:'test-call-service',data:{requestId:req}})}catch(err){}
+  if(!sent||_grimoireSystem.callOp!==op){callServiceSetStatus('bad','TEST REQUEST FAILED');return}
+  const done=await callServiceWait('/health',req,v=>v&&v.health?{requestId:v.requestId,health:v.health}:null,op);
+  if(!done){callServiceSetStatus('bad','BROKER UNREACHABLE');return}
+  _grimoireSystem.callHealth=done.view;
+  const st=callServiceStatusText(done.result.health);
+  callServiceSetStatus(st.kind,st.text);
+}
+async function setCallSfu(on){
+  on=!!on;
+  const op=++_grimoireSystem.callOp;
+  const prior=_grimoireSystem.callConfig;
+  if(prior)_grimoireSystem.callConfig={...prior,sfuGate:on};
+  callServiceSetStatus('busy',on?'ENABLING SFU…':'ENABLING MESH…');
+  let sent=false;
+  try{sent=await api.poke('noltbook','noltbook-action',
+    {action:'set-call-sfu',data:{on}})}catch(err){}
+  if(_grimoireSystem.callOp!==op)return;
+  if(!sent){_grimoireSystem.callConfig=prior;callServiceSetStatus('bad','TRANSPORT CHANGE FAILED');return}
+  const deadline=Date.now()+10000;let delay=150;
+  while(Date.now()<deadline&&_grimoireSystem.callOp===op){
+    try{
+      const cfg=await api.scry('noltbook-calls','/config');
+      if(cfg&&!!cfg.sfuGate===on){
+        _grimoireSystem.callConfig=cfg;
+        callServiceSetStatus('ok',on?'SFU ENABLED · NEW HOSTED CALLS USE SFU':'MESH ENABLED · NEW HOSTED CALLS USE MESH');
+        return;
+      }
+    }catch(e){}
+    await callServiceSleep(delay);delay=Math.min(1000,delay*2);
+  }
+  if(_grimoireSystem.callOp!==op)return;
+  _grimoireSystem.callConfig=prior;
+  callServiceSetStatus('bad','TRANSPORT CHANGE TIMED OUT');
+}
+function renderCallService(){
+  const c=_grimoireSystem.callConfig;
+  if(!c)return '<div class="grimoire-section-label">CALL SERVICE</div><div class="grimoire-empty">Call-service configuration unavailable</div>';
+  const d=_grimoireSystem.callDraft||{broker:c.broker||'~nolset',endpoint:c.gatewayEndpoint||'http://127.0.0.1:8899'};
+  const explicit=_grimoireSystem.callStatus;
+  const prior=callServiceStatusText(_grimoireSystem.callHealth&&_grimoireSystem.callHealth.health);
+  const st=explicit&&explicit.text?explicit:prior;
+  const keyNote=c.gatewayKeyConfigured?'configured — blank preserves it':'not configured';
+  return '<div class="grimoire-section-label">CALL SERVICE</div>'+
+    '<div class="call-service-form">'+
+      '<div class="call-service-toggle"><div class="call-service-toggle-copy"><span>USE SFU</span><small>Turn off to use mesh for new calls hosted by this ship.</small></div><label class="call-service-switch" title="Use SFU for new hosted calls"><input id="callServiceSfu" type="checkbox" '+(c.sfuGate?'checked ':'')+(st.kind==='busy'?'disabled ':'')+'onchange="setCallSfu(this.checked)" aria-label="Use SFU for new hosted calls"><span aria-hidden="true"></span></label></div>'+
+      '<div class="call-service-field"><label for="callServiceBroker">Broker Ship</label><input class="call-service-input" id="callServiceBroker" value="'+escAttr(d.broker)+'" oninput="callServiceDraftChanged()" autocomplete="off" spellcheck="false"></div>'+
+      '<div class="call-service-field"><label for="callServiceEndpoint">Gateway Endpoint</label><input class="call-service-input" id="callServiceEndpoint" value="'+escAttr(d.endpoint)+'" oninput="callServiceDraftChanged()" autocomplete="off" spellcheck="false"></div>'+
+      '<div class="call-service-field"><label for="callServiceKey">Gateway Key</label><input class="call-service-input" id="callServiceKey" type="password" value="" placeholder="'+escAttr(keyNote)+'" autocomplete="new-password" spellcheck="false"></div>'+
+      '<div class="call-service-actions"><button type="button" onclick="saveCallService()">SAVE</button><button type="button" onclick="testCallService()">TEST CONNECTION</button></div>'+
+      '<div class="call-service-status '+escAttr(st.kind||'')+'">'+escHtml(st.text||'NOT TESTED')+'</div>'+
+      '<div class="call-service-status">Mode: '+escHtml(c.mode||'unknown')+' · TURN is tested only during a real call.</div>'+
+    '</div>';
+}
 function renderGrimoireSystems(){
   const s=_grimoireSystem;
   if(s.state==='idle'||s.state==='loading')return '<div class="grimoire-empty">Loading system&hellip;</div>';
-  if(s.state==='error')return '<div class="grimoire-empty" style="color:#ff5555">Couldn\'t load system<br><span style="font-size:.62rem;color:var(--text-dim,#888)">'+escHtml(s.error||'')+'</span></div>';
+  let html=renderCallService();
+  if(s.state==='error')return html+'<div class="grimoire-empty" style="color:#ff5555">Couldn\'t load system details<br><span style="font-size:.62rem;color:var(--text-dim,#888)">'+escHtml(s.error||'')+'</span></div>';
   const charges=s.charges||{};
   const base=systemPike('base')||{};
   const appCount=Object.keys(charges).length;
-  let html='<div class="grimoire-section-label">ABOUT SYSTEM</div>';
+  html+='<div class="grimoire-section-label">ABOUT SYSTEM</div>';
   html+=systemRow('Ship','~'+api.ship);
   html+=systemRow('Urbit Kernel',systemKernelVersion()||base.hash||'unknown');
   html+=systemRow('Urbit Runtime',s.runtime||'unavailable');
@@ -11074,6 +11269,8 @@ const iceBatcher={
   flush(ship){
     const candidates=this.pending[ship];
     if(!candidates||!candidates.length)return;
+    if(callIsSfu()){delete this.pending[ship];delete this.timers[ship];return}
+    sfu.stats.signalsSent++;
     const payload=JSON.stringify(candidates);
     api.poke('noltbook','noltbook-action',{action:'call-signal',data:{noteId:state.inCall,to:ship,sigType:'ice-batch',payload}});
     delete this.pending[ship];
@@ -11122,6 +11319,7 @@ const rtcManager={
   },
 
   async renegotiate(ship){
+    if(callIsSfu())return;
     const peer=this.peers[ship];
     if(!peer||peer.makingOffer)return;
     const pc=peer.pc;
@@ -11130,6 +11328,7 @@ const rtcManager={
       const offer=await pc.createOffer();
       await pc.setLocalDescription(offer);
       const payload=JSON.stringify({type:offer.type,sdp:offer.sdp});
+      sfu.stats.signalsSent++;
       console.log('[rtc] explicit renegotiate with',ship);
       api.poke('noltbook','noltbook-action',{action:'call-signal',data:{noteId:state.inCall,to:ship,sigType:'sdp-offer',payload}});
     }catch(e){console.error('[rtc] renegotiate failed',ship,e)}
@@ -11152,6 +11351,11 @@ const rtcManager={
           const vt=vs.getVideoTracks()[0];
           console.log('[rtc] got camera track:',vt.label,'state:',vt.readyState);
           this.localStream.addTrack(vt);
+          // SFU publication happens in toggleVideo only after videoOn is true.
+          // sfuPublishCamera intentionally treats that flag as authoritative, so
+          // publishing here would omit the camera track while the local preview
+          // still showed it.
+          if(callIsSfu())return this.localStream;
           let needsRenegotiate=false;
           for(const ship of Object.keys(this.peers)){
             const peer=this.peers[ship];
@@ -11174,7 +11378,15 @@ const rtcManager={
       return this.localStream;
     }
     try{
-      this.localStream=await navigator.mediaDevices.getUserMedia({audio:true,video:!!video});
+      // Galène excludes a publisher from its own downstream fan-out and every
+      // local preview is muted, so the remaining self-echo path is acoustic
+      // pickup from nearby speakers. Request the browser's voice processing
+      // explicitly rather than relying on platform-dependent audio:true defaults.
+      this.localStream=await navigator.mediaDevices.getUserMedia({
+        audio:{echoCancellation:{ideal:true},noiseSuppression:{ideal:true},
+               autoGainControl:{ideal:true}},
+        video:!!video
+      });
       this.videoOn=!!video;
     }catch(e){
       console.error('[rtc] getUserMedia failed',e);
@@ -11237,6 +11449,7 @@ const rtcManager={
   async swapOutboundAudio(){
     const t=this.outboundAudioTrack();
     if(!t)return;
+    if(callIsSfu()){await sfuReplaceOutboundAudio();return}
     for(const ship of Object.keys(this.peers)){
       const p=this.peers[ship];
       if(!p.audioSender){
@@ -11286,7 +11499,14 @@ const rtcManager={
     const closing=!!(opts&&opts.closing);
     try{
       const mic=this.rawMicTrack();
-      if(!closing){
+      if(callIsSfu()&&!closing){
+        // put the raw mic back on the single upstream, then stop publishing the
+        // screen stream entirely rather than nulling a per-peer sender.
+        const u=sfu.up.get('camera');
+        if(u&&u.audioSender&&mic){try{await u.audioSender.replaceTrack(mic)}catch(e){}}
+        sfuCloseUpstream('screen');
+      }
+      if(!closing&&!callIsSfu()){
         // 1. put the RAW mic back on every audio sender BEFORE the graph goes away, so
         //    the call is never left transmitting a track whose source we destroyed
         if(mic){
@@ -11326,6 +11546,9 @@ const rtcManager={
     }finally{this._screenTearing=false}
   },
   createPeer(ship){
+    // Defensive: %sfu must never reach here, even by a path not yet written.
+    if(callIsSfu()){console.error('[rtc] createPeer refused under %sfu');return null}
+    sfu.stats.meshPeersCreated++;
     if(this.peers[ship])return this.peers[ship].pc;
     const polite=this.isPolite(ship);
     const pc=new RTCPeerConnection({iceServers:ICE_SERVERS});
@@ -11438,6 +11661,10 @@ const rtcManager={
   },
 
   async handleSignal(from,sigType,payload){
+    // %sfu carries all SDP and ICE inside the Galene protocol. A call-signal
+    // arriving during an SFU call is stale mesh traffic and is dropped.
+    if(callIsSfu()){console.warn('[rtc] call-signal ignored under %sfu');return}
+    sfu.stats.signalsHandled++;
     const data=JSON.parse(payload);
     const polite=this.isPolite(from);
 
@@ -11498,11 +11725,15 @@ const rtcManager={
 
   onPeerJoined(ship){
     if(ship==='~'+api.ship)return;
+    // Under %sfu a participant is NOT a peer connection. Media arrives from the
+    // SFU keyed by Galene stream, so no mesh peer is ever built.
+    if(callIsSfu()){renderCallRail();return}
     this.createPeer(ship);
     renderCallRail();
   },
 
   onPeerLeft(ship){
+    if(callIsSfu()){sfuDropShip(ship);renderCallRail();return}
     const p=this.peers[ship];
     if(p){
       if(p.audioEl){p.audioEl.pause();p.audioEl.srcObject=null;p.audioEl.remove()}
@@ -11514,6 +11745,8 @@ const rtcManager={
   },
 
   hangUp(){
+    // one release path for both transports. Under %mesh this is a no-op.
+    sfuDisconnect('hang-up');
     iceBatcher.clear();
     discardTheater('hang-up');            // the call is over: no parked key survives
     // one shared teardown. closing:true skips the sender work (the pcs are about to
@@ -11541,6 +11774,890 @@ const rtcManager={
     this.screenAudioAvailable=false;
   }
 };
+
+/* ========== MANAGED SFU TRANSPORT (Galene) ==========================
+   Speaks the Galene signalling protocol directly over one WebSocket.
+
+   ATTRIBUTION. No Galene or Trunk code is copied here. This adapter was
+   written against the published Galene protocol specification
+   (galene-protocol.md, Galene 1.1, Juliusz Chroboczek, MIT licence) and
+   interoperates with an unmodified Galene server. Nothing is loaded from
+   a CDN: this file is the whole client.
+
+   RELATIONSHIP TO THE MESH. The mesh path below/above is untouched. Media
+   capture, the screen-audio mix and the mute/camera/screen buttons are
+   transport independent and stay shared; only the peer-connection layer
+   differs. Under %sfu no mesh peer connection is ever created and no
+   call-signal is ever sent or processed -- the SFU carries all SDP and
+   ICE inside its own protocol.
+
+   TRANSPORT IS HOST-AUTHORED AND FINAL. Nothing here infers a transport,
+   races a grant against a timeout, or falls back to mesh. A call that
+   cannot reach the SFU fails visibly and offers RETRY.
+*/
+const SFU_LABEL_CAMERA='camera';
+const SFU_LABEL_SCREEN='screenshare';
+const SFU_PROTOCOL_VERSION='2';
+// Below this many ms of remaining validity a grant is treated as already
+// dead, rather than connecting with credentials that expire mid-handshake.
+const SFU_MIN_VALIDITY=5000;
+// How long to wait before retrying a renewal that was refused. Renewal is a
+// background top-up of credentials we already hold, so a failure is not
+// urgent; a modest fixed delay avoids hammering the host while leaving many
+// attempts inside a typical credential lifetime.
+const SFU_RENEW_RETRY_MS=10000;
+
+const sfu={
+  // the grant currently held IN MEMORY ONLY. Never written to
+  // localStorage, sessionStorage, the URL or the DOM.
+  grant:null,
+  // IDENTITY OF THE LIVE SESSION. callId is what identifies a call for its
+  // whole lifetime; gen is the snapshot REVISION and advances every time any
+  // participant joins or leaves, so it must never gate an established
+  // session. It is kept only to order access results.
+  noteId:null, callId:null,
+  // {noteId,callId,gen,expires} of the newest ACCEPTED access result, so a
+  // delayed older grant or failure cannot override a newer one. `expires` is
+  // part of the key because RENEWAL DOES NOT ADVANCE THE GENERATION: a long
+  // call produces several renewals sharing one snapshot revision, and the
+  // expiry is the only thing that tells them apart.
+  acceptedFor:null,
+  ws:null, clientId:null, joined:false,
+  // the username the SERVER assigned us, taken from the joined message and
+  // checked against our own ship before anything is published under it.
+  username:null,
+  // 'idle' | 'requesting' | 'connecting' | 'connected' | 'failed'
+  status:'idle', failReason:null,
+  up:new Map(),      // 'camera' | 'screen' -> upstream record
+  byId:new Map(),    // our stream id -> upstream record
+  down:new Map(),    // galene stream id -> downstream record
+  users:new Map(),   // galene client id -> username
+  renewTimer:null, expiryTimer:null,
+  // single-flight retry for a REFUSED renewal. Never a polling loop, and
+  // never scheduled past the point where the held grant stops being usable.
+  retryTimer:null,
+  // counters, for the harness and for honest reporting
+  stats:{grants:0,failures:0,connects:0,renewals:0,cleared:0,stale:0,
+         renewFailures:0,retries:0,
+         meshPeersCreated:0,signalsSent:0,signalsHandled:0}
+};
+
+function sfuRandomId(){
+  const a=new Uint8Array(16);
+  (window.crypto||window.msCrypto).getRandomValues(a);
+  return Array.from(a,b=>b.toString(16).padStart(2,'0')).join('');
+}
+// The transport a call runs on is read from the HOST'S snapshot and from
+// nowhere else. An unknown or absent value is mesh, so a ship that has not
+// yet learned about SFU behaves exactly as it did before.
+function callTransportOf(noteId){
+  const c=state.activeCalls[noteId];
+  return (c&&c.transport==='sfu')?'sfu':'mesh';
+}
+function callIsSfu(){
+  return !!state.inCall&&callTransportOf(state.inCall)==='sfu';
+}
+function sfuIce(){
+  const g=sfu.grant;
+  if(!g||!Array.isArray(g.iceServers))return [];
+  const out=[];
+  for(const s of g.iceServers){
+    if(!s||!Array.isArray(s.urls)||!s.urls.length)continue;
+    const e={urls:s.urls.slice()};
+    if(s.username)e.username=s.username;
+    if(s.credential)e.credential=s.credential;
+    out.push(e);
+  }
+  return out;
+}
+
+/* ---- grant arrival -------------------------------------------------
+   The private /call-access subscription and the call snapshot are two
+   independent streams and either may arrive first. Neither is acted on
+   alone: a grant is held until a snapshot agrees with it exactly, and a
+   snapshot re-evaluates any grant already held.
+*/
+function handleCallAccess(f){
+  if(!f||typeof f!=='object')return;
+  if(f.type==='granted')sfuOnGrant(f);
+  else if(f.type==='failed')sfuOnAccessFailure(f);
+}
+function sfuGrantWellFormed(g){
+  if(typeof g.noteId!=='string'||!g.noteId)return false;
+  if(typeof g.callId!=='string'||!g.callId)return false;
+  if(typeof g.generation!=='number')return false;
+  if(typeof g.sfu!=='string'||!/^wss?:\/\//.test(g.sfu))return false;
+  if(typeof g.group!=='string'||!g.group)return false;
+  if(typeof g.token!=='string'||!g.token)return false;
+  if(typeof g.participant!=='string'||g.participant.charAt(0)!=='~')return false;
+  if(!Array.isArray(g.iceServers))return false;
+  if(typeof g.expires!=='number'||typeof g.renewAfter!=='number')return false;
+  return true;
+}
+function sfuOnGrant(g){
+  sfu.stats.grants++;
+  if(!sfuGrantWellFormed(g)){
+    console.error('[sfu] malformed grant discarded');
+    return;
+  }
+  // a grant minted for somebody else is never usable, whatever it says
+  if(g.participant!=='~'+api.ship){
+    console.error('[sfu] grant names another participant; discarded');
+    return;
+  }
+  if(Date.now()>=g.expires-SFU_MIN_VALIDITY){
+    console.warn('[sfu] grant already expired on arrival');
+    return;
+  }
+  if(!sfuGrantSupersedes(g)){
+    // NOTHING is touched on this path: not the grant, not the timers, not
+    // the retry state. An ignored result must not be able to shorten an
+    // expiry or downgrade a credential we already accepted.
+    sfu.stats.stale++;
+    console.warn('[sfu] superseded access result ignored');
+    return;
+  }
+  sfuAcceptResult(g,g.expires);
+  // RENEWAL is decided by note and call, NOT by generation: the snapshot
+  // revision advances whenever anybody joins or leaves, and a renewal minted
+  // after that is still a renewal of the same call.
+  const renewal=!!sfu.ws&&sfu.noteId===g.noteId&&sfu.callId===g.callId;
+  sfu.grant=g;
+  sfuArmTimers(g);
+  if(renewal){
+    // Credentials and timers are replaced in place. No websocket is reopened,
+    // no peer connection is touched and no track is replaced, so established
+    // media is not interrupted.
+    sfu.stats.renewals++;
+    if(sfu.status==='failed'){sfu.status='connecting';renderCallRail()}
+    console.log('[sfu] access renewed in place');
+    return;
+  }
+  if(sfu.status==='failed'){sfu.status='requesting';sfu.failReason=null}
+  sfuMaybeConnect();
+}
+// ORDERING. Access results are answers to requests that can overtake each
+// other on the way back. A result is stale only against a newer result for
+// the SAME note and call -- a different call is a different question, so it
+// is never stale.
+function sfuResultIsStale(r){
+  const a=sfu.acceptedFor;
+  if(!a)return false;
+  if(a.noteId!==r.noteId||a.callId!==r.callId)return false;
+  return Number(r.generation)<Number(a.gen);
+}
+// A GRANT has a second ordering key. Generation orders results ACROSS call
+// revisions, but renewal never advances the revision, so every renewal of a
+// long call arrives at the same generation. At equal generation the later
+// expiry is the newer credential; an equal or earlier one is a duplicate or
+// an overtaken answer and is ignored outright, so nothing it carries can
+// regress what we hold.
+function sfuGrantSupersedes(g){
+  const a=sfu.acceptedFor;
+  if(!a)return true;
+  // a different call is a different question, never ordered against this one
+  if(a.noteId!==g.noteId||a.callId!==g.callId)return true;
+  const gen=Number(g.generation), agen=Number(a.gen);
+  if(gen<agen)return false;
+  if(gen>agen)return true;
+  return Number(g.expires)>Number(a.expires);
+}
+function sfuAcceptResult(r,expires){
+  sfu.acceptedFor={noteId:r.noteId,callId:r.callId,gen:Number(r.generation),
+                   expires:Number(expires||0)};
+}
+// Do we still hold usable credentials for the call this result concerns?
+// A refusal to mint NEW credentials says nothing about ones already minted.
+function sfuGrantStillValid(r){
+  const g=sfu.grant;
+  if(!g)return false;
+  if(g.noteId!==r.noteId||g.callId!==r.callId)return false;
+  return Date.now()<Number(g.expires)-SFU_MIN_VALIDITY;
+}
+function sfuOnAccessFailure(f){
+  sfu.stats.failures++;
+  // only a failure about the call we are actually in can affect the UI
+  if(!state.inCall||f.noteId!==state.inCall)return;
+  const call=state.activeCalls[state.inCall];
+  if(!call||call.callId!==f.callId)return;
+  // A refusal that a newer successful grant has already superseded must not
+  // tear down the session that grant established.
+  if(sfuResultIsStale(f)){
+    sfu.stats.stale++;
+    console.warn('[sfu] older access refusal ignored');
+    return;
+  }
+  // RENEWAL FAILURE, not an access failure. The host refused to mint FRESH
+  // credentials while the ones we hold are still valid, so the call is fine:
+  // media keeps flowing, the websocket stays open, and nothing is shown. One
+  // bounded retry is scheduled. This is checked whatever the generation --
+  // a membership revision does not revoke credentials, and actual removal is
+  // handled by the authoritative snapshot in sfuValidateLive().
+  if(sfuGrantStillValid(f)){
+    sfu.stats.renewFailures++;
+    console.warn('[sfu] renewal refused; existing access still valid');
+    sfuScheduleRetry();
+    return;
+  }
+  sfuAcceptResult(f,0);
+  console.error('[sfu] access refused:',f.reason);
+  sfuFail(String(f.reason||'refused'));
+}
+
+/* ---- connect gate --------------------------------------------------
+   Connect ONLY when the held grant and the host's snapshot agree on every
+   field. Anything else either waits (the other half has not arrived) or
+   clears the grant (they will never agree).
+*/
+function sfuMaybeConnect(){
+  const g=sfu.grant;
+  if(!g)return;
+  const nid=state.inCall;
+  if(!nid){sfuClearGrant('not-in-call');return}
+  if(g.noteId!==nid){sfuClearGrant('note-mismatch');return}
+  const call=state.activeCalls[nid];
+  // snapshot has not arrived yet: hold the grant and wait for it
+  if(!call)return;
+  if(callTransportOf(nid)!=='sfu'){sfuClearGrant('call-is-mesh');return}
+  if(call.callId!==g.callId){sfuClearGrant('call-id-mismatch');return}
+  // The grant was minted against revision N. Revision N or ANY LATER revision
+  // of the same call is a valid snapshot to connect against: a later revision
+  // only means somebody else joined or left. A snapshot we hold that is OLDER
+  // than the grant means our view has not caught up yet, so the grant is HELD
+  // rather than cleared -- clearing it would lose a perfectly good credential
+  // to a race we already know how to wait out.
+  if(Number(state.callGens[nid])<Number(g.generation))return;
+  if(call.status!=='active'){sfuClearGrant('call-not-active');return}
+  if(!Array.isArray(call.participants)||call.participants.indexOf('~'+api.ship)<0)return;
+  if(Date.now()>=g.expires-SFU_MIN_VALIDITY){sfuClearGrant('expired');return}
+  if(sfu.ws)return;                       // already connecting or connected
+  sfuConnect(g);
+}
+// Re-checked on every snapshot: a call that has moved on must not keep a
+// live SFU session belonging to the previous incarnation.
+// Re-checked on every snapshot. The session's lifetime is defined by the
+// CALL, not by the snapshot revision: another participant joining or leaving
+// advances gen and must leave an established session completely untouched.
+function sfuValidateLive(){
+  if(!sfu.ws)return;                      // nothing established to invalidate
+  const nid=state.inCall;
+  if(!nid){sfuDisconnect('not-in-call');return}
+  if(sfu.noteId&&sfu.noteId!==nid){sfuDisconnect('note-changed');return}
+  const call=state.activeCalls[nid];
+  if(!call){sfuDisconnect('call-gone');return}
+  if(sfu.callId&&call.callId!==sfu.callId){sfuDisconnect('call-replaced');return}
+  if(call.status!=='active'){sfuDisconnect('call-inactive');return}
+  if(callTransportOf(nid)!=='sfu'){sfuDisconnect('transport-changed');return}
+  if(!Array.isArray(call.participants)||
+     call.participants.indexOf('~'+api.ship)<0){
+    sfuDisconnect('participant-removed');return;
+  }
+  // Deliberately NO generation comparison. gen is a revision counter, not an
+  // identity, and comparing it here disconnected us whenever anybody else
+  // joined or left.
+}
+function sfuClearGrant(reason){
+  if(!sfu.grant&&!sfu.renewTimer&&!sfu.expiryTimer)return;
+  sfu.stats.cleared++;
+  console.log('[sfu] grant cleared:',reason);
+  sfu.grant=null;
+  sfuClearTimers();
+}
+function sfuClearTimers(){
+  if(sfu.renewTimer){clearTimeout(sfu.renewTimer);sfu.renewTimer=null}
+  if(sfu.expiryTimer){clearTimeout(sfu.expiryTimer);sfu.expiryTimer=null}
+  sfuClearRetry();
+}
+function sfuClearRetry(){
+  if(sfu.retryTimer){clearTimeout(sfu.retryTimer);sfu.retryTimer=null}
+}
+// SINGLE FLIGHT. At most one retry is outstanding, and it is never scheduled
+// past the point where the grant we are protecting stops being usable -- from
+// there the expiry timer owns the outcome and produces the visible failure.
+function sfuScheduleRetry(){
+  if(sfu.retryTimer)return;
+  const g=sfu.grant;
+  if(!g)return;
+  if(Date.now()+SFU_RENEW_RETRY_MS>=Number(g.expires)-SFU_MIN_VALIDITY)return;
+  sfu.stats.retries++;
+  sfu.retryTimer=setTimeout(()=>{
+    sfu.retryTimer=null;
+    sfuRenew();
+  },SFU_RENEW_RETRY_MS);
+}
+// Renewal is driven by the grant's own renew-after, NOT by the 20s
+// heartbeat: renewal is rare and the heartbeat is not.
+function sfuArmTimers(g){
+  // a grant that superseded the last one settles the question the retry was
+  // asking, so the retry state resets with the timers.
+  sfuClearTimers();
+  const now=Date.now();
+  const renewIn=Math.max(1000,Math.min(g.renewAfter-now,2147483000));
+  sfu.renewTimer=setTimeout(sfuRenew,renewIn);
+  const expIn=Math.max(1000,Math.min(g.expires-now,2147483000));
+  // Only reached if no renewal replaced this grant first -- a successful
+  // renewal re-arms both timers and cancels this one.
+  sfu.expiryTimer=setTimeout(()=>{
+    sfu.expiryTimer=null;
+    console.error('[sfu] access expired before renewal');
+    sfuFail('access-expired');
+  },expIn);
+}
+function sfuRenew(){
+  sfu.renewTimer=null;
+  if(!state.inCall||!callIsSfu())return;
+  // %renew-access on the host: no room lease change, no generation bump,
+  // no membership change, and a request id that is stable inside a
+  // five-minute window so retries deduplicate.
+  const p=api.poke('noltbook','noltbook-action',
+    {action:'renew-call-access',data:{noteId:state.inCall}});
+  // A transport-level refusal is the same situation as a refused renewal:
+  // the host never heard us, and the credentials we hold are untouched.
+  if(p&&typeof p.then==='function'){
+    p.then(function(sent){if(sent===false)sfuScheduleRetry()},
+           function(){sfuScheduleRetry()});
+  }
+}
+// RETRY asks for FRESH access. It never starts a call and never joins one,
+// so it cannot create a second call or duplicate our membership.
+function sfuRetry(){
+  if(!state.inCall||!callIsSfu())return;
+  sfuDisconnect('retry');
+  sfu.status='requesting';sfu.failReason=null;
+  renderCallRail();
+  api.poke('noltbook','noltbook-action',
+    {action:'renew-call-access',data:{noteId:state.inCall}});
+}
+function sfuFail(reason){
+  sfuDisconnect('failed');
+  sfu.status='failed';
+  sfu.failReason=reason;
+  renderCallRail();
+}
+
+/* ---- per-stream ICE queues ------------------------------------------
+   Candidates and SDP race. A local candidate produced before the offer (or
+   answer) has been sent names a stream the server has not been told about;
+   a remote candidate arriving before setRemoteDescription is rejected. Both
+   directions are therefore buffered per stream and flushed in order, which
+   is what the official Galene client does.
+
+   Every queue is bounded by the life of its stream and is emptied whenever
+   the stream, the websocket or the call goes away. Candidates are never
+   logged: they carry relay addresses and, on a TURN candidate, credentials.
+*/
+function sfuIceState(rec){
+  if(!rec)return null;
+  if(!rec.localIce)rec.localIce=[];
+  if(!rec.remoteIce)rec.remoteIce=[];
+  return rec;
+}
+function sfuGotLocalIce(rec,candidate){
+  sfuIceState(rec);
+  if(rec.localDescriptionSent)sfuSend({type:'ice',id:rec.id,candidate:candidate});
+  else rec.localIce.push(candidate);
+}
+// called immediately AFTER the offer or answer has been put on the wire, so
+// the server always learns of the stream before its candidates.
+function sfuFlushLocalIce(rec){
+  sfuIceState(rec);
+  const q=rec.localIce;
+  rec.localIce=[];
+  for(const c of q)sfuSend({type:'ice',id:rec.id,candidate:c});
+}
+// called once the remote description is installed, in arrival order.
+async function sfuFlushRemoteIce(rec){
+  sfuIceState(rec);
+  const q=rec.remoteIce;
+  rec.remoteIce=[];
+  for(const c of q){
+    try{await rec.pc.addIceCandidate(c)}
+    catch(e){console.warn('[sfu] buffered remote candidate rejected')}
+  }
+}
+function sfuClearIce(rec){
+  if(!rec)return;
+  rec.localIce=[];
+  rec.remoteIce=[];
+}
+
+/* ---- websocket / signalling ---------------------------------------- */
+function sfuSend(o){
+  const ws=sfu.ws;
+  if(!ws||ws.readyState!==1)return false;
+  try{ws.send(JSON.stringify(o));return true}
+  catch(e){console.error('[sfu] send failed',e);return false}
+}
+function sfuConnect(g){
+  sfu.status='connecting';
+  sfu.noteId=g.noteId;sfu.callId=g.callId;
+  sfu.clientId=sfuRandomId();
+  sfu.joined=false;
+  sfu.stats.connects++;
+  let ws;
+  try{ws=new WebSocket(g.sfu)}
+  catch(e){console.error('[sfu] websocket open failed',e);sfuFail('connect');return}
+  sfu.ws=ws;
+  ws.onopen=()=>{
+    // Pipelining is permitted: handshake then join, without waiting.
+    sfuSend({type:'handshake',version:[SFU_PROTOCOL_VERSION],id:sfu.clientId});
+    // TOKEN AUTH: the token travels INSIDE the protocol, in the join
+    // message. It is never appended to the websocket URL, never placed in
+    // a query string, and never rendered.
+    sfuSend({type:'join',kind:'join',group:g.group,token:g.token});
+  };
+  ws.onmessage=(ev)=>{
+    let m=null;
+    try{m=JSON.parse(ev.data)}catch(e){return}
+    sfuOnMessage(m);
+  };
+  ws.onerror=()=>{console.error('[sfu] websocket error')};
+  ws.onclose=()=>{
+    if(sfu.ws!==ws)return;               // superseded by a newer session
+    sfu.ws=null;sfu.joined=false;
+    if(sfu.status==='connected'||sfu.status==='connecting'){
+      // NEVER a silent fall back to mesh: the call fails visibly.
+      console.error('[sfu] websocket closed');
+      sfuFail('disconnected');
+    }
+  };
+}
+function sfuOnMessage(m){
+  if(!m||typeof m.type!=='string')return;
+  switch(m.type){
+    case 'handshake': return;
+    case 'ping': sfuSend({type:'pong'}); return;
+    case 'pong': return;
+    case 'joined': return sfuOnJoined(m);
+    case 'user': return sfuOnUser(m);
+    case 'offer': return void sfuOnOffer(m);
+    case 'answer': return void sfuOnAnswer(m);
+    case 'ice': return void sfuOnIce(m);
+    case 'close': return sfuOnClose(m);
+    case 'abort': return sfuOnAbort(m);
+    case 'renegotiate': return void sfuOnRenegotiate(m);
+    case 'usermessage':
+      if(m.kind==='error')console.error('[sfu] server error:',m.value);
+      return;
+    default: return;                      // chat, chathistory, etc: ignored
+  }
+}
+function sfuOnJoined(m){
+  if(m.kind==='fail'){
+    console.error('[sfu] join refused:',m.error||m.value);
+    sfuFail('join-refused');
+    return;
+  }
+  if(m.kind==='leave'){sfuFail('removed');return}
+  if(m.kind!=='join'&&m.kind!=='change')return;
+  // The SERVER assigns the username, from the token the warden minted. Every
+  // offer we publish is attributed to it, and remote clients map it back to a
+  // ship, so it must be OUR ship. Anything else is a mis-minted or crossed
+  // token and we fail closed rather than publish under another identity.
+  const assigned=m.username;
+  const mine='~'+api.ship;
+  // A `change` may carry only the fields that changed. An absent username on
+  // a change is "unchanged", not "anonymous", and must not tear down a call.
+  const stated=(typeof assigned==='string'&&assigned.length>0);
+  if(m.kind==='join'&&!stated){
+    console.error('[sfu] server assigned no username; refusing');
+    sfuFail('identity-mismatch');
+    return;
+  }
+  if(stated&&(assigned!==mine||(sfu.grant&&sfu.grant.participant!==assigned))){
+    console.error('[sfu] server assigned an unexpected username; refusing');
+    sfuFail('identity-mismatch');
+    return;
+  }
+  if(stated)sfu.username=assigned;
+  if(m.kind==='join'){
+    sfu.joined=true;
+    sfu.status='connected';
+    // Subscribe to EVERY permitted stream. The empty key is the default
+    // that matches any label the server offers.
+    sfuSend({type:'request',request:{'':['audio','video']}});
+    sfuPublishCamera();
+    if(rtcManager.screenOn&&rtcManager.screenStream)sfuPublishScreen();
+    renderCallRail();
+  }
+}
+function sfuOnUser(m){
+  if(typeof m.id!=='string')return;
+  if(m.kind==='delete'){
+    const name=sfu.users.get(m.id);
+    sfu.users.delete(m.id);
+    // Streams are dropped by their own close messages; this only forgets
+    // the id -> ship mapping.
+    if(name)console.log('[sfu] user left',name);
+    return;
+  }
+  if(typeof m.username==='string')sfu.users.set(m.id,m.username);
+}
+// Galene usernames are minted by the warden from the Urbit @p, so the
+// username IS the ship. It is still checked against the host's
+// participant list: the SFU is not an authority on Noltbook membership.
+function sfuShipOf(username){
+  if(typeof username!=='string'||username.charAt(0)!=='~')return null;
+  const call=state.activeCalls[state.inCall];
+  if(!call||!Array.isArray(call.participants))return null;
+  return call.participants.indexOf(username)>=0?username:null;
+}
+function sfuShipIceState(ship){
+  let best='new';
+  for(const d of sfu.down.values()){
+    if(d.ship!==ship)continue;
+    const s=d.pc.iceConnectionState;
+    if(s==='connected'||s==='completed')return s;
+    best=s;
+  }
+  return best;
+}
+// A peer record shaped exactly like the mesh one, so every existing tile,
+// roster and audio path renders an SFU participant with no change.
+function sfuPeerFor(ship){
+  let p=rtcManager.peers[ship];
+  if(p)return p;
+  const shim={close(){}};
+  Object.defineProperty(shim,'iceConnectionState',
+    {get:()=>sfuShipIceState(ship),enumerable:true});
+  p={pc:shim,streams:new Map(),primaryId:null,fallbackUsed:false,
+     makingOffer:false,audioEl:null,videoSender:null,screenSender:null,
+     audioSender:null,sfu:true};
+  rtcManager.peers[ship]=p;
+  return p;
+}
+// Galene labels each stream, so the camera group is known rather than
+// guessed at from which group happens to carry audio.
+function sfuClassify(peer){
+  let cam=null;
+  for(const [sid,ent] of peer.streams){if(ent.kind==='camera'){cam=sid;break}}
+  if(cam!==null){peer.primaryId=cam;return}
+  classifyPeerStreams(peer);
+}
+async function sfuOnOffer(m){
+  if(typeof m.id!=='string'||typeof m.sdp!=='string')return;
+  const ship=sfuShipOf(m.username);
+  if(!ship){
+    // Not a participant of this call as far as our host is concerned.
+    // Ask the offerer to close it rather than rendering it.
+    sfuSend({type:'abort',id:m.id});
+    return;
+  }
+  let d=sfu.down.get(m.id);
+  if(!d){
+    let pc;
+    try{pc=new RTCPeerConnection({iceServers:sfuIce()})}
+    catch(e){console.error('[sfu] downstream pc rejected the ICE configuration');return}
+    d={id:m.id,pc,ship,kind:(m.label===SFU_LABEL_SCREEN?'screen':'camera'),
+       localDescriptionSent:false,remoteSet:false,localIce:[],remoteIce:[]};
+    sfu.down.set(m.id,d);
+    pc.onicecandidate=(e)=>{
+      if(e.candidate)sfuGotLocalIce(d,e.candidate.toJSON());
+    };
+    pc.oniceconnectionstatechange=()=>renderCallRail();
+    pc.ontrack=(e)=>sfuOnTrack(d,e);
+  }
+  try{
+    await d.pc.setRemoteDescription({type:'offer',sdp:m.sdp});
+    d.remoteSet=true;
+    // anything that arrived early is applied now, in order, before the answer
+    await sfuFlushRemoteIce(d);
+    const ans=await d.pc.createAnswer();
+    await d.pc.setLocalDescription(ans);
+    // ANSWER FIRST, then the candidates it belongs to.
+    sfuSend({type:'answer',id:m.id,sdp:(d.pc.localDescription||ans).sdp});
+    d.localDescriptionSent=true;
+    sfuFlushLocalIce(d);
+  }catch(e){
+    console.error('[sfu] answer failed');
+    // never leave a half-negotiated record behind
+    sfuAbortDownstream(m.id);
+  }
+}
+// tear one downstream down cleanly and tell the offerer to stop sending it
+function sfuAbortDownstream(id){
+  const d=sfu.down.get(id);
+  if(!d)return;
+  sfu.down.delete(id);
+  sfuClearIce(d);
+  try{d.pc.close()}catch(e){}
+  sfuSend({type:'abort',id:id});
+  const peer=rtcManager.peers[d.ship];
+  if(peer&&peer.streams){
+    peer.streams.delete(id);
+    sfuClassify(peer);
+    if(peer.streams.size===0&&peer.sfu)sfuDropShip(d.ship);
+  }
+  renderCallRail();
+}
+function sfuOnTrack(d,e){
+  const peer=sfuPeerFor(d.ship);
+  let ent=peer.streams.get(d.id);
+  if(!ent){
+    ent={id:d.id,stream:new MediaStream(),synthetic:false,kind:d.kind};
+    peer.streams.set(d.id,ent);
+  }
+  if(ent.stream.getTrackById(e.track.id)===null)ent.stream.addTrack(e.track);
+  sfuClassify(peer);
+  renderCallRail();
+  const drop=()=>{
+    const g=peer.streams.get(d.id);
+    if(!g)return;
+    if(g.stream.getTrackById(e.track.id))g.stream.removeTrack(e.track);
+    if(g.stream.getTracks().length===0)peer.streams.delete(d.id);
+    sfuClassify(peer);
+    renderCallRail();
+  };
+  e.track.onended=drop;
+  e.track.onmute=()=>renderCallRail();
+  e.track.onunmute=()=>renderCallRail();
+}
+async function sfuOnAnswer(m){
+  const u=sfu.byId.get(m.id);
+  if(!u||typeof m.sdp!=='string')return;
+  try{
+    await u.pc.setRemoteDescription({type:'answer',sdp:m.sdp});
+    u.remoteSet=true;
+  }catch(e){
+    console.error('[sfu] upstream answer failed');
+    sfuCloseUpstreamRec(u);
+    return;
+  }
+  await sfuFlushRemoteIce(u);
+}
+// Remote candidates are buffered until the description they belong to is
+// installed, then applied in arrival order.
+async function sfuOnIce(m){
+  if(!m.candidate)return;
+  const rec=sfu.byId.get(m.id)||sfu.down.get(m.id);
+  if(!rec)return;
+  sfuIceState(rec);
+  if(!rec.remoteSet){rec.remoteIce.push(m.candidate);return}
+  try{await rec.pc.addIceCandidate(m.candidate)}
+  catch(e){console.warn('[sfu] remote candidate rejected')}
+}
+function sfuOnClose(m){
+  const d=sfu.down.get(m.id);
+  if(!d)return;
+  sfu.down.delete(m.id);
+  sfuClearIce(d);
+  try{d.pc.close()}catch(e){}
+  const peer=rtcManager.peers[d.ship];
+  if(peer&&peer.streams){
+    peer.streams.delete(m.id);
+    sfuClassify(peer);
+    if(peer.streams.size===0&&peer.sfu)sfuDropShip(d.ship);
+  }
+  renderCallRail();
+}
+// The server asks US to close one of our own streams.
+function sfuOnAbort(m){
+  for(const [kind,u] of sfu.up){
+    if(u.id!==m.id)continue;
+    sfuCloseUpstream(kind);
+    return;
+  }
+}
+async function sfuOnRenegotiate(m){
+  const u=sfu.byId.get(m.id);
+  if(!u)return;
+  // the answerer is asking for a fresh offer with an ICE restart
+  u.restart=true;
+  await sfuOffer(u);
+}
+function sfuDropShip(ship){
+  const p=rtcManager.peers[ship];
+  if(!p||!p.sfu)return;
+  if(p.audioEl){p.audioEl.pause();p.audioEl.srcObject=null;p.audioEl.remove()}
+  p.streams.clear();
+  delete rtcManager.peers[ship];
+  for(const [id,d] of Array.from(sfu.down)){
+    if(d.ship!==ship)continue;
+    sfu.down.delete(id);
+    sfuClearIce(d);
+    try{d.pc.close()}catch(e){}
+  }
+}
+
+/* ---- publishing ----------------------------------------------------
+   The camera stream carries the OUTBOUND audio track and, when the camera
+   is on, the camera video. Screen audio is not a separate published
+   track: it is mixed into the outbound audio by the shared graph and
+   starts at gain 0, so the existing screen-audio button governs it on
+   both transports and cannot lie about what remote peers hear.
+*/
+// The full offer Galene expects. `source` and `username` are what let other
+// clients attribute the stream to a person at all; without them a published
+// stream arrives anonymous and cannot be mapped back to a ship.
+async function sfuOffer(u){
+  if(!sfu.ws||sfu.ws.readyState!==1)return;
+  if(!sfu.clientId||!sfu.username){
+    console.error('[sfu] refusing to publish before the server assigned an identity');
+    return;
+  }
+  if(u.making)return;
+  u.making=true;
+  try{
+    const off=await u.pc.createOffer(u.restart?{iceRestart:true}:undefined);
+    await u.pc.setLocalDescription(off);
+    // OFFER FIRST, then the candidates it belongs to. `kind` marks every
+    // offer after the first for this stream as a renegotiation, which is how
+    // Galene tells a new stream from a re-offer of an existing one.
+    sfuSend({type:'offer',
+             id:u.id,
+             source:sfu.clientId,
+             username:sfu.username,
+             kind:(u.localDescriptionSent?'renegotiate':''),
+             label:(u.kind==='screen'?SFU_LABEL_SCREEN:SFU_LABEL_CAMERA),
+             sdp:(u.pc.localDescription||off).sdp});
+    u.localDescriptionSent=true;
+    u.restart=false;
+    sfuFlushLocalIce(u);
+  }catch(e){
+    console.error('[sfu] offer failed');
+    sfuCloseUpstreamRec(u);
+  }
+  finally{u.making=false}
+}
+function sfuNewUpstream(kind){
+  let pc;
+  try{pc=new RTCPeerConnection({iceServers:sfuIce()})}
+  catch(e){console.error('[sfu] upstream pc rejected the ICE configuration');return null}
+  const u={id:sfuRandomId(),pc,kind,stream:new MediaStream(),
+           audioSender:null,videoSender:null,making:false,restart:false,
+           localDescriptionSent:false,remoteSet:false,localIce:[],remoteIce:[]};
+  sfu.up.set(kind,u);
+  sfu.byId.set(u.id,u);
+  pc.onicecandidate=(e)=>{
+    if(e.candidate)sfuGotLocalIce(u,e.candidate.toJSON());
+  };
+  pc.oniceconnectionstatechange=()=>{
+    if(pc.iceConnectionState==='failed'){
+      console.error('[sfu] upstream ICE failed',kind);
+      sfuFail('ice-failed');
+    }
+  };
+  return u;
+}
+async function sfuPublishCamera(){
+  if(!sfu.joined)return;
+  const audio=rtcManager.outboundAudioTrack();
+  const video=(rtcManager.videoOn&&rtcManager.localStream)
+    ?(rtcManager.localStream.getVideoTracks()[0]||null):null;
+  if(!audio&&!video)return;
+  let u=sfu.up.get('camera');
+  if(!u){
+    u=sfuNewUpstream('camera');
+    if(!u)return;
+  }
+  let renegotiate=false;
+  if(audio){
+    if(u.audioSender){
+      if(u.audioSender.track!==audio){
+        try{await u.audioSender.replaceTrack(audio)}catch(e){}
+      }
+    }else{
+      u.stream.addTrack(audio);
+      u.audioSender=u.pc.addTrack(audio,u.stream);
+      renegotiate=true;
+    }
+  }
+  if(video){
+    if(u.videoSender){
+      if(u.videoSender.track!==video){
+        try{await u.videoSender.replaceTrack(video)}catch(e){}
+      }
+    }else{
+      u.stream.addTrack(video);
+      u.videoSender=u.pc.addTrack(video,u.stream);
+      renegotiate=true;
+    }
+  }
+  if(renegotiate||!u.pc.currentRemoteDescription)await sfuOffer(u);
+}
+// camera off: keep the transceiver, drop the track. Same shape as mesh.
+async function sfuDropCameraVideo(){
+  const u=sfu.up.get('camera');
+  if(!u||!u.videoSender)return;
+  try{await u.videoSender.replaceTrack(null)}catch(e){}
+}
+async function sfuReplaceOutboundAudio(){
+  const u=sfu.up.get('camera');
+  const t=rtcManager.outboundAudioTrack();
+  if(!u||!u.audioSender||!t)return;
+  try{await u.audioSender.replaceTrack(t)}
+  catch(e){console.error('[sfu] outbound audio replace failed',e)}
+}
+async function sfuPublishScreen(){
+  if(!sfu.joined)return;
+  const ss=rtcManager.screenStream;
+  if(!ss)return;
+  const vt=ss.getVideoTracks()[0]||null;
+  if(!vt)return;
+  let u=sfu.up.get('screen');
+  if(u&&u.videoSender){
+    try{await u.videoSender.replaceTrack(vt)}catch(e){}
+    return;
+  }
+  if(!u){
+    u=sfuNewUpstream('screen');
+    if(!u)return;
+  }
+  u.stream.addTrack(vt);
+  u.videoSender=u.pc.addTrack(vt,u.stream);
+  await sfuOffer(u);
+}
+function sfuCloseUpstream(kind){
+  const u=sfu.up.get(kind);
+  if(!u)return;
+  sfuCloseUpstreamRec(u);
+}
+// one release path for an upstream, whatever asked for it
+function sfuCloseUpstreamRec(u){
+  if(!u)return;
+  if(sfu.up.get(u.kind)===u)sfu.up.delete(u.kind);
+  sfu.byId.delete(u.id);
+  sfuClearIce(u);
+  sfuSend({type:'close',id:u.id});
+  try{u.pc.close()}catch(e){}
+}
+
+/* ---- teardown ------------------------------------------------------
+   One release path. Called from hangUp (leave, end, call replacement,
+   note switch), from every validation failure, and from page teardown.
+*/
+function sfuDisconnect(reason){
+  if(sfu.ws||sfu.up.size||sfu.down.size)console.log('[sfu] disconnect:',reason);
+  sfuClearTimers();
+  for(const kind of Array.from(sfu.up.keys())){
+    const u=sfu.up.get(kind);
+    sfu.up.delete(kind);
+    sfu.byId.delete(u.id);
+    sfuClearIce(u);
+    sfuSend({type:'close',id:u.id});
+    try{u.pc.close()}catch(e){}
+  }
+  sfu.byId.clear();
+  for(const [id,d] of Array.from(sfu.down)){
+    sfu.down.delete(id);
+    sfuClearIce(d);
+    try{d.pc.close()}catch(e){}
+  }
+  for(const ship of Object.keys(rtcManager.peers)){
+    if(rtcManager.peers[ship].sfu)sfuDropShip(ship);
+  }
+  const ws=sfu.ws;
+  sfu.ws=null;
+  if(ws){
+    ws.onopen=ws.onmessage=ws.onerror=ws.onclose=null;
+    try{ws.close()}catch(e){}
+  }
+  sfu.users.clear();
+  sfu.joined=false;sfu.clientId=null;
+  sfu.noteId=null;sfu.callId=null;sfu.username=null;
+  sfu.grant=null;
+  if(sfu.status!=='failed')sfu.status='idle';
+}
 
 // placeCallBtn: there is exactly ONE #callBtn. appendChild MOVES the existing node, so
 // its id, inline onclick and classes are preserved and the two placements can never
@@ -11633,6 +12750,11 @@ function reconcileCallPeers(nid,before,after){
     // the host confirmed us: a pending start/join is now real
     if(_callOp&&_callOp.noteId===nid&&_callOp.kind!=='leave')finishCallOp();
     startCallHeartbeat();
+    // SNAPSHOT SIDE of the two-sided handshake. A grant that arrived before
+    // this snapshot is evaluated against it now; a live session whose call has
+    // been replaced or re-generated is torn down here.
+    sfuValidateLive();
+    sfuMaybeConnect();
     return;
   }
   // the host says we are NOT in this call. Whether we asked to leave or our lease
@@ -12374,6 +13496,39 @@ function renderCallRail(){
   }
   const emptyEl=body.querySelector('.call-empty');
   if(emptyEl)emptyEl.remove();
+  // ---- managed-transport failure. The host authored %sfu, so there is no mesh
+  // to fall back to: the call says so plainly and offers a retry that asks for
+  // fresh access WITHOUT starting or joining anything.
+  let failEl=body.querySelector('#sfuFail');
+  if(callIsSfu()&&sfu.status==='failed'){
+    if(!failEl){
+      failEl=document.createElement('div');
+      failEl.id='sfuFail';
+      failEl.style.cssText='display:flex;align-items:center;gap:.5rem;'+
+        'font-size:.75rem;letter-spacing:.04em;color:var(--danger,#e0553f);'+
+        'padding:.4rem .5rem;border:1px solid currentColor;border-radius:3px;'+
+        'margin-bottom:.5rem';
+      const msg=document.createElement('span');
+      msg.id='sfuFailMsg';
+      const btn=document.createElement('button');
+      btn.id='sfuRetryBtn';
+      btn.type='button';
+      btn.textContent='RETRY';
+      btn.style.cssText='margin-left:auto;font:inherit;letter-spacing:inherit;'+
+        'cursor:pointer;background:transparent;color:inherit;'+
+        'border:1px solid currentColor;border-radius:3px;padding:.15rem .5rem';
+      btn.addEventListener('click',sfuRetry);
+      failEl.appendChild(msg);
+      failEl.appendChild(btn);
+      body.insertBefore(failEl,body.firstChild);
+    }
+    const want='SFU CONNECTION FAILED';
+    const msgEl=failEl.querySelector('#sfuFailMsg');
+    if(msgEl&&msgEl.textContent!==want)msgEl.textContent=want;
+    if(failEl!==body.firstChild)body.insertBefore(failEl,body.firstChild);
+  }else if(failEl){
+    failEl.remove();
+  }
 
   const participants=call?call.participants:[me];
   // ---- participant rows: create once, update name/status in place ----
@@ -12713,6 +13868,8 @@ async function toggleVideo(){
       await rtcManager.getLocalStream(true);
       if(rtcManager.localStream&&rtcManager.localStream.getVideoTracks().length>0){
         rtcManager.videoOn=true;
+        // ONE upstream publication, after the authoritative ON state is set.
+        if(callIsSfu())await sfuPublishCamera();
       }else{
         console.warn('[video] no camera device found');
       }
@@ -12726,6 +13883,7 @@ async function toggleVideo(){
           t.stop();
           rtcManager.localStream.removeTrack(t);
           // replaceTrack(null) keeps transceiver alive for restart
+          if(callIsSfu()){sfuDropCameraVideo();return}
           for(const ship of Object.keys(rtcManager.peers)){
             const peer=rtcManager.peers[ship];
             if(peer.videoSender){
@@ -12806,6 +13964,23 @@ async function _toggleScreenInner(){
       rtcManager.screenAudioTrack=null;
     }
   }
+  if(callIsSfu()){
+    // a SECOND published stream, labelled screenshare, video only. Screen audio
+    // is not published separately: it is mixed into the outbound audio above
+    // and starts at gain 0, so the screen-audio button governs what remote
+    // participants hear identically on both transports.
+    await sfuPublishScreen();
+    vt.onended=()=>{
+      rtcManager.stopScreenShare().then(()=>{syncCallControls();renderCallRail()});
+    };
+    if(at&&rtcManager.screenAudioAvailable)at.onended=()=>{
+      rtcManager.dropScreenAudio();
+      syncTileAudioBtn();
+    };
+    syncCallControls();
+    renderCallRail();
+    return;
+  }
   let needsRenegotiate=false;
   for(const ship of Object.keys(rtcManager.peers)){
     const peer=rtcManager.peers[ship];
@@ -12838,6 +14013,9 @@ window.addEventListener('beforeunload',()=>{
     navigator.sendBeacon(api.url,body);
     rtcManager.hangUp();
   }
+  // page teardown releases the managed session and the grant with it, whether
+  // or not we were in a call.
+  try{sfuDisconnect('page-teardown')}catch(e){}
   // close Eyre channel so it doesn't accumulate stale events
   if(api.url){
     navigator.sendBeacon(api.url,JSON.stringify([{id:++api.msgId,action:'delete'}]));
@@ -12850,6 +14028,9 @@ window.addEventListener('pagehide',()=>{
     navigator.sendBeacon(api.url,body);
     rtcManager.hangUp();
   }
+  // page teardown releases the managed session and the grant with it, whether
+  // or not we were in a call.
+  try{sfuDisconnect('page-teardown')}catch(e){}
   if(api.url){
     navigator.sendBeacon(api.url,JSON.stringify([{id:++api.msgId,action:'delete'}]));
     sessionStorage.removeItem('noltbook-channel');
