@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="nb-build" content="61kog0dc3j">
+<meta name="nb-build" content="5idna3stqj">
 <title>NOLTBOOK</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20355.9%20355.9%22%20width=%22355.9%22%20height=%22355.9%22%3E%3Cg%20fill=%22%23ffffff%22%20transform=%22translate(-10.9901536%2036.4439936)%20scale(1.06235712)%22%3E%3Cpolygon%20points=%2266%20159.5%2066%2021.2%20204.3%2021.2%20204.3%2080.8%20204.3%20112.5%20204.3%20159.5%20160.7%20159.5%20160.7%20180.7%20225.5%20180.7%20225.5%20112.5%20225.5%2080.8%20225.5%200%2044.8%200%2044.8%20180.7%20121%20180.7%20121%20159.5%2066%20159.5%22/%3E%3Cpolygon%20points=%22234.7%2085.7%20234.7%20106.9%20289.8%20106.9%20289.8%20245.3%20151.4%20245.3%20151.4%20186.8%20151.4%20180.7%20151.4%20159.5%20151.4%20155.1%20151.4%20106.9%20195%20106.9%20195%2085.7%20130.2%2085.7%20130.2%20151.8%20130.2%20159.5%20130.2%20180.7%20130.2%20183.5%20130.2%20266.4%20310.9%20266.4%20310.9%2085.7%20234.7%2085.7%22/%3E%3C/g%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -2594,7 +2594,7 @@ function handleUpdate(upd){
   if(upd['note-list']){console.log('[note-list]',JSON.stringify(upd['note-list']));mergeNoteListSnapshot(upd['note-list']);rebuildDurableNotifications();updateLogoBadge();scheduleNoteList()}
   else if(upd['note-created']){const n=upd['note-created'];console.log('[note-created]',JSON.stringify(n));const _dmT=state.pendingDmTransition;const _dmHit=!!(_dmT&&_dmT.phase==='waiting-created'&&_dmT.to===n.id);if((state.pendingRedirect&&state.pendingRedirect.to===n.id)||_dmHit){state.notes[n.id]=n;if(!n.localImport)hydrateDmNoteProfile(n);state.pendingRedirect=null;if(_dmHit)dmTransitionClear(_dmT);if(state.currentNoteId===n.id)scheduleRender(n.id);scheduleNoteList();return;}const wasPendingJoin=!!state.pendingJoins[n.id];const wasAcceptedFork=state.acceptingForkRoots.has(n.id);if(wasAcceptedFork)state.acceptingForkRoots.delete(n.id);delete state.pendingJoins[n.id];delete state.removedFromNotes[n.id];state.notes[n.id]=n;if(!n.localImport)hydrateDmNoteProfile(n);if(n.parent&&state.notes[n.parent]){console.log('[child] adding',n.id,'to parent',n.parent,'children:',state.notes[n.parent].children);if(!state.notes[n.parent].children)state.notes[n.parent].children=[];if(!state.notes[n.parent].children.includes(n.id))state.notes[n.parent].children.push(n.id)}if(state.pendingWalletMsg&&n.type==='dm'){const pw=state.pendingWalletMsg;if(n.users&&n.users.length===2&&n.users.includes(pw.ship)){api.poke('noltbook','noltbook-action',{action:'send-message',data:{noteId:n.id,text:pw.text}});state.pendingWalletMsg=null}}if(n.creator==='~'+api.ship){if(n.parent)state.expandedNotes.add(n.parent);openNote(n.id)}else if(wasAcceptedFork){if(state.palsView)switchView('notes');openNote(n.id)}else if(wasPendingJoin){document.querySelectorAll('.profile-flow-modal').forEach(el=>el.remove());state.viewingProfileShip=null;if(state.palsView)switchView('notes');if(n.visibility==='public'){openNote(n.id)}else{state.notifications.add(n.id)}}else if(state.pendingGossipFetch&&state.pendingGossipFetch.nid===n.id){clearTimeout(state.pendingGossipFetch.timer);state.pendingGossipFetch=null;if(state.palsView)switchView('notes');openNote(n.id)}else{if(state.palsView)switchView('notes');state.notifications.add(n.id)}scheduleNoteList()}
   else if(upd['note-renamed']){const{id,name}=upd['note-renamed'];if(state.notes[id]){state.notes[id].name=name;renderNoteList()}if(state.currentNoteId===id)document.getElementById('chatNoteName').textContent=state.notes[id]?noteDisplayName(state.notes[id]):name}
-  else if(upd['note-deleted']){const{id}=upd['note-deleted'];clearPendingSendsForNote(id);const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];state.expandedNotes.delete(id);state.manualExpanded.delete(id);delete state.noteAdmins[id];delete state.noteMuted[id];delete state.notePins[id];delete state.noteActive[id];delete state.messages[id];delete state.activeCalls[id];delete state.mentions[id];delete state.attention[id];state.notifications.delete(id);state.notificationAcks.delete(notifAckKey('removed-status',id));state.notificationAcks.delete(notifAckKey('host-deleted-status',id));delete state.noteActivity[id];delete state.noteUnreadActivity[id];delete state.noteRead[id];for(const _e in state.artifactRefs){if(state.artifactRefs[_e].noteId===id)delete state.artifactRefs[_e]}(function(){
+  else if(upd['note-deleted']){const{id}=upd['note-deleted'];clearPendingSendsForNote(id);const old=state.notes[id];if(old&&old.parent&&state.notes[old.parent]){const p=state.notes[old.parent];p.children=(p.children||[]).filter(c=>c!==id)}delete state.notes[id];state.expandedNotes.delete(id);state.manualExpanded.delete(id);delete state.noteAdmins[id];delete state.noteMuted[id];delete state.notePins[id];delete state.noteActive[id];delete state.messages[id];delete state.activeCalls[id];if(sfu.fail&&sfu.fail.noteId===id)sfuClearFail('note-deleted');delete state.mentions[id];delete state.attention[id];state.notifications.delete(id);state.notificationAcks.delete(notifAckKey('removed-status',id));state.notificationAcks.delete(notifAckKey('host-deleted-status',id));delete state.noteActivity[id];delete state.noteUnreadActivity[id];delete state.noteRead[id];for(const _e in state.artifactRefs){if(state.artifactRefs[_e].noteId===id)delete state.artifactRefs[_e]}(function(){
     const t=state.pendingDmTransition;
     if(t&&t.from===id&&t.phase==='waiting-delete'){
       if(state.currentNoteId!==id){dmTransitionClear(t);return}   // user moved on; don't hijack
@@ -11806,6 +11806,39 @@ const SFU_MIN_VALIDITY=5000;
 // urgent; a modest fixed delay avoids hammering the host while leaving many
 // attempts inside a typical credential lifetime.
 const SFU_RENEW_RETRY_MS=10000;
+// ---- CONNECTION retry. Entirely separate from the renewal retry above: a
+// different timer, a different watchdog, a different cancel, and a session
+// counter so a callback from an abandoned attempt can identify itself.
+// The whole budget sits well inside call-lease-ttl (~m2) in the agent, so if
+// the tab dies mid-reconnect the server's lease expiry is still the clean
+// final authority and the two mechanisms never race.
+// Bounded in-memory diagnostic history. NOT persisted anywhere: no
+// localStorage, no sessionStorage, no backend, gone on reload. It records
+// ALWAYS (the panel is what ?callDebug=1 gates) so the next incident is
+// already captured by the time anyone thinks to look.
+var SFU_DEBUG_RING_MAX=100;
+// The ONLY extra keys a caller may contribute to a diagnostic entry.
+var CALL_DEBUG_EXTRA_KEYS=['reason','cls','attempt','grantReused','ok','close'];
+var _callDebugRing=[];
+var _callDebugT0=Date.now();
+const SFU_CONN_MAX_ATTEMPTS=3;
+const SFU_CONN_BACKOFF_MS=[1000,3000,7000];
+const SFU_CONN_DEADLINE_MS=30000;
+// Per-attempt watchdog: a websocket that neither opens nor closes leaves no
+// event to react to, so the attempt is bounded by its own timer.
+const SFU_CONN_WATCHDOG_MS=9000;
+// Access refusals are opaque strings from the host. Only these are treated as
+// transient; anything else fails CLOSED to terminal rather than looping.
+// The CLOSED error vocabulary of %noltbook-calls (sur/noltbook-calls.hoon).
+// Matched by EXACT equality: a substring rule would let something like
+// 'gateway-auth-failed' become retryable by accident.
+const SFU_ACCESS_ERRORS=['service-unavailable','unauthorized','room-unavailable',
+  'room-ended','quota','rate-limited','participant-limit','conflict','expired',
+  'malformed'];
+// Only these three can plausibly change inside a 30s budget without any
+// operator action.
+const SFU_TEMPORARY_ACCESS_ERRORS=['service-unavailable','room-unavailable',
+  'rate-limited'];
 
 const sfu={
   // the grant currently held IN MEMORY ONLY. Never written to
@@ -11832,7 +11865,22 @@ const sfu={
   byId:new Map(),    // our stream id -> upstream record
   down:new Map(),    // galene stream id -> downstream record
   users:new Map(),   // galene client id -> username
-  renewTimer:null, expiryTimer:null,
+  renewTimer:null, expiryTimer:null, cleanupTimer:null,
+  // CONNECTION-retry state. Never touched by the renewal retry and never
+  // cleared by a transport teardown -- a teardown is something the reconnect
+  // machine DOES, so it must not cancel the machine that invoked it.
+  conn:{active:false,attempt:0,timer:null,watchdog:null,
+        noteId:null,callId:null,session:0,deadline:0,lastReason:null},
+  // Terminal failure record. Survives state.inCall being cleared, because the
+  // banner must outlive membership: that is the whole point of leaving.
+  // Every sfuConnect / access wait is one CONNECTION ATTEMPT with exactly one
+  // watchdog. connSeq is bumped whenever a watchdog is cleared or replaced, so
+  // a timer from an abandoned attempt identifies itself and returns.
+  connSeq:0,
+  fail:null,                 // {noteId,callId,reason,at,confirmed}
+  // Leave guard scoped to [noteId,callId]. A global boolean would let a NEW
+  // call inherit an old call's guard and skip its own leave.
+  leaveReq:null,             // {noteId,callId}
   // single-flight retry for a REFUSED renewal. Never a polling loop, and
   // never scheduled past the point where the held grant stops being usable.
   retryTimer:null,
@@ -11897,16 +11945,26 @@ function sfuGrantWellFormed(g){
 function sfuOnGrant(g){
   sfu.stats.grants++;
   if(!sfuGrantWellFormed(g)){
+    // NOTHING from the object is copied anywhere: only a category is recorded.
     console.error('[sfu] malformed grant discarded');
+    callDebugPush('grant-malformed',{});
+    // A stray malformed result must never disturb a session that already works.
+    if(state.inCall&&callIsSfu()&&!sfu.joined)sfuFail('malformed-grant');
     return;
   }
   // a grant minted for somebody else is never usable, whatever it says
   if(g.participant!=='~'+api.ship){
     console.error('[sfu] grant names another participant; discarded');
+    callDebugPush('grant-wrong-participant',{});
+    if(state.inCall===g.noteId&&callIsSfu()&&!sfu.joined)sfuFail('identity-mismatch');
     return;
   }
   if(Date.now()>=g.expires-SFU_MIN_VALIDITY){
+    // never adopted and never connected: sfu.grant is not touched here
     console.warn('[sfu] grant already expired on arrival');
+    callDebugPush('grant-expired-on-arrival',{});
+    if(state.inCall===g.noteId&&callIsSfu()&&!sfu.joined)
+      sfuFail('grant-expired-on-arrival');
     return;
   }
   if(!sfuGrantSupersedes(g)){
@@ -11915,6 +11973,18 @@ function sfuOnGrant(g){
     // expiry or downgrade a credential we already accepted.
     sfu.stats.stale++;
     console.warn('[sfu] superseded access result ignored');
+    // ORDERING IS UNCHANGED: the duplicate is still not accepted and nothing
+    // it carries is adopted. But if a reconnect asked for fresh access and the
+    // host answered with an equal-generation, equal-expiry duplicate, refusing
+    // it silently would strand the retry until its watchdog. Fall back to the
+    // credential we already hold, which is by definition no staler than this.
+    if(sfu.conn.active&&sfu.conn.noteId===g.noteId&&sfu.conn.callId===g.callId
+       &&sfuGrantUsableFor(g.noteId,g.callId)&&!sfu.ws){
+      callDebugPush('reconnect-duplicate-grant-held',{});
+      sfuConnect(sfu.grant);
+      sfu.status='reconnecting';
+      renderCallRail();
+    }
     return;
   }
   sfuAcceptResult(g,g.expires);
@@ -11935,6 +12005,7 @@ function sfuOnGrant(g){
   }
   if(sfu.status==='failed'){sfu.status='requesting';sfu.failReason=null}
   sfuMaybeConnect();
+  if(sfu.conn.active&&sfu.status==='connecting')sfu.status='reconnecting';
 }
 // ORDERING. Access results are answers to requests that can overtake each
 // other on the way back. A result is stale only against a newer result for
@@ -12001,7 +12072,7 @@ function sfuOnAccessFailure(f){
   }
   sfuAcceptResult(f,0);
   console.error('[sfu] access refused:',f.reason);
-  sfuFail(String(f.reason||'refused'));
+  sfuFail('refused:'+String(f.reason||'unknown'));
 }
 
 /* ---- connect gate --------------------------------------------------
@@ -12050,6 +12121,7 @@ function sfuValidateLive(){
   if(callTransportOf(nid)!=='sfu'){sfuDisconnect('transport-changed');return}
   if(!Array.isArray(call.participants)||
      call.participants.indexOf('~'+api.ship)<0){
+    sfuConnCancel('participant-removed');
     sfuDisconnect('participant-removed');return;
   }
   // Deliberately NO generation comparison. gen is a revision counter, not an
@@ -12120,19 +12192,375 @@ function sfuRenew(){
 }
 // RETRY asks for FRESH access. It never starts a call and never joins one,
 // so it cannot create a second call or duplicate our membership.
-function sfuRetry(){
-  if(!state.inCall||!callIsSfu())return;
-  sfuDisconnect('retry');
-  sfu.status='requesting';sfu.failReason=null;
-  renderCallRail();
-  api.poke('noltbook','noltbook-action',
-    {action:'renew-call-access',data:{noteId:state.inCall}});
+// RETRY means "participate in this call again", not "renew the old
+// credential" -- after terminal cleanup we have left, and renew-call-access is
+// rejected for non-participants. One shared helper, never a synthetic click.
+async function sfuFreshParticipation(noteId){
+  if(!noteId)return;
+  if(_callPending){callDebugPush('retry-ignored-pending',{});return}
+  _callPending=true;
+  try{
+    // 1. reacquire the microphone through the ordinary call path
+    callDebugPush('retry-requesting-mic',{});
+    const mic=await rtcManager.getLocalStream(false);
+    if(!mic||mic.getAudioTracks().length===0){
+      callDebugPush('retry-mic-unavailable',{});
+      console.error('[sfu] retry: no mic access');
+      return;
+    }
+    // 2. re-read the CURRENT authoritative snapshot, not the one we failed on
+    const cur=state.activeCalls[noteId];
+    const stillListed=callHasUs(noteId);
+    // 5. the banner clears only now, once the attempt has genuinely begun
+    sfuClearFail('manual-retry');
+    sfu.leaveReq=null;
+    if(stillListed){
+      // 4. cleanup confirmation was missed but the host still lists us. A
+      // redundant join is a no-op that emits NO snapshot, so never wait on
+      // one: resume the membership we still have and ask for fresh access.
+      callDebugPush('retry-resume-membership',{});
+      state.inCall=noteId;
+      startCallHeartbeat();
+      updateCallUI();
+      // Hand the access request to the BOUNDED machine rather than firing a
+      // bare poke. It owns the watchdog, the retry budget and the terminal
+      // cleanup, so this branch can no longer recreate the indefinite ghost:
+      // status never sticks on 'requesting', a poke that resolves false feeds
+      // straight back in, and a response that never arrives hits the watchdog.
+      // No join-call is sent: the authoritative snapshot already lists us.
+      if(!sfuConnEnter('manual-retry')){
+        callDebugPush('retry-resume-aborted',{});
+        stopCallHeartbeat();
+        state.inCall=null;
+        sfu.status='idle';
+      }
+      renderCallRail();
+      return;
+    }
+    // 3. absent from the roster: the ordinary join or start path, which keeps
+    // host-authoritative routing exactly as it is everywhere else.
+    const kind=cur?'join':'start';
+    callDebugPush('retry-fresh-'+kind,{});
+    state.inCall=noteId;
+    sfu.status='requesting';
+    beginCallOp(noteId,kind);
+    updateCallUI();renderCallRail();
+    const ok=await api.poke('noltbook','noltbook-action',
+      {action:(kind==='join'?'join-call':'start-call'),data:{noteId:noteId}});
+    callDebugPush('retry-poke-resolved',{ok:String(ok)});
+    if(ok===false){
+      finishCallOp();
+      try{rtcManager.hangUp()}catch(e){}
+      state.inCall=null;
+      stopCallHeartbeat();
+      sfu.status='idle';
+      updateCallUI();renderCallRail();
+      return;
+    }
+    document.getElementById('callRail').classList.add('open');
+    placeCallBtn();updateCallRestoreUI();updateCallUI();
+  } finally{_callPending=false;callDebugRefresh()}
 }
-function sfuFail(reason){
-  sfuDisconnect('failed');
-  sfu.status='failed';
-  sfu.failReason=reason;
+function sfuRetry(){
+  const nid=(sfu.fail&&sfu.fail.noteId)||state.inCall||state.currentNoteId;
+  void sfuFreshParticipation(nid);
+}
+// ---- failure classification ------------------------------------------
+// Small and explicit. Unknown reasons fail CLOSED (terminal), because an
+// unbounded retry loop on a reason we do not understand is exactly the
+// behaviour this whole change exists to remove.
+function sfuFailClass(reason){
+  const r=String(reason||'');
+  switch(r){
+    case 'connect':
+    case 'disconnected-connecting':
+    case 'disconnected-joined':
+    case 'ice-failed':
+    case 'access-expired':
+    case 'watchdog':
+    case 'access-poke-failed':
+    case 'grant-expired-on-arrival':
+      return 'recoverable';
+    case 'join-refused':
+    case 'removed':
+    case 'identity-mismatch':
+    case 'malformed-grant':
+      return 'terminal';
+  }
+  // access refusals arrive as 'refused:<typed error>'
+  if(r.indexOf('refused:')===0){
+    const why=r.slice(8);
+    // EXACT equality against the closed vocabulary. Unknown stays terminal.
+    if(SFU_TEMPORARY_ACCESS_ERRORS.indexOf(why)>=0)return 'recoverable';
+    return 'terminal';
+  }
+  return 'terminal';
+}
+// Sanitised category for diagnostics. Never the raw host string, which could
+// in principle carry detail we have not vetted.
+// Sanitised category. Anything outside our own closed vocabularies collapses
+// to 'unknown', so an upstream string can never reach the ring verbatim.
+const SFU_KNOWN_REASONS=['connect','disconnected-connecting','disconnected-joined',
+  'ice-failed','access-expired','watchdog','access-poke-failed',
+  'grant-expired-on-arrival','join-refused','removed','identity-mismatch',
+  'malformed-grant','exhausted','deadline','terminal','succeeded','supersede',
+  'user-end','note-changed','call-replaced','transport-changed','participant-removed',
+  'removed-by-host','rejoined','manual-retry','call-ended','call-gone','note-deleted',
+  'other-call','hydration','reconnect-attempt'];
+function sfuReasonCategory(reason){
+  const r=String(reason||'');
+  if(r.indexOf('refused:')===0){
+    const why=r.slice(8);
+    return SFU_ACCESS_ERRORS.indexOf(why)>=0?('refused-'+why):'refused-unknown';
+  }
+  return SFU_KNOWN_REASONS.indexOf(r)>=0?r:'unknown';
+}
+function sfuGrantUsableFor(noteId,callId){
+  const g=sfu.grant;
+  if(!g)return false;
+  if(g.noteId!==noteId||g.callId!==callId)return false;
+  return Date.now()<Number(g.expires)-SFU_MIN_VALIDITY;
+}
+// ---- connection retry state machine ----------------------------------
+function sfuConnClearWatchdog(){
+  if(sfu.conn.watchdog){clearTimeout(sfu.conn.watchdog);sfu.conn.watchdog=null}
+  // bump unconditionally: a watchdog already in flight must not act later
+  sfu.connSeq++;
+}
+// The ONLY place a connection watchdog is armed. It always replaces, so there
+// can never be two, and it covers BOTH phases that can hang without an event:
+// waiting for an access result, and websocket-open-through-joined.
+// It applies to the ORIGINAL connection as well as to retries -- an initial
+// attempt that hangs enters the bounded machine instead of waiting forever.
+function sfuArmConnWatchdog(){
+  sfuConnClearWatchdog();
+  const seq=sfu.connSeq;
+  sfu.conn.watchdog=setTimeout(function(){
+    if(sfu.connSeq!==seq)return;          // obsolete attempt: no-op
+    sfu.conn.watchdog=null;
+    callDebugPush('conn-watchdog',{attempt:sfu.conn.attempt});
+    // already retrying -> advance that machine; otherwise -> enter it
+    if(sfu.conn.active)sfuConnFailAttempt('watchdog');
+    else sfuFail('watchdog');
+  },SFU_CONN_WATCHDOG_MS);
+}
+// Cancels the machine AND invalidates every callback already in flight, by
+// advancing the session counter. A late timer belonging to an abandoned
+// attempt finds session!==captured and returns.
+function sfuConnCancel(why){
+  const c=sfu.conn;
+  if(c.timer){clearTimeout(c.timer);c.timer=null}
+  sfuConnClearWatchdog();
+  if(c.active)callDebugPush('reconnect-cancelled',{reason:sfuReasonCategory(why)});
+  c.active=false;c.attempt=0;c.noteId=null;c.callId=null;
+  c.deadline=0;c.lastReason=null;
+  c.session++;
+}
+function sfuConnEnter(reason){
+  const nid=state.inCall;
+  if(!nid||!callIsSfu())return false;
+  const cur=state.activeCalls[nid];
+  if(!cur||!cur.callId)return false;
+  const c=sfu.conn;
+  // already reconnecting this same call: record the reason, do not restart
+  if(c.active&&c.noteId===nid&&c.callId===cur.callId){
+    c.lastReason=reason;
+    callDebugPush('reconnect-failure-during-retry',{reason:sfuReasonCategory(reason)});
+    sfuConnClearWatchdog();
+    sfuConnSchedule();
+    return true;
+  }
+  sfuConnCancel('supersede');
+  c.active=true;c.attempt=0;c.noteId=nid;c.callId=cur.callId;
+  c.deadline=Date.now()+SFU_CONN_DEADLINE_MS;c.lastReason=reason;
+  c.session++;
+  sfu.status='reconnecting';sfu.failReason=null;
+  callDebugPush('reconnect-enter',{reason:sfuReasonCategory(reason)});
+  // membership and the heartbeat are DELIBERATELY left running for the
+  // bounded window: that is what makes a successful retry seamless.
+  sfuConnSchedule();
   renderCallRail();
+  return true;
+}
+function sfuConnSchedule(){
+  const c=sfu.conn;
+  if(!c.active)return;
+  if(c.attempt>=SFU_CONN_MAX_ATTEMPTS){sfuTerminalFail(c.lastReason||'exhausted');return}
+  const left=c.deadline-Date.now();
+  if(left<=0){sfuTerminalFail(c.lastReason||'deadline');return}
+  const idx=Math.min(c.attempt,SFU_CONN_BACKOFF_MS.length-1);
+  const delay=SFU_CONN_BACKOFF_MS[idx];
+  // no point arming a timer that cannot finish inside the budget
+  if(delay>=left){sfuTerminalFail(c.lastReason||'deadline');return}
+  if(c.timer)clearTimeout(c.timer);
+  const sess=c.session;
+  c.timer=setTimeout(function(){sfu.conn.timer=null;sfuConnAttempt(sess)},delay);
+}
+function sfuConnAttempt(sess){
+  const c=sfu.conn;
+  // every guard the spec asks for: session, active, note, call, deadline
+  if(!c.active||c.session!==sess)return;
+  if(!state.inCall||state.inCall!==c.noteId){sfuConnCancel('note-changed');return}
+  const cur=state.activeCalls[c.noteId];
+  if(!cur||cur.callId!==c.callId){sfuConnCancel('call-replaced');return}
+  if(callTransportOf(c.noteId)!=='sfu'){sfuConnCancel('transport-changed');return}
+  if(Date.now()>=c.deadline){sfuTerminalFail(c.lastReason||'deadline');return}
+  c.attempt++;
+  // Transport-only teardown: a still-valid grant is NOT discarded here.
+  sfuTransportTeardown('reconnect-attempt');
+  const reuse=sfuGrantUsableFor(c.noteId,c.callId);
+  callDebugPush('reconnect-attempt',{attempt:c.attempt,grantReused:reuse});
+  if(reuse){
+    // Reconnect on the credential we already hold. No access request, so the
+    // equal-generation duplicate rule is never consulted and cannot strand us.
+    sfuConnect(sfu.grant);              // arms the single watchdog
+    sfu.status='reconnecting';
+    renderCallRail();
+    return;
+  }
+  // absent, expired or too close to expiry: ask for fresh access. The watchdog
+  // covers the round trip, so a request that is never answered still advances.
+  sfu.status='reconnecting';
+  sfuArmConnWatchdog();
+  renderCallRail();
+  const pk=api.poke('noltbook','noltbook-action',
+    {action:'renew-call-access',data:{noteId:c.noteId}});
+  // a definite transport refusal is an immediate attempt failure, not a wait
+  if(pk&&typeof pk.then==='function'){
+    pk.then(function(sent){
+      if(sent===false&&sfu.conn.active&&sfu.conn.session===sess)
+        sfuConnFailAttempt('access-poke-failed');
+    },function(){
+      if(sfu.conn.active&&sfu.conn.session===sess)
+        sfuConnFailAttempt('access-poke-failed');
+    });
+  }
+}
+// One attempt failed. Decide next attempt or terminal; never both.
+function sfuConnFailAttempt(reason){
+  const c=sfu.conn;
+  if(!c.active)return;
+  c.lastReason=reason;
+  sfuConnClearWatchdog();
+  sfuConnSchedule();
+}
+// A reconnect succeeded: stand everything down and carry on as normal.
+function sfuConnSucceeded(){
+  if(!sfu.conn.active)return;
+  callDebugPush('reconnect-succeeded',{attempt:sfu.conn.attempt});
+  sfuConnCancel('succeeded');
+}
+// ---- terminal failure -------------------------------------------------
+// Ordering matters and is the whole point: stop lying to the host FIRST
+// (heartbeat), then release, then leave, then settle the UI only once the
+// host has actually removed us -- or the bounded timeout gives up.
+function sfuTerminalFail(reason){
+  const c=sfu.conn;
+  const nid=c.noteId||state.inCall||null;
+  let cid=c.callId||null;
+  if(!cid&&nid&&state.activeCalls[nid])cid=state.activeCalls[nid].callId||null;
+  sfuConnCancel('terminal');
+  // 2. the heartbeat stops immediately -- this is the bug being fixed
+  stopCallHeartbeat();
+  // 3. release media and every SFU object
+  sfuDisconnect('failed');
+  try{rtcManager.hangUp()}catch(e){}
+  // 4. call-scoped failure record, so the banner outlives state.inCall
+  sfu.fail={noteId:nid,callId:cid,reason:reason,at:Date.now(),confirmed:false};
+  sfu.status='failed-cleanup';
+  sfu.failReason=reason;
+  callDebugPush('terminal-cleanup',{reason:sfuReasonCategory(reason)});
+  // 5+6. exactly one logical leave per [noteId,callId]
+  if(nid&&!(sfu.leaveReq&&sfu.leaveReq.noteId===nid&&sfu.leaveReq.callId===cid)){
+    sfu.leaveReq={noteId:nid,callId:cid};
+    callDebugPush('terminal-leave-sent',{});
+    const pk=api.poke('noltbook','noltbook-action',
+      {action:'leave-call',data:{noteId:nid}});
+    // A definite transport refusal must NOT restore media or restart the
+    // heartbeat. The agent's lease expiry exists for exactly this case.
+    if(pk&&typeof pk.then==='function'){
+      pk.then(function(sent){if(sent===false)callDebugPush('terminal-leave-refused',{})},
+              function(){callDebugPush('terminal-leave-refused',{})});
+    }
+  }
+  // 7+8. bounded wait for the authoritative snapshot to remove us
+  if(sfu.cleanupTimer)clearTimeout(sfu.cleanupTimer);
+  sfu.cleanupTimer=setTimeout(sfuCleanupTimeout,CALL_OP_TIMEOUT);
+  updateCallUI();
+  renderCallRail();
+}
+// 9. confirmation never arrived. Force local cleanup, record it, and leave the
+// heartbeat STOPPED so the backend lease remains the final server-side word.
+function sfuCleanupTimeout(){
+  sfu.cleanupTimer=null;
+  if(!sfu.fail||sfu.fail.confirmed)return;
+  callDebugPush('leave-unconfirmed',{});
+  finishCallOp();
+  try{rtcManager.hangUp()}catch(e){}
+  state.inCall=null;
+  stopCallHeartbeat();
+  sfu.status='failed';
+  closeCallRail();
+  updateCallUI();
+  renderCallRail();
+}
+// The host removed us: cleanup is confirmed and the banner settles.
+// Confirms ONLY the cleanup this failure record describes. A snapshot about
+// another note, or about a replacement call on the same note, must not settle
+// the wrong one. Confirmation does NOT clear the record: removal of just this
+// participant leaves CALL FAILED / RETRY standing while the call is still live.
+function sfuCleanupConfirmed(noteId,callId){
+  const f=sfu.fail;
+  if(!f)return;
+  if(f.noteId!==noteId)return;
+  if(callId&&f.callId&&callId!==f.callId)return;
+  if(sfu.cleanupTimer){clearTimeout(sfu.cleanupTimer);sfu.cleanupTimer=null}
+  f.confirmed=true;
+  callDebugPush('leave-confirmed',{});
+  if(sfu.status==='failed-cleanup')sfu.status='failed';
+}
+// Is the failure record still about something that exists? Navigation is
+// deliberately NOT a reason to drop it -- the user must be able to come back
+// to the note and press RETRY while the same call is still there.
+function sfuFailStillRelevant(){
+  const f=sfu.fail;
+  if(!f)return true;
+  const c=state.activeCalls[f.noteId];
+  if(!c)return false;                              // ended, or gone at hydration
+  if(f.callId&&c.callId&&c.callId!==f.callId)return false;   // replaced
+  return true;
+}
+function sfuReapFail(why){
+  if(sfu.fail&&!sfuFailStillRelevant())sfuClearFail(why||'call-gone');
+}
+// Clear a terminal failure record. Called when the failure stops being the
+// truth: a successful rejoin, an authoritative replacement or end, a switch
+// to another call, or the note going away.
+function sfuClearFail(why){
+  if(!sfu.fail)return;
+  callDebugPush('fail-cleared',{reason:sfuReasonCategory(why)});
+  const f=sfu.fail;
+  // only THIS call's leave guard; a newer call keeps its own
+  if(sfu.leaveReq&&sfu.leaveReq.noteId===f.noteId&&sfu.leaveReq.callId===f.callId)
+    sfu.leaveReq=null;
+  sfu.fail=null;
+  if(sfu.cleanupTimer){clearTimeout(sfu.cleanupTimer);sfu.cleanupTimer=null}
+  if(sfu.status==='failed'||sfu.status==='failed-cleanup')sfu.status='idle';
+  sfu.failReason=null;
+}
+// ---- the dispatcher ---------------------------------------------------
+// Every existing sfuFail() call site still calls sfuFail(). What changed is
+// that a recoverable reason now enters a BOUNDED reconnect instead of leaving
+// a heartbeating ghost in the roster forever.
+function sfuFail(reason){
+  const cls=sfuFailClass(reason);
+  callDebugPush('sfu-fail',{reason:sfuReasonCategory(reason),cls:cls});
+  if(cls==='recoverable'&&state.inCall&&callIsSfu()){
+    // an attempt failing while the machine is already running feeds back in
+    if(sfu.conn.active){sfuConnFailAttempt(reason);return}
+    if(sfuConnEnter(reason))return;
+  }
+  sfuTerminalFail(reason);
 }
 
 /* ---- per-stream ICE queues ------------------------------------------
@@ -12189,6 +12617,9 @@ function sfuSend(o){
   catch(e){console.error('[sfu] send failed',e);return false}
 }
 function sfuConnect(g){
+  // ONE watchdog per attempt, armed here so the ORIGINAL connection is covered
+  // exactly like a retry. Replaces any access-wait watchdog for this attempt.
+  sfuArmConnWatchdog();
   sfu.status='connecting';
   sfu.noteId=g.noteId;sfu.callId=g.callId;
   sfu.clientId=sfuRandomId();
@@ -12214,11 +12645,14 @@ function sfuConnect(g){
   ws.onerror=()=>{console.error('[sfu] websocket error')};
   ws.onclose=()=>{
     if(sfu.ws!==ws)return;               // superseded by a newer session
+    const wasJoined=sfu.joined;
     sfu.ws=null;sfu.joined=false;
-    if(sfu.status==='connected'||sfu.status==='connecting'){
+    if(sfu.status==='connected'||sfu.status==='connecting'||sfu.status==='reconnecting'){
       // NEVER a silent fall back to mesh: the call fails visibly.
+      // Split by whether we ever joined: a close before the join is a
+      // different situation from losing an established session.
       console.error('[sfu] websocket closed');
-      sfuFail('disconnected');
+      sfuFail(wasJoined?'disconnected-joined':'disconnected-connecting');
     }
   };
 }
@@ -12273,6 +12707,13 @@ function sfuOnJoined(m){
   if(m.kind==='join'){
     sfu.joined=true;
     sfu.status='connected';
+    // a reconnect that reached a real join is over: cancel its timer and
+    // watchdog, and drop any terminal failure record it was recovering from.
+    sfuConnClearWatchdog();
+    sfuConnSucceeded();
+    sfuClearFail('rejoined');
+    sfu.leaveReq=null;
+    callDebugPush('joined',{});
     // Subscribe to EVERY permitted stream. The empty key is the default
     // that matches any label the server offers.
     sfuSend({type:'request',request:{'':['audio','video']}});
@@ -12626,9 +13067,14 @@ function sfuCloseUpstreamRec(u){
    One release path. Called from hangUp (leave, end, call replacement,
    note switch), from every validation failure, and from page teardown.
 */
-function sfuDisconnect(reason){
-  if(sfu.ws||sfu.up.size||sfu.down.size)console.log('[sfu] disconnect:',reason);
-  sfuClearTimers();
+// TRANSPORT teardown. Closes the websocket and every peer connection and
+// drops the per-stream ICE queues, but DELIBERATELY keeps: the grant, the
+// renew/expiry timers, and the whole connection-retry state. This is what a
+// reconnect attempt uses between tries, so a still-valid credential survives
+// and does not have to be re-minted.
+function sfuTransportTeardown(reason){
+  if(sfu.ws||sfu.up.size||sfu.down.size)console.log('[sfu] transport teardown:',reason);
+  sfuConnClearWatchdog();
   for(const kind of Array.from(sfu.up.keys())){
     const u=sfu.up.get(kind);
     sfu.up.delete(kind);
@@ -12653,10 +13099,16 @@ function sfuDisconnect(reason){
     try{ws.close()}catch(e){}
   }
   sfu.users.clear();
-  sfu.joined=false;sfu.clientId=null;
-  sfu.noteId=null;sfu.callId=null;sfu.username=null;
+  sfu.joined=false;sfu.clientId=null;sfu.username=null;
+}
+// FULL session teardown: transport, plus the grant and every credential timer.
+// Used by terminal failure, manual END, and authoritative removal.
+function sfuDisconnect(reason){
+  sfuClearTimers();
+  sfuTransportTeardown(reason);
+  sfu.noteId=null;sfu.callId=null;
   sfu.grant=null;
-  if(sfu.status!=='failed')sfu.status='idle';
+  if(sfu.status!=='failed'&&sfu.status!=='failed-cleanup')sfu.status='idle';
 }
 
 // placeCallBtn: there is exactly ONE #callBtn. appendChild MOVES the existing node, so
@@ -12718,6 +13170,7 @@ function applyCallSnap(snap){
   if(snapLive(snap.call))state.activeCalls[nid]=snap.call; else delete state.activeCalls[nid];
   const after=state.activeCalls[nid]?state.activeCalls[nid].participants:[];
   reconcileCallPeers(nid,before,after);
+  sfuReapFail('call-ended');
   return true;
 }
 // applyCallList: authoritative REPLACEMENT of the whole visible set, from our OWN agent
@@ -12736,6 +13189,8 @@ function applyCallList(snaps){
   const nid=state.inCall;
   if(nid)reconcileCallPeers(nid,prev[nid]||[],
     state.activeCalls[nid]?state.activeCalls[nid].participants:[]);
+  // hydration is authoritative: a failed call absent from the list is gone
+  sfuReapFail('hydration');
 }
 // reconcileCallPeers: WebRTC membership is derived from the participant set rather than
 // from a separate join/left delta, so a missed delta cannot leave a half-built mesh.
@@ -12748,6 +13203,7 @@ function reconcileCallPeers(nid,before,after){
   for(const sh of before)if(sh!==me&&!a.has(sh))rtcManager.onPeerLeft(sh);
   if(a.has(me)){
     // the host confirmed us: a pending start/join is now real
+    callDebugMark('host confirmed call snapshot');
     if(_callOp&&_callOp.noteId===nid&&_callOp.kind!=='leave')finishCallOp();
     startCallHeartbeat();
     // SNAPSHOT SIDE of the two-sided handshake. A grant that arrived before
@@ -12759,6 +13215,10 @@ function reconcileCallPeers(nid,before,after){
   }
   // the host says we are NOT in this call. Whether we asked to leave or our lease
   // lapsed, the truthful thing is to release media and close the view exactly once.
+  callDebugMark('host snapshot excludes this ship');
+  // if this removal is the one terminal cleanup asked for, settle it here
+  sfuCleanupConfirmed(nid,state.activeCalls[nid]?state.activeCalls[nid].callId:null);
+  sfuConnCancel('removed-by-host');
   finishCallOp();
   rtcManager.hangUp();
   state.inCall=null;
@@ -12805,6 +13265,7 @@ function callOpPending(noteId){
 function expireCallOp(){
   const op=_callOp; finishCallOp();
   if(!op)return;
+  callDebugMark('host confirmation timed out: '+op.kind);
   console.error('[call] host never confirmed '+op.kind+' for '+op.noteId);
   if(op.kind==='leave'){
     // we are still in the call as far as anyone knows: leave END on the button so the
@@ -13471,6 +13932,15 @@ function bindTile(tile,stream){
   if(!vid)return;
   if(vid.srcObject!==stream){vid.srcObject=stream;vid.play().catch(()=>{})}
 }
+// Which failure banner, if any, belongs to this note. Scoped to the failure
+// RECORD rather than to state.inCall, because terminal cleanup clears the
+// latter and the banner has to outlive it.
+function sfuBannerFor(noteId){
+  if(sfu.fail&&sfu.fail.noteId===noteId)
+    return (sfu.status==='failed-cleanup')?'cleanup':'failed';
+  if(state.inCall===noteId&&sfu.status==='reconnecting')return 'reconnecting';
+  return null;
+}
 function renderCallRail(){
   const rail=document.getElementById('callRail');
   const body=document.getElementById('callRailBody');
@@ -13479,7 +13949,8 @@ function renderCallRail(){
   const call=state.activeCalls[noteId];
   const me='~'+api.ship;
 
-  if(!state.inCall&&!call){
+  const failFor=(sfu.fail&&sfu.fail.noteId===noteId)?sfu.fail:null;
+  if(!state.inCall&&!call&&!failFor){
     discardTheater('no-call');            // also drops a key parked behind a hidden rail
     resetRailAutoLayout();
     restoreChat();
@@ -13500,7 +13971,8 @@ function renderCallRail(){
   // to fall back to: the call says so plainly and offers a retry that asks for
   // fresh access WITHOUT starting or joining anything.
   let failEl=body.querySelector('#sfuFail');
-  if(callIsSfu()&&sfu.status==='failed'){
+  const banner=sfuBannerFor(noteId);
+  if(banner){
     if(!failEl){
       failEl=document.createElement('div');
       failEl.id='sfuFail';
@@ -13522,15 +13994,21 @@ function renderCallRail(){
       failEl.appendChild(btn);
       body.insertBefore(failEl,body.firstChild);
     }
-    const want='SFU CONNECTION FAILED';
+    const want=(banner==='reconnecting')
+      ?('RECONNECTING \u00B7 '+Math.max(1,sfu.conn.attempt)+'/'+SFU_CONN_MAX_ATTEMPTS)
+      :(banner==='cleanup'?'CALL FAILED \u00B7 CLEANING UP':'CALL FAILED \u00B7 RETRY');
     const msgEl=failEl.querySelector('#sfuFailMsg');
     if(msgEl&&msgEl.textContent!==want)msgEl.textContent=want;
+    // RETRY is offered only once cleanup is finished. During RECONNECTING the
+    // machine already owns the outcome, and during cleanup we are mid-leave.
+    const rBtn=failEl.querySelector('#sfuRetryBtn');
+    if(rBtn)rBtn.style.display=(banner==='failed')?'':'none';
     if(failEl!==body.firstChild)body.insertBefore(failEl,body.firstChild);
   }else if(failEl){
     failEl.remove();
   }
 
-  const participants=call?call.participants:[me];
+  const participants=call?call.participants:(state.inCall?[me]:[]);
   // ---- participant rows: create once, update name/status in place ----
   const keepShips=new Set(participants);
   for(const ship of participants){
@@ -13673,23 +14151,249 @@ function renderCallParticipantStatus(ship,status){
 }
 
 let _callPending=false;
+// Temporary, query-gated phone diagnostics. Nothing is rendered unless the page was
+// opened with ?callDebug=1. The snapshot deliberately excludes grants, credentials,
+// channel URLs and message contents; it reports only lifecycle and transport state.
+const CALL_DEBUG_ENABLED=(new URLSearchParams(location.search)).get('callDebug')==='1';
+let _callDebugStage='idle';
+let _callDebugStageAt=Date.now();
+let _callDebugTimer=null;
+function callDebugMark(stage){
+  callDebugPush(stage,{});
+  if(!CALL_DEBUG_ENABLED)return;
+  _callDebugStage=String(stage||'');
+  _callDebugStageAt=Date.now();
+  callDebugRefresh();
+}
+// The ONE place a diagnostic entry is written. Everything here is either a
+// boolean, a small integer, a state name, or an id we already show in the UI.
+// Never a token, bearer, key, SDP, candidate, address, URL or message body.
+function callDebugPush(stage,extra){
+  try{
+    const now=Date.now();
+    const g=sfu.grant;
+    const c=sfu.conn;
+    const nid=callDebugNoteId();
+    const cur=state.activeCalls[nid]||null;
+    const e={
+      t:new Date(now).toISOString(),
+      ms:now-_callDebugT0,
+      stage:String(stage||''),
+      status:sfu.status,
+      attempt:c.attempt,
+      deadlineIn:c.active?Math.max(0,c.deadline-now):null,
+      watchdog:!!c.watchdog,
+      ws:sfu.ws?sfu.ws.readyState:null,
+      joined:!!sfu.joined,
+      grantHeld:!!g,
+      grantValidMs:g?Math.max(0,Number(g.expires)-now):null,
+      noteId:nid||null,
+      callId:cur?(cur.callId||null):(sfu.callId||null),
+      gen:callGenOf(nid),
+      transport:nid?callTransportOf(nid):null,
+      ice:callDebugIce(),
+      hb:!!_callHbTimer,
+      connRetry:!!c.timer,
+      renewRetry:!!sfu.retryTimer,
+      expiryTimer:!!sfu.expiryTimer,
+      cleanupTimer:!!sfu.cleanupTimer,
+      leaveRequested:!!sfu.leaveReq,
+      failConfirmed:sfu.fail?!!sfu.fail.confirmed:null,
+      online:navigator.onLine
+    };
+    if(extra&&typeof extra==='object'){
+      // ALLOWLIST, not a type filter. A scalar-only rule still admits a token
+      // or a URL; only a fixed key set enforces the stated invariant.
+      for(let i=0;i<CALL_DEBUG_EXTRA_KEYS.length;i++){
+        const k=CALL_DEBUG_EXTRA_KEYS[i];
+        if(!Object.prototype.hasOwnProperty.call(extra,k))continue;
+        const v=extra[k];
+        if(v===null||typeof v==='number'||typeof v==='boolean'){e[k]=v;continue}
+        if(typeof v!=='string')continue;
+        // every string-valued extra is a CATEGORY, never free text
+        e[k]=(k==='reason')?sfuReasonCategory(v)
+            :(k==='cls'||k==='ok'||k==='close')?v.slice(0,32):'';
+      }
+    }
+    _callDebugRing.push(e);
+    while(_callDebugRing.length>SFU_DEBUG_RING_MAX)_callDebugRing.shift();
+  }catch(err){}
+}
+// per-stream ICE states only -- never a candidate, which carries relay
+// addresses and, on a TURN candidate, credentials
+function callDebugIce(){
+  const out={up:[],down:[]};
+  try{
+    for(const [kind,u] of sfu.up)out.up.push({kind:kind,
+      conn:u.pc?u.pc.iceConnectionState:null,gather:u.pc?u.pc.iceGatheringState:null});
+    for(const [,d] of sfu.down)out.down.push({
+      conn:d.pc?d.pc.iceConnectionState:null,gather:d.pc?d.pc.iceGatheringState:null});
+  }catch(e){}
+  return out;
+}
+// The note the CALL is on -- not blindly the note being viewed. After a
+// terminal failure or a navigation those differ, and the old code described
+// whichever note happened to be on screen.
+function callDebugNoteId(){
+  return state.inCall||(sfu.fail&&sfu.fail.noteId)||sfu.noteId||state.currentNoteId;
+}
+function callDebugSnapshot(){
+  const nid=callDebugNoteId();
+  const note=state.notes[nid]||null;
+  const active=state.activeCalls[nid]||null;
+  const stream=rtcManager.localStream||null;
+  const audio=stream&&stream.getAudioTracks?stream.getAudioTracks()[0]:null;
+  return {
+    build:NB_BUILD||null,
+    at:new Date().toISOString(),
+    browser:{online:navigator.onLine,phoneMode:phoneMode(),view:mobileView()},
+    note:{id:nid||null,type:note?note.type:null,creator:note?note.creator:null},
+    operation:{
+      stage:_callDebugStage,
+      stageMs:Date.now()-_callDebugStageAt,
+      pending:_callPending,
+      op:_callOp?{noteId:_callOp.noteId,kind:_callOp.kind}:null
+    },
+    channel:{
+      reconnecting:!!api.reconnecting,
+      replacing:!!api._replacing,
+      waitingForReplacement:!!(api._replacing&&api._replaceWait),
+      eventSource:api.es?api.es.readyState:null
+    },
+    call:{
+      inCall:state.inCall||null,
+      generation:callGenOf(nid),
+      active:active?{
+        callId:active.callId||null,
+        status:active.status||null,
+        transport:active.transport||null,
+        participants:Array.isArray(active.participants)?active.participants.slice():[]
+      }:null
+    },
+    media:{
+      streamHeld:!!stream,
+      mic:audio?{enabled:audio.enabled,muted:audio.muted,readyState:audio.readyState}:null
+    },
+    sfu:{
+      status:sfu.status,
+      joined:!!sfu.joined,
+      websocket:sfu.ws?sfu.ws.readyState:null,
+      grantHeld:!!sfu.grant,
+      failReason:sfu.failReason||null,
+      upstreams:sfu.up?sfu.up.size:0,
+      downstreams:sfu.down?sfu.down.size:0,
+      stats:Object.assign({},sfu.stats)
+    }
+  };
+}
+function callDebugText(){
+  try{
+    const snap=callDebugSnapshot();
+    snap.history=_callDebugRing.slice();
+    return JSON.stringify(snap,null,2);
+  }catch(e){return 'diagnostics failed'}
+}
+function callDebugRefresh(){
+  if(!CALL_DEBUG_ENABLED)return;
+  const out=document.getElementById('callDebugOutput');
+  if(out)out.value=callDebugText();
+}
+function callDebugCopy(){
+  const text=callDebugText();
+  const out=document.getElementById('callDebugOutput');
+  const btn=document.getElementById('callDebugCopy');
+  if(out){
+    out.value=text;
+    try{out.focus({preventScroll:true})}catch(e){out.focus()}
+    out.select();out.setSelectionRange(0,text.length);
+  }
+  // iOS permits the legacy copy command inside the direct tap even when the modern
+  // clipboard API is unavailable on an HTTP ship origin. If it still refuses, retain
+  // the selection so the native COPY bubble is immediately usable.
+  let copied=false;
+  try{copied=document.execCommand('copy')}catch(e){}
+  if(copied){
+    if(btn){btn.textContent='COPIED';setTimeout(()=>{btn.textContent='COPY'},1200)}
+    try{window.getSelection().removeAllRanges()}catch(e){}
+    out.blur();
+    return;
+  }
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(()=>{
+      if(btn){btn.textContent='COPIED';setTimeout(()=>{btn.textContent='COPY'},1200)}
+    }).catch(()=>{if(btn)btn.textContent='SELECTED'});
+  }else if(btn)btn.textContent='SELECTED';
+}
+function callDebugMinimize(){
+  const panel=document.getElementById('callDebugPanel');
+  const out=document.getElementById('callDebugOutput');
+  const btn=document.getElementById('callDebugMin');
+  if(!panel||!out||!btn)return;
+  const min=panel.getAttribute('data-minimized')!=='1';
+  panel.setAttribute('data-minimized',min?'1':'0');
+  out.style.display=min?'none':'';
+  btn.textContent=min?'OPEN':'MIN';
+  if(min){
+    panel.style.top='auto';panel.style.left='auto';
+    panel.style.bottom='calc(env(safe-area-inset-bottom, 0px) + 6px)';
+    panel.style.width='270px';panel.style.height='auto';panel.style.maxHeight='none';
+  }else{
+    panel.style.top='calc(env(safe-area-inset-top, 0px) + 6px)';
+    panel.style.left='6px';panel.style.bottom='auto';
+    panel.style.width='auto';panel.style.height='46vh';panel.style.maxHeight='46vh';
+    callDebugRefresh();
+  }
+}
+function callDebugClose(){
+  if(_callDebugTimer){clearInterval(_callDebugTimer);_callDebugTimer=null}
+  const el=document.getElementById('callDebugPanel');if(el)el.remove();
+}
+function callDebugInit(){
+  if(!CALL_DEBUG_ENABLED||document.getElementById('callDebugPanel'))return;
+  const panel=document.createElement('section');
+  panel.id='callDebugPanel';
+  panel.setAttribute('aria-label','Call diagnostics');
+  panel.style.cssText='position:fixed;z-index:2147483647;top:calc(env(safe-area-inset-top, 0px) + 6px);left:6px;right:6px;height:46vh;max-height:46vh;display:flex;flex-direction:column;background:#101010;color:#ddd;border:1px solid #c98218;border-radius:4px;box-shadow:0 4px 18px #000;font:10px/1.3 ui-monospace,SFMono-Regular,Menlo,monospace;text-align:left';
+  const bar=document.createElement('div');
+  bar.style.cssText='display:flex;align-items:center;gap:6px;padding:5px 7px;border-bottom:1px solid #444;color:#c98218;font-weight:700';
+  const title=document.createElement('span');title.textContent='CALL DEBUG';title.style.flex='1';
+  const copy=document.createElement('button');copy.id='callDebugCopy';copy.type='button';copy.textContent='COPY';copy.onclick=callDebugCopy;
+  const min=document.createElement('button');min.id='callDebugMin';min.type='button';min.textContent='MIN';min.onclick=callDebugMinimize;
+  const close=document.createElement('button');close.type='button';close.textContent='CLOSE';close.onclick=callDebugClose;
+  for(const b of [copy,min,close])b.style.cssText='border:1px solid #666;background:#222;color:#eee;padding:3px 6px;font:inherit';
+  const out=document.createElement('textarea');out.id='callDebugOutput';out.readOnly=true;out.spellcheck=false;
+  out.style.cssText='box-sizing:border-box;width:100%;min-height:0;flex:1;margin:0;padding:7px;overflow:auto;resize:none;border:0;background:#101010;color:#ddd;white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;user-select:text;-webkit-user-select:text';
+  bar.append(title,copy,min,close);panel.append(bar,out);document.body.appendChild(panel);
+  callDebugRefresh();
+  _callDebugTimer=setInterval(callDebugRefresh,500);
+}
 async function toggleCall(){
-  if(_callPending)return;
+  if(_callPending){callDebugMark('tap ignored: call operation pending');return}
   _callPending=true;
-  try{await _toggleCallInner()}finally{_callPending=false}
+  callDebugMark('call button handler entered');
+  try{await _toggleCallInner()}
+  catch(e){callDebugMark('call handler exception: '+(e&&e.message?e.message:'unknown'));throw e}
+  finally{_callPending=false;callDebugRefresh()}
 }
 async function _toggleCallInner(){
   const noteId=state.currentNoteId;
   console.log('[toggleCall] noteId=',noteId,'inCall=',state.inCall,'activeCalls=',JSON.stringify(state.activeCalls[noteId]||null));
   // a non-call surface can never START or JOIN; only an in-progress call may be ENDed
-  if(!noteSupportsCalls(noteId)&&state.inCall!==noteId)return;
+  if(!noteSupportsCalls(noteId)&&state.inCall!==noteId){callDebugMark('note does not support calls');return}
 
   if(state.inCall===noteId){
     // leave call. Same ordering rule as start/join: arm first, because a self-hosted
     // note's ending snapshot can arrive before this poke resolves.
     console.log('[toggleCall] LEAVING call');
+    callDebugMark('sending leave-call poke');
+    // END outranks any reconnect in flight: cancel the timer and watchdog and
+    // invalidate late callbacks, and never leave a terminal banner behind for
+    // a call the user chose to end.
+    sfuConnCancel('user-end');
+    sfuClearFail('user-end');
     beginCallOp(noteId,'leave');
     const left=await api.poke('noltbook','noltbook-action',{action:'leave-call',data:{noteId}});
+    callDebugMark('leave-call poke resolved: '+String(left));
     if(left===false){
       // definite transport failure: the ship never got the leave, so the call is still
       // ours. Keep peers, streams, tracks and state.inCall exactly as they were, leave
@@ -13709,7 +14413,9 @@ async function _toggleCallInner(){
   // enforce single-call: leave current call before joining another
   if(state.inCall){
     console.log('[toggleCall] leaving previous call',state.inCall,'before joining',noteId);
+    callDebugMark('leaving previous call before switch');
     const leftPrev=await api.poke('noltbook','noltbook-action',{action:'leave-call',data:{noteId:state.inCall}});
+    callDebugMark('previous leave-call poke resolved: '+String(leftPrev));
     if(leftPrev===false){
       // the old call was never left, so do NOT tear it down, do not re-prompt for the
       // microphone and do not join/start the new note.
@@ -13726,11 +14432,14 @@ async function _toggleCallInner(){
   }
 
   // get mic FIRST — blocks on permissions dialog, bail if denied
+  callDebugMark('requesting microphone');
   const stream=await rtcManager.getLocalStream(false);
   if(!stream||stream.getAudioTracks().length===0){
+    callDebugMark('microphone unavailable');
     console.error('[call] no mic access, aborting');
     return;
   }
+  callDebugMark('microphone ready');
 
   const call=state.activeCalls[noteId];
   const kind=call?'join':'start';
@@ -13743,8 +14452,10 @@ async function _toggleCallInner(){
   // operation exists cannot clear it, so the timer would later fire on a healthy call
   // and tear it down -- controls vanish, END reverts to JOIN.
   beginCallOp(noteId,kind);
+  callDebugMark('sending '+kind+'-call poke');
   const ok=await api.poke('noltbook','noltbook-action',
     {action:(kind==='join'?'join-call':'start-call'),data:{noteId}});
+  callDebugMark(kind+'-call poke resolved: '+String(ok));
   if(ok===false){
     // definite transport failure: the host never heard us, so we are not in any call
     console.error('[call] '+kind+'-call poke failed');
@@ -13758,6 +14469,9 @@ async function _toggleCallInner(){
   // No peers are created here. The host answers with an authoritative snapshot and
   // reconcileCallPeers() builds exactly the mesh that snapshot describes, so a call we
   // were never actually added to cannot leave a half-open peer behind.
+  // a different call succeeded: the previous failure is no longer the truth.
+  // Mesh included -- this is the shared start/join path for both transports.
+  if(sfu.fail&&sfu.fail.noteId!==noteId)sfuClearFail('other-call');
   document.getElementById('callRail').classList.add('open');
   placeCallBtn();
   updateCallRestoreUI();
@@ -13765,6 +14479,9 @@ async function _toggleCallInner(){
   // PHONE: a successful start or join shows the call. The two failure branches above
   // return before this line, so a failed poke leaves the user exactly where they were.
   mobileEnterCallView();
+  callDebugMark(callHasUs(noteId)
+    ?'call confirmed; mobile view entered'
+    :'poke accepted; waiting for host snapshot');
 }
 
 // updateCallRestoreUI: the ONE place that decides whether the closed-rail restore
@@ -13776,7 +14493,7 @@ function updateCallRestoreUI(){
   if(!rail)return;
   const open=rail.classList.contains('open');
   const nid=state.currentNoteId;
-  const relevant=!!state.inCall||!!state.activeCalls[nid];
+  const relevant=!!state.inCall||!!state.activeCalls[nid]||!!(sfu.fail&&sfu.fail.noteId===nid);
   if(handle){
     // the tab stays up in BOTH states now: closed it opens the view, open it hides it.
     handle.classList.toggle('show',relevant);
@@ -14321,6 +15038,7 @@ window.addEventListener('pagehide',()=>{
 })();
 
 boot();
+callDebugInit();
 </script>
 <!-- Wallet modals (trusted top-level only) -->
 
