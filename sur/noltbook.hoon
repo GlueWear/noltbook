@@ -15,7 +15,46 @@
       reply-to-eid=(unit @uv)
   ==
 ::  note types
-+$  note-type  ?(%notebook %dm %group %cover %gossip)
+::  %document: a normal hosted note whose CONTENT is one Markdown body with a
+::  saved revision history, instead of a message timeline. Everything else --
+::  membership, hosting, visibility, invitation, removal, hierarchy, presence
+::  and calls -- is treated exactly like a hosted %group.
++$  note-type  ?(%notebook %dm %group %cover %gossip %document)
+::  ===== document notes =====
+::  Markdown ONLY. No image bytes, no data URLs, no base64 -- an uploaded
+::  image lives in artifact storage and the body carries a reference to it.
+::  MAX-DOC-BYTES is enforced on the host in bytes, not characters.
+::
+::  document-current: the one live body of a document, replicated to members.
++$  document-current
+  $:  body=@t
+      revision=@ud
+      updated-by=@p
+      updated-at=@da
+  ==
+::  document-version: one COMPLETE previous body. Authoritative on the host and
+::  fetched only on request -- history is never replicated to every member.
++$  document-version
+  $:  revision=@ud
+      body=@t
+      saved-by=@p
+      saved-at=@da
+  ==
+::  document-stats: what the beta exposes instead of silently pruning history.
++$  document-stats
+  $:  versions=@ud
+      bytes=@ud
+  ==
+::  typed save outcome. A rejection is a value, never a crash.
++$  document-save-result
+  $%  [%saved revision=@ud]
+      [%no-change revision=@ud]
+      [%conflict current=@ud]
+      [%too-large limit=@ud]
+      [%denied ~]
+      [%no-such-note ~]
+  ==
+
 +$  note-visibility  ?(%public %private %secret)
 ::  durable high-level notification acks. Only passive condition rows that
 ::  the backend regenerates after refresh get a durable seen-ack; actionable
@@ -470,6 +509,21 @@
       [%remote-delete-msg note-id=@ta msg-id=@da eid=(unit @uv)]
       [%remote-create-child parent-id=@ta name=@t]
       [%remote-child-note parent-id=@ta note=note]
+      ::  ===== document notes =====
+      ::  host -> member: the current body only. History is NEVER replicated.
+      [%remote-document-updated note-id=@ta doc=document-current]
+      ::  member -> host: a save request, answered with a typed result.
+      [%remote-document-save note-id=@ta body=@t expected=@ud req=@ud]
+      [%remote-document-save-result note-id=@ta req=@ud res=document-save-result]
+      ::  member -> host / host -> member: history on demand.
+      [%remote-document-request note-id=@ta]
+      ::  member -> host: restore an old revision. Host-only authority, so a
+      ::  member with edit rights asks rather than doing it locally.
+      [%remote-document-restore note-id=@ta revision=@ud req=@ud]
+      [%remote-document-peek note-id=@ta]
+      [%remote-document-peek-result note-id=@ta ok=? body=@t revision=@ud name=@t]
+      [%remote-document-history-request note-id=@ta]
+      [%remote-document-history-response note-id=@ta versions=(list document-version) stats=document-stats]
       ::  root-uniqueness: tell loser to drop their root + adopt ours
       [%remote-root-exists losing-id=@ta canonical=note]
       [%remote-leave note-id=@ta]
@@ -648,6 +702,28 @@
 +$  action
   $%  [%create-note name=@t parent=(unit @ta)]
       [%create-gossip-note name=@t headline=@t icon-url=(unit @t)]
+      ::  ===== document notes =====
+      ::  A document is created EXPLICITLY, never by type inheritance, so a
+      ::  child of a document is only a document if the creator asked for one.
+      [%create-document-note name=@t parent=(unit @ta)]
+      ::  save: the COMPLETE body plus the revision the editor started from.
+      ::  request-id correlates the typed result back to one editor session.
+      [%save-document note-id=@ta body=@t expected=@ud request-id=(unit @ud)]
+      ::  restore installs an old body as a NEW revision; history is never rewritten.
+      [%restore-document-version note-id=@ta revision=@ud request-id=(unit @ud)]
+      ::  history is host-authoritative and fetched only when asked for.
+      [%request-document-history note-id=@ta]
+      ::  pull the CURRENT body from the host. Self-healing: an invite, a missed
+      ::  delivery or a reconnect all leave a member without a document, and a
+      ::  push-on-invite alone cannot cover every one of those.
+      [%request-document note-id=@ta]
+      ::  read a linked document we are NOT a member of. Public and private
+      ::  documents are readable by anyone holding the link; secret documents
+      ::  cannot be linked at all, so they are never reachable this way.
+      [%peek-document note-id=@ta host=@p]
+      ::  duplicate: a NEW note owned by the copier. Never a fork -- no lineage,
+      ::  no members, no history, no permissions carried over.
+      [%duplicate-document source-id=@ta name=@t parent=(unit @ta) body=@t]
       ::  link-acquire: ask `from` (whoever shared the link) for a gossip note by id.
       [%request-gossip-note note-id=@ta from=@p]
       [%rename-note id=@ta name=@t]
@@ -969,6 +1045,11 @@
       [%note-deleted id=@ta]
       [%note-meta-updated id=@ta visibility=note-visibility icon-url=(unit @t) writable=?]
       [%note-type-updated id=@ta type=note-type]
+      ::  ===== document notes =====
+      [%document-updated note-id=@ta doc=document-current stats=document-stats]
+      [%document-save-result note-id=@ta request-id=(unit @ud) res=document-save-result]
+      [%document-history note-id=@ta versions=(list document-version) stats=document-stats]
+      [%document-peek note-id=@ta ok=? body=@t revision=@ud name=@t]
       [%note-host-status id=@ta status=(unit ?(%host-deleted %host-unreachable))]
       [%note-state-refreshed root-id=@ta notes=(list note) revs=(list [id=@ta rev=@ud])]
       ::  fork lineage: origin=stable lineage id, version=fork depth (1=original)

@@ -24,6 +24,74 @@
         ?.  ?=([%s *] u.par-raw)  ~
         ``@ta`p.u.par-raw
       [%create-note p.nm-nd par]
+    ::  ===== document notes =====
+    ::  create-document-note: same shape as create-note; the type is explicit.
+    ?:  =('create-document-note' tag)
+      =/  nm-nd  (need (~(get by d) 'name'))
+      ?>  ?=([%s *] nm-nd)
+      =/  par-raw  (~(get by d) 'parent')
+      =/  par=(unit @ta)
+        ?~  par-raw  ~
+        ?.  ?=([%s *] u.par-raw)  ~
+        ``@ta`p.u.par-raw
+      [%create-document-note p.nm-nd par]
+    ::  save-document: complete body plus the revision the editor started from.
+    ?:  =('save-document' tag)
+      =/  ni-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] ni-nd)
+      =/  bd-nd  (need (~(get by d) 'body'))
+      ?>  ?=([%s *] bd-nd)
+      =/  ex-nd  (need (~(get by d) 'expected'))
+      ?>  ?=([%n *] ex-nd)
+      =/  rq-raw  (~(get by d) 'requestId')
+      =/  rq=(unit @ud)
+        ?~  rq-raw  ~
+        ?.  ?=([%n *] u.rq-raw)  ~
+        `(rash p.u.rq-raw dem)
+      [%save-document `@ta`p.ni-nd p.bd-nd (rash p.ex-nd dem) rq]
+    ::  restore-document-version
+    ?:  =('restore-document-version' tag)
+      =/  ni-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] ni-nd)
+      =/  rv-nd  (need (~(get by d) 'revision'))
+      ?>  ?=([%n *] rv-nd)
+      =/  rq-raw  (~(get by d) 'requestId')
+      =/  rq=(unit @ud)
+        ?~  rq-raw  ~
+        ?.  ?=([%n *] u.rq-raw)  ~
+        `(rash p.u.rq-raw dem)
+      [%restore-document-version `@ta`p.ni-nd (rash p.rv-nd dem) rq]
+    ::  request-document
+    ?:  =('request-document' tag)
+      =/  ni-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] ni-nd)
+      [%request-document `@ta`p.ni-nd]
+    ::  peek-document
+    ?:  =('peek-document' tag)
+      =/  ni-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] ni-nd)
+      =/  ho-nd  (need (~(get by d) 'host'))
+      ?>  ?=([%s *] ho-nd)
+      [%peek-document `@ta`p.ni-nd (slav %p p.ho-nd)]
+    ::  request-document-history
+    ?:  =('request-document-history' tag)
+      =/  ni-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] ni-nd)
+      [%request-document-history `@ta`p.ni-nd]
+    ::  duplicate-document
+    ?:  =('duplicate-document' tag)
+      =/  si-nd  (need (~(get by d) 'sourceId'))
+      ?>  ?=([%s *] si-nd)
+      =/  nm-nd  (need (~(get by d) 'name'))
+      ?>  ?=([%s *] nm-nd)
+      =/  bd-nd  (need (~(get by d) 'body'))
+      ?>  ?=([%s *] bd-nd)
+      =/  par-raw  (~(get by d) 'parent')
+      =/  par=(unit @ta)
+        ?~  par-raw  ~
+        ?.  ?=([%s *] u.par-raw)  ~
+        ``@ta`p.u.par-raw
+      [%duplicate-document `@ta`p.si-nd p.nm-nd par p.bd-nd]
     ::  create-gossip-note
     ?:  =('create-gossip-note' tag)
       =/  nm-nd  (need (~(get by d) 'name'))

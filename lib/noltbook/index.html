@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="nb-build" content="5idna3stqj">
+<meta name="nb-build" content="9c23rl2ig9">
 <title>NOLTBOOK</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20355.9%20355.9%22%20width=%22355.9%22%20height=%22355.9%22%3E%3Cg%20fill=%22%23ffffff%22%20transform=%22translate(-10.9901536%2036.4439936)%20scale(1.06235712)%22%3E%3Cpolygon%20points=%2266%20159.5%2066%2021.2%20204.3%2021.2%20204.3%2080.8%20204.3%20112.5%20204.3%20159.5%20160.7%20159.5%20160.7%20180.7%20225.5%20180.7%20225.5%20112.5%20225.5%2080.8%20225.5%200%2044.8%200%2044.8%20180.7%20121%20180.7%20121%20159.5%2066%20159.5%22/%3E%3Cpolygon%20points=%22234.7%2085.7%20234.7%20106.9%20289.8%20106.9%20289.8%20245.3%20151.4%20245.3%20151.4%20186.8%20151.4%20180.7%20151.4%20159.5%20151.4%20155.1%20151.4%20106.9%20195%20106.9%20195%2085.7%20130.2%2085.7%20130.2%20151.8%20130.2%20159.5%20130.2%20180.7%20130.2%20183.5%20130.2%20266.4%20310.9%20266.4%20310.9%2085.7%20234.7%2085.7%22/%3E%3C/g%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -271,6 +271,55 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .paste-app-btn.primary{border-color:#ffaa00;color:#ffaa00}
 .paste-app-btn:hover{border-color:#ffaa00;color:#ffaa00}
 .chat-input-area{padding:1rem 1rem var(--nb-footer-inset);flex-shrink:0;background:var(--bg)}
+/* ===== document notes ===== */
+.doc-surface{display:flex;flex-direction:column;height:100%;min-height:0}
+.doc-bar{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;padding:.4rem .6rem;border-bottom:1px solid var(--border);flex-shrink:0}
+.doc-btn{font:inherit;font-size:.72rem;letter-spacing:.05em;cursor:pointer;background:transparent;color:var(--text);border:1px solid var(--border);border-radius:3px;padding:.2rem .5rem}
+.doc-btn:hover{border-color:var(--text)}
+.doc-btn.on{border-color:#c98218;color:#c98218}
+.doc-btn[disabled]{opacity:.4;cursor:default}
+.doc-meta{font-size:.68rem;color:var(--text-dim);margin-left:auto;letter-spacing:.04em}
+.doc-meta-line{display:none;font-size:.62rem;color:var(--text-dim);letter-spacing:.06em;flex:none}
+.special-type-stack{display:flex;flex-direction:column;gap:.25rem;margin-top:.5rem}
+.special-type-stack .gossip-toggle{margin:0;display:flex;align-items:center;gap:.4rem}
+/* checkbox leads, so the boxes align without padding the labels */
+.special-type-stack .gossip-toggle input[type=checkbox]{flex:none;margin:0}
+.doc-spacer{flex:1}
+/* the conflict card is read while something has just gone wrong, so it uses the
+   normal text colour rather than the dim one, and the boxes light up on hover */
+.doc-conflict-btn{color:var(--text)}
+/* option TITLE white, description gray; both go white with the box on hover */
+.doc-conflict-btn strong{color:#fff}
+.doc-conflict-btn:hover{border-color:#fff;color:#fff}
+.doc-conflict-btn:hover strong{color:#fff}
+.doc-conflict-btn:hover span{color:#fff!important}
+/* linked-document title: amber, underlined on hover */
+.doc-post-title{text-decoration:none}
+/* explicit colour and thickness: inheriting the underline made it easy to
+   miss against the amber text */
+.doc-post-title:hover{text-decoration:underline!important;text-decoration-color:#c98218;text-decoration-thickness:2px;text-underline-offset:3px}
+.doc-btn.save{border-color:var(--border)}
+.doc-btn.save:hover{border-color:#3fbf6f;color:#3fbf6f}
+.doc-btn.cancel:hover{border-color:#e0553f;color:#e0553f}
+.doc-dirty{color:#c98218}
+.doc-panes{display:flex;flex:1;min-height:0;overflow:hidden}
+.doc-pane{flex:1;min-width:0;overflow:auto;padding:1rem 1.2rem}
+.doc-pane+.doc-pane{border-left:1px solid var(--border)}
+.doc-src{width:100%;height:100%;box-sizing:border-box;resize:none;border:0;outline:none;background:transparent;color:var(--text);font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre;overflow-wrap:normal;overflow:auto}
+.doc-read{max-width:46rem;line-height:1.6}
+.doc-read .md-h{margin:1.1rem 0 .5rem;line-height:1.25}
+.doc-read h1.md-h{font-size:1.5rem}.doc-read h2.md-h{font-size:1.25rem}.doc-read h3.md-h{font-size:1.08rem}
+.doc-read p{margin:.6rem 0}
+.doc-read .md-quote{margin:.6rem 0;padding:.3rem .8rem;border-left:3px solid var(--border);color:var(--text-dim)}
+.doc-read .md-list{margin:.5rem 0 .5rem 1.3rem}
+.doc-read .md-task{list-style:none;margin-left:-1.1rem}
+.doc-read .md-pre{margin:.7rem 0;padding:.6rem .8rem;background:var(--bg);border:1px solid var(--border);overflow-x:auto}
+.doc-read .md-hr{border:0;border-top:1px solid var(--border);margin:1.1rem 0}
+.doc-table-wrap,.doc-read .md-table-wrap{overflow-x:auto;margin:.7rem 0}
+.doc-read .md-table{border-collapse:collapse;min-width:100%}
+.doc-read .md-table th,.doc-read .md-table td{border:1px solid var(--border);padding:.3rem .6rem;text-align:left}
+.doc-empty{color:var(--text-dim);font-style:italic}
+@media print{.doc-bar,.sidebar,.chat-input-area{display:none!important}.doc-pane{overflow:visible!important}}
 .chat-input-row{display:flex;align-items:flex-end;gap:.5rem}
 .attach-wrap{position:relative;flex-shrink:0;display:flex}
 .attach-btn{font-family:var(--font);font-size:1rem;line-height:1;padding:.4rem .55rem;background:transparent;border:1px solid var(--border2);color:var(--text-dim);cursor:pointer;display:block;width:100%}
@@ -1052,6 +1101,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
         <span class="chat-note-wrap">
           <span class="chat-note-name" id="chatNoteName" onclick="openCurrentNoteMenu(event)">Cover</span>
           <span id="readOnlyBadge" class="read-only-tag">READ ONLY</span>
+          <span id="docMetaLine" class="doc-meta-line"></span>
         </span>
         <button class="call-indicator" id="callIndicator" type="button" onclick="toggleCallRail()"
           style="cursor:pointer" title="Show call view" aria-label="Show call view"><span class="call-dot"></span><span id="callParticipantCount">0</span> in call</button>
@@ -1063,7 +1113,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
       <div class="chat-messages" id="chatMessages"></div>
       <button class="call-restore" id="callRestoreHandle" type="button"
         title="Show call view (drag left to size)" aria-label="Show call view">CALL VIEW ›</button>
-      <div class="chat-input-area" style="position:relative">
+      <div class="chat-input-area" id="chatInputArea" style="position:relative">
         <div class="mention-dropdown" id="mentionDropdown"></div>
         <div class="reply-bar" id="replyBar">
           <span class="reply-label" id="replyLabel">↩ replying to</span>
@@ -1154,15 +1204,19 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
   <div class="modal">
     <span class="modal-title" id="noteModalTitle">NEW NOTE</span>
     <div class="modal-field">
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <label class="modal-label" style="margin:0">NAME</label>
-        <div class="gossip-toggle" id="gossipToggleWrap" style="margin:0">
-          <label for="gossipCheck">%GOSSIP</label>
-          <input type="checkbox" id="gossipCheck" onchange="document.getElementById('gossipFields').style.display=this.checked?'':'none'">
-        </div>
-      </div>
+      <label class="modal-label" style="margin:0">NAME</label>
       <input class="modal-input" id="noteNameInput" placeholder="note name" autocomplete="off"
         onkeydown="if(event.key==='Enter')submitNote()">
+      <div class="special-type-stack">
+        <div class="gossip-toggle" id="documentToggleWrap">
+          <input type="checkbox" id="documentCheck" onchange="onSpecialTypeToggle('document')">
+          <label for="documentCheck">%DOCUMENT</label>
+        </div>
+        <div class="gossip-toggle" id="gossipToggleWrap">
+          <input type="checkbox" id="gossipCheck" onchange="onSpecialTypeToggle('gossip')">
+          <label for="gossipCheck">%GOSSIP</label>
+        </div>
+      </div>
     </div>
     <div class="modal-field" id="gossipFields" style="display:none">
       <label class="modal-label">DESCRIPTION</label>
@@ -1792,7 +1846,7 @@ const api = {
     console.log('[SSE] replaced, re-subscribed to',oldMeta.length,'paths');
   }
 };
-const state={notes:{},messages:{},pendingSends:{},artifacts:{},profiles:{},callGens:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),manualExpanded:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,editingEid:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteUnreadActivity:{},noteRead:{},coverPreview:null,notePins:{},pinArtId:null,noteActive:{},appNotifications:{},artifactRefs:{},pendingRedirect:null,pendingDmTransition:null};
+const state={notes:{},messages:{},pendingSends:{},artifacts:{},profiles:{},callGens:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),manualExpanded:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,editingEid:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteUnreadActivity:{},noteRead:{},coverPreview:null,notePins:{},pinArtId:null,noteActive:{},appNotifications:{},artifactRefs:{},pendingRedirect:null,pendingDmTransition:null,documents:{},documentHistory:{},docView:{},docSaveWait:{},docReqSeq:0,docPeek:{},docSessionSeq:0};
 // Phase G4 freshness: resolved profiles are fresh for 10 min; negative results
 // (missing/invalid) cool down 5 min; unreachable cools down 2 min. Render cycles
 // poke only when fresh-expired AND past the cooldown (and not in flight).
@@ -2690,6 +2744,37 @@ function handleUpdate(upd){
     // revision when the icon is cleared or switched to an external URL.
     if(isInternalNoteIcon(d.id,n.iconUrl))bumpNoteIconRevision(d.id);else clearNoteIconRevision(d.id);
     renderNoteList();if(d.id===state.currentNoteId){updateMuteUI();const _sb=document.getElementById('shareBtn');if(_sb)_sb.style.display=canShareNote(n)?'block':'none'}}}
+  // ===== DOCUMENT NOTES =====
+  // Facts carry CURRENT state only. History bodies never ride a broadcast fact --
+  // they arrive solely as the answer to an explicit document-history request.
+  else if(upd['document-updated']){
+    const d=upd['document-updated'];
+    if(applyDocUpdate(d)){
+      if(state.currentNoteId===d.noteId)scheduleRender(d.noteId);
+      // Someone ELSE saved: treat it like an incoming message for the sidebar.
+      else if(d.updatedBy&&d.updatedBy!=='~'+api.ship)state.notifications.add(d.noteId);
+      scheduleNoteList();
+    }
+  }
+  else if(upd['document-save-result']){
+    const r=upd['document-save-result'];
+    handleDocSaveResult(r);
+  }
+  else if(upd['document-peek']){
+    const p=upd['document-peek'];
+    // READ-ONLY preview of a linked document we are not a member of. Kept out
+    // of state.documents deliberately: holding it there would imply membership
+    // to docCanEdit and the editor.
+    state.docPeek[p.noteId]={ok:!!p.ok,body:String(p.body||''),revision:Number(p.revision||0),name:String(p.name||'')};
+    document.querySelectorAll('.doc-probe[data-nid="'+cssEsc(p.noteId)+'"]').forEach(function(el){
+      if(el.getAttribute('data-doc-state')==='peeking')probeDocPost(el,true);
+    });
+  }
+  else if(upd['document-history']){
+    const h=upd['document-history'];
+    state.documentHistory[h.noteId]={entries:h.entries||[],versions:h.versions|0,bytes:h.bytes|0};
+    if(typeof renderDocHistoryModal==='function')renderDocHistoryModal(h.noteId);
+  }
   else if(upd['note-type-updated']){const d=upd['note-type-updated'];const n=state.notes[d.id];if(n){n.type=d.type;renderNoteList();if(d.id===state.currentNoteId){scheduleRender(d.id);updateMuteUI()}}}
   else if(upd['note-host-status']){const d=upd['note-host-status'];if(d.status)state.noteHostStatus[d.id]=d.status;else delete state.noteHostStatus[d.id];if(d.status!=='host-deleted')state.notificationAcks.delete(notifAckKey('host-deleted-status',d.id));rebuildDurableNotifications();updateLogoBadge();if(d.status==='host-unreachable'||d.status==='host-deleted')failPendingForNote(d.id);if(d.id===state.currentNoteId)updateMuteUI();renderNoteList()}
   else if(upd['note-state-refreshed']){
@@ -3151,14 +3236,17 @@ function retryHost(noteId){
 }
 function forkGroup(noteId){
   const note=state.notes[noteId];
-  if(!note||note.type!=='group')return;
+  // documents fork on the same machinery: a hosted copy that INVITES the
+  // source's members, unlike duplicate which invites nobody
+  if(!note||(note.type!=='group'&&note.type!=='document'))return;
   const lin=state.noteLineage[noteId]||{};
   const nextV=(lin.forkVersion||1)+1;
   const ov=document.createElement('div');
   ov.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999';
   const m=document.createElement('div');
   m.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--bg2);border:1px solid var(--border);padding:1rem;z-index:10000;min-width:340px;max-width:440px;display:flex;flex-direction:column;gap:.7rem';
-  m.innerHTML=`<div style="font-size:.85rem;color:#ffaa00;font-weight:bold">Fork "${escHtml(note.name)}"?</div>
+  const kindLabel=note.type==='document'?'Document':'Group';
+  m.innerHTML=`<div style="font-size:.85rem;color:#ffaa00;font-weight:bold">Fork ${kindLabel} "${escHtml(note.name)}"?</div>
     <div style="font-size:.78rem;color:var(--text);line-height:1.4">Create your hosted version: v${nextV} ~${api.ship}.</div>
     <div class="modal-field"><label class="modal-label" style="font-size:.65rem">NEW NAME (optional)</label><input class="modal-input" id="forkNameInput" value="${escAttr(note.name)}" style="font-size:.85rem"></div>
     <div class="modal-actions" style="display:flex;gap:.5rem;justify-content:flex-end">
@@ -4776,6 +4864,12 @@ function renderNode(el,node,depth,isThreadAnchor){
 }
 function renderMessages(noteId,target){
   const el=document.getElementById('chatMessages');
+  // ===== DOCUMENT NOTES =====
+  // A document replaces the timeline entirely. The rest of the Noltbook shell --
+  // header, name, read-only indicator, modal, hierarchy, presence, call controls --
+  // is untouched; only this pane and the composer change.
+  syncComposerVisibility(noteId);
+  if(isDocumentNote(noteId)){destroyPluginFramesWithin(el);renderDocumentSurface(noteId,el);return}
   // capture scroll state BEFORE wiping the timeline
   const wasNearBottom=isNearBottom(el);
   // Normalize to one scroll target: 'bottom' | 'unread' | 'preserve'. When the
@@ -5645,7 +5739,12 @@ function renderNoteRef(tok){
   if(enc!=null&&enc!==''){try{name=decodeURIComponent(enc)}catch(e){name=enc}}
   if(!name){var n=state.notes[nid]||state.discoveryNotes[nid];if(n)name=noteDisplayName(n)||n.name||''}
   if(!name)name='Note Link';
-  return '<span class="note-ref" data-msg-action="note-ref" data-nid="'+escDataAttr(nid)+'" data-creator="'+escDataAttr(cr)+'" title="'+escDataAttr(nid+' · '+cr)+'"><span class="note-ref-name">'+escHtml(name)+'</span></span>';
+  // A note link posted into another note may point at a DOCUMENT. The message
+  // stores only this link -- never a copied body -- and the probe below decides
+  // what the viewer is allowed to see, so a later view reflects the latest save.
+  return '<span class="note-ref doc-probe" data-msg-action="note-ref" data-doc-state="waiting"'
+    +' data-nid="'+escDataAttr(nid)+'" data-creator="'+escDataAttr(cr)+'"'
+    +' title="'+escDataAttr(nid+' · '+cr)+'"><span class="note-ref-name">'+escHtml(name)+'</span></span>';
 }
 function renderGnoteRef(tok){
   const m=/^~gnote\[([^\]|]+)\|([^\]|]+)\|([^\]|]*)\|([^\]|]*)\|([^\]]*)\]$/.exec(tok);
@@ -5693,6 +5792,1190 @@ function renderMention(tok){
   var dn=displayName(canon);
   var label=(dn&&dn!==canon)?dn:canon.replace(/^~/,'');
   return '<span class="msg-mention" style="color:'+shipColor(canon)+';font-weight:500;cursor:pointer" data-msg-action="mention" data-ship="'+escDataAttr(canon)+'" title="'+escDataAttr(canon)+'">'+escHtml(label)+'</span>';
+}
+/* ===== DOCUMENT NOTES: Markdown =====
+   SAFETY MODEL, identical in principle to renderText(): this is an ALLOWLIST
+   renderer, not a sanitiser. Nothing in the source is ever treated as HTML.
+   Every text run is escaped with escHtml() and the only tags that reach the
+   DOM are the ones this file writes literally. Consequently <script>, event
+   handler attributes, javascript: URLs, iframe/object/embed and any
+   attribute-breaking text are inert by construction rather than by blacklist,
+   and there is no path by which a crafted body can add an attribute.
+   Every URL goes through mdSafeUrl(), which is the same new URL() +
+   protocol check renderHttpUrl() uses. */
+const MD_MAX_NEST=6;
+// Returns a safe href/src, or null. Two accepted shapes and nothing else:
+//   1. an absolute http(s) URL
+//   2. a Noltbook ARTIFACT path -- the id charset excludes '/', so the fixed
+//      prefix cannot be escaped and no traversal is possible.
+// Document Markdown therefore stores only a REFERENCE; image bytes stay in
+// artifact storage and never enter the document, its versions, or Gall state.
+const MD_ARTIFACT_RE=/^\/apps\/noltbook\/artifact\/[A-Za-z0-9._~-]{1,128}(\?[A-Za-z0-9=&._~-]{0,80})?$/;
+function mdIsArtifactPath(t){return MD_ARTIFACT_RE.test(t)}
+function mdSafeUrl(raw){
+  const t=String(raw||'').trim();
+  if(!t)return null;
+  if(mdIsArtifactPath(t))return t;
+  // An external URL must carry an EXPLICIT http(s) scheme. Resolving against a
+  // base would silently turn '//host/x' into an https link and 'foo' into a
+  // same-origin one; refusing is more predictable than guessing.
+  if(!/^https?:\/\//i.test(t))return null;
+  let u;
+  try{u=new URL(t)}catch(e){return null}
+  if(u.protocol!=='http:'&&u.protocol!=='https:')return null;
+  return u.href;
+}
+// Inline: markdown-specific syntax first, then hand every remaining plain run to
+// renderText() so existing Noltbook tokens (~ref, ~gnote, @~ship, bare URLs and
+// inline code) keep working inside a document exactly as they do in a message.
+function mdInline(src){
+  const s=String(src==null?'':src);
+  let out='',last=0,m;
+  const RE=/!\[([^\]]*)\]\(([^)\s]+)\)|\[([^\]]*)\]\(([^)\s]+)\)|(\*\*|__)(?=\S)([\s\S]*?\S)\5|(\*|_)(?=\S)([\s\S]*?\S)\7|(`[^`]+`)/g;
+  while((m=RE.exec(s))!==null){
+    out+=renderText(s.slice(last,m.index));
+    let piece=null;
+    if(m[2]!=null){                                   // image
+      const u=mdSafeUrl(m[2]);
+      // An EXTERNAL image must not leak the referrer to the host it is fetched
+      // from. Artifact images are same-origin and need no such guard.
+      const rp=mdIsArtifactPath(u||'')?'':' referrerpolicy="no-referrer"';
+      piece=u?('<div class="inline-img-box" data-href="'+escAttr(u)+'"><img src="'+escAttr(u)
+             +'" alt="'+escAttr(m[1]||'')+'"'+rp+' loading="lazy"></div>'):null;
+    }else if(m[4]!=null){                             // link
+      const u=mdSafeUrl(m[4]);
+      piece=u?('<a href="'+escAttr(u)+'" target="_blank" rel="noopener noreferrer">'
+             +(m[3]?renderText(m[3]):escHtml(u))+'</a>'):null;
+    }else if(m[6]!=null){piece='<strong>'+mdInline(m[6])+'</strong>'}
+    else if(m[8]!=null){piece='<em>'+mdInline(m[8])+'</em>'}
+    else if(m[9]!=null){piece='<code class="inline-code">'+escHtml(m[9].slice(1,-1))+'</code>'}
+    out+=(piece==null?renderText(m[0]):piece);        // unrecognised stays inert text
+    last=m.index+m[0].length;
+  }
+  out+=renderText(s.slice(last));
+  return out;
+}
+function mdRow(line){
+  const cells=String(line).trim().replace(/^\|/,'').replace(/\|$/,'').split('|');
+  return cells.map(c=>c.trim());
+}
+function mdIsDivider(line){return /^\s*\|?[\s:-]*-[\s:|-]*\|?\s*$/.test(line)&&line.indexOf('-')>=0}
+// Block renderer. Line-oriented and non-recursive apart from inline, so a
+// pathological document cannot blow the stack.
+function mdRender(src){
+  const lines=String(src==null?'':src).replace(/\r\n?/g,'\n').split('\n');
+  const out=[];
+  let i=0,para=[];
+  const flush=()=>{ if(para.length){out.push('<p>'+mdInline(para.join('\n'))+'</p>');para=[]} };
+  while(i<lines.length){
+    const ln=lines[i];
+    // fenced code
+    const fence=ln.match(/^\s*```(.*)$/);
+    if(fence){
+      flush();
+      const buf=[];i++;
+      while(i<lines.length&&!/^\s*```\s*$/.test(lines[i])){buf.push(lines[i]);i++}
+      i++;
+      out.push('<pre class="md-pre"><code>'+escHtml(buf.join('\n'))+'</code></pre>');
+      continue;
+    }
+    if(/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(ln)){flush();out.push('<hr class="md-hr">');i++;continue}
+    const h=ln.match(/^(#{1,6})\s+(.*)$/);
+    if(h){flush();const n=h[1].length;out.push('<h'+n+' class="md-h">'+mdInline(h[2])+'</h'+n+'>');i++;continue}
+    if(/^\s*>\s?/.test(ln)){
+      flush();const buf=[];
+      while(i<lines.length&&/^\s*>\s?/.test(lines[i])){buf.push(lines[i].replace(/^\s*>\s?/,''));i++}
+      out.push('<blockquote class="md-quote">'+mdInline(buf.join('\n'))+'</blockquote>');
+      continue;
+    }
+    // table: header row followed by a divider row
+    if(/\|/.test(ln)&&i+1<lines.length&&mdIsDivider(lines[i+1])){
+      flush();
+      const head=mdRow(ln);i+=2;
+      let t='<div class="md-table-wrap"><table class="md-table"><thead><tr>'
+        +head.map(c=>'<th>'+mdInline(c)+'</th>').join('')+'</tr></thead><tbody>';
+      while(i<lines.length&&/\|/.test(lines[i])&&lines[i].trim()){
+        t+='<tr>'+mdRow(lines[i]).map(c=>'<td>'+mdInline(c)+'</td>').join('')+'</tr>';i++;
+      }
+      out.push(t+'</tbody></table></div>');
+      continue;
+    }
+    // lists, including checklists
+    const li=ln.match(/^(\s*)([-*+]|\d+[.)])\s+(.*)$/);
+    if(li){
+      flush();
+      const ordered=/\d/.test(li[2]);
+      let t='<'+(ordered?'ol':'ul')+' class="md-list">';
+      while(i<lines.length){
+        const m2=lines[i].match(/^(\s*)([-*+]|\d+[.)])\s+(.*)$/);
+        if(!m2)break;
+        if(/\d/.test(m2[2])!==ordered)break;
+        let body=m2[3];
+        const chk=body.match(/^\[([ xX])\]\s+(.*)$/);
+        if(chk){
+          t+='<li class="md-task"><input type="checkbox" disabled'
+            +(chk[1].toLowerCase()==='x'?' checked':'')+'> '+mdInline(chk[2])+'</li>';
+        }else{
+          t+='<li>'+mdInline(body)+'</li>';
+        }
+        i++;
+      }
+      out.push(t+'</'+(ordered?'ol':'ul')+'>');
+      continue;
+    }
+    if(!ln.trim()){flush();i++;continue}
+    para.push(ln);i++;
+  }
+  flush();
+  return out.join('');
+}
+function mdWordCount(src){
+  const t=String(src||'').replace(/```[\s\S]*?```/g,' ').trim();
+  return t?t.split(/\s+/).length:0;
+}
+/* ===== DOCUMENT NOTES: view and editor ===== */
+// There is NO server autosave. The ship changes only on an explicit SAVE or
+// Ctrl/Cmd+S. Everything below the save boundary is browser-local.
+function docViewState(noteId){
+  let v=state.docView[noteId];
+  if(!v){v={mode:'rendered',editing:false,draft:null,base:-1,dirty:false,session:0,cursor:null};state.docView[noteId]=v}
+  return v;
+}
+function syncComposerVisibility(noteId){
+  const area=document.getElementById('chatInputArea');
+  if(area)area.style.display=isDocumentNote(noteId)?'none':'';
+  updateDocBar(noteId);
+}
+// Mirrors can-edit-document in the agent, arm for arm. The backend stays
+// authoritative; this exists so the UI does not offer an action that will be
+// refused. Previously it omitted the membership and removed checks entirely and
+// treated a raw creator as editable, so a non-member or removed user was shown
+// an EDIT button that could not work.
+function docCanEdit(noteId){
+  const n=state.notes[noteId];
+  if(!n||n.type!=='document')return false;
+  const me='~'+api.ship;
+  const has=(arr,v)=>Array.isArray(arr)&&arr.indexOf(v)>=0;
+  if(has(n.removed,me))return false;              // removed: never
+  if(!has(n.users,me))return false;               // not a member: never
+  if(n.creator===me)return true;                  // creator
+  if(has(state.noteAdmins[noteId],me))return true; // admin
+  if(n.writable===false)return false;             // read-only note, ordinary member
+  if(has(state.noteMuted[noteId],me))return false; // muted ordinary member
+  return true;
+}
+function docCurrentText(noteId){
+  const v=docViewState(noteId);
+  if(v.editing&&v.draft!=null)return v.draft;
+  const d=docOf(noteId);
+  return d?d.body:'';
+}
+function renderDocumentSurface(noteId,el){
+  const v=docViewState(noteId);
+  const d=docOf(noteId);
+  // ALWAYS re-read on open, even when something is cached. A cached entry can be
+  // stale -- the empty revision 0 written at creation is the common case -- and
+  // rendering that without refreshing is what made a populated document look
+  // empty. applyDocUpdate's revision guard discards the answer if it is not
+  // newer, so this costs one scry and can never move state backwards.
+  if(d&&!docViewState(noteId).editing){
+    fetchDocument(noteId).then(function(got){
+      if(got&&Number(got.revision)>Number(d.revision)&&state.currentNoteId===noteId)
+        renderMessages(noteId,'preserve');
+    });
+  }
+  if(!d){
+    el.innerHTML='<div style="padding:1.2rem" class="doc-empty">loading document…</div>';
+    fetchDocument(noteId).then(function(got){
+      if(got){if(state.currentNoteId===noteId)renderMessages(noteId,'preserve');return}
+      // Nothing locally. If the host holds it, ask -- an invite that arrived
+      // after the last save leaves a member with no document until it does.
+      requestDocumentFromHost(noteId);
+    });
+    return;
+  }
+  el.innerHTML='';
+  const wrap=document.createElement('div');wrap.className='doc-surface';
+  wrap.appendChild(buildDocBar(noteId,v,d));
+  const panes=document.createElement('div');panes.className='doc-panes';
+  const showSrc=v.editing&&(v.mode==='source'||v.mode==='split');
+  const showRead=!v.editing||v.mode==='rendered'||v.mode==='split';
+  if(showSrc)panes.appendChild(buildDocSource(noteId,v));
+  if(showRead)panes.appendChild(buildDocRendered(noteId));
+  wrap.appendChild(panes);
+  el.appendChild(wrap);
+}
+function buildDocRendered(noteId){
+  const pane=document.createElement('div');pane.className='doc-pane';
+  const body=document.createElement('div');body.className='doc-read';body.id='docRendered';
+  const txt=docCurrentText(noteId);
+  if(!txt.trim()){
+    body.innerHTML='<div class="doc-empty">This document is empty. Press EDIT to start writing.</div>';
+  }else{
+    body.innerHTML=mdRender(txt);
+  }
+  pane.appendChild(body);
+  return pane;
+}
+function buildDocSource(noteId,v){
+  const pane=document.createElement('div');pane.className='doc-pane';
+  const ta=document.createElement('textarea');
+  ta.className='doc-src';ta.id='docSource';ta.spellcheck=false;
+  ta.value=v.draft==null?docCurrentText(noteId):v.draft;
+  const remember=function(){
+    const st=docViewState(noteId);
+    st.cursor={start:ta.selectionStart,end:ta.selectionEnd};
+  };
+  ta.addEventListener('keyup',remember);
+  ta.addEventListener('click',remember);
+  ta.addEventListener('select',remember);
+  ta.addEventListener('blur',remember);
+  ta.addEventListener('input',function(){
+    const st=docViewState(noteId);
+    st.cursor={start:ta.selectionStart,end:ta.selectionEnd};
+    st.draft=ta.value;
+    st.dirty=(ta.value!==(docOf(noteId)||{body:''}).body);
+    saveLocalDraft(noteId,ta.value,st.base);
+    updateDocBar(noteId);
+    if(st.mode==='split'){
+      const r=document.getElementById('docRendered');
+      if(r)r.innerHTML=ta.value.trim()?mdRender(ta.value):'<div class="doc-empty">empty</div>';
+    }
+  });
+  bindDocImageInput(ta,noteId);
+  pane.appendChild(ta);
+  return pane;
+}
+function docBtn(label,title,on,fn,disabled){
+  const b=document.createElement('button');
+  b.type='button';b.className='doc-btn'+(on?' on':'');b.textContent=label;
+  if(title)b.title=title;
+  if(disabled)b.disabled=true; else b.addEventListener('click',fn);
+  return b;
+}
+function buildDocBar(noteId,v,d){
+  const bar=document.createElement('div');bar.className='doc-bar';bar.id='docBar';
+  const canEdit=docCanEdit(noteId);
+  if(!v.editing){
+    // PREVIEW: EDIT left, read-only actions right. PRINT and EXPORT render the
+    // rendered output; IMPORT replaces the body as an unsaved draft, so it is
+    // guarded below and nothing reaches the ship until SAVE.
+    // Write actions are OMITTED, not disabled, for a reader who cannot edit.
+    if(canEdit)bar.appendChild(docBtn('EDIT','Edit this document',false,function(){startDocEdit(noteId)}));
+    const sp0=document.createElement('span');sp0.className='doc-spacer';bar.appendChild(sp0);
+    bar.appendChild(docBtn('PRINT','Printable view',false,function(){printDocument(noteId)}));
+    if(canEdit)bar.appendChild(docBtn('IMPORT','Replace this document from a .md file',false,function(){importMarkdownInto(noteId)}));
+    bar.appendChild(docBtn('EXPORT','Export as .md',false,function(){exportDocument(noteId)}));
+  }else{
+    // SAVE and CANCEL stay LEFT and keep their boxes.
+    const save=docBtn('SAVE','Save to the ship (Ctrl/Cmd+S)',false,function(){saveDoc(noteId)});
+    save.classList.add('save');
+    const cancel=docBtn('CANCEL','Stop editing',false,function(){cancelDocEdit(noteId)});
+    cancel.classList.add('cancel');
+    // EDIT: modes LEFT, edit tools CENTRE, SAVE/CANCEL RIGHT
+    [['source','SOURCE'],['rendered','PREVIEW'],['split','SPLIT']].forEach(function(pair){
+      bar.appendChild(docBtn(pair[1],'View mode',v.mode===pair[0],function(){
+        docViewState(noteId).mode=pair[0];renderMessages(noteId,'preserve');
+      }));
+    });
+    const spL=document.createElement('span');spL.className='doc-spacer';bar.appendChild(spL);
+    bar.appendChild(docBtn('FIND','Find in document',false,function(){docFind()}));
+    bar.appendChild(docBtn('IMG','Insert an image',false,function(){docPickImage(noteId)}));
+    const spR=document.createElement('span');spR.className='doc-spacer';bar.appendChild(spR);
+    bar.appendChild(save);bar.appendChild(cancel);
+  }
+  setTimeout(function(){updateDocBar(noteId)},0);
+  return bar;
+}
+// The meta line lives in the CHAT HEADER, after the note name and after the
+// READ ONLY badge when that is showing. Documents only; hidden otherwise.
+function updateDocBar(noteId){
+  const line=document.getElementById('docMetaLine');
+  if(!line)return;
+  if(!isDocumentNote(noteId)){line.style.display='none';line.textContent='';return}
+  const v=docViewState(noteId),d=docOf(noteId);
+  const words=mdWordCount(docCurrentText(noteId));
+  const bits=['rev '+(d?d.revision:'?'),words+' words'];
+  if(d&&d.versions)bits.push(d.versions+' versions');
+  if(v.editing&&v.dirty)bits.push('UNSAVED');
+  line.textContent=bits.join(' · ');
+  line.style.display='';
+  line.className='doc-meta-line'+(v.editing&&v.dirty?' doc-dirty':'');
+}
+function startDocEdit(noteId){
+  const v=docViewState(noteId),d=docOf(noteId);
+  const body=d?d.body:'';
+  const cur=d?d.revision:0;
+  // Each EDIT is a distinct SESSION. An upload that finishes after the session
+  // ended (cancel, save, replaced, note switched) must insert nothing rather
+  // than resurrect a dead draft.
+  v.session=(state.docSessionSeq=(state.docSessionSeq||0)+1);
+  v.cursor=null;
+  v.editing=true;v.mode='source';
+  // Resume, do not restart. A draft is restored WITH THE REVISION IT WAS
+  // WRITTEN AGAINST, never rebased onto the current one: if somebody else saved
+  // meanwhile, saving must raise the ordinary conflict modal rather than
+  // silently overwriting their work. A reload lands the user back where they
+  // were -- draft in the editor, conflict on save -- instead of a new flow.
+  const here=loadLocalDraft(noteId,cur);
+  if(here!=null){
+    v.base=cur;v.draft=here;v.dirty=v.draft!==body;
+    renderMessages(noteId,'preserve');
+    return;
+  }
+  const stale=findAnyLocalDraft(noteId);
+  if(stale&&stale.text!==body){
+    v.base=stale.base;v.draft=stale.text;v.dirty=true;
+    renderMessages(noteId,'preserve');
+    return;
+  }
+  v.base=cur;v.draft=body;v.dirty=false;
+  renderMessages(noteId,'preserve');
+}
+function cancelDocEdit(noteId){
+  const v=docViewState(noteId);
+  if(v.dirty&&!confirm('Discard unsaved changes to this document?'))return;
+  v.editing=false;v.draft=null;v.dirty=false;v.mode='rendered';
+  clearAllLocalDrafts(noteId);
+  renderMessages(noteId,'preserve');
+}
+/* ===== DOCUMENT NOTES: local drafts and conflict recovery ===== */
+// Drafts are BROWSER-LOCAL and never enter Urbit state until an explicit SAVE.
+// Keyed by ship + note + the revision the edit started from, so a draft written
+// against one revision can never be silently applied to another. A rejected
+// draft is NEVER discarded automatically.
+function draftKey(noteId,base){return 'nb-doc-draft/'+api.ship+'/'+noteId+'/'+base}
+function saveLocalDraft(noteId,text,base){
+  try{localStorage.setItem(draftKey(noteId,base),JSON.stringify({t:text,at:Date.now()}))}catch(e){}
+}
+function loadLocalDraft(noteId,base){
+  try{
+    const raw=localStorage.getItem(draftKey(noteId,base));
+    if(!raw)return null;
+    const o=JSON.parse(raw);
+    return (o&&typeof o.t==='string')?o.t:null;
+  }catch(e){return null}
+}
+function clearLocalDraft(noteId,base){
+  try{localStorage.removeItem(draftKey(noteId,base))}catch(e){}
+}
+// Clear EVERY draft for this note, whatever revision it was filed under. A
+// resolution rebases (OVERWRITE) or diverts (SAVE AS NEW DOCUMENT) the draft, so
+// clearing only the current revision's key left the original behind -- it would
+// then be resurrected on the next EDIT and raise a conflict the user had no
+// reason to expect. Only genuine RESOLUTIONS call this; COMPARE, COPY, EXPORT
+// and KEEP EDITING deliberately leave the draft alone.
+function clearAllLocalDrafts(noteId){
+  try{
+    const pre='nb-doc-draft/'+api.ship+'/'+noteId+'/';
+    const doomed=[];
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i);
+      if(k&&k.indexOf(pre)===0)doomed.push(k);
+    }
+    for(const k of doomed)localStorage.removeItem(k);
+  }catch(e){}
+}
+// Any draft for this note, whatever revision it was written against. Used for
+// recovery after a reload, where the base may no longer be current.
+function findAnyLocalDraft(noteId){
+  let best=null;
+  try{
+    const pre='nb-doc-draft/'+api.ship+'/'+noteId+'/';
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i);
+      if(k&&k.indexOf(pre)===0){
+        const o=JSON.parse(localStorage.getItem(k));
+        if(o&&typeof o.t==='string'){
+          const c={base:Number(k.slice(pre.length)),text:o.t,at:Number(o.at||0)};
+          if(!best||c.at>best.at)best=c;      // several drafts: newest wins
+        }
+      }
+    }
+  }catch(e){}
+  return best;
+}
+// SAVE. Correlated by request id so the typed result routes back to this editor.
+function saveDoc(noteId){
+  const v=docViewState(noteId);
+  if(!v.editing)return;
+  const body=v.draft==null?'':v.draft;
+  const rid=++state.docReqSeq;
+  state.docSaveWait[rid]={noteId:noteId,body:body,base:v.base};
+  api.poke('noltbook','noltbook-action',
+    {action:'save-document',data:{noteId:noteId,body:body,expected:v.base,requestId:rid}});
+}
+// Typed result from the host. %saved and %no-change are both SUCCESS.
+function handleDocSaveResult(r){
+  if(!r||typeof r.noteId!=='string')return;
+  const rid=(r.requestId==null)?null:Number(r.requestId);
+  const wait=(rid!=null)?state.docSaveWait[rid]:null;
+  // A save-result is broadcast to every subscriber on this ship, but it is the
+  // answer to ONE client's request. A tab that did not issue this save must not
+  // act on it: otherwise another client's conflict opens a modal here, and --
+  // worse -- another client's success would drop this tab out of edit mode and
+  // discard an unsaved draft it knows nothing about.
+  if(!wait)return;
+  delete state.docSaveWait[rid];
+  const noteId=r.noteId, v=docViewState(noteId), res=String(r.result||'');
+  if(res==='saved'||res==='no-change'){
+    // the draft is now the saved truth: retire every copy of it
+    clearAllLocalDrafts(noteId);
+    v.editing=false;v.draft=null;v.dirty=false;v.mode='rendered';
+    if(state.currentNoteId===noteId)renderMessages(noteId,'preserve');
+    return;
+  }
+  if(res==='conflict'){
+    // The host refused and changed NOTHING. Keep the draft and let the user decide.
+    openDocConflict(noteId,wait.body,Number(r.revision));
+    return;
+  }
+  if(res==='too-large'){
+    alert('This document is larger than the '+(Number(r.limit)||1048576)+
+          ' byte limit. Your draft is kept — shorten it and save again.');
+    return;
+  }
+  alert(res==='denied'
+    ? 'You do not have permission to edit this document. Your draft is kept locally.'
+    : 'The host could not save this document ('+res+'). Your draft is kept locally.');
+}
+// CONFLICT. Never last-write-wins, never a silent overwrite.
+function openDocConflict(noteId,draft,current){
+  const v=docViewState(noteId);
+  v.draft=draft;v.dirty=true;
+  saveLocalDraft(noteId,draft,v.base);        // the draft survives, always
+  const ov=document.createElement('div');
+  ov.className='modal-overlay open';ov.id='docConflictModal';
+  const box=document.createElement('div');box.className='modal';
+  box.style.maxWidth='44rem';
+  const h=document.createElement('span');h.className='modal-title';
+  h.style.color='var(--text)';
+  h.textContent='DOCUMENT CHANGED WHILE YOU WERE EDITING';
+  box.appendChild(h);
+  const p=document.createElement('div');
+  p.style.cssText='font-size:.8rem;color:var(--text-dim);margin:.5rem 0 .8rem;line-height:1.5';
+  p.textContent='Someone saved revision '+current+' while you were on revision '+v.base
+    +'. Nothing was overwritten and your draft is safe. Choose what to do.';
+  box.appendChild(p);
+  const acts=document.createElement('div');
+  acts.style.cssText='display:flex;flex-direction:column;gap:.4rem';
+  const add=(label,desc,fn)=>{
+    const b=document.createElement('button');
+    b.className='modal-btn doc-conflict-btn';b.style.cssText='text-align:left;width:100%';
+    b.innerHTML='<strong>'+escHtml(label)+'</strong><br><span style="font-size:.72rem;color:var(--text-dim)">'+escHtml(desc)+'</span>';
+    b.addEventListener('click',fn);acts.appendChild(b);
+  };
+  add('COMPARE','Show the current document beside your draft',function(){
+    closeDocConflict();showDocCompare(noteId,draft);
+  });
+  add('USE CURRENT VERSION','Discard your draft and load revision '+current,function(){
+    if(!confirm('Discard your draft and load revision '+current+'?'))return;
+    clearAllLocalDrafts(noteId);
+    v.editing=false;v.draft=null;v.dirty=false;
+    closeDocConflict();fetchDocument(noteId).then(()=>renderMessages(noteId,'preserve'));
+  });
+  add('COPY MY DRAFT','Put your draft on the clipboard',function(){copyDocText(draft)});
+  add('SAVE AS NEW DOCUMENT','Create a new document owned by you from your draft',function(){
+    closeDocConflict();
+    duplicateDocument(noteId,draft,'copy of this document');
+    // the draft has been diverted into a new note; it must not linger here
+    clearAllLocalDrafts(noteId);
+    const st=docViewState(noteId);
+    st.editing=false;st.draft=null;st.dirty=false;st.mode='rendered';
+  });
+  add('EXPORT MY DRAFT AS .MD','Download your draft as a Markdown file',function(){
+    exportMarkdown((state.notes[noteId]||{name:'document'}).name+'-draft',draft);
+  });
+  add('OVERWRITE WITH MY DRAFT','Replace revision '+current+' with your draft',function(){
+    if(!confirm('This replaces revision '+current+' — the other person’s changes will only exist in version history. Continue?'))return;
+    // fresh revision check: never overwrite based on the number we were told earlier
+    fetchDocument(noteId).then(function(d){
+      const now=d?Number(d.revision):current;
+      if(!confirm('Current revision is now '+now+'. Overwrite it with your draft?'))return;
+      const st=docViewState(noteId);st.base=now;st.editing=true;st.draft=draft;
+      closeDocConflict();saveDoc(noteId);
+    });
+  });
+  box.appendChild(acts);
+  const close=document.createElement('button');
+  close.className='modal-btn cancel-red doc-conflict-btn';close.textContent='KEEP EDITING';
+  close.style.marginTop='.6rem';
+  close.addEventListener('click',function(){closeDocConflict();renderMessages(noteId,'preserve')});
+  box.appendChild(close);
+  ov.appendChild(box);document.body.appendChild(ov);
+}
+function closeDocConflict(){const m=document.getElementById('docConflictModal');if(m)m.remove()}
+function showDocCompare(noteId,draft){
+  fetchDocument(noteId).then(function(d){
+    const ov=document.createElement('div');
+    ov.className='modal-overlay open';ov.id='docCompareModal';
+    const box=document.createElement('div');box.className='modal';
+    box.style.cssText='max-width:64rem;width:92vw';
+    const h=document.createElement('span');h.className='modal-title';h.textContent='COMPARE';
+    box.appendChild(h);
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;gap:.6rem;max-height:60vh';
+    [['CURRENT (rev '+(d?d.revision:'?')+')',d?d.body:''],['MY DRAFT',draft]].forEach(function(pair){
+      const col=document.createElement('div');
+      col.style.cssText='flex:1;min-width:0;display:flex;flex-direction:column';
+      const lbl=document.createElement('div');
+      lbl.style.cssText='font-size:.7rem;letter-spacing:.05em;color:var(--text-dim);margin-bottom:.3rem';
+      lbl.textContent=pair[0];
+      const pre=document.createElement('pre');
+      pre.style.cssText='flex:1;overflow:auto;margin:0;padding:.5rem;border:1px solid var(--border);white-space:pre-wrap;font:12px/1.45 ui-monospace,Menlo,monospace';
+      pre.textContent=pair[1];
+      col.appendChild(lbl);col.appendChild(pre);row.appendChild(col);
+    });
+    box.appendChild(row);
+    const back=document.createElement('button');
+    back.className='modal-btn';back.textContent='BACK';back.style.marginTop='.6rem';
+    back.addEventListener('click',function(){
+      const m=document.getElementById('docCompareModal');if(m)m.remove();
+      openDocConflict(noteId,draft,d?Number(d.revision):0);
+    });
+    box.appendChild(back);
+    ov.appendChild(box);document.body.appendChild(ov);
+  });
+}
+function copyDocText(t){
+  try{
+    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t);
+  }catch(e){}
+}
+// Ctrl/Cmd+S saves; the browser's own save dialog is suppressed only while a
+// document is actually being edited.
+document.addEventListener('keydown',function(e){
+  if(!(e.ctrlKey||e.metaKey)||String(e.key).toLowerCase()!=='s')return;
+  const nid=state.currentNoteId;
+  if(!isDocumentNote(nid))return;
+  const v=state.docView[nid];
+  if(!v||!v.editing)return;
+  e.preventDefault();
+  saveDoc(nid);
+});
+// Warn before leaving with unsaved changes. The draft is already persisted, so
+// this is a courtesy rather than the thing that protects the work.
+window.addEventListener('beforeunload',function(e){
+  const nid=state.currentNoteId;
+  const v=state.docView[nid];
+  if(v&&v.editing&&v.dirty){e.preventDefault();e.returnValue=''}
+});
+/* ===== DOCUMENT NOTES: export, import, duplication, history ===== */
+function docFileName(base){
+  return String(base||'document').replace(/[^\w.-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60)||'document';
+}
+// .md export. This is the Noltbook app itself, not a sandboxed artifact, so a
+// download link works normally.
+function exportMarkdown(name,text){
+  try{
+    const blob=new Blob([String(text==null?'':text)],{type:'text/markdown;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;a.download=docFileName(name)+'.md';
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(function(){URL.revokeObjectURL(url)},2000);
+  }catch(e){alert('Could not export this document.')}
+}
+function exportDocument(noteId){
+  const d=docOf(noteId),n=state.notes[noteId]||{};
+  exportMarkdown(n.name||'document',d?d.body:'');
+}
+// Markdown import replaces the DRAFT only. Nothing reaches the ship until SAVE.
+function importMarkdownInto(noteId){
+  const inp=document.createElement('input');
+  inp.type='file';inp.accept='.md,.markdown,text/markdown,text/plain';
+  inp.addEventListener('change',function(){
+    const f=inp.files&&inp.files[0];
+    if(!f)return;
+    const fr=new FileReader();
+    fr.onload=function(){
+      // IMPORT REPLACES the whole body rather than inserting, so confirm when
+      // there is something to lose. It lands as an unsaved draft either way.
+      const existing=docCurrentText(noteId);
+      if(existing.trim()&&!confirm('Import replaces the entire document with this file. Your current text is not saved over until you press SAVE. Continue?'))return;
+      const v=docViewState(noteId);
+      if(!v.editing)startDocEdit(noteId);
+      const st=docViewState(noteId);
+      st.draft=String(fr.result||'');st.dirty=true;
+      saveLocalDraft(noteId,st.draft,st.base);
+      renderMessages(noteId,'preserve');
+    };
+    fr.readAsText(f);
+  });
+  inp.click();
+}
+// Printable rendered view. Print CSS hides the shell and the toolbar.
+function printDocument(noteId){
+  const v=docViewState(noteId);
+  const was=v.mode,wasEdit=v.editing;
+  v.editing=false;v.mode='rendered';
+  renderMessages(noteId,'preserve');
+  setTimeout(function(){
+    window.print();
+    v.editing=wasEdit;v.mode=was;renderMessages(noteId,'preserve');
+  },120);
+}
+// DUPLICATE. Never a fork: no lineage, no members, no permissions, no history.
+function duplicateDocument(sourceId,body,hint){
+  const src=state.notes[sourceId]||{name:'document'};
+  const name=prompt('Name for the new document'+(hint?' ('+hint+')':'')+':',(src.name||'document')+' copy');
+  if(!name)return;
+  api.poke('noltbook','noltbook-action',{action:'duplicate-document',
+    data:{sourceId:sourceId,name:name,body:String(body==null?'':body)}});
+}
+/* ---- version history ---- */
+function openDocHistory(noteId){
+  const ov=document.createElement('div');
+  ov.className='modal-overlay open';ov.id='docHistoryModal';
+  ov.dataset.noteId=noteId;
+  const box=document.createElement('div');box.className='modal';
+  box.style.cssText='max-width:60rem;width:92vw;max-height:82vh;display:flex;flex-direction:column';
+  const h=document.createElement('span');h.className='modal-title';h.textContent='VERSION HISTORY';
+  box.appendChild(h);
+  const body=document.createElement('div');
+  body.id='docHistoryBody';
+  body.style.cssText='flex:1;min-height:0;overflow:auto;margin:.5rem 0';
+  body.innerHTML='<div class="doc-empty">loading…</div>';
+  box.appendChild(body);
+  const close=document.createElement('button');
+  close.className='modal-btn cancel-red';close.textContent='CLOSE';
+  close.addEventListener('click',function(){ov.remove()});
+  box.appendChild(close);
+  ov.appendChild(box);document.body.appendChild(ov);
+  // history is fetched only when asked for, never replicated in advance
+  api.poke('noltbook','noltbook-action',{action:'request-document-history',data:{noteId:noteId}});
+  fetchDocHistory(noteId).then(function(){renderDocHistoryModal(noteId)});
+}
+function renderDocHistoryModal(noteId){
+  const ov=document.getElementById('docHistoryModal');
+  if(!ov||ov.dataset.noteId!==noteId)return;
+  const body=document.getElementById('docHistoryBody');
+  if(!body)return;
+  const h=state.documentHistory[noteId];
+  const canEdit=docCanEdit(noteId);
+  body.innerHTML='';
+  if(!h||!h.entries||!h.entries.length){
+    body.innerHTML='<div class="doc-empty">No earlier versions yet. A version is kept each time the document changes.</div>';
+    return;
+  }
+  const stat=document.createElement('div');
+  stat.style.cssText='font-size:.7rem;color:var(--text-dim);margin-bottom:.5rem;letter-spacing:.04em';
+  stat.textContent=h.versions+' versions · '+h.bytes+' bytes of stored Markdown';
+  body.appendChild(stat);
+  h.entries.slice().reverse().forEach(function(v){
+    const row=document.createElement('div');
+    row.style.cssText='border:1px solid var(--border);padding:.5rem .6rem;margin-bottom:.4rem';
+    const head=document.createElement('div');
+    head.style.cssText='display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;font-size:.75rem';
+    const lbl=document.createElement('span');
+    lbl.innerHTML='<strong>rev '+escHtml(String(v.revision))+'</strong> · '
+      +escHtml(String(v.savedBy||''))+' · '+escHtml(String(v.savedAt||''));
+    head.appendChild(lbl);
+    const acts=document.createElement('span');
+    acts.style.cssText='margin-left:auto;display:flex;gap:.3rem';
+    acts.appendChild(docBtn('VIEW','Show this version',false,function(){viewDocVersion(noteId,v)}));
+    if(canEdit)acts.appendChild(docBtn('RESTORE','Install this body as a new revision',false,function(){
+      if(!confirm('Restore revision '+v.revision+'? This creates a NEW revision; nothing in history is removed.'))return;
+      api.poke('noltbook','noltbook-action',
+        {action:'restore-document-version',data:{noteId:noteId,revision:v.revision,requestId:++state.docReqSeq}});
+      ov.remove();
+    }));
+    acts.appendChild(docBtn('MAKE COPY','Create a new document from this version',false,function(){
+      duplicateDocument(noteId,v.body,'from rev '+v.revision);
+    }));
+    acts.appendChild(docBtn('EXPORT .MD','Download this version',false,function(){
+      exportMarkdown((state.notes[noteId]||{name:'document'}).name+'-rev'+v.revision,v.body);
+    }));
+    head.appendChild(acts);
+    row.appendChild(head);
+    const prev=document.createElement('div');
+    prev.style.cssText='margin-top:.35rem;font-size:.72rem;color:var(--text-dim);white-space:pre-wrap;max-height:3.4rem;overflow:hidden';
+    prev.textContent=String(v.body||'').slice(0,240);
+    row.appendChild(prev);
+    body.appendChild(row);
+  });
+}
+function viewDocVersion(noteId,v){
+  const ov=document.createElement('div');
+  ov.className='modal-overlay open';
+  const box=document.createElement('div');box.className='modal';
+  box.style.cssText='max-width:56rem;width:92vw;max-height:82vh;display:flex;flex-direction:column';
+  const h=document.createElement('span');h.className='modal-title';
+  h.textContent='REVISION '+v.revision;
+  box.appendChild(h);
+  const rd=document.createElement('div');
+  rd.className='doc-read';
+  rd.style.cssText='flex:1;min-height:0;overflow:auto;margin:.5rem 0';
+  rd.innerHTML=mdRender(v.body||'');
+  box.appendChild(rd);
+  const close=document.createElement('button');
+  close.className='modal-btn cancel-red';close.textContent='CLOSE';
+  close.addEventListener('click',function(){ov.remove()});
+  box.appendChild(close);
+  ov.appendChild(box);document.body.appendChild(ov);
+}
+/* ===== DOCUMENT NOTES: Markdown tools, find, images ===== */
+function docTa(){return document.getElementById('docSource')}
+// Insert or wrap at the cursor, then push the change through the same path a
+// keystroke takes so the draft and the preview stay in step.
+function docWrap(before,after,placeholder){
+  const ta=docTa();if(!ta)return;
+  const s0=ta.selectionStart,s1=ta.selectionEnd;
+  const sel=ta.value.slice(s0,s1)||placeholder||'';
+  ta.value=ta.value.slice(0,s0)+before+sel+(after==null?'':after)+ta.value.slice(s1);
+  ta.selectionStart=s0+before.length;
+  ta.selectionEnd=s0+before.length+sel.length;
+  ta.focus();
+  ta.dispatchEvent(new Event('input',{bubbles:true}));
+}
+// Deliberately small. Markdown syntax people either know or look up, so the
+// formatting buttons are gone. IMG stays because paste and drag-and-drop are
+// not discoverable, and FIND stays because the browser's own Ctrl+F does not
+// search inside a textarea's value.
+// Find within the document: selects the next match in the source pane.
+let _docFindLast='';
+function docFind(){
+  const ta=docTa();if(!ta)return;
+  const q=prompt('Find in document:',_docFindLast);
+  if(!q)return;
+  _docFindLast=q;
+  const from=ta.selectionEnd||0;
+  let i=ta.value.toLowerCase().indexOf(q.toLowerCase(),from);
+  if(i<0)i=ta.value.toLowerCase().indexOf(q.toLowerCase(),0);
+  if(i<0){alert('Not found.');return}
+  ta.focus();ta.setSelectionRange(i,i+q.length);
+  const before=ta.value.slice(0,i).split('\n').length;
+  ta.scrollTop=Math.max(0,(before-4)*18);
+}
+/* ---- images: bytes go to artifact storage, Markdown gets a reference ---- */
+function docArtifactUrl(art){
+  let v=1;
+  try{const m=JSON.parse(art.versions[art.versions.length-1].content);v=m.version||1}catch(e){}
+  return '/apps/noltbook/artifact/'+encodeURIComponent(art.id)+'?v='+v+'&preview=1';
+}
+// Upload through the EXISTING artifact endpoint, then wait for the artifact to
+// arrive by fact and insert only its reference. No bytes ever touch the body.
+// The upload endpoint answers {"id":"art-...","version":N}. Use THAT id, never a
+// guess: the previous version diffed state.artifacts before and after and polled
+// for whatever new artifact appeared, so an unrelated artifact fact arriving
+// mid-upload could be selected and inserted instead.
+function docParseUploadResult(text){
+  let o=null;
+  try{o=JSON.parse(text)}catch(e){return null}
+  if(!o||typeof o!=='object')return null;
+  if(typeof o.id!=='string'||!/^[A-Za-z0-9._~-]{1,128}$/.test(o.id))return null;
+  // a real JSON integer only: no strings, booleans, fractions, infinities or
+  // anything else that merely coerces
+  if(typeof o.version!=='number')return null;
+  if(!Number.isSafeInteger(o.version))return null;
+  if(o.version<1||o.version>1e6)return null;
+  return {id:o.id,version:o.version};
+}
+function docArtifactUrlFor(id,version){
+  return '/apps/noltbook/artifact/'+encodeURIComponent(id)+'?v='+version+'&preview=1';
+}
+async function docUploadImage(noteId,file){
+  if(!file||!/^image\//.test(file.type||'')){alert('That is not an image.');return}
+  if(file.size>5*1024*1024){alert('Image too large (5 MB max).');return}
+  // capture WHICH editing session asked for this, so a late answer cannot land
+  // in another note or in a session that has since ended
+  const v0=docViewState(noteId);
+  if(!v0.editing)return;
+  const session=v0.session;
+  const qs='?name='+encodeURIComponent(file.name||'image')+'&kind=image&mime='+encodeURIComponent(file.type);
+  let res=null;
+  try{
+    const r=await fetch('/apps/noltbook/upload-artifact/'+encodeURIComponent(noteId)+qs,
+      {method:'POST',body:file,headers:{'Content-Type':file.type}});
+    if(!r.ok){alert('Image upload failed: '+r.status);return}
+    res=docParseUploadResult(await r.text());
+  }catch(e){alert('Image upload error: '+e.message);return}
+  if(!res){alert('The image uploaded but the server answer could not be read, so nothing was inserted.');return}
+  const alt=String(file.name||'image').replace(/[\[\]()]/g,'');
+  docInsertImageRef(noteId,session,docArtifactUrlFor(res.id,res.version),alt);
+}
+// Insert into the ORIGINATING document's CURRENT draft. Never the global
+// textarea, never an older snapshot: text typed while the upload was in flight
+// must survive.
+function docInsertImageRef(noteId,session,url,alt){
+  const v=state.docView[noteId];
+  // session ended (cancelled, saved, replaced) -- keep the artifact, insert nothing
+  if(!v||!v.editing||v.session!==session)return false;
+  const md='!['+alt+']('+url+')';
+  const cur=(v.draft==null)?'':v.draft;
+  let a,b;
+  if(v.cursor&&typeof v.cursor.start==='number'){
+    a=Math.max(0,Math.min(cur.length,v.cursor.start));
+    b=Math.max(a,Math.min(cur.length,v.cursor.end));
+  }else{
+    a=b=cur.length;                       // no useful cursor: append as its own block
+  }
+  const lead=(a===cur.length&&cur.length&&!/\n$/.test(cur))?'\n\n':'';
+  const next=cur.slice(0,a)+lead+md+cur.slice(b);
+  v.draft=next;
+  v.dirty=true;
+  v.cursor={start:a+lead.length+md.length,end:a+lead.length+md.length};
+  saveLocalDraft(noteId,next,v.base);
+  docApplyDraftToPanes(noteId,v.cursor.start);
+  return true;
+}
+// Update the LIVE panes in place rather than rebuilding them. Rebuilding the
+// textarea discards focus, caret and scroll position, which is very visible if
+// the user kept typing while an upload was in flight.
+function docApplyDraftToPanes(noteId,caret){
+  if(state.currentNoteId!==noteId)return;
+  const v=state.docView[noteId];
+  if(!v)return;
+  const ta=document.getElementById('docSource');
+  if(ta){
+    const hadFocus=(document.activeElement===ta);
+    const scroll=ta.scrollTop;
+    ta.value=(v.draft==null)?'':v.draft;
+    if(typeof caret==='number'){
+      const c=Math.max(0,Math.min(ta.value.length,caret));
+      try{ta.setSelectionRange(c,c)}catch(e){}
+    }
+    ta.scrollTop=scroll;
+    if(hadFocus)try{ta.focus({preventScroll:true})}catch(e){ta.focus()}
+  }
+  // PREVIEW-only and SPLIT both own a rendered pane; refresh it without
+  // switching modes.
+  const rd=document.getElementById('docRendered');
+  if(rd){
+    const txt=(v.draft==null)?'':v.draft;
+    rd.innerHTML=txt.trim()?mdRender(txt):'<div class="doc-empty">This document is empty. Press EDIT to start writing.</div>';
+  }
+  updateDocBar(noteId);
+}
+// Insert an EXTERNAL image link. Bytes are never downloaded, proxied, copied or
+// uploaded -- the Markdown carries the validated remote URL, and the renderer
+// already attaches referrerpolicy="no-referrer" to external images.
+function docInsertExternalImage(noteId,session,url,alt){
+  return docInsertImageRef(noteId,session,url,docSafeAlt(alt));
+}
+// Web-page image drop. Prefers text/html; falls back to a single safe URI
+// confirmed by a bounded probe.
+async function docHandleWebImageDrop(noteId,session,dt){
+  let got=null;
+  try{got=docWebImageFromHtml(dt.getData&&dt.getData('text/html'))}catch(e){}
+  if(got){docInsertExternalImage(noteId,session,got.url,got.alt);return true}
+  let uri=null;
+  try{
+    uri=docFirstUriFromList(dt.getData&&dt.getData('text/uri-list'));
+    if(!uri)uri=docFirstUriFromList(dt.getData&&dt.getData('text/plain'));
+  }catch(e){}
+  if(!uri)return false;
+  const ok=await docProbeImageUrl(uri,6000);
+  if(!ok)return false;                      // unresolvable: insert nothing
+  return docInsertExternalImage(noteId,session,uri,'image');
+}
+/* ---- ONE document-level drop path ----
+   Registered ONCE at module scope, so rerendering the document surface can
+   never accumulate listeners. It fires only while a %document is actively being
+   edited AND the drag actually carries files, so text-selection drags, link
+   drags, ordinary pointer behaviour, plugin iframes and every other note type
+   are untouched.
+
+   dragenter and dragover are both cancelled: that is what makes the region a
+   drop target at all, and it is also what stops the browser from navigating
+   away to the dropped file when the drop lands outside the panes. There is
+   deliberately NO visible drop zone, overlay, border or highlight. */
+function docDragActive(){
+  const nid=state.currentNoteId;
+  if(!isDocumentNote(nid))return null;
+  const v=state.docView[nid];
+  return (v&&v.editing)?nid:null;
+}
+// A drag we should intervene in: a real local FILE, or one of the URL-shaped
+// payloads a browser produces when an image is dragged out of a web page. The
+// original version only recognised Files, so a web-page image fell through to
+// the browser default and opened in a new tab.
+const DOC_URLISH=['text/html','text/uri-list','text/x-moz-url','URL','text/plain'];
+function docDragTypes(dt){
+  const out=[];
+  if(!dt)return out;
+  if(dt.types&&dt.types.length)for(let i=0;i<dt.types.length;i++)out.push(String(dt.types[i]));
+  return out;
+}
+function docDragHasFiles(e){
+  const dt=e&&e.dataTransfer;
+  if(!dt)return false;
+  const ty=docDragTypes(dt);
+  if(ty.indexOf('Files')>=0)return true;
+  return !!(dt.files&&dt.files.length);
+}
+function docDragImagey(e){
+  const dt=e&&e.dataTransfer;
+  if(!dt)return false;
+  if(docDragHasFiles(e))return true;
+  const ty=docDragTypes(dt);
+  for(let i=0;i<DOC_URLISH.length;i++)if(ty.indexOf(DOC_URLISH[i])>=0)return true;
+  return false;
+}
+// EXTERNAL image URL only: absolute http(s). mdSafeUrl also accepts Noltbook
+// artifact paths, which must never come from a foreign page, so those are
+// rejected here.
+function docSafeExternalImageUrl(raw){
+  const u=mdSafeUrl(String(raw||'').trim());
+  if(!u||mdIsArtifactPath(u))return null;
+  return /^https?:\/\//i.test(u)?u:null;
+}
+function docSafeAlt(raw){
+  const t=String(raw==null?'':raw).replace(/[\r\n]+/g,' ').replace(/[\[\]()]/g,'').trim();
+  return t?t.slice(0,120):'image';
+}
+// Parse the transferred HTML in a DETACHED document and read only the first
+// <img>'s src and alt. The HTML itself is never inserted, rendered or trusted;
+// every attribute other than those two is discarded, so transferred event
+// handlers cannot reach the output.
+function docWebImageFromHtml(html){
+  if(!html||typeof DOMParser!=='function')return null;
+  let doc=null;
+  try{doc=new DOMParser().parseFromString(String(html),'text/html')}catch(e){return null}
+  if(!doc)return null;
+  const img=doc.querySelector&&doc.querySelector('img[src]');
+  if(!img)return null;
+  const url=docSafeExternalImageUrl(img.getAttribute('src'));
+  if(!url)return null;
+  return {url:url,alt:docSafeAlt(img.getAttribute('alt'))};
+}
+// text/uri-list may carry comment lines and several URIs; take the first that
+// validates as an absolute http(s) URL.
+function docFirstUriFromList(text){
+  const lines=String(text||'').split(/[\r\n]+/);
+  for(let i=0;i<lines.length;i++){
+    const l=lines[i].trim();
+    if(!l||l.charAt(0)==='#')continue;
+    const u=docSafeExternalImageUrl(l);
+    if(u)return u;
+  }
+  return null;
+}
+// Bounded confirmation that a URL really resolves as an image. No canvas, no
+// pixel access, no CORS bypass, nothing stored -- only the original validated
+// URL is ever used.
+function docProbeImageUrl(url,timeoutMs){
+  return new Promise(function(resolve){
+    let settled=false;
+    const finish=function(ok){if(settled)return;settled=true;clearTimeout(timer);resolve(ok)};
+    const timer=setTimeout(function(){finish(false)},timeoutMs||6000);
+    let img;
+    try{img=new Image()}catch(e){finish(false);return}
+    try{img.referrerPolicy='no-referrer'}catch(e){}
+    img.onload=function(){finish(true)};
+    img.onerror=function(){finish(false)};
+    img.src=url;
+  });
+}
+function docInPanes(target){
+  return !!(target&&target.closest&&target.closest('.doc-panes'));
+}
+(function bindDocumentDrop(){
+  if(window.__nbDocDropBound)return;      // idempotent: never stack listeners
+  window.__nbDocDropBound=true;
+  const swallow=function(e){
+    if(!docDragActive()||!docDragImagey(e))return;
+    // cancelling here covers the whole page during an edit, which is what stops
+    // a near-miss drop from navigating away
+    e.preventDefault();
+    if(e.dataTransfer)try{e.dataTransfer.dropEffect='copy'}catch(err){}
+  };
+  document.addEventListener('dragenter',swallow,false);
+  document.addEventListener('dragover',swallow,false);
+  document.addEventListener('drop',function(e){
+    const nid=docDragActive();
+    if(!nid||!docDragImagey(e))return;
+    e.preventDefault();                   // never navigate, even on a miss
+    if(!docInPanes(e.target))return;      // outside the panes: swallow, insert nothing
+    const v=state.docView[nid];
+    if(!v||!v.editing)return;
+    const session=v.session;
+    const dt=e.dataTransfer;
+    // A real local FILE always wins: a browser often includes BOTH a file and a
+    // url representation in one transfer, and only one path may run.
+    const files=(dt&&dt.files)||[];
+    for(let i=0;i<files.length;i++){
+      if(/^image\//.test(files[i].type||'')){docUploadImage(nid,files[i]);return}
+    }
+    if(dt)void docHandleWebImageDrop(nid,session,dt);
+  },false);
+})();
+function docPickImage(noteId){
+  const inp=document.createElement('input');
+  inp.type='file';inp.accept='image/*';
+  inp.addEventListener('change',function(){
+    const f=inp.files&&inp.files[0];
+    if(f)docUploadImage(noteId,f);
+    else{
+      const url=prompt('Image URL (http or https):','https://');
+      if(url&&mdSafeUrl(url))docWrap('![image]('+url+')','','');
+    }
+  });
+  inp.click();
+}
+// Paste and drag-and-drop, bound to the source textarea when it is built.
+// Paste stays on the textarea; drag and drop is handled once at document level
+// (bindDocumentDrop) so a single drop can never upload twice.
+function bindDocImageInput(ta,noteId){
+  ta.addEventListener('paste',function(e){
+    const items=(e.clipboardData&&e.clipboardData.items)||[];
+    for(let i=0;i<items.length;i++){
+      if(items[i].kind==='file'&&/^image\//.test(items[i].type)){
+        const f=items[i].getAsFile();
+        if(f){e.preventDefault();docUploadImage(noteId,f);return}
+      }
+    }
+  });
+}
+/* ===== DOCUMENT NOTES: pretty posts =====
+   A document link posted into another note renders AS the document. The
+   message stores only the link, so a later view shows the latest saved body.
+
+   AUTHORISATION: the only source is our own agent's document scry, which is
+   read-gated by membership on the ship. An unauthorised viewer therefore gets
+   nothing back and sees a generic access-required line with NO title and NO
+   excerpt -- the name embedded in the link token is deliberately discarded on
+   that path, so a sharer cannot leak a title to someone who may not see it.
+   A host that is unavailable, or a malformed answer, falls back to the plain
+   link rather than inventing content. */
+const DOC_POST_MAX_H=420;
+function hydrateDocPosts(root){
+  if(!root||!root.querySelectorAll)return;
+  const list=root.querySelectorAll('.doc-probe[data-doc-state="waiting"]');
+  for(let i=0;i<list.length;i++)probeDocPost(list[i]);
+}
+async function probeDocPost(el,again){
+  const st=el&&el.getAttribute('data-doc-state');
+  if(!el||(st!=='waiting'&&!(again&&st==='peeking')))return;
+  el.setAttribute('data-doc-state','probing');
+  const nid=el.dataset.nid;
+  if(!nid){el.setAttribute('data-doc-state','plain');return}
+  // Only probe when we already believe this is a document, or we simply do not
+  // know the note. Never probe a note we know to be another type.
+  const known=state.notes[nid]||state.discoveryNotes[nid];
+  if(known&&known.type!=='document'){el.setAttribute('data-doc-state','plain');return}
+  let d=null;
+  try{d=await fetchDocument(nid)}catch(e){d=null}
+  if(!document.body.contains(el))return;
+  if(!d||typeof d.body!=='string'){
+    // Not a member, or nothing local yet. Ask the HOST to serve it: public and
+    // private documents are readable by anyone holding the link, so a reader
+    // sees the rendered document and public/private only decides how JOINING
+    // works. Secret documents are refused by the host and fall back to the
+    // ordinary note card.
+    const peek=state.docPeek[nid];
+    if(peek&&peek.ok){
+      el.setAttribute('data-doc-state','ready');
+      renderDocPost(el,nid,{body:peek.body,revision:peek.revision},peek.name);
+      return;
+    }
+    if(peek&&!peek.ok){el.setAttribute('data-doc-state','plain');return}
+    el.setAttribute('data-doc-state','peeking');
+    const host=el.dataset.creator;
+    if(host)api.poke('noltbook','noltbook-action',{action:'peek-document',data:{noteId:nid,host:host}});
+    return;
+  }
+  el.setAttribute('data-doc-state','ready');
+  renderDocPost(el,nid,d);
+}
+function renderDocPost(el,nid,d,nameOverride){
+  const note=state.notes[nid]||{};
+  const title=note.name||nameOverride||'Document';
+  const box=document.createElement('div');
+  box.className='doc-post';
+  box.style.cssText='display:block;border:1px solid var(--border);margin:.35rem 0;max-width:46rem';
+  const head=document.createElement('div');
+  head.style.cssText='padding:.35rem .6rem;border-bottom:1px solid var(--border);display:flex;gap:.5rem;align-items:center';
+  const a=document.createElement('span');
+  a.textContent=title;
+  a.className='doc-post-title';
+  a.style.cssText='font-weight:bold;cursor:pointer;color:var(--amber,#c98218)';
+  a.title='Open this document';
+  a.addEventListener('click',function(e){e.stopPropagation();clickNoteRef(nid,note.creator||'')});
+  head.appendChild(a);
+  const rev=document.createElement('span');
+  rev.style.cssText='margin-left:auto;font-size:.68rem;color:var(--text-dim)';
+  rev.textContent='rev '+d.revision;
+  head.appendChild(rev);
+  box.appendChild(head);
+  const body=document.createElement('div');
+  body.className='doc-read';
+  body.style.cssText='padding:.6rem .8rem;overflow:hidden;max-height:'+DOC_POST_MAX_H+'px';
+  body.innerHTML=String(d.body||'').trim()?mdRender(d.body):'<div class="doc-empty">empty document</div>';
+  box.appendChild(body);
+  // Long documents get a bounded region with EXPAND -- still the document
+  // itself, never a metadata summary card.
+  setTimeout(function(){
+    if(body.scrollHeight>DOC_POST_MAX_H+8){
+      const more=document.createElement('button');
+      more.className='doc-btn';
+      more.style.cssText='margin:.3rem .6rem .5rem';
+      more.textContent='EXPAND';
+      more.addEventListener('click',function(e){
+        e.stopPropagation();
+        const open=body.style.maxHeight==='none';
+        body.style.maxHeight=open?(DOC_POST_MAX_H+'px'):'none';
+        more.textContent=open?'EXPAND':'COLLAPSE';
+      });
+      box.appendChild(more);
+    }
+  },0);
+  el.replaceWith(box);
+}
+/* ===== DOCUMENT NOTES: reconciliation ===== */
+// Idempotent by revision, mirroring the agent's own ordering rule: an equal or
+// older revision is a duplicate or a straggler and changes nothing. Returns
+// whether anything actually moved, so the caller only rerenders on a real change.
+function applyDocUpdate(d){
+  if(!d||typeof d.noteId!=='string')return false;
+  const cur=state.documents[d.noteId];
+  const rev=Number(d.revision);
+  if(cur&&Number(cur.revision)>=rev)return false;
+  state.documents[d.noteId]={
+    body:String(d.body==null?'':d.body),
+    revision:rev,
+    updatedBy:d.updatedBy||null,
+    updatedAt:d.updatedAt||null,
+    versions:Number(d.versions||0),
+    bytes:Number(d.bytes||0)
+  };
+  return true;
+}
+function docOf(noteId){return state.documents[noteId]||null}
+function docRev(noteId){const d=docOf(noteId);return d?Number(d.revision):-1}
+function isDocumentNote(noteId){
+  const n=state.notes[noteId];
+  return !!n&&n.type==='document';
+}
+// Fetch the current document from our own agent. Used on open and on reconnect;
+// the scry is read-gated by membership on the ship, so an unauthorised reader
+// simply gets nothing back.
+async function fetchDocument(noteId){
+  try{
+    const d=await api.scry('noltbook','/api/notes/'+noteId+'/document');
+    if(d&&typeof d==='object'&&typeof d.revision!=='undefined'){applyDocUpdate(d);return d}
+  }catch(e){}
+  return null;
+}
+// Pull the current body from the host, then re-render when the fact lands.
+// Bounded: one request per note per 15s, so a document that genuinely has no
+// content cannot become a poll loop.
+const _docPullAt={};
+function requestDocumentFromHost(noteId){
+  const now=Date.now();
+  if(_docPullAt[noteId]&&now-_docPullAt[noteId]<15000)return;
+  _docPullAt[noteId]=now;
+  api.poke('noltbook','noltbook-action',{action:'request-document',data:{noteId:noteId}});
+}
+async function fetchDocHistory(noteId){
+  try{
+    const h=await api.scry('noltbook','/api/notes/'+noteId+'/document/history');
+    if(h&&typeof h==='object'){
+      state.documentHistory[noteId]={entries:h.entries||[],versions:h.versions|0,bytes:h.bytes|0,isHost:!!h.isHost};
+      return state.documentHistory[noteId];
+    }
+  }catch(e){}
+  return null;
 }
 function renderText(text){
   if(!text)return'';
@@ -6121,6 +7404,7 @@ function embedObserve(root){
   if(!root||!_embedIO)return;
   const list=root.querySelectorAll?root.querySelectorAll('.x-embed[data-x-state="waiting"],.gh-card[data-gh-state="waiting"],.img-probe[data-img-state="waiting"]'):[];
   for(let i=0;i<list.length;i++)_embedIO.observe(list[i]);
+  hydrateDocPosts(root);
 }
 function initEmbedManager(){
   if(_embedIO||typeof IntersectionObserver!=='function')return;
@@ -7069,12 +8353,24 @@ function onGossipImagePick(input){
     reader.readAsDataURL(blob);
   });
 }
-function createNote(parentId){state.pendingParent=parentId||null;document.getElementById('noteNameInput').value='';document.getElementById('gossipCheck').checked=false;document.getElementById('gossipDescInput').value='';_gossipImageDataUrl=null;document.getElementById('gossipImageFile').value='';const _gp=document.getElementById('gossipImagePreview');_gp.style.display='none';_gp.innerHTML='';document.getElementById('gossipFields').style.display='none';document.getElementById('gossipToggleWrap').style.display=parentId?'none':'flex';document.getElementById('noteModalTitle').textContent=parentId?'NEW CHILD NOTE':'NEW NOTE';document.getElementById('noteModal').classList.add('open');setTimeout(()=>document.getElementById('noteNameInput').focus(),50)}
+function createNote(parentId){state.pendingParent=parentId||null;document.getElementById('noteNameInput').value='';document.getElementById('gossipCheck').checked=false;document.getElementById('gossipDescInput').value='';_gossipImageDataUrl=null;document.getElementById('gossipImageFile').value='';const _gp=document.getElementById('gossipImagePreview');_gp.style.display='none';_gp.innerHTML='';document.getElementById('gossipFields').style.display='none';document.getElementById('documentCheck').checked=false;document.getElementById('gossipToggleWrap').style.display=parentId?'none':'flex';document.getElementById('documentToggleWrap').style.display='flex';document.getElementById('noteModalTitle').textContent=parentId?'NEW CHILD NOTE':'NEW NOTE';document.getElementById('noteModal').classList.add('open');setTimeout(()=>document.getElementById('noteNameInput').focus(),50)}
+// The two special types are mutually exclusive. Neither ticked means an
+// ordinary note and the existing create path is untouched -- there is
+// deliberately no NORMAL option to pick.
+function onSpecialTypeToggle(which){
+  const g=document.getElementById('gossipCheck');
+  const d=document.getElementById('documentCheck');
+  if(which==='gossip'&&g.checked)d.checked=false;
+  if(which==='document'&&d.checked)g.checked=false;
+  document.getElementById('gossipFields').style.display=g.checked?'':'none';
+}
 function closeNoteModal(){document.getElementById('noteModal').classList.remove('open');state.pendingParent=null}
 async function submitNote(){
   const name=document.getElementById('noteNameInput').value.trim();if(!name)return;
   const parent=state.pendingParent;
   const isGossip=document.getElementById('gossipCheck').checked&&!parent;
+  // documents may be created anywhere, root or child -- no placement rules
+  const isDocument=document.getElementById('documentCheck').checked;
   const btn=document.getElementById('noteModalCreate');
   if(btn)btn.disabled=true;
   let ok=false;
@@ -7083,6 +8379,9 @@ async function submitNote(){
       const headline=document.getElementById('gossipDescInput').value.trim();
       if(!headline){alert('Gossip notes need a description (it is set once and cannot be edited).');return}
       ok=await api.poke('noltbook','noltbook-action',{action:'create-gossip-note',data:{name,headline,iconUrl:_gossipImageDataUrl||''}});
+    }else if(isDocument){
+      const data={name};if(parent)data.parent=parent;
+      ok=await api.poke('noltbook','noltbook-action',{action:'create-document-note',data});
     }else{
       const data={name};if(parent)data.parent=parent;
       ok=await api.poke('noltbook','noltbook-action',{action:'create-note',data});
@@ -7092,7 +8391,7 @@ async function submitNote(){
   }
   if(!ok){alert('Could not create note. Reconnect and try again.');return}
   closeNoteModal();
-  setTimeout(()=>refreshNotesSnapshotFromScry({name,parent,isGossip}),1500);
+  setTimeout(()=>refreshNotesSnapshotFromScry({name,parent,isGossip,isDocument}),1500);
 }
 function promptRenameNote(id){const note=state.notes[id];if(!note)return;const name=prompt('Rename note:',note.name);if(name&&name.trim()&&name.trim()!==note.name)api.poke('noltbook','noltbook-action',{action:'rename-note',data:{id,name:name.trim()}})}
 function promptNoteImage(id){
@@ -7194,9 +8493,11 @@ function showNoteContextMenu(event,noteId){
     <div class="context-menu-item${ro}" data-action="writable" data-val="true"><span class="context-radio ${wr?'selected':''}"></span> Write</div>
     <div class="context-menu-item${ro}" data-action="writable" data-val="false"><span class="context-radio ${!wr?'selected':''}"></span> Read Only</div>
     <div class="context-menu-divider"></div>
-    ${(note.type==='notebook'||note.type==='group')?'<div class="context-menu-item'+ro+'" data-action="child">+ Note</div>':''}
+    ${(note.type==='notebook'||note.type==='group'||note.type==='document')?'<div class="context-menu-item'+ro+'" data-action="child">+ Note</div>':''}
     <div class="context-menu-item${ro}" data-action="img">+ Img</div>
     ${note.type==='group'?(isCreator?'':'<div class="context-menu-item" data-action="fork-group">Fork Group</div>'):'<div class="context-menu-item" data-action="duplicate">Duplicate</div>'}
+    ${(note.type==='document'&&!isCreator)?'<div class="context-menu-item" data-action="fork-group">Fork Document</div>':''}
+    ${note.type==='document'?'<div class="context-menu-item" data-action="doc-history">Version History</div>':''}
     ${noteCanCopyRef(note)?'<div class="context-menu-item" data-action="copyref">Copy Note Link</div>':''}
     ${isCreator?'<div class="context-menu-item" data-action="rename">Rename</div>':''}
     ${delItem}`;
@@ -7213,7 +8514,12 @@ function showNoteContextMenu(event,noteId){
     else if(action==='writable'){note.writable=item.dataset.val==='true';api.poke('noltbook','noltbook-action',{action:'set-note-meta',data:{id:noteId,visibility:note.visibility||'secret',iconUrl:note.iconUrl||'',writable:note.writable}});closeContextMenu()}
     else if(action==='child'){closeContextMenu();createNote(noteId)}
     else if(action==='img'){closeContextMenu();promptNoteImage(noteId)}
-    else if(action==='duplicate'){closeContextMenu()}
+    else if(action==='duplicate'){
+      closeContextMenu();
+      // was a dead stub: the item rendered but had no handler
+      if(note.type==='document'){const d=docOf(noteId);duplicateDocument(noteId,d?d.body:'','current version')}
+    }
+    else if(action==='doc-history'){closeContextMenu();openDocHistory(noteId)}
     else if(action==='fork-group'){closeContextMenu();forkGroup(noteId)}
     else if(action==='copyref'){closeContextMenu();copyNoteRef(noteId,note.creator)}
     else if(action==='gossip-copy-link'){closeContextMenu();copyGossipNoteLink(noteId)}
@@ -7384,6 +8690,38 @@ function pluginNoteContextId(rec){
   if(!(note.users||[]).includes(me)||(note.removed||[]).includes(me))return null;
   return nid;
 }
+// pluginArtifactEditableAt: the current local user's effective permission to mutate one
+// loaded app artifact. This is intentionally recomputed from live note state; the backend
+// remains the final authority. DMs are single-writer (artifact creator). Shared
+// group/notebook artifacts are writable by current members, with the note host/admins
+// exempt from read-only and mute restrictions.
+function pluginArtifactEditableAt(artifactId,noteId,readOnly){
+  if(readOnly||!artifactId)return false;
+  const art=state.artifacts[artifactId];
+  if(!art)return false;
+  const nid=noteId||art.noteId,note=state.notes[nid];
+  if(!nid||!note||art.noteId!==nid)return false;
+  const me='~'+api.ship;
+  if(!(note.users||[]).includes(me)||(note.removed||[]).includes(me))return false;
+  if(note.type==='dm')return art.creator===me;
+  if(note.type!=='group'&&note.type!=='notebook')return false;
+  const admins=state.noteAdmins[nid]||[];
+  const elevated=note.creator===me||admins.includes(me);
+  if(elevated)return true;
+  if(note.writable===false)return false;
+  if((state.noteMuted[nid]||[]).includes(me))return false;
+  return true;
+}
+function pluginArtifactEditable(rec){
+  return !!(rec&&rec.spec&&rec.spec.mode==='note-artifact'&&pluginArtifactEditableAt(rec.spec.artifactId,rec.spec.noteId,rec.spec.readOnly));
+}
+function pluginSourceArtifactEditable(rec){
+  if(!rec||!rec.spec||rec.spec.mode!=='embedded-app'||!rec.spec.sourceArtifactId)return false;
+  // An embedded app may update a source only when it is the same app that owns that
+  // artifact. Cross-app launches receive context, never mutation authority.
+  if(rec.spec.sourceDesk&&rec.spec.sourceDesk!==rec.spec.desk)return false;
+  return pluginArtifactEditableAt(rec.spec.sourceArtifactId,rec.spec.sourceNoteId,false);
+}
 function pluginInitPayload(rec){
   const spec=rec.spec,art=spec.artifactId?state.artifacts[spec.artifactId]:null;
   // P2.6: an ordinary-DM %app REFERENCE (readOnly) is driven by an ephemerally-fetched
@@ -7401,7 +8739,7 @@ function pluginInitPayload(rec){
     artifact:refArtifact?refArtifact:(art&&desc?pluginArtifactPayload(art,desc):null),
     context:spec.context||null,
     sourceArtifact:spec.sourceArtifactId?{artifactId:spec.sourceArtifactId,noteId:spec.sourceNoteId||null,desk:spec.sourceDesk||null}:null,
-    capabilities:{publish:spec.mode==='private-tool',update:(spec.mode==='note-artifact'&&!spec.readOnly),request:true,resize:spec.mode!=='embedded-app',close:true,openApp:true,copyText:true,listNoteArtifacts:!!spec.noteId,updateSourceArtifact:spec.mode==='embedded-app'&&!!spec.sourceArtifactId,noteContext:!!pluginNoteContextId(rec)}
+    capabilities:{publish:spec.mode==='private-tool',update:pluginArtifactEditable(rec),request:true,resize:spec.mode!=='embedded-app',close:true,openApp:true,copyText:true,listNoteArtifacts:!!spec.noteId,updateSourceArtifact:pluginSourceArtifactEditable(rec),noteContext:!!pluginNoteContextId(rec)}
   };
 }
 function pluginArtifactPayload(art,desc){
@@ -7412,7 +8750,7 @@ function notifyPluginArtifactUpdated(art){
   let delivered=false;
   const payload={artifact:pluginArtifactPayload(art,desc)};
   for(const rec of pluginFrames.values()){
-    if(!rec||!rec.spec||rec.spec.artifactId!==art.id)continue;
+    if(!rec||!rec.spec||(rec.spec.artifactId!==art.id&&rec.spec.sourceArtifactId!==art.id))continue;
     if(rec.spec.desk!==desc.app.desk)continue;
     sendPluginFrame(rec,'nb:artifact-updated',payload);
     delivered=true;
@@ -7547,9 +8885,9 @@ async function pluginEditArtifactById(rec,opts){
 async function updatePluginArtifact(rec,payload){
   const clientRequestId=pluginText(payload&&payload.requestId,128,'');
   const fail=function(message){sendPluginFrame(rec,'nb:update-artifact-result',{requestId:clientRequestId,ok:false,result:{message:message}})};
-  // P5: a read-only reference frame (an %app the counterparty does NOT own) has no
-  // artifactId AND is explicitly readOnly — reject any update outright.
-  if(rec.spec.mode!=='note-artifact'||!rec.spec.artifactId||rec.spec.readOnly){fail('updates are only available from editable artifact frames');return}
+  // Re-evaluate live membership, removal, role, writable and mute state here. The values may
+  // have changed since nb:init, and a capability advertised at mount time is not authority.
+  if(!pluginArtifactEditable(rec)){fail('artifact is read-only for this user');return}
   const input=pluginDescriptorInput(payload);
   if(!pluginHasOwn(input,'data')&&!pluginHasOwn(input,'ref')){fail('data or ref required');return}
   pluginEditArtifactById(rec,{artifactId:rec.spec.artifactId,desk:rec.spec.desk,nextDescriptor:input,resultType:'nb:update-artifact-result',clientRequestId:clientRequestId});
@@ -7559,7 +8897,9 @@ async function updatePluginArtifact(rec,payload){
 async function updateSourceArtifact(rec,payload){
   const clientRequestId=pluginText(payload&&payload.requestId,128,'');
   const fail=function(message){sendPluginFrame(rec,'nb:update-source-artifact-result',{requestId:clientRequestId,ok:false,result:{message:message}})};
-  if(rec.spec.mode!=='embedded-app'||!rec.spec.sourceArtifactId){fail('this app was not opened from an artifact');return}
+  // Source authority may have been revoked since the embedded app opened. Recheck the
+  // source note's live membership, role, writable and mute state for every request.
+  if(!pluginSourceArtifactEditable(rec)){fail('source artifact is read-only for this user');return}
   const input=pluginDescriptorInput(payload);
   if(!pluginHasOwn(input,'data')&&!pluginHasOwn(input,'ref')){fail('data or ref required');return}
   pluginEditArtifactById(rec,{artifactId:rec.spec.sourceArtifactId,desk:rec.spec.desk,nextDescriptor:input,resultType:'nb:update-source-artifact-result',clientRequestId:clientRequestId});
@@ -7918,7 +9258,7 @@ function openPluginAppFromFrame(rec,payload){
   // can later update ONLY that artifact via nb:update-source-artifact.
   // P5: a read-only reference frame never confers a source artifact (so the embedded app
   // gets no updateSourceArtifact capability against the creator's authoritative artifact).
-  const source=(rec.spec.mode==='note-artifact'&&rec.spec.artifactId&&!rec.spec.readOnly)
+  const source=pluginArtifactEditable(rec)
     ?{artifactId:rec.spec.artifactId,noteId:rec.spec.noteId||null,desk:rec.spec.desk}:null;
   try{openEmbeddedApp(safe,desk,title,{width:payload.width,height:payload.height},context,source)}
   catch(e){return fail((e&&e.message)?e.message:'failed to open app')}
@@ -10241,7 +11581,14 @@ function openCoverInfoModal(){
   modal.querySelector('#coverInfoClose').onclick=()=>overlay.remove();
 }
 function noteCanCopyRef(note){
-  return note&&note.type==='group'&&(note.visibility==='public'||note.visibility==='private');
+  if(!note)return false;
+  // A document link is the SAME canonical ~ref token as a group link, so it is
+  // stable across rename and hierarchy movement.
+  // Same rule as every other linkable type: SECRET notes get no link at all,
+  // which is what keeps secret invite-only. A private link lands on the request
+  // card, a public link on the join card -- documents inherit both unchanged.
+  return (note.type==='group'||note.type==='document')
+    &&(note.visibility==='public'||note.visibility==='private');
 }
 function renderNoteInfoMemberRows(note,query){
   const me='~'+api.ship;
@@ -10361,6 +11708,7 @@ function openNoteInfoModal(note){
     <div id="noteInfoMembers" style="display:flex;flex-direction:column;gap:.1rem;max-height:40vh;overflow:auto;border:1px solid var(--border);padding:.25rem">${memberRows}</div>`}
     <div class="modal-actions" style="margin-top:.25rem">
       <button class="modal-btn cancel-red" id="noteInfoClose">CLOSE</button>
+
       ${(note.type==='group'&&!isCreator)?'<button class="modal-btn" id="noteInfoFork" style="border-color:#ffaa00;color:#ffaa00">FORK GROUP</button>':''}
       ${(isCreator&&!isGossipNote)?'<button class="modal-btn amber" id="noteInfoSave">SAVE</button>':''}
     </div>`;
@@ -10385,6 +11733,7 @@ function openNoteInfoModal(note){
   if(gLinkBtn)gLinkBtn.onclick=()=>{copyGossipNoteLink(note.id);gLinkBtn.textContent='COPIED';setTimeout(()=>{gLinkBtn.textContent='COPY NOTE LINK'},1500)};
   const closeBtn=modal.querySelector('#noteInfoClose');
   closeBtn.onclick=()=>overlay.remove();
+
   const forkBtn=modal.querySelector('#noteInfoFork');
   if(forkBtn)forkBtn.onclick=()=>{overlay.remove();forkGroup(note.id)};
   const saveBtn=modal.querySelector('#noteInfoSave');
@@ -13322,6 +14671,9 @@ function noteSupportsCalls(noteId){
   if(isGossipNote(noteId))return false;
   const n=state.notes[noteId];
   if(n&&n.type==='notebook')return false;
+  // Mirrors call-eligible in the agent: an unshared document has nobody to
+  // call. Documents only for now; the wider rule is a separate decision.
+  if(n&&n.type==='document'&&(n.users||[]).length<=1)return false;
   return true;
 }
 // ...with one escape hatch: if this client is ALREADY joined to a call on such a note

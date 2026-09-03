@@ -239,6 +239,82 @@
       ::  NEW call is created.
       sfu-mode=call-transport:noltbook
   ==
+::  state-78: state-77 plus document notes. state-77 is FROZEN from here on --
+::  !< nests on the mold, so narrowing anything in it breaks the decode of a
+::  saved %77 noun.
+::
+::    documents          the ONE current body per document note. Replicated to
+::                       authorised members and hydrated idempotently.
+::    document-history   complete previous bodies, HOST-ONLY. Never replicated;
+::                       fetched only when a reader asks for history.
++$  state-78
+  $:  %78
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      calls=(map @ta call-snapshot:noltbook)
+      call-leases=(map @ta (map @p @da))
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      note-unread-activity=(map @ta @da)
+      note-members=(map @ta (set @p))
+      app-notifications=(map [@tas @t] app-notification:noltbook)
+      dm-artifact-refs=(map @uv dm-artifact-ref:noltbook)
+      dm-artifact-tombs=(map @uv dm-artifact-tomb:noltbook)
+      dm-msg-tombs=(map dm-message-key:noltbook @da)
+      peer-proto=(map @p @ud)
+      pending-dm-fetches=(map @ta pending-dm-fetch:noltbook)
+      note-artifact-tombs=(map @ta note-artifact-tomb:noltbook)
+      mesh-tombs=(set @uv)
+      mesh-tomb-meta=(map @uv mesh-tomb:noltbook)
+      dm-imports=(map @uv dm-import:noltbook)
+      import-only-dms=(set @ta)
+      pending-icon-fetches=(map @ta pending-icon-fetch:noltbook)
+      pending-img-writes=(map @ta pending-img-write:noltbook)
+      pending-profile-lookups=(map @ud pending-profile-lookup:noltbook)
+      sfu-mode=call-transport:noltbook
+      ::  ===== document notes =====
+      documents=(map @ta document-current:noltbook)
+      document-history=(map @ta (list document-version:noltbook))
+  ==
 +$  card  card:agent:gall
 ::
 ::  Gossip reservoir caps are now NO-OPS. "What you store/pass" (the gossip
@@ -263,6 +339,23 @@
   |=  [ids=(list @ta) m=(map @ta (set @p))]
   ^-  (map @ta (set @p))
   =/  acc=(map @ta (set @p))  m
+  |-
+  ?~  ids  acc
+  $(ids t.ids, acc (~(del by acc) i.ids))
+::  prune-documents / prune-document-history: a deleted document must not leave
+::  its body or its version history behind in state. Both are keyed by note id,
+::  so deletion is a straight drop over the deleted subtree.
+++  prune-documents
+  |=  [ids=(list @ta) m=(map @ta document-current:noltbook)]
+  ^-  (map @ta document-current:noltbook)
+  =/  acc=(map @ta document-current:noltbook)  m
+  |-
+  ?~  ids  acc
+  $(ids t.ids, acc (~(del by acc) i.ids))
+++  prune-document-history
+  |=  [ids=(list @ta) m=(map @ta (list document-version:noltbook))]
+  ^-  (map @ta (list document-version:noltbook))
+  =/  acc=(map @ta (list document-version:noltbook))  m
   |-
   ?~  ids  acc
   $(ids t.ids, acc (~(del by acc) i.ids))
@@ -475,6 +568,33 @@
   ?.  &(=(%group type.u.cur) =(creator.u.cur host))
     $(queue t.queue)
   $(queue (weld t.queue children.u.cur), acc [cid acc])
+::  collect-doc-descendants: the fork subtree under a %document root. A
+::  document's children are ordinary %notebook notes (a plain child) or nested
+::  %document notes, neither of which passes the %group-only filter above --
+::  which is why a document fork previously carried only its root. Same
+::  same-creator guard; group forks are deliberately left on the stricter arm
+::  so their behaviour is unchanged.
+++  collect-doc-descendants
+  |=  [root=@ta nmap=(map @ta note:noltbook)]
+  ^-  (list @ta)
+  =/  root-note=(unit note:noltbook)  (~(get by nmap) root)
+  ?~  root-note  ~
+  =/  host=@p  creator.u.root-note
+  =/  queue=(list @ta)  children.u.root-note
+  =/  acc=(list @ta)  ~
+  |-
+  ?~  queue  (flop acc)
+  =/  cid=@ta  i.queue
+  =/  cur=(unit note:noltbook)  (~(get by nmap) cid)
+  ?~  cur  $(queue t.queue)
+  =/  ok=?
+    ?&  ?|  =(%group type.u.cur)  =(%notebook type.u.cur)
+            =(%document type.u.cur)
+        ==
+        =(creator.u.cur host)
+    ==
+  ?.  ok  $(queue t.queue)
+  $(queue (weld t.queue children.u.cur), acc [cid acc])
 ::  collect-share-descendants: BFS-ordered list of descendant ids (root
 ::  excluded) treated as part of the shared subtree at invite time. Unlike
 ::  collect-group-descendants this tolerates %notebook nodes (which the
@@ -493,7 +613,9 @@
   =/  cid=@ta  i.queue
   =/  cur=(unit note:noltbook)  (~(get by nmap) cid)
   ?~  cur  $(queue t.queue)
-  ?.  ?&  ?|(=(%group type.u.cur) =(%notebook type.u.cur))
+  ?.  ?&  ?|  =(%group type.u.cur)  =(%notebook type.u.cur)
+              =(%document type.u.cur)
+          ==
           =(creator.u.cur host)
       ==
     $(queue t.queue)
@@ -2015,8 +2137,8 @@
 ::  lose==win. Group/fork/gossip-only fields hold no ordinary-DM data and are left
 ::  alone; pending-dm-fetches/dm-msg-tombs key by entry identity (not note-id).
 ++  reconcile-dm-roots
-  |=  [st=state-77 lose=@ta win=@ta cn=note:noltbook]
-  ^-  state-77
+  |=  [st=state-78 lose=@ta win=@ta cn=note:noltbook]
+  ^-  state-78
   ?:  =(lose win)  st
   =*  s  st
   ::  notes: install canonical winner, drop loser
@@ -2201,6 +2323,35 @@
 ::  empty lease map. A call in flight does NOT survive: every note that had one gets
 ::  a cleared record at generation 1 -- a real generation-bearing empty snapshot, so
 ::  the browser badge disappears on load and the next start allocates generation 2.
+++  upgrade-77-to-78
+  ::  Adds document notes. Purely additive: every existing field is carried
+  ::  across verbatim and both new maps start empty, so no existing note gains
+  ::  a document record and nothing already stored can be lost. A note only
+  ::  acquires a document record by being CREATED as %document.
+  |=  o=state-77
+  ^-  state-78
+  :*  %78
+      notes.o  messages.o  artifacts.o  profiles.o  transactions.o
+      current-note.o  peers.o  has-avatar.o
+      pal-outgoing.o  pal-incoming.o  pal-blocked.o  blocked-by.o
+      dial.o  gossip-hops.o  mentions.o  calls.o  call-leases.o
+      gossip-envelopes.o  headlines.o  seq-counters.o  join-requests.o
+      note-admins.o  note-muted.o  artifact-envelopes.o  host-status.o
+      fork-origin.o  fork-version.o  fork-of.o  pending-fork-invites.o
+      fork-invitees.o  contacts.o  dm-prefs.o  member-revs.o
+      fork-parent-version.o  host-checks.o  notification-acks.o
+      note-activity.o  note-read.o  attention.o  cleared-mentions.o
+      via-by-eid.o  note-pins.o  note-apps.o  note-active.o  app-grants.o
+      note-unread-activity.o  note-members.o  app-notifications.o
+      dm-artifact-refs.o  dm-artifact-tombs.o  dm-msg-tombs.o  peer-proto.o
+      pending-dm-fetches.o  note-artifact-tombs.o  mesh-tombs.o
+      mesh-tomb-meta.o  dm-imports.o  import-only-dms.o
+      pending-icon-fetches.o  pending-img-writes.o  pending-profile-lookups.o
+      sfu-mode.o
+      ::  new in %78
+      *(map @ta document-current:noltbook)
+      *(map @ta (list document-version:noltbook))
+  ==
 ++  upgrade-76-to-77
   ::  Adds the host-authored call transport. Every call that already
   ::  exists migrates as %mesh: it was created by a build that had no
@@ -2362,8 +2513,8 @@
       pending-profile-lookups.o
   ==
 ++  migrate-dm-artifacts
-  |=  [our=@p st=state-77]
-  ^-  state-77
+  |=  [our=@p st=state-78]
+  ^-  state-78
   =*  s  st
   =/  targets=(list [aid=@ta a=artifact:noltbook])
     %+  murn  ~(tap by artifacts.s)
@@ -2375,7 +2526,7 @@
     ?~  nt  ~
     ?.  (is-ordinary-dm u.nt)  ~
     `[aid a]
-  |-  ^-  state-77
+  |-  ^-  state-78
   ?~  targets  s
   =/  a=artifact:noltbook  a.i.targets
   =/  eid=@uv  (dm-artifact-eid a)
@@ -2883,7 +3034,7 @@
 ::  than relying on that. See FUTURE(cleanup-scope) above for why these exclusions are
 ::  a group and must be relaxed together, never individually.
 ++  notebook-subtree-private
-  |=  [our=@p ids=(list @ta) st=state-77]
+  |=  [our=@p ids=(list @ta) st=state-78]
   ^-  ?
   ::  an empty subtree proves nothing.
   ?~  ids  %.n
@@ -3440,6 +3591,86 @@
   |=  f=call-access-fact:noltbook
   ^-  (list card:agent:gall)
   ~[[%give %fact ~[/call-access] %noltbook-call-access !>(f)]]
+::  note-allows-messages: the SINGLE place that decides whether a note carries
+::  an ordinary message timeline. A %document holds one Markdown body with a
+::  saved revision history instead, so a message posted into it would be
+::  invisible state that no view can ever show. Every message entry path -- the
+::  local action, the API (which re-pokes the local action), and the remote
+::  host path -- consults this BEFORE sequence allocation, state mutation,
+::  facts, forwarding, unread/activity and notifications.
+::
+::  Every other note type is unchanged: this returns %.y for all of them.
+++  note-allows-messages
+  |=  nt=note:noltbook
+  ^-  ?
+  !=(%document type.nt)
+::  ===== document notes =====
+::  Body ceiling in BYTES, not characters: 1 MiB. Enforced on the host and
+::  answered with a typed rejection rather than a crash.
+++  doc-max-bytes  1.048.576
+::  can-edit-document: creator and admins always; an ordinary member needs the
+::  note to be writable, and must be neither muted nor removed. A ship that is
+::  not a member cannot edit at all.
+++  can-edit-document
+  |=  $:  nid=@ta  who=@p
+          nmap=(map @ta note:noltbook)
+          admins=(map @ta (set @p))
+          muted=(map @ta (set @p))
+      ==
+  ^-  ?
+  =/  nt-u  (~(get by nmap) nid)
+  ?~  nt-u  %.n
+  =/  nt=note:noltbook  u.nt-u
+  ?.  =(%document type.nt)  %.n
+  ?:  (~(has in removed.nt) who)  %.n
+  ?.  (~(has in users.nt) who)  %.n
+  ?:  =(who creator.nt)  %.y
+  ?:  (~(has in (fall (~(get by admins) nid) ~)) who)  %.y
+  ?.  writable.nt  %.n
+  ?:  (~(has in (fall (~(get by muted) nid) ~)) who)  %.n
+  %.y
+::  doc-stats-of: what the beta exposes instead of silently pruning history.
+++  doc-stats-of
+  |=  [nid=@ta hist=(map @ta (list document-version:noltbook))]
+  ^-  document-stats:noltbook
+  =/  h=(list document-version:noltbook)  (fall (~(get by hist) nid) ~)
+  :-  (lent h)
+  %+  roll  h
+  |=  [v=document-version:noltbook acc=@ud]
+  (add acc (met 3 body.v))
+::  doc-apply-save: the ONE place a document body changes on its host.
+::
+::  Replay safety comes from `expected`: a duplicated or replayed delivery
+::  still names the revision the editor started from, which has already moved,
+::  so it returns %conflict and can neither append history twice nor increment
+::  twice. Permission is checked by the CALLER, which knows who is asking.
+++  doc-apply-save
+  |=  $:  now=@da  nid=@ta  who=@p  body=@t  expected=@ud
+          docs=(map @ta document-current:noltbook)
+          hist=(map @ta (list document-version:noltbook))
+      ==
+  ^-  $:  res=document-save-result:noltbook
+          docs=(map @ta document-current:noltbook)
+          hist=(map @ta (list document-version:noltbook))
+      ==
+  ?:  (gth (met 3 body) doc-max-bytes)
+    [[%too-large doc-max-bytes] docs hist]
+  =/  cur-u  (~(get by docs) nid)
+  ?~  cur-u  [[%no-such-note ~] docs hist]
+  =/  cur=document-current:noltbook  u.cur-u
+  ?.  =(expected revision.cur)  [[%conflict revision.cur] docs hist]
+  ::  an unchanged body is a SUCCESS with no revision, no history, no fact
+  ?:  =(body body.cur)  [[%no-change revision.cur] docs hist]
+  ::  the untouched initial empty revision is not worth keeping as history
+  =/  keep=?  !&(=(0 revision.cur) =('' body.cur))
+  =/  h0=(list document-version:noltbook)  (fall (~(get by hist) nid) ~)
+  =/  h1=(list document-version:noltbook)
+    ?.  keep  h0
+    (snoc h0 [revision.cur body.cur updated-by.cur updated-at.cur])
+  =/  nxt=@ud  +(revision.cur)
+  :+  [%saved nxt]
+    (~(put by docs) nid [body nxt who now])
+  (~(put by hist) nid h1)
 ++  call-eligible
   |=  [nid=@ta nt=note:noltbook]
   ^-  ?
@@ -3447,6 +3678,10 @@
   ?:  =(nid %ars-rumors)  %.n
   ?:  ?=(%gossip type.nt)  %.n
   ?:  ?=(%notebook type.nt)  %.n
+  ::  A document with a single member is nobody to call. Scoped to %document
+  ::  for now -- the same rule arguably belongs on every type, but changing
+  ::  that would alter existing behaviour for groups and DMs, so it waits.
+  ?:  ?&(?=(%document type.nt) (lte ~(wyt in users.nt) 1))  %.n
   %.y
 ::  norm-snap: an active call with no participants, or one already marked %ended, is
 ::  not a call. Normalising here is what makes "zero participants but still active"
@@ -3698,12 +3933,229 @@
   ::  Option-1: the whole %noltbook-remote dispatch moved OUT of the on-poke battery.
   ::  =| / =* / =. re-expose state-67 faces exactly like the door, so handler bodies are
   ::  unchanged except this->state. on-poke delegates: =^ cards state (rem-handle bowl rem state).
-  |=  [=bowl:gall rem=remote:noltbook sin=state-77]
-  =|  state-77
+  |=  [=bowl:gall rem=remote:noltbook sin=state-78]
+  =|  state-78
   =*  state  -
   =.  state  sin
-  ^-  (quip card state-77)
+  ^-  (quip card state-78)
     ?-  -.rem
+    ::
+    ::  ===== document notes =====
+        %remote-document-updated
+      ::  host -> member: the current body. History is never replicated.
+      =/  nt-u  (~(get by notes) note-id.rem)
+      ?~  nt-u  `state
+      ?.  =(%document type.u.nt-u)  `state
+      ::  only the note's authoritative creator may state this
+      ?.  =(src.bowl creator.u.nt-u)  `state
+      ::  idempotent: a duplicate or older revision changes nothing
+      =/  cur-u  (~(get by documents) note-id.rem)
+      ?:  ?&(?=(^ cur-u) (lte revision.doc.rem revision.u.cur-u))
+        `state
+      =.  documents  (~(put by documents) note-id.rem doc.rem)
+      ::  A document changing is real activity, exactly like a message arriving.
+      ::  Unread only when somebody ELSE wrote it -- our own save echoing back
+      ::  must never mark the note unread for us.
+      =/  mine=?  =(updated-by.doc.rem our.bowl)
+      =.  note-activity  (put-activity note-activity note-id.rem now.bowl)
+      =?  note-unread-activity  !mine
+        (put-unread-activity note-unread-activity note-id.rem now.bowl)
+      :_  state
+      =/  dupd=update:noltbook
+        :+  %document-updated  note-id.rem
+        [doc.rem (doc-stats-of note-id.rem document-history)]
+      %+  weld
+        :~  (gf-notes dupd)
+            (activity-fact note-id.rem now.bowl)
+        ==
+      ?:(mine ~ ~[(unread-activity-fact note-id.rem now.bowl)])
+    ::
+        %remote-document-save
+      ::  member -> host. WE are the authority; every precondition is rechecked
+      ::  here rather than trusted from the sender.
+      =/  nt-u  (~(get by notes) note-id.rem)
+      ?~  nt-u  `state
+      =/  reply
+        |=  r=document-save-result:noltbook
+        ^-  (list card)
+        :~  %+  rpoke
+              /doc-save-res/(scot %p src.bowl)/[note-id.rem]
+            [src.bowl `remote:noltbook`[%remote-document-save-result note-id.rem req.rem r]]
+        ==
+      ?.  =(%document type.u.nt-u)      :_(state (reply [%no-such-note ~]))
+      ?.  =(our.bowl creator.u.nt-u)    `state
+      ?.  (can-edit-document note-id.rem src.bowl notes note-admins note-muted)
+        :_(state (reply [%denied ~]))
+      =+  ^=  out
+        %:  doc-apply-save
+          now.bowl  note-id.rem  src.bowl  body.rem  expected.rem
+          documents  document-history
+        ==
+      =.  documents         docs.out
+      =.  document-history  hist.out
+      =/  changed=?  ?=(%saved -.res.out)
+      =/  cur-u  (~(get by documents) note-id.rem)
+      =/  fan=(list card)
+        ?.  changed  ~
+        ?~  cur-u  ~
+        %+  murn  ~(tap in users.u.nt-u)
+        |=  p=@p
+        ?:  =(p our.bowl)  ~
+        `(rpoke /doc-out/(scot %p p)/[note-id.rem] p `remote:noltbook`[%remote-document-updated note-id.rem u.cur-u])
+      =.  note-activity
+        ?.  changed  note-activity
+        (put-activity note-activity note-id.rem now.bowl)
+      =.  note-unread-activity
+        ?.  changed  note-unread-activity
+        (put-unread-activity note-unread-activity note-id.rem now.bowl)
+      =/  local=(list card)
+        ?.  changed  ~
+        ?~  cur-u  ~
+        :~  (gf-notes [%document-updated note-id.rem u.cur-u (doc-stats-of note-id.rem document-history)])
+            (activity-fact note-id.rem now.bowl)
+            (unread-activity-fact note-id.rem now.bowl)
+        ==
+      :_  state
+      :(weld (reply res.out) local fan)
+    ::
+        %remote-document-save-result
+      ::  host -> the member that asked. Surface the typed answer verbatim.
+      =/  nt-u  (~(get by notes) note-id.rem)
+      ?~  nt-u  `state
+      ?.  =(src.bowl creator.u.nt-u)  `state
+      :_  state
+      ~[(gf-notes [%document-save-result note-id.rem `req.rem res.rem])]
+    ::
+        %remote-document-request
+      ::  member -> host: send me the current body. Same read gate as history.
+      =/  nt-u  (~(get by notes) note-id.rem)
+      ?~  nt-u  `state
+      ?.  =(%document type.u.nt-u)  `state
+      ?.  =(our.bowl creator.u.nt-u)  `state
+      ?:  (~(has in removed.u.nt-u) src.bowl)  `state
+      ?.  (~(has in users.u.nt-u) src.bowl)  `state
+      =/  cur-u  (~(get by documents) note-id.rem)
+      ?~  cur-u  `state
+      :_  state
+      :~  %+  rpoke
+            /doc-push/(scot %p src.bowl)/[note-id.rem]
+          [src.bowl `remote:noltbook`[%remote-document-updated note-id.rem u.cur-u]]
+      ==
+    ::
+        %remote-document-restore
+      ::  member -> host restore. Every precondition rechecked here.
+      =/  nt-u  (~(get by notes) note-id.rem)
+      ?~  nt-u  `state
+      =/  reply
+        |=  r=document-save-result:noltbook
+        ^-  (list card)
+        :~  %+  rpoke
+              /doc-restore-res/(scot %p src.bowl)/[note-id.rem]
+            [src.bowl `remote:noltbook`[%remote-document-save-result note-id.rem req.rem r]]
+        ==
+      ?.  =(%document type.u.nt-u)    :_(state (reply [%no-such-note ~]))
+      ?.  =(our.bowl creator.u.nt-u)  `state
+      ?.  (can-edit-document note-id.rem src.bowl notes note-admins note-muted)
+        :_(state (reply [%denied ~]))
+      =/  h=(list document-version:noltbook)  (fall (~(get by document-history) note-id.rem) ~)
+      =/  pick=(list document-version:noltbook)
+        (skim h |=(v=document-version:noltbook =(revision.v revision.rem)))
+      ?~  pick  :_(state (reply [%no-such-note ~]))
+      =/  cur-u  (~(get by documents) note-id.rem)
+      ?~  cur-u  :_(state (reply [%no-such-note ~]))
+      =+  ^=  out
+        %:  doc-apply-save
+          now.bowl  note-id.rem  src.bowl  body.i.pick  revision.u.cur-u
+          documents  document-history
+        ==
+      =.  documents         docs.out
+      =.  document-history  hist.out
+      =/  changed=?  ?=(%saved -.res.out)
+      =/  new-u  (~(get by documents) note-id.rem)
+      =.  note-activity
+        ?.(changed note-activity (put-activity note-activity note-id.rem now.bowl))
+      =.  note-unread-activity
+        ?.(changed note-unread-activity (put-unread-activity note-unread-activity note-id.rem now.bowl))
+      =/  fan=(list card)
+        ?.  changed  ~
+        ?~  new-u  ~
+        %+  murn  ~(tap in users.u.nt-u)
+        |=  p=@p
+        ?:  =(p our.bowl)  ~
+        `(rpoke /doc-out/(scot %p p)/[note-id.rem] p `remote:noltbook`[%remote-document-updated note-id.rem u.new-u])
+      =/  local=(list card)
+        ?.  changed  ~
+        ?~  new-u  ~
+        :~  (gf-notes [%document-updated note-id.rem u.new-u (doc-stats-of note-id.rem hist.out)])
+            (activity-fact note-id.rem now.bowl)
+            (unread-activity-fact note-id.rem now.bowl)
+        ==
+      :_  state
+      :(weld (reply res.out) local fan)
+    ::
+        %remote-document-peek
+      ::  Anyone holding a link may READ a public or private document. Secret
+      ::  documents are not linkable, so they are refused here as well -- this
+      ::  is the only place a non-member ever receives document content, and it
+      ::  is read-only: no membership, no history, no write path.
+      =/  nt-u  (~(get by notes) note-id.rem)
+      =/  deny=(list card)
+        :~  %+  rpoke
+              /doc-peek-res/(scot %p src.bowl)/[note-id.rem]
+            :-  src.bowl
+            ^-  remote:noltbook
+            [%remote-document-peek-result note-id.rem %.n '' 0 '']
+        ==
+      ?~  nt-u  :_(state deny)
+      ?.  =(%document type.u.nt-u)     :_(state deny)
+      ?.  =(our.bowl creator.u.nt-u)   :_(state deny)
+      ?:  ?=(%secret visibility.u.nt-u)  :_(state deny)
+      ?:  (~(has in pal-blocked) src.bowl)  :_(state deny)
+      =/  cur-u  (~(get by documents) note-id.rem)
+      ?~  cur-u  :_(state deny)
+      :_  state
+      :~  %+  rpoke
+            /doc-peek-res/(scot %p src.bowl)/[note-id.rem]
+          :-  src.bowl
+          ^-  remote:noltbook
+          :*  %remote-document-peek-result  note-id.rem  %.y
+              body.u.cur-u  revision.u.cur-u  name.u.nt-u
+          ==
+      ==
+    ::
+        %remote-document-peek-result
+      ::  Never stored: handed straight to the frontend for rendering.
+      =/  pupd=update:noltbook
+        :*  %document-peek  note-id.rem  ok.rem
+            body.rem  revision.rem  name.rem
+        ==
+      :_  state
+      ~[(gf-notes pupd)]
+    ::
+        %remote-document-history-request
+      ::  member -> host. Anyone who can READ the document may see its history.
+      =/  nt-u  (~(get by notes) note-id.rem)
+      ?~  nt-u  `state
+      ?.  =(%document type.u.nt-u)  `state
+      ?.  =(our.bowl creator.u.nt-u)  `state
+      ?:  (~(has in removed.u.nt-u) src.bowl)  `state
+      ?.  (~(has in users.u.nt-u) src.bowl)  `state
+      =/  h=(list document-version:noltbook)  (fall (~(get by document-history) note-id.rem) ~)
+      :_  state
+      :~  %+  rpoke
+            /doc-hist-res/(scot %p src.bowl)/[note-id.rem]
+          :-  src.bowl
+          ^-  remote:noltbook
+          [%remote-document-history-response note-id.rem h (doc-stats-of note-id.rem document-history)]
+      ==
+    ::
+        %remote-document-history-response
+      ::  host -> reader. Never stored: it is answered straight to the frontend.
+      =/  nt-u  (~(get by notes) note-id.rem)
+      ?~  nt-u  `state
+      ?.  =(src.bowl creator.u.nt-u)  `state
+      :_  state
+      ~[(gf-notes [%document-history note-id.rem versions.rem stats.rem])]
     ::
         %remote-invite
       ::  someone invited us to their note
@@ -3730,7 +4182,9 @@
       ::  wipe the messages we preserved while unsubscribed.
       =/  is-shared-invite=?
         ?&  !=(%dm type.rem)
-            ?|(=(%group type.rem) =(%notebook type.rem))
+            ?|  =(%group type.rem)  =(%notebook type.rem)
+                =(%document type.rem)
+            ==
         ==
       ::  malformed roster: an invite that does not actually list us grants nothing.
       ?:  ?&  is-shared-invite
@@ -4055,6 +4509,12 @@
       ::  read-only %group: ordinary members may not post. Before sequence allocation,
       ::  target mutation, facts, cards, previews, activity, unread and forwarding.
       ?.  (can-mutate-message note-id.rem src.bowl notes note-admins note-muted)
+        :_(state rej-cards)
+      ::  %document: the HOST is the final authority. A sender on an older build,
+      ::  or one ignoring its own frontend, gets an explicit application-level
+      ::  refusal through the SAME mechanism as every other rejection here --
+      ::  before sequence allocation, mutation, facts, forwarding and activity.
+      ?.  (note-allows-messages u.old)
         :_(state rej-cards)
       ::  INTEGRITY. src.bowl is the authenticated Gall sender, so the embedded
       ::  author must always be that ship. This was previously enforced for %dm
@@ -4576,7 +5036,7 @@
       =/  pub-notes=(list note:noltbook)
         %+  skim  ~(val by notes)
         |=  n=note:noltbook
-        ?&  ?|(=(%group type.n) =(%gossip type.n))
+        ?&  ?|(=(%group type.n) =(%gossip type.n) =(%document type.n))
             =(our.bowl creator.n)
             ?|(?=(%public visibility.n) ?=(%private visibility.n))
         ==
@@ -4980,7 +5440,10 @@
       ?.  =(creator.note.rem src.bowl)  `state
       ?.  (~(has in users.note.rem) our.bowl)  `state
       ?:  (~(has in removed.note.rem) our.bowl)  `state
-      ?.  ?|(=(%group type.note.rem) =(%notebook type.note.rem))  `state
+      ?.  ?|  =(%group type.note.rem)  =(%notebook type.note.rem)
+              =(%document type.note.rem)
+          ==
+        `state
       =/  have-child=?  (~(has by notes) id.note.rem)
       =/  old-par  (~(get by notes) parent-id.rem)
       ?~  old-par
@@ -5911,7 +6374,8 @@
       ::  already a member? no-op
       ?:  (~(has in users.u.old) src.bowl)  `state
       ::  only %group/%gossip notes are joinable
-      ?.  ?|(=(%group type.u.old) =(%gossip type.u.old))  `state
+      ?.  ?|(=(%group type.u.old) =(%gossip type.u.old) =(%document type.u.old))
+        `state
       ::  secret notes: deny silently
       ?:  =(%secret visibility.u.old)  `state
       ::  removed users cannot rejoin — tell them explicitly
@@ -6505,7 +6969,10 @@
       ::  must be host of this note
       ?.  =(our.bowl creator.u.nt)  `state
       ::  only normal/group notes accept artifact metadata
-      ?.  ?|(?=(%notebook type.u.nt) ?=(%group type.u.nt))  `state
+      ?.  ?|  ?=(%notebook type.u.nt)  ?=(%group type.u.nt)
+              ?=(%document type.u.nt)
+          ==
+        `state
       ::  sender must be current member, not removed
       ?.  (~(has in users.u.nt) src.bowl)  `state
       ?:  (~(has in removed.u.nt) src.bowl)  `state
@@ -6589,7 +7056,10 @@
       =/  nt  (~(get by notes) nid)
       ?~  nt  `state
       ?.  =(our.bowl creator.u.nt)  `state
-      ?.  ?|(?=(%notebook type.u.nt) ?=(%group type.u.nt))  `state
+      ?.  ?|  ?=(%notebook type.u.nt)  ?=(%group type.u.nt)
+              ?=(%document type.u.nt)
+          ==
+        `state
       ?.  (~(has in users.u.nt) src.bowl)  `state
       ?:  (~(has in removed.u.nt) src.bowl)  `state
       ?.  =(%app type.u.old)  `state
@@ -7337,13 +7807,16 @@
 ::  artifact, already-tombstoned, or unauthorized sender — is a harmless no-op ([~ st]), so
 ::  duplicate and replayed requests neither mutate state nor emit a marker.
 ++  delete-note-artifact
-  |=  [=bowl:gall sender=@p nid=@ta aid=@ta st=state-77]
-  ^-  [(list card:agent:gall) state-77]
+  |=  [=bowl:gall sender=@p nid=@ta aid=@ta st=state-78]
+  ^-  [(list card:agent:gall) state-78]
   =/  nt  (~(get by notes.st) nid)
   ?~  nt  [~ st]
   ::  we must host this note; shared %group/%notebook only
   ?.  =(our.bowl creator.u.nt)  [~ st]
-  ?.  ?|(?=(%group type.u.nt) ?=(%notebook type.u.nt))  [~ st]
+  ?.  ?|  ?=(%group type.u.nt)  ?=(%notebook type.u.nt)
+          ?=(%document type.u.nt)
+      ==
+    [~ st]
   ::  sender must be a current, non-removed participant
   ?.  (~(has in users.u.nt) sender)  [~ st]
   ?:  (~(has in removed.u.nt) sender)  [~ st]
@@ -7394,7 +7867,7 @@
   =/  del-upd=update:noltbook  [%artifact-deleted aid]
   =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
   =/  pax=path  ~[%notes nid]
-  =/  st2=state-77
+  =/  st2=state-78
     %=  st
       artifacts             (~(del by artifacts.st) aid)
       note-pins             new-pins
@@ -7524,7 +7997,7 @@
   ~[(gf-paths paths `update:noltbook`[%app-notifications-updated ~(val by live)])]
 --
 %-  agent:dbug
-=|  state-77
+=|  state-78
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -7546,14 +8019,18 @@
   ::  exactly once) and %76 (our own, on every reload after that). Anything else is a
   ::  foreign or corrupt noun and fails loudly rather than being coerced. state-75 is
   ::  FROZEN -- !< nests on the mold, so narrowing anything in it breaks the decode.
-  ?>  ?|(?=([%75 *] q.old) ?=([%76 *] q.old) ?=([%77 *] q.old))
-  =/  base=state-77
-    ?:  ?=([%77 *] q.old)  !<(state-77 old)
-    ::  the ladder is walked at its terminus: %75 becomes %76, then %76
-    ::  becomes %77. state-76 is FROZEN, so its saved noun still decodes.
-    ?:  ?=([%76 *] q.old)  (upgrade-76-to-77 !<(state-76 old))
-    (upgrade-76-to-77 (upgrade-75-to-76 !<(state-75 old)))
-  =/  based=state-77
+  ?>  ?|  ?=([%75 *] q.old)  ?=([%76 *] q.old)
+          ?=([%77 *] q.old)  ?=([%78 *] q.old)
+      ==
+  =/  base=state-78
+    ?:  ?=([%78 *] q.old)  !<(state-78 old)
+    ::  The ladder is walked at its TERMINUS, never by wrapping every arm:
+    ::  %75 -> %76 -> %77 -> %78. Each older mold stays FROZEN, so a noun
+    ::  saved by any of those builds still decodes on its own mold.
+    ?:  ?=([%77 *] q.old)  (upgrade-77-to-78 !<(state-77 old))
+    ?:  ?=([%76 *] q.old)  (upgrade-77-to-78 (upgrade-76-to-77 !<(state-76 old)))
+    (upgrade-77-to-78 (upgrade-76-to-77 (upgrade-75-to-76 !<(state-75 old))))
+  =/  based=state-78
     %=  base
       note-members       (ensure-note-members note-members.base notes.base)
       app-notifications  (app-notifications-live app-notifications.base now.bowl)
@@ -7592,11 +8069,11 @@
     ^-  [@ta call-snapshot:noltbook]
     ?.  (~(has in ended) nid)  [nid sn]
     [nid [nid +(gen.sn) ~]]
-  =/  based=state-77
+  =/  based=state-78
     based(calls reloaded, call-leases *(map @ta (map @p @da)))
   ::  idempotent normalization of remote-owned ordinary-DM %file/%app artifacts into
   ::  content-free references (no content read/write; nothing serveable by a noncreator).
-  =/  loaded=state-77  (migrate-dm-artifacts our.bowl based)
+  =/  loaded=state-78  (migrate-dm-artifacts our.bowl based)
   ::  tell our own browser the full call list (which now includes any PRESERVED remote
   ::  cache), tell the members of every call we just ended that it is over, and ask every
   ::  remote host for its current truth. Those three are why a reload converges on both
@@ -8182,6 +8659,61 @@
   ::
   ::  Phase 8 read-only note metadata + capability surfaces. Missing note => no
   ::  cage (404), matching /api/artifacts/<missing>.
+      ::  ===== document notes =====
+      ::  Current body + stats. Read-gated by logical membership, exactly like
+      ::  every other per-note read.
+      [%x %api %notes @ %document ~]
+    =/  nid=@ta  i.t.t.t.path
+    =/  nt-u=(unit note:noltbook)  (~(get by notes) nid)
+    ?~  nt-u  ~
+    ?.  =(%document type.u.nt-u)  ~
+    ?.  (human-sees-note nid our.bowl note-members notes)  ~
+    =/  doc-u  (~(get by documents) nid)
+    ?~  doc-u  ~
+    =/  st=document-stats:noltbook  (doc-stats-of nid document-history)
+    =/  jon=json
+      %-  pairs:enjs:format
+      :~  ['noteId' s+(crip (trip nid))]
+          ['body' s+body.u.doc-u]
+          ['revision' (numb:enjs:format revision.u.doc-u)]
+          ['updatedBy' s+(scot %p updated-by.u.doc-u)]
+          ['updatedAt' s+(scot %da updated-at.u.doc-u)]
+          ['versions' (numb:enjs:format versions.st)]
+          ['bytes' (numb:enjs:format bytes.st)]
+          ['host' s+(scot %p creator.u.nt-u)]
+          ['canEdit' b+(can-edit-document nid our.bowl notes note-admins note-muted)]
+      ==
+    ``[%json !>(jon)]
+  ::
+      ::  Version history. HOST-ONLY: a member holds none, and asking a member
+      ::  must return an empty list rather than a misleading partial one.
+      [%x %api %notes @ %document %history ~]
+    =/  nid=@ta  i.t.t.t.path
+    =/  nt-u=(unit note:noltbook)  (~(get by notes) nid)
+    ?~  nt-u  ~
+    ?.  =(%document type.u.nt-u)  ~
+    ?.  (human-sees-note nid our.bowl note-members notes)  ~
+    =/  h=(list document-version:noltbook)  (fall (~(get by document-history) nid) ~)
+    =/  st=document-stats:noltbook  (doc-stats-of nid document-history)
+    =/  jon=json
+      %-  pairs:enjs:format
+      :~  ['noteId' s+(crip (trip nid))]
+          ['isHost' b+=(our.bowl creator.u.nt-u)]
+          ['versions' (numb:enjs:format versions.st)]
+          ['bytes' (numb:enjs:format bytes.st)]
+          :-  'entries'
+          :-  %a
+          %+  turn  h
+          |=  v=document-version:noltbook
+          %-  pairs:enjs:format
+          :~  ['revision' (numb:enjs:format revision.v)]
+              ['body' s+body.v]
+              ['savedBy' s+(scot %p saved-by.v)]
+              ['savedAt' s+(scot %da saved-at.v)]
+          ==
+      ==
+    ``[%json !>(jon)]
+  ::
       [%x %api %notes @ %meta ~]
     =/  nid=@ta  i.t.t.t.path
     =/  nt-u=(unit note:noltbook)  (~(get by notes) nid)
@@ -8549,18 +9081,29 @@
         :_  this
         (api-art-result-card request-id.aa %.n %rejected 'write blocked' `note-id.art r-eid `art-id.aa)
       =/  nt=note:noltbook  (~(got by notes) note-id.art)
-      ::  authority: %app artifacts are shared interactive state — any current member may edit
-      ::  (the host re-validates + moderates); %code/%file stay creator-only. %app content is
-      ::  validated here too, since the internal action now also accepts member %app edits.
+      ::  authority: %app artifacts are shared interactive state. An ordinary DM remains
+      ::  creator-only. In %group/%notebook, a current non-removed member may edit unless
+      ::  read-only or muted; the note host and current admins are exempt from those two
+      ::  restrictions. The authoritative note host re-validates remote edits as well.
+      ::  %code/%file stay creator-only, and every %app descriptor is validated here.
       =/  gate-err=(unit [code=@tas msg=@t])
         ?:  ?=(%app type.art)
-          ::  ordinary DM %app is single-writer: creator-only. Notebook/group %app stays
-          ::  member-writable (host re-validates).
           ?:  =(%dm type.nt)
             ?.  =(our.bowl creator.art)  `[%rejected 'only artifact creator can edit in a DM']
             ?.  (valid-app-artifact-content content.aa)  `[%invalid 'invalid app descriptor']
             ~
-          ?.  (~(has in users.nt) our.bowl)  `[%rejected 'not a member of this note']
+          =/  is-shared=?
+            ?|(?=(%group type.nt) ?=(%notebook type.nt) ?=(%document type.nt))
+          =/  is-member=?  (~(has in users.nt) our.bowl)
+          =/  is-removed=?  (~(has in removed.nt) our.bowl)
+          =/  admins=(set @p)  (fall (~(get by note-admins) note-id.art) ~)
+          =/  is-admin=?  (~(has in admins) our.bowl)
+          =/  elevated=?  ?|(=(our.bowl creator.nt) is-admin)
+          =/  is-muted=?  (~(has in (fall (~(get by note-muted) note-id.art) ~)) our.bowl)
+          ?.  is-member  `[%rejected 'not a member of this note']
+          ?:  ?&(is-shared is-removed)  `[%rejected 'removed from this note']
+          ?:  ?&(is-shared !elevated !writable.nt)  `[%rejected 'note is read-only']
+          ?:  ?&(is-shared !elevated is-muted)  `[%rejected 'muted in this note']
           ?.  (valid-app-artifact-content content.aa)  `[%invalid 'invalid app descriptor']
           ~
         ?.  =(our.bowl creator.art)  `[%rejected 'only artifact creator can edit via API']
@@ -9264,7 +9807,9 @@
         :_  this
         (api-result-card request-id.aa %.n %missing-note 'no such note' `note-id.aa ~ ~)
       =/  nt=note:noltbook  u.nt-u
-      ?.  ?|(=(%notebook type.nt) =(%group type.nt) =(%gossip type.nt))
+      ?.  ?|  =(%notebook type.nt)  =(%group type.nt)
+              =(%gossip type.nt)    =(%document type.nt)
+          ==
         :_  this
         (api-result-card request-id.aa %.n %unsupported 'app metadata not supported for this note type' `note-id.aa ~ ~)
       ?:  (is-write-blocked note-id.aa host-status notes our.bowl)
@@ -10355,9 +10900,279 @@
             artifact-envelopes  new-artifact-envelopes
             artifacts  new-artifacts
             note-members  (prune-note-members subtree-ids note-members)
+            ::  document body and version history die with the note. Artifacts
+            ::  are deliberately NOT touched: another note or another version
+            ::  may still reference them.
+            documents         (prune-documents subtree-ids documents)
+            document-history  (prune-document-history subtree-ids document-history)
           ==
       ^-  (list card)
       :(weld cleanup-cards delete-updates delete-remote-cards)
+    ::
+        %create-document-note
+      ::  A document is created EXPLICITLY. It never arrives by type
+      ::  inheritance, which is why a %document can never hold legacy messages.
+      =/  nid=@ta  (crip (weld "note-" (trip (scot %da now.bowl))))
+      =/  fresh=document-current:noltbook  ['' 0 our.bowl now.bowl]
+      ?~  parent.act
+        =/  self-set=(set @p)  (sy ~[our.bowl])
+        =/  new-note=note:noltbook
+          :*  nid  name.act  %document  our.bowl  self-set  ~  ~  ~  ~  %secret  ~  &  ~  ~
+          ==
+        :_  %=  this
+              notes                 (~(put by notes) nid new-note)
+              messages              (~(put by messages) nid *(list message:noltbook))
+              note-members          (~(put by note-members) nid self-set)
+              documents             (~(put by documents) nid fresh)
+              note-activity         (put-activity note-activity nid now.bowl)
+              note-unread-activity  (put-unread-activity note-unread-activity nid now.bowl)
+              note-read             (put-read note-read nid now.bowl)
+            ==
+        ^-  (list card:agent:gall)
+        :~  (gf-notes [%note-created new-note])
+            (activity-fact nid now.bowl)
+            (unread-activity-fact nid now.bowl)
+            (note-read-fact nid now.bowl)
+            (gf-notes [%document-updated nid fresh [0 0]])
+        ==
+      =/  pid=@ta  u.parent.act
+      =/  par-u=(unit note:noltbook)  (~(get by notes) pid)
+      ?~  par-u  `this
+      ::  a document may live under a notebook, a group, or another document
+      ?.  ?|  =(%notebook type.u.par-u)  =(%group type.u.par-u)
+              =(%document type.u.par-u)
+          ==
+        `this
+      =/  par=note:noltbook  u.par-u
+      ::  same host-only rule as every other child note
+      ?.  =(our.bowl creator.par)  `this
+      =/  is-shared=?  (gth ~(wyt in users.par) 1)
+      =/  new-note=note:noltbook
+        :*  nid  name.act  %document  creator.par  users.par  ~  `pid  ~  ~  %secret  ~  &  ~  ~
+        ==
+      =/  n1=(map @ta note:noltbook)  (~(put by notes) nid new-note)
+      =/  n2=(map @ta note:noltbook)
+        (~(put by n1) pid par(children (snoc children.par nid)))
+      =/  broadcast=(list card)
+        ?.  is-shared  ~
+        %+  murn  ~(tap in users.par)
+        |=  p=@p
+        ?:  =(p our.bowl)  ~
+        `(rpoke /child-out/(scot %p p)/[nid] p `remote:noltbook`[%remote-child-note pid new-note])
+      :_  %=  this
+            notes                 n2
+            messages              (~(put by messages) nid *(list message:noltbook))
+            note-members          (set-logical-members nid (logical-members-of pid note-members notes) note-members)
+            documents             (~(put by documents) nid fresh)
+            note-activity         (put-activity note-activity nid now.bowl)
+            note-unread-activity  (put-unread-activity note-unread-activity nid now.bowl)
+            note-read             (put-read note-read nid now.bowl)
+          ==
+      %+  weld
+        ^-  (list card:agent:gall)
+        :~  (gf-notes [%note-created new-note])
+            (activity-fact nid now.bowl)
+            (unread-activity-fact nid now.bowl)
+            (note-read-fact nid now.bowl)
+            (gf-notes [%document-updated nid fresh [0 0]])
+        ==
+      broadcast
+    ::
+        %save-document
+      ::  There is no autosave. This arm runs only on an explicit SAVE.
+      =/  nt-u  (~(get by notes) note-id.act)
+      ?~  nt-u  :_(this ~[(gf-notes [%document-save-result note-id.act request-id.act [%no-such-note ~]])])
+      ?.  =(%document type.u.nt-u)
+        :_(this ~[(gf-notes [%document-save-result note-id.act request-id.act [%no-such-note ~]])])
+      ?:  (is-write-blocked note-id.act host-status notes our.bowl)
+        :_(this ~[(gf-notes [%document-save-result note-id.act request-id.act [%denied ~]])])
+      ?.  (can-edit-document note-id.act our.bowl notes note-admins note-muted)
+        :_(this ~[(gf-notes [%document-save-result note-id.act request-id.act [%denied ~]])])
+      ::  not the host: forward and let the host answer with a typed result
+      ?.  =(our.bowl creator.u.nt-u)
+        :_  this
+        :~  %+  rpoke
+              /doc-save/(scot %p creator.u.nt-u)/[note-id.act]
+            :-  creator.u.nt-u
+            ^-  remote:noltbook
+            [%remote-document-save note-id.act body.act expected.act (fall request-id.act 0)]
+        ==
+      =+  ^=  out
+        %:  doc-apply-save
+          now.bowl  note-id.act  our.bowl  body.act  expected.act
+          documents  document-history
+        ==
+      =/  changed=?  ?=(%saved -.res.out)
+      =/  cur-u  (~(get by docs.out) note-id.act)
+      =/  fan=(list card)
+        ?.  changed  ~
+        ?~  cur-u  ~
+        %+  murn  ~(tap in users.u.nt-u)
+        |=  p=@p
+        ?:  =(p our.bowl)  ~
+        `(rpoke /doc-out/(scot %p p)/[note-id.act] p `remote:noltbook`[%remote-document-updated note-id.act u.cur-u])
+      =/  local=(list card)
+        ?.  changed  ~
+        ?~  cur-u  ~
+        ::  our OWN save: advance recency, but never mark it unread for us
+        :~  (gf-notes [%document-updated note-id.act u.cur-u (doc-stats-of note-id.act hist.out)])
+            (activity-fact note-id.act now.bowl)
+        ==
+      =/  na=(map @ta @da)
+        ?:(changed (put-activity note-activity note-id.act now.bowl) note-activity)
+      :_  this(documents docs.out, document-history hist.out, note-activity na)
+      ;:  weld
+        ~[(gf-notes [%document-save-result note-id.act request-id.act res.out])]
+        local
+        fan
+      ==
+    ::
+        %restore-document-version
+      ::  Restoring installs an old body as a NEW revision. Intervening history
+      ::  is never removed or rewritten -- it goes through the ordinary save.
+      =/  nt-u  (~(get by notes) note-id.act)
+      ?~  nt-u  `this
+      ?.  =(%document type.u.nt-u)  `this
+      ?.  (can-edit-document note-id.act our.bowl notes note-admins note-muted)
+        :_(this ~[(gf-notes [%document-save-result note-id.act request-id.act [%denied ~]])])
+      ::  Restore is HOST authority: only the host holds the history. A member or
+      ::  admin with edit rights asks the host and gets a typed result back --
+      ::  previously this arm simply returned, so the button did nothing at all.
+      ?.  =(our.bowl creator.u.nt-u)
+        :_  this
+        :~  %+  rpoke
+              /doc-restore/(scot %p creator.u.nt-u)/[note-id.act]
+            :-  creator.u.nt-u
+            ^-  remote:noltbook
+            [%remote-document-restore note-id.act revision.act (fall request-id.act 0)]
+        ==
+      =/  h=(list document-version:noltbook)  (fall (~(get by document-history) note-id.act) ~)
+      =/  pick=(list document-version:noltbook)
+        (skim h |=(v=document-version:noltbook =(revision.v revision.act)))
+      ?~  pick  :_(this ~[(gf-notes [%document-save-result note-id.act request-id.act [%no-such-note ~]])])
+      =/  cur-u  (~(get by documents) note-id.act)
+      ?~  cur-u  `this
+      =+  ^=  out
+        %:  doc-apply-save
+          now.bowl  note-id.act  our.bowl  body.i.pick  revision.u.cur-u
+          documents  document-history
+        ==
+      =/  changed=?  ?=(%saved -.res.out)
+      =/  new-u  (~(get by docs.out) note-id.act)
+      =/  fan=(list card)
+        ?.  changed  ~
+        ?~  new-u  ~
+        %+  murn  ~(tap in users.u.nt-u)
+        |=  p=@p
+        ?:  =(p our.bowl)  ~
+        `(rpoke /doc-out/(scot %p p)/[note-id.act] p `remote:noltbook`[%remote-document-updated note-id.act u.new-u])
+      =/  local=(list card)
+        ?.  changed  ~
+        ?~  new-u  ~
+        ~[(gf-notes [%document-updated note-id.act u.new-u (doc-stats-of note-id.act hist.out)])]
+      :_  this(documents docs.out, document-history hist.out)
+      ;:  weld
+        ~[(gf-notes [%document-save-result note-id.act request-id.act res.out])]
+        local
+        fan
+      ==
+    ::
+        %request-document
+      =/  nt-u  (~(get by notes) note-id.act)
+      ?~  nt-u  `this
+      ?.  =(%document type.u.nt-u)  `this
+      ::  we host it: nothing to pull, the local scry already has the truth
+      ?:  =(our.bowl creator.u.nt-u)  `this
+      :_  this
+      :~  %+  rpoke
+            /doc-pull/(scot %p creator.u.nt-u)/[note-id.act]
+          [creator.u.nt-u `remote:noltbook`[%remote-document-request note-id.act]]
+      ==
+    ::
+        %peek-document
+      ::  We may not hold this note at all -- the only input is a link. Ask the
+      ::  named host; it decides whether the document is readable.
+      ?:  =(our.bowl host.act)  `this
+      :_  this
+      :~  %+  rpoke
+            /doc-peek/(scot %p host.act)/[note-id.act]
+          [host.act `remote:noltbook`[%remote-document-peek note-id.act]]
+      ==
+    ::
+        %request-document-history
+      ::  Anyone who can READ the document may see its history.
+      =/  nt-u  (~(get by notes) note-id.act)
+      ?~  nt-u  `this
+      ?.  =(%document type.u.nt-u)  `this
+      ?:  =(our.bowl creator.u.nt-u)
+        =/  h=(list document-version:noltbook)  (fall (~(get by document-history) note-id.act) ~)
+        :_  this
+        ~[(gf-notes [%document-history note-id.act h (doc-stats-of note-id.act document-history)])]
+      ::  history lives on the host and is fetched only when asked for
+      :_  this
+      :~  %+  rpoke
+            /doc-hist/(scot %p creator.u.nt-u)/[note-id.act]
+          [creator.u.nt-u `remote:noltbook`[%remote-document-history-request note-id.act]]
+      ==
+    ::
+        %duplicate-document
+      ::  NOT a fork: a new note owned by the copier, with no lineage, no
+      ::  members, no permissions and no history carried across.
+      =/  nid=@ta  (crip (weld "note-" (trip (scot %da now.bowl))))
+      ?:  (gth (met 3 body.act) doc-max-bytes)  `this
+      =/  self-set=(set @p)  (sy ~[our.bowl])
+      =/  fresh=document-current:noltbook  [body.act 0 our.bowl now.bowl]
+      ?~  parent.act
+        =/  new-note=note:noltbook
+          :*  nid  name.act  %document  our.bowl  self-set  ~  ~  ~  ~  %secret  ~  &  ~  ~
+          ==
+        :_  %=  this
+              notes                 (~(put by notes) nid new-note)
+              messages              (~(put by messages) nid *(list message:noltbook))
+              note-members          (~(put by note-members) nid self-set)
+              documents             (~(put by documents) nid fresh)
+              note-activity         (put-activity note-activity nid now.bowl)
+              note-unread-activity  (put-unread-activity note-unread-activity nid now.bowl)
+              note-read             (put-read note-read nid now.bowl)
+            ==
+        ^-  (list card:agent:gall)
+        :~  (gf-notes [%note-created new-note])
+            (activity-fact nid now.bowl)
+            (unread-activity-fact nid now.bowl)
+            (note-read-fact nid now.bowl)
+            (gf-notes [%document-updated nid fresh [0 0]])
+        ==
+      =/  pid=@ta  u.parent.act
+      =/  par-u=(unit note:noltbook)  (~(get by notes) pid)
+      ?~  par-u  `this
+      ?.  ?|  =(%notebook type.u.par-u)  =(%group type.u.par-u)
+              =(%document type.u.par-u)
+          ==
+        `this
+      ?.  =(our.bowl creator.u.par-u)  `this
+      =/  par=note:noltbook  u.par-u
+      =/  new-note=note:noltbook
+        :*  nid  name.act  %document  our.bowl  self-set  ~  `pid  ~  ~  %secret  ~  &  ~  ~
+        ==
+      =/  n1=(map @ta note:noltbook)  (~(put by notes) nid new-note)
+      =/  n2=(map @ta note:noltbook)
+        (~(put by n1) pid par(children (snoc children.par nid)))
+      :_  %=  this
+            notes                 n2
+            messages              (~(put by messages) nid *(list message:noltbook))
+            note-members          (~(put by note-members) nid self-set)
+            documents             (~(put by documents) nid fresh)
+            note-activity         (put-activity note-activity nid now.bowl)
+            note-unread-activity  (put-unread-activity note-unread-activity nid now.bowl)
+            note-read             (put-read note-read nid now.bowl)
+          ==
+      ^-  (list card:agent:gall)
+      :~  (gf-notes [%note-created new-note])
+          (activity-fact nid now.bowl)
+          (unread-activity-fact nid now.bowl)
+          (note-read-fact nid now.bowl)
+          (gf-notes [%document-updated nid fresh [0 0]])
+      ==
     ::
         %create-note
       ::  no parent: personal root note — created as %notebook
@@ -10374,11 +11189,19 @@
       =/  pid=@ta  u.parent.act
       =/  par-u=(unit note:noltbook)  (~(get by notes) pid)
       ?~  par-u  `this
-      ::  only %notebook and %group parents may have children;
+      ::  only %notebook, %group and %document parents may have children;
       ::  reject %dm, %cover, %gossip
-      ?.  ?|(=(%notebook type.u.par-u) =(%group type.u.par-u))  `this
+      ?.  ?|  =(%notebook type.u.par-u)  =(%group type.u.par-u)
+              =(%document type.u.par-u)
+          ==
+        `this
       =/  par=note:noltbook  u.par-u
-      =/  child-type=note-type:noltbook  type.par
+      ::  A child MIRRORS its parent's type, except under a %document: a
+      ::  document's content is its body, and a child that inherited %document
+      ::  would have no document record. It becomes an ordinary %notebook --
+      ::  sharing is what later makes a note a %group, not creation.
+      =/  child-type=note-type:noltbook
+        ?:(=(%document type.par) %notebook type.par)
       =/  is-shared=?  (gth ~(wyt in users.par) 1)
       ::  host-only: only the parent's creator may add child notes. A member of
       ::  a shared note can no longer create children (UI grays this out too).
@@ -10488,6 +11311,8 @@
       ?.  (can-mutate-message note-id.act our.bowl notes note-admins note-muted)  `this
       =/  exists  (~(get by notes) note-id.act)
       ?~  exists  `this
+      ::  %document carries no timeline: refuse before any id, seq, mutation or fact.
+      ?.  (note-allows-messages u.exists)  `this
       ::  PREDETERMINED ID. Honored ONLY for the same-ship optimistic path into a note
       ::  ANOTHER ship hosts -- the one path that forwards instead of storing, and so
       ::  the only one whose sender may have to retry. Everywhere else (our own notes,
@@ -10704,6 +11529,9 @@
       ?~  exists  `this
       ::  read-only %group: ordinary members may not edit. Author-only remains below.
       ?.  (can-mutate-message note-id.act our.bowl notes note-admins note-muted)  `this
+      ::  No supported path can put a message inside a %document (see
+      ::  note-allows-messages), so there is nothing legitimate to edit there.
+      ?.  (note-allows-messages u.exists)  `this
       ::  DM: peer-authoritative — edit locally and replicate
       ?:  =(%dm type.u.exists)
         =/  cur=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
@@ -10785,6 +11613,7 @@
       ::  read-only %group: ordinary members may not delete. Existing authorship and
       ::  hosted-group host-deletion authority remain unchanged below.
       ?.  (can-mutate-message note-id.act our.bowl notes note-admins note-muted)  `this
+      ?.  (note-allows-messages u.exists)  `this
       ::  cover/ordinary-gossip: HOSTLESS origin-authoritative deletion. The poster deletes
       ::  their OWN text; there is no note-creator authority (do NOT forward to note.creator).
       ::  Remove the local message + its text envelope, install a terminal eid tombstone,
@@ -11441,7 +12270,9 @@
       ::  artifacts take — mirroring the %file upload-artifact non-host path. DMs fall through to
       ::  the local path below (DM sync uses %remote-dm-artifact; the host path rejects DMs).
       ?:  ?&  !=(our.bowl creator.u.exists)
-              ?|(?=(%notebook type.u.exists) ?=(%group type.u.exists))
+              ?|  ?=(%notebook type.u.exists)  ?=(%group type.u.exists)
+                  ?=(%document type.u.exists)
+              ==
           ==
         :_  this
         ~[(rpoke /art-create-out/[aid] creator.u.exists `remote:noltbook`[%remote-artifact-create new-art])]
@@ -11506,7 +12337,9 @@
       ?:  ?&  =(%app type.u.old)
               ?=(^ nt)
               !=(our.bowl creator.u.nt)
-              ?|(?=(%notebook type.u.nt) ?=(%group type.u.nt))
+              ?|  ?=(%notebook type.u.nt)  ?=(%group type.u.nt)
+                  ?=(%document type.u.nt)
+              ==
           ==
         :_  this
         ~[(rpoke /art-edit-out/[id.act] creator.u.nt `remote:noltbook`[%remote-artifact-update id.act content.act])]
@@ -11611,7 +12444,9 @@
       ::  Scope: ONLY an ordinary human %group/%notebook AND only %file/%app artifacts.
       ::  %code falls through to its exact pre-change local-delete behavior below.
       ?:  ?&  ?=(^ nt)
-              ?|(?=(%group type.u.nt) ?=(%notebook type.u.nt))
+              ?|  ?=(%group type.u.nt)  ?=(%notebook type.u.nt)
+                  ?=(%document type.u.nt)
+              ==
               ?|(=(%file type.u.old) =(%app type.u.old))
           ==
         ?:  =(our.bowl creator.u.nt)
@@ -11805,7 +12640,7 @@
         =/  pub-notes=(list note:noltbook)
           %+  skim  ~(val by notes)
           |=  n=note:noltbook
-          ?&  ?|(=(%group type.n) =(%gossip type.n))
+          ?&  ?|(=(%group type.n) =(%gossip type.n) =(%document type.n))
               =(our.bowl creator.n)
               ?|(?=(%public visibility.n) ?=(%private visibility.n))
           ==
@@ -12506,7 +13341,11 @@
       ::  calls/joins/mentions) intentionally not copied.
       =/  src  (~(get by notes) id.act)
       ?~  src  `this
-      ?.  =(%group type.u.src)  `this
+      ::  %document forks like %group: the fork is hosted by the forker and the
+      ::  source's members are INVITED, which is what separates it from a plain
+      ::  duplicate. A document fork carries the current BODY -- its content --
+      ::  but not its version history: the fork is a new line of authorship.
+      ?.  ?|(=(%group type.u.src) =(%document type.u.src))  `this
       ::  removed archive holders may still fork — match the FE affordance.
       =/  can-fork=?
         |((~(has in users.u.src) our.bowl) (~(has in removed.u.src) our.bowl))
@@ -12514,8 +13353,13 @@
       ::  the live host/creator must not fork their own active note (the UI hides
       ::  this affordance from the creator; forking is for member copies).
       ?:  &(=(our.bowl creator.u.src) !(is-host-deleted id.act host-status))  `this
-      ::  collect subtree (%group descendants, same creator as source root)
-      =/  desc-ids=(list @ta)  (collect-group-descendants id.act notes)
+      ::  collect subtree. A %document root forks its WHOLE subtree, including
+      ::  %notebook and nested %document children; a %group root keeps the
+      ::  stricter %group-only walk it has always used.
+      =/  desc-ids=(list @ta)
+        ?:  =(%document type.u.src)
+          (collect-doc-descendants id.act notes)
+        (collect-group-descendants id.act notes)
       =/  src-ids=(list @ta)  [id.act desc-ids]
       ::  build fresh id map old -> new
       =/  id-map=(map @ta @ta)  (gen-fork-id-map src-ids now.bowl)
@@ -12560,6 +13404,18 @@
       ::  copy headlines
       =/  headlines-after=(map @ta @t)
         (copy-headlines-for-fork pairs headlines headlines)
+      ::  copy document bodies at their INITIAL revision. document-history is
+      ::  deliberately not carried, exactly as duplicate does not carry it.
+      =/  documents-after=(map @ta document-current:noltbook)
+        =/  todo  pairs
+        |-
+        ?~  todo  documents
+        =/  sd  (~(get by documents) old.i.todo)
+        ?~  sd  $(todo t.todo)
+        %=  $
+          todo       t.todo
+          documents  (~(put by documents) new.i.todo [body.u.sd 0 our.bowl now.bowl])
+        ==
       ::  install lineage entries: every new id gets origin + new-version +
       ::  fork-of pointing to its source counterpart (host = source-host).
       =/  fork-origin-after=(map @ta @uv)
@@ -12650,6 +13506,7 @@
       :_  %=  this
             notes  notes-after
             messages  messages-after
+            documents  documents-after
             seq-counters  seq-after
             headlines  headlines-after
             fork-origin  fork-origin-after

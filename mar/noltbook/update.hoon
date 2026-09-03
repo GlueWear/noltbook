@@ -62,6 +62,66 @@
           ['type' s+(crip (trip (scot %tas type.upd)))]
       ==
     ::
+    ::  ===== document notes =====
+        %document-updated
+      %+  frond  'document-updated'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['body' s+body.doc.upd]
+          ['revision' (numb revision.doc.upd)]
+          ['updatedBy' s+(scot %p updated-by.doc.upd)]
+          ['updatedAt' s+(scot %da updated-at.doc.upd)]
+          ['versions' (numb versions.stats.upd)]
+          ['bytes' (numb bytes.stats.upd)]
+      ==
+    ::
+        %document-save-result
+      %+  frond  'document-save-result'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['requestId' ?~(request-id.upd ~ (numb u.request-id.upd))]
+          ['result' s+(crip (trip (scot %tas -.res.upd)))]
+          :-  'revision'
+          ?-  -.res.upd
+            %saved      (numb revision.res.upd)
+            %no-change  (numb revision.res.upd)
+            %conflict   (numb current.res.upd)
+            %too-large  ~
+            %denied     ~
+            %no-such-note  ~
+          ==
+          :-  'limit'
+          ?:(?=(%too-large -.res.upd) (numb limit.res.upd) ~)
+      ==
+    ::
+        %document-peek
+      %+  frond  'document-peek'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['ok' b+ok.upd]
+          ['body' s+body.upd]
+          ['revision' (numb revision.upd)]
+          ['name' s+name.upd]
+      ==
+    ::
+        %document-history
+      %+  frond  'document-history'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['versions' (numb versions.stats.upd)]
+          ['bytes' (numb bytes.stats.upd)]
+          :-  'entries'
+          :-  %a
+          %+  turn  versions.upd
+          |=  v=document-version:noltbook
+          %-  pairs
+          :~  ['revision' (numb revision.v)]
+              ['body' s+body.v]
+              ['savedBy' s+(scot %p saved-by.v)]
+              ['savedAt' s+(scot %da saved-at.v)]
+          ==
+      ==
+    ::
         %note-host-status
       %+  frond  'note-host-status'
       %-  pairs
