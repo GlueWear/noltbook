@@ -676,6 +676,46 @@
 ::  that, and every cascade path routes through them. Neither copies a parent's roles
 ::  into a child -- each note keeps its own settings.
 ::
+::  ===== read-only mute invariant =====
+::  ro-mute-type: the note types that carry a membership/mute/admin model and so
+::  participate in the read-only mute invariant. %notebook is deliberately NOT
+::  here -- it has no membership model and its writable flag is metadata only --
+::  and neither are %dm, %cover or %gossip.
+++  ro-mute-type
+  |=  nt=note:noltbook
+  ^-  ?
+  ?|(=(%group type.nt) =(%document type.nt))
+::  read-only-mute-note: that type AND currently read-only.
+++  read-only-mute-note
+  |=  nt=note:noltbook
+  ^-  ?
+  &((ro-mute-type nt) !writable.nt)
+::  ro-writable-blocks: does !writable ALONE deny an ordinary member?
+::
+::  For %group and %document it does NOT. Read-only is the note's DEFAULT policy,
+::  expressed by auto-muting ordinary members on the writable->read-only
+::  transition. The authoritative per-member answer is the mute set, and absence
+::  from it is a deliberate host/admin exception -- so an explicitly unmuted
+::  member may write while the note still shows READ ONLY. Every other type
+::  keeps writable's original meaning.
+++  ro-writable-blocks
+  |=  nt=note:noltbook
+  ^-  ?
+  &(!writable.nt !(ro-mute-type nt))
+::  reset-ro-mutes: the mute set applied when a note ENTERS read-only. Derived
+::  from current membership; creator, admins, removed ships and non-members are
+::  excluded. This is a TRANSITION reset, not an invariant -- re-saving settings
+::  while already read-only deliberately preserves existing unmute exceptions.
+++  reset-ro-mutes
+  |=  [nt=note:noltbook admins=(set @p)]
+  ^-  (set @p)
+  ?.  (read-only-mute-note nt)  ~
+  %-  ~(rep in users.nt)
+  |=  [p=@p acc=(set @p)]
+  ?:  =(p creator.nt)  acc
+  ?:  (~(has in admins) p)  acc
+  ?:  (~(has in removed.nt) p)  acc
+  (~(put in acc) p)
 ::  cascade-roles-add: for each id, decide roles for a ship being (re)added.
 ::  `pre` is the roster BEFORE the users cascade, so "already a member here" is
 ::  answerable. Already a member => untouched, so an idempotent add can never demote a
@@ -695,7 +735,7 @@
   ?:  (~(has in users.u.cur) ship)  $(ids t.ids)
   =/  a-set=(set @p)  (~(del in (fall (~(get by admins) i.ids) ~)) ship)
   =/  m-set=(set @p)  (~(del in (fall (~(get by muted) i.ids) ~)) ship)
-  =/  needs-mute=?  &(=(%group type.u.cur) !writable.u.cur !=(ship creator.u.cur))
+  =/  needs-mute=?  &((read-only-mute-note u.cur) !=(ship creator.u.cur))
   =?  m-set  needs-mute  (~(put in m-set) ship)
   $(ids t.ids, admins (~(put by admins) i.ids a-set), muted (~(put by muted) i.ids m-set))
 ::  cascade-roles-remove: a ship leaving/removed from a subtree keeps no role anywhere
@@ -1760,7 +1800,7 @@
   =/  can-upload=?
     ?&  is-member
         !is-removed
-        ?|(exempt writable.nt is-creator is-admin)
+        ?|(exempt !(ro-writable-blocks nt) is-creator is-admin)
         ?|(exempt !is-muted is-creator is-admin)
     ==
   ::  1B.3: ordinary post/read require logical membership (system DM/cover exempt).
@@ -3626,7 +3666,8 @@
   ?.  (~(has in users.nt) who)  %.n
   ?:  =(who creator.nt)  %.y
   ?:  (~(has in (fall (~(get by admins) nid) ~)) who)  %.y
-  ?.  writable.nt  %.n
+  ::  membership, removal, creator/admin and mute -- ro-writable-blocks would be
+  ::  a guaranteed-false no-op here, the type having already been proved
   ?:  (~(has in (fall (~(get by muted) nid) ~)) who)  %.n
   %.y
 ::  doc-stats-of: what the beta exposes instead of silently pruning history.
@@ -6555,14 +6596,6 @@
       ::
           %unmute-member
         ?.  is-admin  `state
-        ::  a read-only %group requires its ordinary members to stay muted; a remote
-        ::  admin cannot lift that either. Promotion to admin is the valid route.
-        ?:  ?&  !writable.u.old
-                =(%group type.u.old)
-                !=(target.rem creator.u.old)
-                !(~(has in (fall (~(get by note-admins) note-id.rem) ~)) target.rem)
-            ==
-          `state
         =/  cur-muted=(set @p)  (fall (~(get by note-muted) note-id.rem) ~)
         ?.  (~(has in cur-muted) target.rem)  `state
         =/  new-muted=(set @p)  (~(del in cur-muted) target.rem)
@@ -7000,7 +7033,7 @@
       ::  read-only: only host/admin can post; host already self
       =/  admins  (fall (~(get by note-admins) nid) ~)
       =/  is-admin=?  (~(has in admins) src.bowl)
-      ?:  ?&  !writable.u.nt
+      ?:  ?&  (ro-writable-blocks u.nt)
               !is-admin
           ==
         `state
@@ -7066,7 +7099,7 @@
       ?.  (valid-app-artifact-content content.rem)  `state
       =/  admins  (fall (~(get by note-admins) nid) ~)
       =/  is-admin=?  (~(has in admins) src.bowl)
-      ?:  ?&(!writable.u.nt !is-admin)  `state
+      ?:  ?&((ro-writable-blocks u.nt) !is-admin)  `state
       =/  muted  (fall (~(get by note-muted) nid) ~)
       ?:  ?&((~(has in muted) src.bowl) !is-admin)  `state
       =/  new-ver=artifact-version:noltbook
@@ -7944,7 +7977,11 @@
   =/  nt=note:noltbook  u.nt-u
   ?:  =(who creator.nt)  %.y
   ?:  (~(has in (fall (~(get by admins) nid) ~)) who)  %.y
-  ?:  &(=(%group type.nt) !writable.nt)  %.n
+  ::  No independent writable rejection. The only clause here was ever
+  ::  %group-specific, and under the selective-writer contract %group is decided
+  ::  by the mute set below -- an unmuted exception may post while the note is
+  ::  read-only. Every other type never had a writable clause here, so removing
+  ::  it leaves DM, cover, gossip and notebook exactly as they were.
   ?:  (~(has in (fall (~(get by muted) nid) ~)) who)  %.n
   %.y
 ::  can-user-post: the gate for human posting — not write-blocked AND a logical
@@ -9102,7 +9139,7 @@
           =/  is-muted=?  (~(has in (fall (~(get by note-muted) note-id.art) ~)) our.bowl)
           ?.  is-member  `[%rejected 'not a member of this note']
           ?:  ?&(is-shared is-removed)  `[%rejected 'removed from this note']
-          ?:  ?&(is-shared !elevated !writable.nt)  `[%rejected 'note is read-only']
+          ?:  ?&(is-shared !elevated (ro-writable-blocks nt))  `[%rejected 'note is read-only']
           ?:  ?&(is-shared !elevated is-muted)  `[%rejected 'muted in this note']
           ?.  (valid-app-artifact-content content.aa)  `[%invalid 'invalid app descriptor']
           ~
@@ -9691,17 +9728,6 @@
         %unmute-member
       =/  pre  (api-mod-pre %mod request-id.aa note-id.aa ship.aa notes our.bowl note-admins host-status)
       ?:  ?=(%.n -.pre)  [p.pre this]
-      ::  a read-only %group keeps its ordinary members muted, so the underlying action
-      ::  rejects this. Report it honestly instead of claiming unmuted/accepted.
-      =/  unm-nt  (~(get by notes) note-id.aa)
-      ?:  ?&  ?=(^ unm-nt)
-              !writable.u.unm-nt
-              =(%group type.u.unm-nt)
-              !=(who.p.pre creator.u.unm-nt)
-              !(~(has in (fall (~(get by note-admins) note-id.aa) ~)) who.p.pre)
-          ==
-        :_  this
-        (api-result-card request-id.aa %.n %rejected 'read-only group requires mute' `note-id.aa ~ ~)
       =^  cards  this
         $(mark %noltbook-action, vase (action-vase `action:noltbook`[%unmute-member note-id.aa who.p.pre]))
       :_  this
@@ -10444,7 +10470,7 @@
       ::  and for cover (cover is a personal note hosted by self)
       ?:  ?&  !is-dm
               !is-cover
-              !writable.u.nt
+              (ro-writable-blocks u.nt)
               !is-host
               !is-admin
           ==
@@ -11929,47 +11955,44 @@
       =/  upd-note=note:noltbook
         effective-old(visibility visibility.act, icon-url icon-url.act, writable writable.act)
       =/  upd=update:noltbook  [%note-meta-updated id.act visibility.act icon-url.act writable.act]
-      ::  read-only toggle: adjust muted set for %group notes
-      =/  new-muted=(set @p)  (fall (~(get by note-muted) id.act) ~)
-      =/  mute-changed=?  %.n
-      ::  Write -> Read Only: mute all non-host non-admin members
-      ?:  &(writable.u.old !writable.act =(%group type.effective-old))
-        =/  admins=(set @p)  (fall (~(get by note-admins) id.act) ~)
-        =.  new-muted
-          %-  ~(rep in users.u.old)
-          |=  [p=@p acc=(set @p)]
-          ?:  =(p creator.u.old)  acc
-          ?:  (~(has in admins) p)  acc
-          (~(put in acc) p)
-        =.  mute-changed  %.y
+      ::  READ-ONLY IS A DEFAULT, NOT AN INVARIANT. The mute set is the
+      ::  authoritative per-member answer, and absence from it is a deliberate
+      ::  host/admin exception -- so this is TRANSITION-sensitive rather than
+      ::  idempotent. Re-saving settings must never silently remute someone the
+      ::  host deliberately unmuted.
+      ::
+      ::    writable  -> read-only : reset the default, discarding exceptions
+      ::    read-only -> read-only : preserve, exceptions survive
+      ::    read-only -> writable  : clear
+      ::    writable  -> writable  : preserve ordinary manual mutes
+      ::
+      ::  The fact is emitted only when the set actually changes.
+      =/  cur-muted=(set @p)  (fall (~(get by note-muted) id.act) ~)
+      =/  admins=(set @p)  (fall (~(get by note-admins) id.act) ~)
+      =/  gov=?     (ro-mute-type upd-note)
+      =/  was-ro=?  !writable.u.old
+      =/  now-ro=?  !writable.act
+      =/  new-muted=(set @p)
+        ?.  gov  cur-muted
+        ?:  &(!was-ro now-ro)  (reset-ro-mutes upd-note admins)
+        ?:  &(was-ro !now-ro)  ~
+        cur-muted
+      =/  mute-changed=?  !=(new-muted cur-muted)
+      =/  mute-cards=(list card)
+        ?.  mute-changed  ~
         =/  mute-upd=update:noltbook  [%muted-updated id.act ~(tap in new-muted)]
-        :_  this(notes (~(put by notes) id.act upd-note), note-muted (~(put by note-muted) id.act new-muted))
-        %+  weld  type-updates
+        ~[(gf-notes mute-upd) (gf-paths ~[/notes/[id.act]] mute-upd)]
+      =/  muted-after=(map @ta (set @p))
+        ?.  mute-changed  note-muted
+        (~(put by note-muted) id.act new-muted)
+      :_  this(notes (~(put by notes) id.act upd-note), note-muted muted-after)
+      ;:  weld
+        type-updates
         ^-  (list card)
         :~  (gf-notes upd)
             (gf-paths ~[/notes/[id.act]] upd)
-            (gf-notes mute-upd)
-            (gf-paths ~[/notes/[id.act]] mute-upd)
         ==
-      ::  Read Only -> Write: clear muted set broadly
-      ?:  &(!writable.u.old writable.act =(%group type.effective-old))
-        =.  new-muted  ~
-        =.  mute-changed  %.y
-        =/  mute-upd=update:noltbook  [%muted-updated id.act ~(tap in new-muted)]
-        :_  this(notes (~(put by notes) id.act upd-note), note-muted (~(put by note-muted) id.act new-muted))
-        %+  weld  type-updates
-        ^-  (list card)
-        :~  (gf-notes upd)
-            (gf-paths ~[/notes/[id.act]] upd)
-            (gf-notes mute-upd)
-            (gf-paths ~[/notes/[id.act]] mute-upd)
-        ==
-      ::  no writable change or not %group — just update meta
-      :_  this(notes (~(put by notes) id.act upd-note))
-      %+  weld  type-updates
-      ^-  (list card)
-      :~  (gf-notes upd)
-          (gf-paths ~[/notes/[id.act]] upd)
+        mute-cards
       ==
     ::
         %invite-to-note
@@ -12042,7 +12065,7 @@
       =/  upd=update:noltbook  [%note-created new-note]
       ::  auto-mute invitee if note is read-only (group only, skip host/admin)
       =/  ro-muted=(set @p)
-        ?.  &(!writable.effective-old =(%group type.effective-old))
+        ?.  (read-only-mute-note effective-old)
           (fall (~(get by note-muted) id.act) ~)
         ?.  =(ship.act creator.effective-old)
           ?.  (~(has in (fall (~(get by note-admins) id.act) ~)) ship.act)
@@ -12050,7 +12073,7 @@
           (fall (~(get by note-muted) id.act) ~)
         (fall (~(get by note-muted) id.act) ~)
       =/  ro-mute-cards=(list card)
-        ?.  &(!writable.effective-old =(%group type.effective-old))  ~
+        ?.  (read-only-mute-note effective-old)  ~
         ?:  =(ship.act creator.effective-old)  ~
         ?:  (~(has in (fall (~(get by note-admins) id.act) ~)) ship.act)  ~
         =/  mute-upd=update:noltbook  [%muted-updated id.act ~(tap in ro-muted)]
@@ -12177,7 +12200,7 @@
         ^-  card
         [%pass /ars/(scot %p p) %agent [p %noltbook] %watch /notes/cover]
       ::  read-only group: auto-mute each cleaned non-host/non-admin invitee
-      =/  is-ro-group=?  &(!writable.effective-old =(%group type.effective-old))
+      =/  is-ro-group=?  (read-only-mute-note effective-old)
       =/  admins=(set @p)  (fall (~(get by note-admins) id.act) ~)
       =/  cur-muted=(set @p)  (fall (~(get by note-muted) id.act) ~)
       =/  to-mute=(set @p)
@@ -14164,10 +14187,10 @@
       =/  cur-muted=(set @p)  (fall (~(get by note-muted) id.act) ~)
       =/  was-muted=?  (~(has in cur-muted) ship.act)
       =/  new-muted=(set @p)
-        ?.  &(!writable.u.old =(%group type.u.old) was-muted)  cur-muted
+        ?.  &((read-only-mute-note u.old) was-muted)  cur-muted
         (~(del in cur-muted) ship.act)
       =/  mute-cards=(list card)
-        ?.  &(!writable.u.old =(%group type.u.old) was-muted)  ~
+        ?.  &((read-only-mute-note u.old) was-muted)  ~
         =/  mute-upd=update:noltbook  [%muted-updated id.act ~(tap in new-muted)]
         ~[(gf-notes mute-upd) (gf-paths ~[/notes/[id.act]] mute-upd)]
       :_  this(note-admins (~(put by note-admins) id.act new-admins), note-muted (~(put by note-muted) id.act new-muted))
@@ -14185,7 +14208,7 @@
       =/  upd=update:noltbook  [%admins-updated id.act ~(tap in new-admins)]
       ::  read-only invariant: demoted member must be muted
       =/  cur-muted=(set @p)  (fall (~(get by note-muted) id.act) ~)
-      =/  should-mute=?  &(!writable.u.old =(%group type.u.old) (~(has in users.u.old) ship.act))
+      =/  should-mute=?  &((read-only-mute-note u.old) (~(has in users.u.old) ship.act))
       =/  new-muted=(set @p)
         ?.  should-mute  cur-muted
         (~(put in cur-muted) ship.act)
@@ -14222,14 +14245,9 @@
       ?:  (is-write-blocked id.act host-status notes our.bowl)  `this
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
-      ::  a read-only %group requires its ordinary members to stay muted; unmuting one
-      ::  would contradict the read-only rule. Promotion to admin is the valid route.
-      ?:  ?&  !writable.u.old
-              =(%group type.u.old)
-              !=(ship.act creator.u.old)
-              !(~(has in (fall (~(get by note-admins) id.act) ~)) ship.act)
-          ==
-        `this
+      ::  Read-only does NOT forbid unmuting. A host or admin may grant a
+      ::  deliberate per-member exception; the ordinary moderation gates below
+      ::  remain the authority.
       ::  remote admin: forward to host
       ?.  =(our.bowl creator.u.old)
         :_  this

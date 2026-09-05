@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="nb-build" content="9c23rl2ig9">
+<meta name="nb-build" content="bcam5o99hb">
 <title>NOLTBOOK</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20355.9%20355.9%22%20width=%22355.9%22%20height=%22355.9%22%3E%3Cg%20fill=%22%23ffffff%22%20transform=%22translate(-10.9901536%2036.4439936)%20scale(1.06235712)%22%3E%3Cpolygon%20points=%2266%20159.5%2066%2021.2%20204.3%2021.2%20204.3%2080.8%20204.3%20112.5%20204.3%20159.5%20160.7%20159.5%20160.7%20180.7%20225.5%20180.7%20225.5%20112.5%20225.5%2080.8%20225.5%200%2044.8%200%2044.8%20180.7%20121%20180.7%20121%20159.5%2066%20159.5%22/%3E%3Cpolygon%20points=%22234.7%2085.7%20234.7%20106.9%20289.8%20106.9%20289.8%20245.3%20151.4%20245.3%20151.4%20186.8%20151.4%20180.7%20151.4%20159.5%20151.4%20155.1%20151.4%20106.9%20195%20106.9%20195%2085.7%20130.2%2085.7%20130.2%20151.8%20130.2%20159.5%20130.2%20180.7%20130.2%20183.5%20130.2%20266.4%20310.9%20266.4%20310.9%2085.7%20234.7%2085.7%22/%3E%3C/g%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -2738,7 +2738,7 @@ function handleUpdate(upd){
   else if(upd['dm-ref-list']){const{noteId,refs}=upd['dm-ref-list'];for(const _e in state.artifactRefs){if(state.artifactRefs[_e].noteId===noteId)delete state.artifactRefs[_e]}for(const r of (refs||[]))state.artifactRefs[r.eid]=r;if(noteId===state.currentNoteId){scheduleRender(noteId);renderPinSurface(noteId)}scheduleNoteList()}
   else if(upd['dm-ref-upserted']){const r=upd['dm-ref-upserted'];if(r&&r.eid){state.artifactRefs[r.eid]=r;if(r.noteId===state.currentNoteId){scheduleRender(r.noteId);renderPinSurface(r.noteId)}scheduleNoteList()}}
   else if(upd['dm-ref-deleted']){const{eid,noteId}=upd['dm-ref-deleted'];delete state.artifactRefs[eid];if(noteId===state.currentNoteId){scheduleRender(noteId);renderPinSurface(noteId)}scheduleNoteList()}
-  else if(upd['note-meta-updated']){const d=upd['note-meta-updated'];const n=state.notes[d.id];if(n){n.visibility=d.visibility;n.iconUrl=d.iconUrl||null;n.writable=d.writable;
+  else if(upd['note-meta-updated']){const d=upd['note-meta-updated'];const n=state.notes[d.id];if(n){n.visibility=d.visibility;n.iconUrl=d.iconUrl||null;n.writable=d.writable;refreshDocPermissions(d.id);
     // the stored URL is unchanged across a replacement, so this fact is the ONLY
     // signal to refetch: bump unconditionally for an internal pointer, and drop the
     // revision when the icon is cleared or switched to an external URL.
@@ -2912,8 +2912,8 @@ function handleUpdate(upd){
   else if(upd['note-deleted-notification']){const{noteId,noteName}=upd['note-deleted-notification'];state.blockNotifications.push({noteId,noteName,from:null,time:Date.now(),type:'deleted'});updateLogoBadge()}
   else if(upd['notification-acks']){const acks=upd['notification-acks']||[];state.notificationAcks=new Set(acks.map(a=>notifAckKey(a.kind,a.noteId)));console.log('[notification-acks]',state.notificationAcks.size,'acked');rebuildDurableNotifications();updateLogoBadge()}
   else if(upd['app-notifications-updated']){state.appNotifications={};for(const n of(upd['app-notifications-updated']||[])){state.appNotifications[appNotifKey(n)]=n}updateLogoBadge();refreshGrimoireIfOpen()}
-  else if(upd['admins-updated']){const{id,admins}=upd['admins-updated'];state.noteAdmins[id]=admins;console.log('[admins-updated]',id,admins);if(id===state.currentNoteId){const _sb=document.getElementById('shareBtn');if(_sb)_sb.style.display=canShareNote(state.notes[id])?'block':'none'}refreshNoteInfoMembers(id)}
-  else if(upd['muted-updated']){const{id,muted}=upd['muted-updated'];state.noteMuted[id]=muted;console.log('[muted-updated]',id,muted);if(state.currentNoteId===id)updateMuteUI();refreshNoteInfoMembers(id)}
+  else if(upd['admins-updated']){const{id,admins}=upd['admins-updated'];state.noteAdmins[id]=admins;console.log('[admins-updated]',id,admins);refreshDocPermissions(id);if(id===state.currentNoteId){const _sb=document.getElementById('shareBtn');if(_sb)_sb.style.display=canShareNote(state.notes[id])?'block':'none'}refreshNoteInfoMembers(id)}
+  else if(upd['muted-updated']){const{id,muted}=upd['muted-updated'];state.noteMuted[id]=muted;console.log('[muted-updated]',id,muted);refreshDocPermissions(id);if(state.currentNoteId===id)updateMuteUI();refreshNoteInfoMembers(id)}
   else if(upd['note-pin-updated']){const{noteId,pin}=upd['note-pin-updated'];if(pin)state.notePins[noteId]=pin;else delete state.notePins[noteId];if(noteId===state.currentNoteId){renderPinSurface(noteId);scheduleRender(noteId)}}
   else if(upd['note-active-updated']){const{noteId,active}=upd['note-active-updated'];if(active)state.noteActive[noteId]=active;else delete state.noteActive[noteId];scheduleActiveExpiry(noteId);renderNoteList()}
   else if(upd['note-activity-list']){const list=upd['note-activity-list']||[];state.noteActivity={};for(const a of list)state.noteActivity[a.noteId]=a.activity;console.log('[note-activity-list]',list.length,'entries');rebuildSidebarUnread();scheduleNoteList()}
@@ -3117,12 +3117,17 @@ function updateMuteUI(){
   const nid=state.currentNoteId;
   const note=state.notes[nid];
   const muted=(state.noteMuted[nid]||[]).includes(me);
-  // PERMISSION lock: %group only. Notebooks have no membership/mute/admin model,
-  // so read-only there is metadata, never an enforcement state.
-  const isReadOnly=note&&note.writable===false&&note.type==='group';
+  // PERMISSION lock: the types that carry a membership/mute/admin model, which
+  // is %group and %document. Notebooks have no such model, so read-only there is
+  // metadata, never an enforcement state.
+  // READ-ONLY IS A DEFAULT, NOT A LOCK. On %group and %document entering
+  // read-only populates the mute set, and `muted` below is the authoritative
+  // per-member answer -- an explicitly unmuted member stays unlocked while the
+  // badge remains visible. %notebook read-only was always display-only and must
+  // not lock the composer. So nothing here locks on writable at all.
   // DISPLAY only: the header badge also reflects a read-only notebook. It feeds
-  // nothing but roBadge.style.display -- never roLock, locked, or any send path.
-  const showReadOnlyBadge=!!(note&&note.writable===false&&(note.type==='group'||note.type==='notebook'));
+  // nothing but roBadge.style.display -- never `locked` or any send path.
+  const showReadOnlyBadge=!!(note&&note.writable===false&&(note.type==='group'||note.type==='document'||note.type==='notebook'));
   const role=getMyRole(nid);
   const isHostOrAdmin=role==='host'||role==='admin';
   // DM block state
@@ -3132,11 +3137,12 @@ function updateMuteUI(){
     if(cp&&state.palStatus[cp]==='blocked'){dmBlocked=true;dmBlockMsg='You have blocked this user.'}
     else if(cp&&state.blockedBy[cp]){dmBlocked=true;dmBlockMsg='You are blocked.'}
   }
-  const roLock=isReadOnly&&!isHostOrAdmin;
   const hostDeleted=state.noteHostStatus[nid]==='host-deleted';
   const hostUnreachable=state.noteHostStatus[nid]==='host-unreachable';
   const removedSelf=!!(note&&note.type==='group'&&(note.removed||[]).includes(me));
-  const locked=dmBlocked||muted||roLock||hostDeleted||removedSelf||hostUnreachable;
+  // every independent lock is preserved; only the read-only lock is gone,
+  // because `muted` now carries that meaning for the governed types
+  const locked=dmBlocked||muted||hostDeleted||removedSelf||hostUnreachable;
   const sendBtn=document.querySelector('.send-btn');
   const attachWrap=document.querySelector('.attach-wrap');
   let lockBar=document.getElementById('readOnlyLockBar');
@@ -5941,6 +5947,31 @@ function docViewState(noteId){
   if(!v){v={mode:'rendered',editing:false,draft:null,base:-1,dirty:false,session:0,cursor:null};state.docView[noteId]=v}
   return v;
 }
+// ONE narrow document-permission refresh. Called from the %note-meta-updated,
+// %muted-updated, %admins-updated and membership handlers so a permission change
+// takes effect immediately, with no note switch and no page refresh.
+//
+// It rebuilds ONLY the document toolbar/panes -- never chat messages, artifacts
+// or plugin iframes -- and it never destroys work: if permission is revoked
+// mid-edit the draft is persisted first and the editor drops to read mode, so
+// the text is still recoverable via the existing draft mechanism.
+let _docPermTimer=null;
+function refreshDocPermissions(noteId){
+  if(!noteId||noteId!==state.currentNoteId)return;
+  if(!isDocumentNote(noteId))return;
+  if(_docPermTimer)return;                       // coalesce bursts, no render loop
+  _docPermTimer=setTimeout(function(){
+    _docPermTimer=null;
+    if(state.currentNoteId!==noteId||!isDocumentNote(noteId))return;
+    const v=state.docView[noteId];
+    if(v&&v.editing&&!docCanEdit(noteId)){
+      // permission revoked while editing: keep the draft, leave edit mode
+      if(v.draft!=null)saveLocalDraft(noteId,v.draft,v.base);
+      v.editing=false;v.mode='rendered';
+    }
+    renderMessages(noteId,'preserve');
+  },0);
+}
 function syncComposerVisibility(noteId){
   const area=document.getElementById('chatInputArea');
   if(area)area.style.display=isDocumentNote(noteId)?'none':'';
@@ -5960,7 +5991,8 @@ function docCanEdit(noteId){
   if(!has(n.users,me))return false;               // not a member: never
   if(n.creator===me)return true;                  // creator
   if(has(state.noteAdmins[noteId],me))return true; // admin
-  if(n.writable===false)return false;             // read-only note, ordinary member
+  // read-only is expressed through the mute set, so an explicitly unmuted
+  // member may edit while the document still shows READ ONLY
   if(has(state.noteMuted[noteId],me))return false; // muted ordinary member
   return true;
 }
@@ -7821,9 +7853,6 @@ async function sendMessage(){
   const _nid=state.currentNoteId;const _note=state.notes[_nid];
   const _me='~'+api.ship;const _muted=(state.noteMuted[_nid]||[]).includes(_me);
   if(_muted)return;
-  const _ro=_note&&_note.writable===false&&_note.type==='group';
-  const _role=getMyRole(_nid);
-  if(_ro&&_role!=='host'&&_role!=='admin')return;
   if(_note&&_note.type==='dm'){const _cp=dmCounterparty(_note);if(_cp&&(state.palStatus[_cp]==='blocked'||state.blockedBy[_cp]))return}
   const cap={token:++_sendSeq,nid:_nid,input:input,raw:raw,
              replyingTo:state.replyingTo,replyingToEid:state.replyingToEid,
@@ -8074,9 +8103,6 @@ function noteAllowsEdit(nid){
   const note=state.notes[nid];
   const me='~'+api.ship;
   if((state.noteMuted[nid]||[]).includes(me))return false;
-  const ro=note&&note.writable===false&&note.type==='group';
-  const role=getMyRole(nid);
-  if(ro&&role!=='host'&&role!=='admin')return false;
   if(note&&note.type==='dm'){
     const cp=dmCounterparty(note);
     if(cp&&(state.palStatus[cp]==='blocked'||state.blockedBy[cp]))return false;
@@ -8123,9 +8149,6 @@ async function deleteMessage(msgId,eid){
   const _note=state.notes[_nid];
   const _muted=(state.noteMuted[_nid]||[]).includes(_me);
   if(_muted)return;
-  const _ro=_note&&_note.writable===false&&_note.type==='group';
-  const _role=getMyRole(_nid);
-  if(_ro&&_role!=='host'&&_role!=='admin')return;
   if(_note&&_note.type==='dm'){const _cp=dmCounterparty(_note);if(_cp&&(state.palStatus[_cp]==='blocked'||state.blockedBy[_cp]))return}
   if(!confirm('Delete this message?'))return;
   msgId=parseInt(msgId);
@@ -8708,7 +8731,9 @@ function pluginArtifactEditableAt(artifactId,noteId,readOnly){
   const admins=state.noteAdmins[nid]||[];
   const elevated=note.creator===me||admins.includes(me);
   if(elevated)return true;
-  if(note.writable===false)return false;
+  // type is already proved to be group or notebook here. Notebook keeps the
+  // absolute writable rule; group falls through to the mute check below.
+  if(note.type==='notebook'&&note.writable===false)return false;
   if((state.noteMuted[nid]||[]).includes(me))return false;
   return true;
 }
@@ -9092,7 +9117,10 @@ function canUsePluginArtifacts(){
   const nid=state.currentNoteId,note=state.notes[nid],me='~'+api.ship;if(!note)return false;
   if(note.type!=='notebook'&&note.type!=='group'&&note.type!=='dm')return false;
   if(!(note.users||[]).includes(me)||(note.removed||[]).includes(me))return false;
-  const admins=state.noteAdmins[nid]||[];return note.type==='dm'||note.writable!==false||note.creator===me||admins.includes(me);
+  const admins=state.noteAdmins[nid]||[];
+  const gov=note.type==='group'||note.type==='document';
+  if(gov)return !(state.noteMuted[nid]||[]).includes(me)||note.creator===me||admins.includes(me);
+  return note.type==='dm'||note.writable!==false||note.creator===me||admins.includes(me);
 }
 let _pendingPastedAppArtifact=null,_pastedAppCreatePending=false;
 function resetPastedAppCreateButton(){
@@ -9307,7 +9335,13 @@ function updateAttachMenu(){
   const writable=!note||note.writable!==false;
   const admins=state.noteAdmins[nid]||[];
   const isHostOrAdmin=isCover||(note&&(note.creator===me||admins.includes(me)));
-  const groupOk=writable||isHostOrAdmin;
+  // Selective writer: for %group, read-only is a DEFAULT expressed by muting
+  // ordinary members, so an unmuted member may still attach while the note stays
+  // read-only. %notebook keeps writable absolute, matching the host's
+  // ro-writable-blocks, which is true for a read-only notebook and false for a group.
+  const notMuted=!(state.noteMuted[nid]||[]).includes(me);
+  const isGroup=!!(note&&note.type==='group');
+  const groupOk=isGroup?(notMuted||isHostOrAdmin):(writable||isHostOrAdmin);
   const canUpload=okType&&member&&notRemoved&&(isDm||isCover||isGossip||groupOk);
   btn.style.display=canUpload?'':'none';renderArtifactAppItems();
 }
@@ -10299,7 +10333,7 @@ function openNoteDetailModal(noteId){
   const ic=iconWithFallbackHtml(_icU,noteCharacterSeal(n.id));
   let desc=n.headline?'<div style="font-size:.85rem;color:#bbb;line-height:1.4">'+escHtml(n.headline)+'</div>':'';
   if(isRemoved)desc+='<div style="font-size:.8rem;color:#ff4444;margin-top:.3rem">You were removed from this note.</div>';
-  const isReadOnly=n.writable===false&&n.type==='group';
+  const isReadOnly=n.writable===false&&(n.type==='group'||n.type==='document');
   if(isReadOnly&&!isMember)desc+='<div style="font-size:.8rem;color:#ff4444;margin-top:.3rem">This note is read only.</div>';
   const visBadge=n.type==='gossip'
     ?'<span style="font-size:.7rem;padding:.1rem .4rem;border:1px solid #888;color:#888">GOSSIP</span>'
@@ -10643,7 +10677,7 @@ function msgWriteAllowed(noteId){
   const me='~'+api.ship;
   if(n.creator===me)return true;
   if((state.noteAdmins[noteId]||[]).includes(me))return true;
-  if(n.type==='group'&&n.writable===false)return false;
+  // read-only no longer denies on its own: an unmuted exception may post
   if((state.noteMuted[noteId]||[]).includes(me))return false;
   return true;
 }
