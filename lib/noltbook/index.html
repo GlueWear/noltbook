@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="nb-build" content="bcam5o99hb">
+<meta name="nb-build" content="2ef59hsibr">
 <title>NOLTBOOK</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20355.9%20355.9%22%20width=%22355.9%22%20height=%22355.9%22%3E%3Cg%20fill=%22%23ffffff%22%20transform=%22translate(-10.9901536%2036.4439936)%20scale(1.06235712)%22%3E%3Cpolygon%20points=%2266%20159.5%2066%2021.2%20204.3%2021.2%20204.3%2080.8%20204.3%20112.5%20204.3%20159.5%20160.7%20159.5%20160.7%20180.7%20225.5%20180.7%20225.5%20112.5%20225.5%2080.8%20225.5%200%2044.8%200%2044.8%20180.7%20121%20180.7%20121%20159.5%2066%20159.5%22/%3E%3Cpolygon%20points=%22234.7%2085.7%20234.7%20106.9%20289.8%20106.9%20289.8%20245.3%20151.4%20245.3%20151.4%20186.8%20151.4%20180.7%20151.4%20159.5%20151.4%20155.1%20151.4%20106.9%20195%20106.9%20195%2085.7%20130.2%2085.7%20130.2%20151.8%20130.2%20159.5%20130.2%20180.7%20130.2%20183.5%20130.2%20266.4%20310.9%20266.4%20310.9%2085.7%20234.7%2085.7%22/%3E%3C/g%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -93,9 +93,10 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .view-toggle-opt{font-family:var(--font);font-size:.7rem;padding:0 .5rem;background:transparent;border:1px solid #444;color:#888;cursor:pointer;letter-spacing:.05em;display:flex;align-items:center}
 .view-toggle-opt+.view-toggle-opt{margin-left:-1px}
 .view-toggle-opt.active{border-color:#ffaa00;color:#ffaa00;z-index:1}
-.new-btn{font-family:var(--font);font-size:.8rem;padding:.25rem .5rem;background:transparent;border:1px solid #ffaa00;color:#ffaa00;cursor:pointer;margin-left:auto}
+.msg-mention{text-decoration:underline;text-underline-offset:2px;text-decoration-thickness:1px}
+.new-btn{font-family:var(--font);font-size:.8rem;padding:.25rem .5rem;background:transparent;border:1px solid #ffaa00;color:#ffaa00;cursor:pointer;margin-left:auto;white-space:nowrap;flex-shrink:0}
 .new-btn:hover{background:rgba(255,170,0,.15)}
-.pals-btn{font-family:var(--font);font-size:.8rem;padding:.25rem .5rem;background:transparent;border:1px solid #4aba8a;color:#4aba8a;cursor:pointer;margin-left:auto}
+.pals-btn{font-family:var(--font);font-size:.8rem;padding:.25rem .5rem;background:transparent;border:1px solid #4aba8a;color:#4aba8a;cursor:pointer;margin-left:auto;white-space:nowrap;flex-shrink:0}
 .pals-btn:hover{background:rgba(74,186,138,.15)}
 .sidebar-search{padding:.4rem .5rem;border-bottom:1px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:.4rem;background:var(--bg)}
 .sidebar-search-input{flex:1;min-width:0;font-family:var(--font);font-size:.8rem;background:var(--bg2);border:1px solid var(--border2);color:var(--text);padding:.3rem .5rem;outline:none}
@@ -263,6 +264,17 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .reply-label{background:rgba(255,255,255,.06);padding:.2rem .5rem;border-radius:2px;font-size:.8rem;color:var(--text-dim)}
 .reply-close{background:none;border:1px solid #333;color:var(--text-dim);cursor:pointer;font-family:var(--font);font-size:.7rem;padding:.1rem .25rem;line-height:1;width:1.4rem;height:1.4rem;display:flex;align-items:center;justify-content:center}
 .reply-close:hover{border-color:var(--text-dim);color:var(--text)}
+.chat-input-wrap.drop-active{border-color:#ffaa00}
+.attach-bar{display:none;flex-wrap:wrap;align-items:center;gap:.35rem;margin:0 0 .45rem 0;padding:.4rem .5rem;border:1px solid var(--border);background:var(--bg2)}
+.attach-bar.open{display:flex}
+.attach-chip{display:flex;align-items:center;gap:.4rem;max-width:100%;padding:.2rem .4rem;border:1px solid #333;background:transparent;font-size:.72rem;color:var(--text-dim)}
+.attach-chip .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:15rem;color:var(--text)}
+.attach-chip .sz{flex:none;font-size:.66rem;color:var(--text-dim);font-variant-numeric:tabular-nums}
+.attach-chip .x{flex:none;font-family:var(--font);font-size:.75rem;line-height:1;padding:0 .2rem;background:transparent;border:none;color:var(--text-dim);cursor:pointer}
+.attach-chip .x:hover{color:#ff4444}
+.attach-chip .x:focus-visible{outline:1px solid #ffaa00;outline-offset:1px}
+.attach-bar .clear{margin-left:auto;font-family:var(--font);font-size:.66rem;letter-spacing:.05em;background:transparent;border:1px solid #333;color:var(--text-dim);cursor:pointer;padding:.15rem .4rem}
+.attach-bar .clear:hover{border-color:#ff4444;color:#ff4444}
 .paste-app-bar{display:none;align-items:center;gap:.5rem;margin:0 0 .45rem 0;padding:.45rem .65rem;border:1px solid rgba(255,170,0,.35);background:rgba(255,170,0,.06);font-size:.78rem;color:var(--text)}
 .paste-app-bar.visible{display:flex}
 .paste-app-main{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1042,6 +1054,11 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
           <span class="section-title">NOTES</span>
         </div>
         <div class="section-body open" id="notesBody"></div>
+        <div class="section-header" onclick="toggleSection('dm')">
+          <span class="section-arrow open" id="dmArrow">▶</span>
+          <span class="section-title">DMS</span>
+        </div>
+        <div class="section-body open" id="dmBody"></div>
         <div class="section-header" onclick="toggleSection('shared')">
           <span class="section-arrow open" id="sharedArrow">▶</span>
           <span class="section-title">SHARED NOTES</span>
@@ -1052,6 +1069,8 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
           <span class="section-title">%GOSSIP</span>
         </div>
         <div class="section-body open" id="arsBody"></div>
+        <!-- flat mode: one recency-ordered list, no headers. Empty and hidden while grouped. -->
+        <div class="section-body open" id="flatBody" style="display:none"></div>
       </div>
       <div class="sidebar-scroll" id="palsList" style="display:none"></div>
       <div class="sidebar-results" id="sidebarResults"></div>
@@ -1125,6 +1144,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
           <button class="paste-app-btn" id="pasteAppTextBtn" onclick="pasteAppArtifactAsText()">Paste as Text</button>
           <button class="paste-app-btn" onclick="clearPastedAppArtifact()">✕</button>
         </div>
+        <div class="attach-bar" id="attachBar"></div>
         <div class="chat-input-row">
           <div class="chat-input-wrap">
           <textarea class="chat-input" id="chatInput" placeholder="message..." rows="1"
@@ -1137,7 +1157,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
             <div class="attach-menu" id="attachMenu">
               <button class="attach-item" id="attachFileBtn" onclick="pickFile()" style="display:none">⊞ File / Img</button>
               <div id="attachAppItems"></div>
-              <input type="file" id="quickFileInput" hidden>
+              <input type="file" id="quickFileInput" multiple hidden>
             </div>
           </div>
           <button class="send-btn" onclick="sendMessage()">SEND</button>
@@ -2986,7 +3006,7 @@ function revealNoteInTree(id){
   if(id==='cover'||id==='ars-rumors')section='ars';
   else if(node){
     if(node.type==='gossip')section='ars';
-    else if(node.type==='dm')section='shared';
+    else if(node.type==='dm')section='dm';
     else{const others=(node.users||[]).filter(u=>u&&u!==me);
     const isShared=others.length>0||(node.creator&&node.creator!==me)||node.visibility==='public'||node.visibility==='private';
     section=isShared?'shared':'notes';}
@@ -3699,13 +3719,13 @@ function findDmRoot(ship){
 function computeTrickle(){
   // returns {dotted: Set<noteId>, sections: {ars,notes,shared}}
   const dotted=new Set();
-  const sections={ars:false,notes:false,shared:false};
+  const sections={ars:false,notes:false,shared:false,dm:false};
   const me='~'+api.ship;
   function sectionOf(rootId){
     if(rootId==='cover'||rootId==='ars-rumors')return 'ars';
     const r=state.notes[rootId]; if(!r)return 'notes';
     if(r.type==='gossip')return 'ars';
-    if(r.type==='dm')return 'shared';
+    if(r.type==='dm')return 'dm';
     const others=(r.users||[]).filter(u=>u&&u!==me);
     const isShared=others.length>0||(r.creator&&r.creator!==me)||r.visibility==='public'||r.visibility==='private';
     return isShared?'shared':'notes';
@@ -3732,11 +3752,18 @@ function computeTrickle(){
 function renderNoteList(){
   if(state.searchQuery){renderSidebarSearchResults();return}
   const coverEl=document.getElementById('coverPinnedBody'),arsEl=document.getElementById('arsBody'),notesEl=document.getElementById('notesBody'),sharedEl=document.getElementById('sharedBody');
+  const dmEl=document.getElementById('dmBody'),flatEl=document.getElementById('flatBody');
   coverEl.innerHTML='';arsEl.innerHTML='';notesEl.innerHTML='';sharedEl.innerHTML='';
+  if(dmEl)dmEl.innerHTML='';
+  if(flatEl)flatEl.innerHTML='';
+  // Flat mode drops the headings, not the ordering: one recency-ordered list of the same
+  // roots. The pinned cover/rumors entries sit above it either way.
+  const flat=!!state.sidebarFlat;
+  applySidebarGrouping();
   const trickle=computeTrickle();
   state._trickleDotted=trickle.dotted;
   // section-header dots
-  for(const sec of ['ars','notes','shared']){
+  for(const sec of ['ars','notes','shared','dm']){
     const hdr=document.querySelector('.section-header[onclick*="\''+sec+'\'"]');
     if(hdr)hdr.classList.toggle('has-notif',trickle.sections[sec]);
   }
@@ -3770,28 +3797,39 @@ function renderNoteList(){
     }
   }
   const me='~'+api.ship;
-  const myNotes=[],sharedNotes=[],gossipRoots=[];
+  const myNotes=[],sharedNotes=[],gossipRoots=[],dmNotes=[];
   for(const n of Object.values(state.notes)){
     if(n.id==='cover'||(n.id+'').startsWith('ars-'))continue;
     if(n.parent)continue;
     if(n.type==='gossip'){gossipRoots.push(n);continue}
-    if(n.type==='dm'){sharedNotes.push(n);continue}
+    if(n.type==='dm'){dmNotes.push(n);continue}
     const others=(n.users||[]).filter(u=>u&&u!==me);
     const isShared=others.length>0||(n.creator&&n.creator!==me)||n.visibility==='public'||n.visibility==='private';
     if(isShared)sharedNotes.push(n);else myNotes.push(n);
+  }
+  // blocked roots sink to the bottom of whichever list they are in; everything else is
+  // recency desc with a stable id tie-break.
+  function byBlockedThenRecency(a,b){
+    const aBlocked=isNoteBlocked(a)?1:0;
+    const bBlocked=isNoteBlocked(b)?1:0;
+    if(aBlocked!==bBlocked)return aBlocked-bBlocked;
+    return byRecency(a,b);
+  }
+  if(flat&&flatEl){
+    // one list, same ordering rule, so the most recent thing is still on top
+    const all=gossipRoots.concat(myNotes,dmNotes,sharedNotes).sort(byBlockedThenRecency);
+    for(const n of all)renderTree(n.id,0,flatEl);
+    updateCoverPreview();
+    return;
   }
   // user gossip roots: recency desc, after the pinned cover/ars-rumors entries
   gossipRoots.sort(byRecency);
   for(const n of gossipRoots)renderTree(n.id,0,arsEl);
   myNotes.sort(byRecency);
   for(const n of myNotes)renderTree(n.id,0,notesEl);
-  // shared: non-blocked before blocked, then recency desc, then stable by id
-  sharedNotes.sort((a,b)=>{
-    const aBlocked=isNoteBlocked(a)?1:0;
-    const bBlocked=isNoteBlocked(b)?1:0;
-    if(aBlocked!==bBlocked)return aBlocked-bBlocked;
-    return byRecency(a,b);
-  });
+  dmNotes.sort(byBlockedThenRecency);
+  if(dmEl)for(const n of dmNotes)renderTree(n.id,0,dmEl);
+  sharedNotes.sort(byBlockedThenRecency);
   for(const n of sharedNotes)renderTree(n.id,0,sharedEl);
   updateCoverPreview();
 }
@@ -3903,6 +3941,34 @@ function toggleNoteExpand(id){
   else{state.expandedNotes.add(id);state.manualExpanded.add(id)}
   renderNoteList();
 }
+/* ===== SIDEBAR GROUPING =====
+   Two ways to read the same list. Grouped shows NOTES / DMS / SHARED NOTES / %GOSSIP;
+   flat drops the headings and shows one recency-ordered list. Ordering is identical in
+   both -- the most recent root is on top either way -- so the toggle changes how the
+   list is divided, never what it says.
+   Clicking [NOTES] while already in notes flips between them: the tab is otherwise
+   inert when it is already active, and the state is self-evident from whether headings
+   are on screen, so it needs no chrome of its own. */
+const SB_FLAT_KEY='nb-sidebar-flat';
+function applySidebarGrouping(){
+  const flat=!!state.sidebarFlat;
+  const flatEl=document.getElementById('flatBody');
+  if(flatEl)flatEl.style.display=flat?'':'none';
+  for(const sec of ['notes','dm','shared','ars']){
+    const body=document.getElementById(sec+'Body');
+    const hdr=document.querySelector('.section-header[onclick*="\''+sec+'\'"]');
+    if(body)body.style.display=flat?'none':'';
+    if(hdr)hdr.style.display=flat?'none':'';
+  }
+  const btn=document.getElementById('toggleNotes');
+  if(btn)btn.title=flat?'Click again to group by category':'Click again for one flat list';
+}
+function toggleSidebarGrouping(){
+  state.sidebarFlat=!state.sidebarFlat;
+  try{localStorage.setItem(SB_FLAT_KEY,state.sidebarFlat?'1':'')}catch(e){}
+  applySidebarGrouping();
+  renderNoteList();
+}
 function toggleSection(name){
   state.expandedSections[name]=!state.expandedSections[name];
   document.getElementById(name+'Body').classList.toggle('open',state.expandedSections[name]);
@@ -3910,6 +3976,10 @@ function toggleSection(name){
   renderNoteList();
 }
 function switchView(mode){
+  // Clicking the already-active NOTES tab flips grouped/flat rather than doing nothing.
+  // Guarded on the CURRENT view: coming back from CONTACTS must only switch views, or
+  // every trip through contacts would silently change how the list is grouped.
+  if(mode==='notes'&&!state.palsView&&!state.searchQuery){toggleSidebarGrouping();return}
   // NOTES and CONTACTS are also exits from search, even when the selected tab
   // is clicked again. CLEAR remains available for users who want to stay put.
   const searchInput=document.getElementById('sidebarSearchInput');
@@ -4660,6 +4730,11 @@ function renderArtifactCard(el,art,depth,isThreadAnchor){
   const idSuf=isThreadAnchor?'-ta':'';
   wrap.id=(art.type==='app'?'inline-app-':'inline-file-')+art.id+idSuf;
   const authorColor=art.creator.startsWith('~')?shipColor(art.creator):'var(--visitor)';
+  // Same grouping rule renderMsg uses. Sending text plus attachments produces a run of
+  // consecutive posts from one author, and repeating the avatar and name on each one
+  // reads as several people talking. A grouped card drops the header and indents to the
+  // width of the avatar it is not drawing, so the run lines up under the first post.
+  const artGrouped=(art.creator===state.lastMsgAuthor&&depth===state.lastMsgDepth);
   const lastVer=art.versions[art.versions.length-1];
   const timeStr=lastVer?new Date(lastVer.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';
   const artPinBtn=(art.type==='file'||art.type==='app')?pinBtnHtml(art.noteId,art.meta&&art.meta.eid,'artifact',false):'';
@@ -4714,11 +4789,15 @@ function renderArtifactCard(el,art,depth,isThreadAnchor){
     }
   }else{
     const fileContent=artifactFilePreviewHtml(art,{idSuf});
-    wrap.innerHTML=`<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar">${avatarHtml(art.creator)}</div><div class="msg-body"><div class="msg-header"><span class="msg-author" style="color:${authorColor}">${escHtml(displayName(art.creator))}</span><span class="msg-time">${timeStr}</span>${actions}</div>${fileContent}</div></div>`;
+    wrap.innerHTML=artGrouped
+      ? `<div style="display:flex;gap:.6rem;align-items:flex-start;padding-left:calc(2.8rem + .6rem)"><div class="msg-body">${fileContent}</div>${actions}</div>`
+      : `<div style="display:flex;gap:.6rem;align-items:flex-start"><div class="msg-avatar">${avatarHtml(art.creator)}</div><div class="msg-body"><div class="msg-header"><span class="msg-author" style="color:${authorColor}">${escHtml(displayName(art.creator))}</span><span class="msg-time">${timeStr}</span>${actions}</div>${fileContent}</div></div>`;
+    if(artGrouped)wrap.classList.add('grouped');
     el.appendChild(wrap);
   }
-  // artifact cards always break message grouping
-  state.lastMsgAuthor=null;state.lastMsgDepth=-1;
+  // Carry the cursor forward rather than resetting it, so a run of posts by one author
+  // groups whether it is messages, attachments, or a mix of both.
+  state.lastMsgAuthor=art.creator;state.lastMsgDepth=depth;
 }
 // Render an artifact-envelope (cover/gossip mesh) as a timeline card.
 function renderEnvCard(el,env,depth,isThreadAnchor){
@@ -5018,6 +5097,20 @@ function renderMessages(noteId,target){
   // preserve ars-rumors' reverse PRIMARY ordering; break equal-order ties by canonical
   // root key (ascending, deterministic) regardless of note type.
   items.sort((a,b)=>{const d=noteId==='ars-rumors'?(b.order-a.order):(a.order-b.order);return d||_keyCmp(a.rootKey,b.rootKey)});
+  // A rooted post is emitted TWICE: once standalone at its own position, and again as
+  // the thread anchor at the newest reply's position. Those are normally far apart, so
+  // it reads as "the original, and the conversation it started". But when the post IS
+  // the newest thing in the note -- someone replies to the last message, or sends to it
+  // -- the two land adjacent and the same post renders twice in a row.
+  // Drop the standalone copy when its own thread sits next to it; the thread renders
+  // the identical root node, so nothing is lost. Both orders are handled because
+  // ars-rumors sorts in reverse.
+  for(let i=items.length-2;i>=0;i--){
+    const a=items[i],b=items[i+1];
+    if(!a||!b||a.rootKey!==b.rootKey)continue;
+    if(a.type==='root'&&b.type==='thread'){items.splice(i,1);continue}
+    if(a.type==='thread'&&b.type==='root'){items.splice(i+1,1);}
+  }
   // resolve directed-attention targets to rendered node keys so collapsed threads
   // can force them (and their ancestor chains) visible — otherwise an oldest
   // attention target hidden behind "show more replies" can't be jumped/cleared.
@@ -5070,7 +5163,7 @@ function renderMessages(noteId,target){
       wrap.id='thread-'+anchorRawId;
       state.lastMsgAuthor=null;state.lastMsgDepth=-1;
       renderNode(wrap,rootNode,0,true);
-      if(expanded||flat.length<=2){
+      if(expanded||flat.length<=3){
         for(const f of flat)renderNode(wrap,f.node,f.depth);
       }else{
         const newest=byKey[item.newestKey];
@@ -5087,6 +5180,23 @@ function renderMessages(noteId,target){
               visible.add(f.node.key);
               nodeAncestorChain(f.node.key).forEach(k=>{if(k!==anchorKey)visible.add(k)});
             }
+          }
+        }
+        // Floor of three: the newest is already guaranteed above; top up with the
+        // next most recent replies by order, each dragging its ancestor chain along so
+        // nothing renders orphaned. Adding a chain may overshoot three, which is fine --
+        // the contract is "at least three", not "exactly three".
+        if(visible.size<3){
+          const byRecency=flat.slice().sort((a,b)=>{
+            const ao=(typeof a.node.order==='number')?a.node.order:0;
+            const bo=(typeof b.node.order==='number')?b.node.order:0;
+            return bo-ao;
+          });
+          for(const f of byRecency){
+            if(visible.size>=3)break;
+            if(visible.has(f.node.key))continue;
+            visible.add(f.node.key);
+            nodeAncestorChain(f.node.key).forEach(k=>{if(k!==anchorKey)visible.add(k)});
           }
         }
         const hiddenCount=flat.filter(f=>!visible.has(f.node.key)).length;
@@ -6832,6 +6942,128 @@ function docInPanes(target){
     if(dt)void docHandleWebImageDrop(nid,session,dt);
   },false);
 })();
+// Upload staged files in order, as consecutive posts after the text.
+// uploadFile targets state.currentNoteId at call time, so if the user navigates away
+// mid-run the remaining files would land in the WRONG note -- stop instead.
+async function sendStagedFiles(files,nid,replyEid){
+  for(let i=0;i<files.length;i++){
+    if(state.currentNoteId!==nid)break;
+    await uploadFile(files[i],{replyToEid:replyEid,keepReply:true});
+  }
+}
+/* ===== STAGED ATTACHMENTS =====
+   Dropped and pasted files are HELD in the composer, never sent on arrival: the
+   composer is where you decide what a post says, and a file that uploads the instant
+   it lands takes that decision away. They ride alongside whatever you type, and SEND
+   dispatches the text first, then each file in order, as consecutive posts.
+   Browser-local only -- nothing here touches Urbit until SEND. */
+const NB_MAX_STAGED=10, NB_MAX_FILE=5*1024*1024;
+let _stagedFiles=[];
+function fmtSize(n){
+  if(!(n>=0))return '';
+  if(n<1024)return n+' B';
+  if(n<1024*1024)return Math.round(n/1024)+' KB';
+  return (n/1048576).toFixed(1)+' MB';
+}
+function stageFiles(list){
+  if(!list||!list.length)return;
+  let rejected=0;
+  for(let i=0;i<list.length;i++){
+    const f=list[i];
+    if(!f)continue;
+    if(_stagedFiles.length>=NB_MAX_STAGED){rejected++;continue}
+    // reject oversize HERE rather than at send, so it is answered while the user is
+    // still looking at the drop they just made
+    if(f.size>NB_MAX_FILE){alert('"'+f.name+'" is larger than 5 MB and was not attached.');continue}
+    _stagedFiles.push(f);
+  }
+  if(rejected)alert('Only '+NB_MAX_STAGED+' files can be attached to one send.');
+  renderStagedFiles();
+}
+function removeStagedFile(i){_stagedFiles.splice(i,1);renderStagedFiles()}
+function clearStagedFiles(){_stagedFiles=[];renderStagedFiles()}
+// Built with DOM calls, never innerHTML: a file name is arbitrary text and must not be
+// parsed as markup on its way to the screen.
+function renderStagedFiles(){
+  const bar=document.getElementById('attachBar');
+  if(!bar)return;
+  bar.textContent='';
+  if(!_stagedFiles.length){bar.classList.remove('open');return}
+  bar.classList.add('open');
+  _stagedFiles.forEach(function(f,i){
+    const chip=document.createElement('span');chip.className='attach-chip';
+    const nm=document.createElement('span');nm.className='nm';nm.textContent=f.name||'file';
+    const sz=document.createElement('span');sz.className='sz';sz.textContent=fmtSize(f.size);
+    const x=document.createElement('button');
+    x.className='x';x.type='button';x.textContent='\u2715';
+    x.title='Remove '+(f.name||'file');
+    x.setAttribute('aria-label','Remove '+(f.name||'file'));
+    x.addEventListener('click',function(){removeStagedFile(i)});
+    chip.appendChild(nm);chip.appendChild(sz);chip.appendChild(x);
+    bar.appendChild(chip);
+  });
+  if(_stagedFiles.length>1){
+    const c=document.createElement('button');
+    c.className='clear';c.type='button';c.textContent='CLEAR ALL';
+    c.addEventListener('click',clearStagedFiles);
+    bar.appendChild(c);
+  }
+}
+/* Chat drag-and-drop. Registered ONCE at document level for the same reason
+   bindDocumentDrop is: two listeners on the same drop would upload the file twice.
+   It always defers to the %document handler -- docDragActive() means a document is
+   being edited and owns this gesture -- and only ever acts on a drag carrying real
+   files that lands inside the chat pane or the composer. dragenter/dragover are
+   cancelled over that region so a near-miss cannot navigate the page away to the
+   dropped file. No overlay or highlight, matching the document behaviour. */
+function chatDropTarget(t){
+  return !!(t&&t.closest&&t.closest('#chatMessages,.chat-input-row'));
+}
+function chatDragFiley(e){
+  const dt=e&&e.dataTransfer;
+  if(!dt)return false;
+  const types=dt.types;
+  if(!types)return false;
+  for(let i=0;i<types.length;i++)if(types[i]==='Files')return true;
+  return false;
+}
+(function bindChatDrop(){
+  if(window.__nbChatDropBound)return;      // idempotent: never stack listeners
+  window.__nbChatDropBound=true;
+  // Highlight the composer while a file is over a place that would accept it, so the
+  // drop has a visible destination. dragleave is not tracked: it fires when the pointer
+  // crosses between child elements, which makes the highlight flicker. dragover repeats
+  // every ~100ms while hovering, so re-arming a short timer on each one keeps the class
+  // on during the drag and drops it as soon as the drag leaves or ends.
+  let dropTimer=null;
+  const dropGlow=function(on){
+    const row=document.querySelector('.chat-input-wrap');
+    if(!row)return;
+    clearTimeout(dropTimer);
+    if(!on){row.classList.remove('drop-active');return}
+    row.classList.add('drop-active');
+    dropTimer=setTimeout(function(){row.classList.remove('drop-active')},200);
+  };
+  const swallow=function(e){
+    if(docDragActive())return;             // a document edit owns the whole gesture
+    if(!chatDragFiley(e)||!chatDropTarget(e.target))return;
+    e.preventDefault();
+    if(e.dataTransfer)try{e.dataTransfer.dropEffect='copy'}catch(err){}
+    dropGlow(true);
+  };
+  document.addEventListener('dragend',function(){dropGlow(false)},false);
+  document.addEventListener('dragenter',swallow,false);
+  document.addEventListener('dragover',swallow,false);
+  document.addEventListener('drop',function(e){
+    if(docDragActive())return;
+    if(!chatDragFiley(e))return;
+    dropGlow(false);
+    e.preventDefault();                    // never navigate, even on a near miss
+    if(!chatDropTarget(e.target))return;   // outside the pane: swallow, upload nothing
+    // Staged, not sent: the drop attaches them to the composer and SEND dispatches.
+    stageFiles((e.dataTransfer&&e.dataTransfer.files)||[]);
+  },false);
+})();
 function docPickImage(noteId){
   const inp=document.createElement('input');
   inp.type='file';inp.accept='image/*';
@@ -7849,7 +8081,9 @@ function _composerStillOwned(cap){
 }
 async function sendMessage(){
   if(_sendLock)return;
-  const input=document.getElementById('chatInput');const raw=input.value;if(!raw.trim())return;const text=raw.replace(/\s+$/,'');
+  const input=document.getElementById('chatInput');const raw=input.value;
+  // a send is valid with text, with attachments, or with both
+  if(!raw.trim()&&!_stagedFiles.length)return;const text=raw.replace(/\s+$/,'');
   const _nid=state.currentNoteId;const _note=state.notes[_nid];
   const _me='~'+api.ship;const _muted=(state.noteMuted[_nid]||[]).includes(_me);
   if(_muted)return;
@@ -7867,6 +8101,18 @@ async function sendMessage(){
     if(eid)editData.eid=eid;
     await api.poke('noltbook','noltbook-action',{action:'edit-message',data:editData});
     if(_composerStillOwned(cap)){input.value='';resetChatInputHeight();cancelEdit();updateInputMirror()}
+    return;
+  }
+  // Captured with the submission: the composer is cleared below, and the text post
+  // clears the reply state, so both have to be read before either happens.
+  const _files=_stagedFiles.slice();
+  const _fileReplyEid=cap.replyingToEid||null;
+  if(text===''){
+    // attachments with no message: no empty text post, just the files
+    if(_composerStillOwned(cap)){input.value='';resetChatInputHeight();updateInputMirror();clearStagedFiles()}
+    ScrollCo.beginOwnAction(_nid);
+    await sendStagedFiles(_files,_nid,_fileReplyEid);
+    cancelReply();
     return;
   }
   const data={noteId:_nid,text};if(state.replyingTo)data.replyTo=state.replyingTo;if(state.replyingToEid)data.replyToEid=state.replyingToEid;
@@ -7895,7 +8141,7 @@ async function sendMessage(){
   // into it afterwards, so newer typing can never be overwritten.
   if(_composerStillOwned(cap)){
     input.value='';resetChatInputHeight();cancelReply();updateInputMirror();
-    clearPastedAppArtifact();
+    clearPastedAppArtifact();clearStagedFiles();
   }
   if(_pend){insertPendingRow(_pend);armPendingTimer(_pend);nbTrace('inserted',_pend.clientId)}
   const ok=await api.poke('noltbook','noltbook-action',{action:'send-message',data});
@@ -7909,6 +8155,8 @@ async function sendMessage(){
     if(!api.reconnecting)api.reconnect();
     return;
   }
+  // text landed; the attachments follow it as consecutive posts
+  if(_files.length)await sendStagedFiles(_files,_nid,_fileReplyEid);
   }finally{_sendLock=false;_setSendBusy(false)}
 }
 let mentionState={active:false,startPos:0,idx:-1};
@@ -7982,7 +8230,7 @@ function handleInputKey(e){
     const items=dd.querySelectorAll('.user-drop-item');
     if(e.key==='ArrowDown'){e.preventDefault();items.forEach(i=>i.classList.remove('active'));mentionState.idx++;if(mentionState.idx>=items.length)mentionState.idx=0;items[mentionState.idx].classList.add('active');items[mentionState.idx].scrollIntoView({block:'nearest'});return}
     if(e.key==='ArrowUp'){e.preventDefault();items.forEach(i=>i.classList.remove('active'));mentionState.idx--;if(mentionState.idx<0)mentionState.idx=items.length-1;items[mentionState.idx].classList.add('active');items[mentionState.idx].scrollIntoView({block:'nearest'});return}
-    if(e.key==='Enter'&&mentionState.idx>=0){e.preventDefault();const el=items[mentionState.idx];const ship=el.dataset.ship;const prof=state.profiles[ship]||{};insertMention({ship,displayName:prof.displayName||''});return}
+    if(e.key==='Enter'&&items.length>0){e.preventDefault();const el=items[Math.max(0,mentionState.idx)];const ship=el.dataset.ship;const prof=state.profiles[ship]||{};insertMention({ship,displayName:prof.displayName||''});return}
     if(e.key==='Escape'){e.preventDefault();dd.classList.remove('open');mentionState.active=false;return}
     if(e.key==='Tab'&&items.length>0){e.preventDefault();const el=items[Math.max(0,mentionState.idx)];const ship=el.dataset.ship;const prof=state.profiles[ship]||{};insertMention({ship,displayName:prof.displayName||''});return}
   }
@@ -8254,7 +8502,7 @@ function openSharePrompt(){
     </div>
     <div style="display:flex;gap:.5rem;justify-content:flex-end">
       <button id="shareCancelBtn" style="background:var(--bg3);color:var(--text);border:none;padding:.3rem .6rem;cursor:pointer;font-family:var(--font)">Cancel</button>
-      <button id="shareInviteBtn" style="background:#ffaa00;color:#000;border:none;padding:.3rem .6rem;cursor:pointer;font-weight:bold;font-family:var(--font)">INVITE</button>
+      <button id="shareInviteBtn" style="background:#ffaa00;color:#000;border:none;padding:.3rem .6rem;cursor:pointer;font-weight:bold;font-family:var(--font)">SHARE</button>
     </div>`;
   overlay.addEventListener('click',function(e){if(e.target===overlay){overlay.remove();modal.remove()}});
   document.body.appendChild(overlay);
@@ -9191,6 +9439,17 @@ function pasteAppArtifactAsText(){
   clearPastedAppArtifact();insertComposerText(rec.raw);
 }
 async function handleComposerPaste(event){
+  // A real FILE wins. A screenshot paste carries an image item and usually an empty
+  // text/plain alongside it, so this has to be tested before the app-envelope path or
+  // the image is silently dropped. Mirrors bindDocImageInput, which does the same for
+  // %document notes; both hand off to the note's own upload, which owns validation.
+  const items=(event.clipboardData&&event.clipboardData.items)||[];
+  for(let i=0;i<items.length;i++){
+    if(items[i].kind==='file'){
+      const f=items[i].getAsFile();
+      if(f){event.preventDefault();stageFiles([f]);return}
+    }
+  }
   const text=event.clipboardData&&event.clipboardData.getData('text/plain');
   const draft=parsePastedAppEnvelope(text||'');if(!draft)return;
   event.preventDefault();
@@ -9349,8 +9608,17 @@ function toggleAttachMenu(){
   updateAttachMenu();const menu=document.getElementById('attachMenu');menu.classList.toggle('open');
   if(menu.classList.contains('open'))ensurePluginManifests().then(renderArtifactAppItems);
 }
-function pickFile(){document.getElementById('attachMenu').classList.remove('open');const inp=document.getElementById('quickFileInput');inp.value='';inp.onchange=function(){if(this.files[0])uploadFile(this.files[0])};inp.click()}
-async function uploadFile(file){
+// Stages rather than sending, matching paste and drop -- one mental model for every
+// way a file reaches the composer. Multi-select is allowed now that several files can
+// be held and dispatched together.
+function pickFile(){
+  document.getElementById('attachMenu').classList.remove('open');
+  const inp=document.getElementById('quickFileInput');
+  inp.value='';
+  inp.onchange=function(){if(this.files&&this.files.length)stageFiles(this.files)};
+  inp.click();
+}
+async function uploadFile(file,opts){
   const nid=state.currentNoteId;const note=state.notes[nid];const me='~'+api.ship;
   const isCover=nid==='cover'||(note&&note.type==='cover');
   if(!isCover){
@@ -9367,16 +9635,21 @@ async function uploadFile(file){
   const mime=file.type||'application/octet-stream';
   const kind=mime.startsWith('image/')?'image':'file';
   let qs='?name='+encodeURIComponent(file.name)+'&kind='+kind+'&mime='+encodeURIComponent(mime);
-  // carry reply context so an uploaded artifact threads under its parent
-  if(state.replyingToEid)qs+='&replyToEid='+encodeURIComponent(state.replyingToEid);
+  // carry reply context so an uploaded artifact threads under its parent. A staged
+  // multi-file send passes the eid explicitly: the text post clears state.replyingToEid
+  // before the files go up, so reading it here would thread only the first one.
+  const _replyEid=(opts&&('replyToEid' in opts))?opts.replyToEid:state.replyingToEid;
+  if(_replyEid)qs+='&replyToEid='+encodeURIComponent(_replyEid);
   // own artifact send/reply: keep this note pinned to bottom through the
   // resulting artifact-created/artifact-envelope fact + image load.
   ScrollCo.beginOwnAction(nid);
   try{
     const r=await fetch('/apps/noltbook/upload-artifact/'+encodeURIComponent(nid)+qs,{method:'POST',body:file,headers:{'Content-Type':mime}});
-    if(!r.ok){ScrollCo.cancelOwnAction(nid);alert('Upload failed: '+r.status);return}
-    cancelReply();
+    if(!r.ok){ScrollCo.cancelOwnAction(nid);alert('Upload failed: '+r.status);return false}
+    if(!(opts&&opts.keepReply))cancelReply();
+    return true;
   }catch(e){ScrollCo.cancelOwnAction(nid);console.error('[upload-artifact]',e);alert('Upload error: '+e.message)}
+  return false;
 }
 function openFileFullscreen(artId){const art=state.artifacts[artId];if(!art)return;const lastVer=art.versions[art.versions.length-1];if(!lastVer)return;let meta={};try{meta=JSON.parse(lastVer.content)}catch(e){return}const overlay=document.createElement('div');overlay.id='file-fullscreen';overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.92);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center';const bar=document.createElement('div');bar.style.cssText='position:absolute;top:0;right:0;padding:.75rem 1rem;display:flex;gap:.5rem;z-index:1';let srcUrl,downloadUrl,mtype;if(meta.storage==='clay'){const v=meta.version||1;const _b='/apps/noltbook/artifact/'+encodeURIComponent(art.id)+'?v='+v;srcUrl=_b+'&preview=1';downloadUrl=_b+'&download=1';mtype=meta.mime||'';}else{srcUrl=meta.dataUrl;downloadUrl=meta.dataUrl;mtype=meta.mimeType||'';}bar.innerHTML=`<a href="${escAttr(downloadUrl)}" download="${escAttr(meta.fileName||art.name)}" style="font-family:var(--font);font-size:.75rem;padding:.25rem .6rem;border:1px solid #555;color:#aaa;text-decoration:none;cursor:pointer">DOWNLOAD</a><button onclick="this.closest('#file-fullscreen').remove()" style="font-family:var(--font);font-size:.75rem;padding:.25rem .6rem;border:1px solid #555;color:#aaa;background:none;cursor:pointer">CLOSE</button>`;overlay.appendChild(bar);const body=document.createElement('div');body.style.cssText='max-width:95%;max-height:90%;overflow:auto';if(mtype.startsWith('image/')){body.innerHTML=`<img src="${escAttr(srcUrl)}" style="max-width:100%;max-height:90vh">`}else if(mtype==='application/pdf'){body.innerHTML=`<iframe src="${escAttr(srcUrl)}" style="width:90vw;height:85vh;border:none;background:#fff"></iframe>`}else if(mtype.startsWith('text/')||mtype==='application/json'){fetch(srcUrl).then(r=>r.text()).then(t=>{body.innerHTML=`<pre style="color:#ddd;font-size:.85rem;white-space:pre-wrap;padding:1rem">${escHtml(t)}</pre>`})}else{body.innerHTML=`<div style="color:#aaa;font-size:1rem;text-align:center"><div style="font-size:2rem;margin-bottom:.5rem">📄</div>${escHtml(meta.fileName||art.name)}</div>`}overlay.appendChild(body);overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove()});document.body.appendChild(overlay)}
 function openArtifactPanel(id){
@@ -14830,6 +15103,7 @@ const THEATER_FRACTION=0.55;    // ~50-60% of the space left of the rail
 // The sidebar DOM is never destroyed -- collapsing only sets width:0, so width, scroll
 // position, search text, expanded sections and note/call state all survive untouched.
 const SB_COLLAPSED_KEY='nb-sidebar-collapsed', SB_WIDTH_KEY='nb-sidebar-width';
+try{state.sidebarFlat=localStorage.getItem(SB_FLAT_KEY)==='1'}catch(e){state.sidebarFlat=false}
 let _sbAutoCollapsed=false;      // theater collapsed it, not the user
 let _sbPreTheater=null;          // user's collapsed state when theater opened
 let _sbManualInTheater=false;    // user overrode it while theater was active
