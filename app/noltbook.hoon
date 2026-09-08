@@ -1803,14 +1803,15 @@
         ?|(exempt !(ro-writable-blocks nt) is-creator is-admin)
         ?|(exempt !is-muted is-creator is-admin)
     ==
-  ::  1B.3: ordinary post/read require logical membership (system DM/cover exempt).
-  =/  can-post=?  &(!write-blocked ?|(exempt is-member))
-  =/  can-read=?  ?|(exempt is-member)
+  ::  DMs derive membership from their pair, including in capability reports.
+  ::  Cover keeps its existing system-note exemption.
+  =/  can-post=?  &(!write-blocked ?|(is-cover is-member))
+  =/  can-read=?  ?|(is-cover is-member)
   =/  reason=@tas
     ?:  is-removed         %removed
     ?:  is-host-deleted     %host-deleted
     ?:  is-host-unreach     %host-unreachable
-    ?:  &(!is-member !exempt)  %not-participant
+    ?:  &(!is-member !is-cover)  %not-participant
     %none
   ::  message mutation additionally requires the read-only/mute gate. This calls the
   ::  SAME helper the enforcement paths use, so reporting cannot drift from behaviour --
@@ -2042,6 +2043,34 @@
   ?&  =(%dm type.n)
       =(2 ~(wyt in users.n))
   ==
+::  A DM pair is a root with exactly two people, including its coordinator.
+::  Imported DMs use the peer as creator and satisfy the same rule. Malformed
+::  DMs never gain permission from a stale logical row. Removal stays denied.
+++  dm-pair-ok
+  |=  n=note:noltbook
+  ^-  ?
+  ?&  (is-ordinary-dm n)
+      ?=(~ parent.n)
+      (~(has in users.n) creator.n)
+  ==
+++  dm-members
+  |=  n=note:noltbook
+  ^-  (set @p)
+  ?.  (dm-pair-ok n)  ~
+  (~(dif in users.n) removed.n)
+::  Call controls must respect BOTH our block and a peer's block of us.
+::  Shared-note calls keep their existing authorization; DM membership is
+::  the pair, never the coordinator's mutable group-permission record.
+++  dm-call-allowed
+  |=  $:  nid=@ta  who=@p  nmap=(map @ta note:noltbook)
+          blocked=(set @p)  blocked-by=(set @p)
+      ==
+  ^-  ?
+  =/  nt  (~(get by nmap) nid)
+  ?~  nt  %.n
+  ?.  =(%dm type.u.nt)  %.y
+  ?.  (~(has in (dm-members u.nt)) who)  %.n
+  =(~ (~(int in users.u.nt) (~(uni in blocked) blocked-by)))
 ::  dm-key-tombed: is a message key terminally tombstoned?
 ++  dm-key-tombed
   |=  [k=dm-message-key:noltbook tombs=(map dm-message-key:noltbook @da)]
@@ -2265,8 +2294,11 @@
     =/  ll  (~(get by call-leases.s) lose)
     ?~  ll  call-leases.s
     (~(put by (~(del by call-leases.s) lose)) win u.ll)
-  ::  note-members: union, drop loser
+  ::  DM permissions derive from the canonical pair. Never materialize an
+  ::  empty row from two absent rows, or carry a former solo-note row across.
   =.  note-members.s
+    ?:  (dm-pair-ok cn)
+      (~(del by (~(del by note-members.s) lose)) win)
     =/  mw  (fall (~(get by note-members.s) win) ~)
     =/  ml  (fall (~(get by note-members.s) lose) ~)
     (~(put by (~(del by note-members.s) lose)) win (~(uni in mw) ml))
@@ -4207,6 +4239,13 @@
         ~[(rpoke /dm-block-rej/(scot %p src.bowl)/[note-id.rem] src.bowl `remote:noltbook`[%remote-dm-blocked note-id.rem])]
       =/  raw-note=note:noltbook
         [note-id.rem name.rem type.rem creator.rem users.rem ~ ~ ~ ~ visibility.rem ~ writable.rem ~ ~]
+      ::  An authenticated DM invitation can establish only our own pair.
+      ?:  ?&  =(%dm type.rem)
+              ?|  !(dm-pair-ok raw-note)
+                  !=(users.rem (sy ~[our.bowl src.bowl]))
+              ==
+          ==
+        `state
       ::  for DMs, overlay saved local prefs (name/icon) — these never travel
       =/  new-note=note:noltbook  (apply-dm-pref raw-note dm-prefs our.bowl)
       ::  repair children: if orphan child notes for this id already exist
@@ -4359,6 +4398,7 @@
       ::  subscription, no echo poke — avoids ames loops.
       ?:  (~(has in pal-blocked) src.bowl)  `state
       ?.  =(%dm type.note.rem)  `state
+      ?.  (dm-pair-ok note.rem)  `state
       ?.  =(2 ~(wyt in users.note.rem))  `state
       ?.  (~(has in users.note.rem) our.bowl)  `state
       ?.  (~(has in users.note.rem) src.bowl)  `state
@@ -6208,6 +6248,7 @@
       ::  a call id and a start time; a member never authors call state.
       =/  exists  (~(get by notes) note-id.rem)
       ?~  exists  `state
+      ?.  (dm-call-allowed note-id.rem src.bowl notes pal-blocked blocked-by)  `state
       ?.  =(our.bowl creator.u.exists)  `state
       ?.  (call-eligible note-id.rem u.exists)  `state
       ?.  (can-user-post note-id.rem src.bowl host-status notes note-members)  `state
@@ -6243,6 +6284,7 @@
       ::  to forge and no way to join anyone else.
       =/  exists  (~(get by notes) note-id.rem)
       ?~  exists  `state
+      ?.  (dm-call-allowed note-id.rem src.bowl notes pal-blocked blocked-by)  `state
       ?.  =(our.bowl creator.u.exists)  `state
       ?.  (can-user-post note-id.rem src.bowl host-status notes note-members)  `state
       =/  cur  (~(get by calls) note-id.rem)
@@ -6316,6 +6358,7 @@
       ::  member -> HOST: liveness for ITSELF only. Refreshes that one lease.
       =/  exists  (~(get by notes) note-id.rem)
       ?~  exists  `state
+      ?.  (dm-call-allowed note-id.rem src.bowl notes pal-blocked blocked-by)  `state
       ?.  =(our.bowl creator.u.exists)  `state
       ?.  (can-user-post note-id.rem src.bowl host-status notes note-members)  `state
       =/  cur  (~(get by calls) note-id.rem)
@@ -6336,6 +6379,7 @@
         %remote-call-renew-access
       =/  exists  (~(get by notes) note-id.rem)
       ?~  exists  `state
+      ?.  (dm-call-allowed note-id.rem src.bowl notes pal-blocked blocked-by)  `state
       ?.  =(our.bowl creator.u.exists)  `state
       ?.  (can-user-post note-id.rem src.bowl host-status notes note-members)  `state
       =/  cur  (~(get by calls) note-id.rem)
@@ -6396,6 +6440,7 @@
         =(call-id.u.call.snap call-id.rem)
       ?~  match  `state
       =/  nid=@ta  -.i.match
+      ?.  (dm-call-allowed nid src.bowl notes pal-blocked blocked-by)  `state
       =/  snap=call-snapshot:noltbook  +.i.match
       ?~  call.snap  `state
       ?.  (~(has in participants.u.call.snap) src.bowl)  `state
@@ -6511,6 +6556,7 @@
       ::  remote admin forwarding moderation action to host
       =/  old  (~(get by notes) note-id.rem)
       ?~  old  `state
+      ?:  =(%dm type.u.old)  `state
       ::  must be our note
       ?.  =(our.bowl creator.u.old)  `state
       ::  src must be a current member; per-mod-type authority is enforced per arm below.
@@ -7371,6 +7417,7 @@
       ?.  =(src.bowl creator.r)  `state
       ?.  =(eid.r (sham [creator.r aid.r]))  `state
       ?.  =(%dm type.pnote)  `state
+      ?.  (dm-pair-ok pnote)  `state
       ?.  =(2 ~(wyt in users.pnote))  `state
       ?.  (~(has in users.pnote) our.bowl)  `state
       ?.  (~(has in users.pnote) src.bowl)  `state
@@ -7627,6 +7674,7 @@
         %remote-call-access
       =/  ex  (~(get by notes) note-id.rem)
       ?~  ex  `state
+      ?.  (dm-call-allowed note-id.rem our.bowl notes pal-blocked blocked-by)  `state
       ::  ONLY the authoritative host may grant. A forged host is refused
       ::  here, and src.bowl is the only identity considered.
       ?.  =(src.bowl creator.u.ex)  `state
@@ -7710,19 +7758,19 @@
 ::  for the local human principal; note.users stays transport. Compact by design to
 ::  protect the literal budget. System notes (%cover/%ars-rumors) keep their special
 ::  always-visible behavior. =====
-::  logical-members-of: note-members row if present (authoritative even when EMPTY);
-::  else fall back to an existing note's note.users; else the empty set. The fallback
-::  protects ordinary notes created before 1B activation and un-propagated remote copies.
-::  Read-only — never persists.
+::  DMs derive permission from their validated pair; mutable group rows cannot
+::  override it. Other note types retain explicit-row authority, including empty.
+::  Read-only: fixes existing singleton/empty DM rows before any cleanup runs.
 ++  logical-members-of
   |=  $:  nid=@ta
           nm=(map @ta (set @p))
           nmap=(map @ta note:noltbook)
       ==
   ^-  (set @p)
+  =/  nt  (~(get by nmap) nid)
+  ?:  ?&(?=(^ nt) =(%dm type.u.nt))  (dm-members u.nt)
   =/  row  (~(get by nm) nid)
   ?^  row  u.row
-  =/  nt  (~(get by nmap) nid)
   ?~  nt  ~
   users.u.nt
 ::  human-sees-note: may the local human `who` see nid? System notes always; otherwise
@@ -7759,13 +7807,11 @@
   |=  [nid=@ta s=(set @p) nm=(map @ta (set @p))]
   ^-  (map @ta (set @p))
   (~(put by nm) nid s)
-::  ensure-note-members: give every live note an EXPLICIT note-members row on load, so
-::  visibility never depends on the derive-fallback for an existing note. The fold is
-::  SEEDED FROM nm (acc=_nm), so a stored row is authoritative and is returned unchanged
-::  — including an explicitly EMPTY row, which means "transport peers may exist but zero
-::  logical humans". Only a live note with NO row gets one, seeded from note.users.
-::  Never prunes: a row for a missing note is left alone (physical note deletion owns
-::  that). Read-and-return only.
+::  Reload normalization: valid DM pairs have NO separate membership row.
+::  Drop only those redundant rows and never recreate them. This runs on every
+::  load and is idempotent, not a one-shot migration. Malformed DMs are left
+::  untouched for inspection. All non-DM explicit rows, even empty, survive;
+::  missing non-DM rows still seed from users. Missing-note rows stay untouched.
 ++  ensure-note-members
   |=  $:  nm=(map @ta (set @p))
           nmap=(map @ta note:noltbook)
@@ -7773,6 +7819,8 @@
   ^-  (map @ta (set @p))
   %-  ~(rep by nmap)
   |=  [[nid=@ta nt=note:noltbook] acc=_nm]
+  ?:  (dm-pair-ok nt)  (~(del by acc) nid)
+  ?:  =(%dm type.nt)  acc
   ?:  (~(has by acc) nid)  acc
   (~(put by acc) nid users.nt)
 ::  add/del-member-to-ids: apply a logical membership change across a root + its shared
@@ -9429,6 +9477,9 @@
       ?~  ex
         :_  this
         (api-call-result-card request-id.aa %.n %missing-note 'no such note' `note-id.aa ~)
+      ?.  (dm-call-allowed note-id.aa our.bowl notes pal-blocked blocked-by)
+        :_  this
+        (api-call-result-card request-id.aa %.n %rejected 'dm call not allowed' `note-id.aa ~)
       ?:  (is-write-blocked note-id.aa host-status notes our.bowl)
         :_  this
         (api-call-result-card request-id.aa %.n %rejected 'write blocked' `note-id.aa ~)
@@ -9464,6 +9515,9 @@
       ?~  ex
         :_  this
         (api-call-result-card request-id.aa %.n %missing-note 'no such note' `note-id.aa ~)
+      ?.  (dm-call-allowed note-id.aa our.bowl notes pal-blocked blocked-by)
+        :_  this
+        (api-call-result-card request-id.aa %.n %rejected 'dm call not allowed' `note-id.aa ~)
       ?:  (is-write-blocked note-id.aa host-status notes our.bowl)
         :_  this
         (api-call-result-card request-id.aa %.n %rejected 'write blocked' `note-id.aa ~)
@@ -13172,6 +13226,7 @@
       ?:  (is-write-blocked id.act host-status notes our.bowl)  `this
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
+      ?:  =(%dm type.u.old)  `this
       ::  remote admin: forward to host
       ?.  =(our.bowl creator.u.old)
         :_  this
@@ -13610,6 +13665,8 @@
     ::
         %convert-to-dm
       ::  convert a solo %notebook/%group note into the canonical DM for {us, ship}
+      ?:  =(ship.act our.bowl)  `this
+      ?:  (~(has in pal-blocked) ship.act)  `this
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
       ?.  ?|(=(%notebook type.u.old) =(%group type.u.old))  `this
@@ -13648,7 +13705,7 @@
       =/  pal-status-upd=(list card)
         ?.  is-new-peer  ~
         ~[(gf-notes `update:noltbook`[%pal-update ship.act %requesting])]
-      :_  this(notes (~(put by notes) id.act new-note), peers new-peers, pal-outgoing new-outgoing)
+      :_  this(notes (~(put by notes) id.act new-note), note-members (~(del by note-members) id.act), peers new-peers, pal-outgoing new-outgoing)
       :(weld [poke-card (gf-notes upd) ~] ars-cards hey-cards pal-status-upd)
     ::
         %merge-into-dm
@@ -13702,6 +13759,7 @@
               notes       (~(put by (~(del by notes) id.act)) dm-id dm-note)
               messages    (~(put by (~(del by messages) id.act)) dm-id new-msgs)
               artifacts   new-arts
+              note-members  (~(del by note-members) id.act)
               seq-counters  (~(put by seq-counters) dm-id seq)
             ==
         %+  weld
@@ -13758,6 +13816,7 @@
       ?:  (is-write-blocked note-id.act host-status notes our.bowl)  `this
       =/  exists  (~(get by notes) note-id.act)
       ?~  exists  `this
+      ?.  (dm-call-allowed note-id.act our.bowl notes pal-blocked blocked-by)  `this
       ?.  (call-eligible note-id.act u.exists)  `this
       =/  cur  (~(get by calls) note-id.act)
       ?:  ?&(?=(^ cur) ?=(^ call.u.cur))  `this
@@ -13796,6 +13855,7 @@
       ?:  (is-write-blocked note-id.act host-status notes our.bowl)  `this
       =/  exists  (~(get by notes) note-id.act)
       ?~  exists  `this
+      ?.  (dm-call-allowed note-id.act our.bowl notes pal-blocked blocked-by)  `this
       ?.  (call-eligible note-id.act u.exists)  `this
       =/  cur  (~(get by calls) note-id.act)
       ?~  cur  `this
@@ -13881,6 +13941,7 @@
       ::  liveness for OURSELVES only, sent while actually joined. Non-hosts forward it.
       =/  exists  (~(get by notes) note-id.act)
       ?~  exists  `this
+      ?.  (dm-call-allowed note-id.act our.bowl notes pal-blocked blocked-by)  `this
       =/  cur  (~(get by calls) note-id.act)
       ?~  cur  `this
       ?~  call.u.cur  `this
@@ -13906,6 +13967,7 @@
       ::  cannot assert. A mesh call has no credentials to renew.
       =/  exists  (~(get by notes) note-id.act)
       ?~  exists  `this
+      ?.  (dm-call-allowed note-id.act our.bowl notes pal-blocked blocked-by)  `this
       =/  cur  (~(get by calls) note-id.act)
       ?~  cur  `this
       ?~  call.u.cur  `this
@@ -13936,6 +13998,7 @@
       ::  to a ship that is actually a participant.
       =/  exists  (~(get by notes) note-id.act)
       ?~  exists  `this
+      ?.  (dm-call-allowed note-id.act our.bowl notes pal-blocked blocked-by)  `this
       =/  cur  (~(get by calls) note-id.act)
       ?~  cur  `this
       ?~  call.u.cur  `this
@@ -14095,6 +14158,7 @@
       ::  host or admin denies a pending join request (no block)
       =/  old  (~(get by notes) note-id.act)
       ?~  old  `this
+      ?:  =(%dm type.u.old)  `this
       ::  remote admin: forward to host
       ?.  =(our.bowl creator.u.old)
         :_  this
@@ -14126,6 +14190,7 @@
       ::  host: global pal-block; admin: note-scoped removed
       =/  old  (~(get by notes) note-id.act)
       ?~  old  `this
+      ?:  =(%dm type.u.old)  `this
       ::  remote admin: forward to host
       ?.  =(our.bowl creator.u.old)
         :_  this
@@ -14175,6 +14240,7 @@
       ?:  (is-write-blocked id.act host-status notes our.bowl)  `this
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
+      ?:  =(%dm type.u.old)  `this
       ::  only host can assign admins
       ?.  =(our.bowl creator.u.old)  `this
       ::  must be a current member (not host themselves)
@@ -14200,6 +14266,7 @@
       ?:  (is-write-blocked id.act host-status notes our.bowl)  `this
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
+      ?:  =(%dm type.u.old)  `this
       ::  only host can remove admins
       ?.  =(our.bowl creator.u.old)  `this
       =/  cur-admins=(set @p)  (fall (~(get by note-admins) id.act) ~)
@@ -14223,6 +14290,7 @@
       ?:  (is-write-blocked id.act host-status notes our.bowl)  `this
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
+      ?:  =(%dm type.u.old)  `this
       ::  remote admin: forward to host
       ?.  =(our.bowl creator.u.old)
         :_  this
@@ -14245,6 +14313,7 @@
       ?:  (is-write-blocked id.act host-status notes our.bowl)  `this
       =/  old  (~(get by notes) id.act)
       ?~  old  `this
+      ?:  =(%dm type.u.old)  `this
       ::  Read-only does NOT forbid unmuting. A host or admin may grant a
       ::  deliberate per-member exception; the ordinary moderation gates below
       ::  remain the authority.
@@ -14311,6 +14380,12 @@
     ?.  ?=(%sfu transport.u.call.u.cur)  `this
     ::  the participant must still be in the call
     ?.  (~(has in participants.u.call.u.cur) u.par)  `this
+    ::  A block may have landed while access was being minted. Refuse the
+    ::  credential here too, including the coordinator's own browser grant.
+    ?:  ?&  ?=(%granted -.r)
+            !(dm-call-allowed nid.u.cx u.par notes pal-blocked blocked-by)
+        ==
+      `this
     ?-    -.r
         %granted
       =/  blob=@t  (scot %uw (jam access.r))
