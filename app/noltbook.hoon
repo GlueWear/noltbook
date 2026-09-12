@@ -8488,7 +8488,27 @@
         =/  env-cards=(list card)
           ?~  all-envs  ~
           ~[(gf-paths ~ `update:noltbook`[%envelope-list nid all-envs])]
-        [(gf-paths ~ `update:noltbook`[%message-list nid msgs arts (api-via-snapshot msgs arts via-by-eid) (dm-import-snapshot msgs dm-imports)]) env-cards]
+        ::  per-envelope hop counts for the snapshot, so a local consumer can apply the
+        ::  same dial/pals visibility filter it already applies to the live
+        ::  %gossip-envelope fact, instead of fetching every historical body first and
+        ::  filtering after. Read-only: gossip-hops is already written per envelope on
+        ::  receipt. Strictly a point lookup by msg-id -- gossip-hops is DUAL-PURPOSE,
+        ::  also keyed by (sham text) cast to @da for anonymous Rumors dedup, so
+        ::  iterating the map would mix content hashes in with hop counts.
+        ::  Absent row => 0: an own-authored post was never received over gossip.
+        ::  Local branch only. The remote peer below must derive its own count
+        ::  (ours + 1) on receipt, which it already does.
+        =/  hop-rows=(list [msg-id=@da hops=@ud])
+          %+  turn  all-envs
+          |=  e=envelope:noltbook
+          ^-  [msg-id=@da hops=@ud]
+          [msg-id.e (fall (~(get by gossip-hops) msg-id.e) 0)]
+        =/  hop-cards=(list card)
+          ?~  hop-rows  ~
+          ~[(gf-paths ~ `update:noltbook`[%envelope-hops nid hop-rows])]
+        %+  weld
+          [(gf-paths ~ `update:noltbook`[%message-list nid msgs arts (api-via-snapshot msgs arts via-by-eid) (dm-import-snapshot msgs dm-imports)]) env-cards]
+        hop-cards
       ::  remote peer: send envelopes for everything (own msgs as envelopes too).
       ::  Phase 11C: recover via from via-by-eid so a new remote subscriber's
       ::  envelope snapshot carries attribution.

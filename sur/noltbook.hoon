@@ -1092,6 +1092,15 @@
       [%gossip-message msg=message hops=@ud]
       [%gossip-envelope note-id=@ta env=envelope hops=@ud]
       [%envelope-list note-id=@ta envelopes=(list envelope)]
+      ::  LOCAL FACT ONLY -- companion to the %envelope-list snapshot, carrying the
+      ::  per-recipient hop count the live %gossip-envelope fact already reports.
+      ::  A PARALLEL list rather than a field on the envelope, for two reasons:
+      ::  hops is per-recipient, not a property of the message (two ships legitimately
+      ::  see different values), and +$ envelope is persisted storage. It is also a
+      ::  separate update rather than a wider %envelope-list, because that variant is
+      ::  given to REMOTE subscribers of /notes/[nid] -- widening its mold would fail
+      ::  vale on any peer still running the previous version. Join on msg-id.
+      [%envelope-hops note-id=@ta hops=(list [msg-id=@da hops=@ud])]
       [%cover-msg-content note-id=@ta msg=message]
       [%rumor-message msg=message]
       [%note-redirect old-id=@ta new-id=@ta]

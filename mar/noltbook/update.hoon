@@ -322,6 +322,25 @@
           ['envelopes' a+(turn envelopes.upd env-to-json)]
       ==
     ::
+    ::  'id' is the SAME encoding env-to-json gives an envelope, so a consumer joins
+    ::  these rows to that snapshot on 'id'. 'msgIdRaw' is the exact @da for callers
+    ::  that need an unambiguous key -- da-to-ms truncates sub-millisecond precision.
+        %envelope-hops
+      %+  frond  'envelope-hops'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          :-  'hops'
+          :-  %a
+          %+  turn  hops.upd
+          |=  [mid=@da hp=@ud]
+          ^-  ^json
+          %-  pairs
+          :~  ['id' (numb (da-to-ms mid))]
+              ['msgIdRaw' s+(scot %da mid)]
+              ['hops' (numb hp)]
+          ==
+      ==
+    ::
         %cover-msg-content
       %+  frond  'cover-msg-content'
       %-  pairs
