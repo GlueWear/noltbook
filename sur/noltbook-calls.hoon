@@ -154,6 +154,31 @@
       %malformed
   ==
 ::
+::  quota-detail: WHICH limit produced a %quota. The upstream service reports
+::  seven distinct limits and err-of deliberately collapses them into one
+::  category; this recovers the distinction for diagnostics only.
+::  A CLOSED vocabulary, exactly like call-error: an upstream string is never
+::  carried, so the safe-category guarantee above still holds. call-error
+::  itself is untouched, because another desk decodes call-result with its own
+::  copy of these molds and a wider union would stop nesting there.
++$  quota-detail
+  $?  %room           ::  room-quota
+      %room-host      ::  room-quota-host
+      %room-global    ::  room-quota-global
+      %ticket         ::  ticket-quota
+      %ticket-room    ::  ticket-quota-room
+      %ticket-host    ::  ticket-quota-host
+      %command        ::  command-cap
+  ==
+::
+::  call-diagnostic: given ONLY on the local /diagnostics subscription, to agents
+::  that ask for it. Nothing is poked, so an agent that never subscribes is
+::  unaffected. `context`, `who` and `op` are our own pending record, so a
+::  subscriber correlates it with the %failed it already receives.
++$  call-diagnostic
+  $%  [%quota context=ctx who=(unit @p) op=@tas detail=quota-detail]
+  ==
+::
 ::  A room-level result carries no credential and is safe to log.
 +$  room-result
   $:  =room-ref
@@ -238,6 +263,10 @@
       [%call-room req=@ud =room-result]
       ::  safe failure
       [%call-fail req=@ud err=call-error]
+      ::  diagnostic subtype for the %call-fail that follows it on the SAME wire, so
+      ::  Ames delivers it first. Additive: a requester without this variant rejects
+      ::  just this message and still receives the %call-fail normally.
+      [%call-fail-detail req=@ud detail=quota-detail]
       ::  typed service health, non-secret
       [%call-health req=@ud =health]
   ==

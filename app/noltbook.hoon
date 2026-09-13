@@ -4850,7 +4850,13 @@
           ?^  by-eid  by-eid
           (skim cur |=(m=message:noltbook &(=(id.m msg-id.rem) =(author.m our.bowl))))
         (skim cur |=(m=message:noltbook &(=(id.m msg-id.rem) =(author.m our.bowl))))
-      ?~  found  `state
+      ?~  found
+        ::  we don't hold it (deleted, or never had it). Say so, instead of staying
+        ::  silent and leaving the requester to time out and ask again forever. One
+        ::  generic answer by design: it never says WHY, so it never confirms a
+        ::  deletion. The requester only believes it from the message's author.
+        :_  state
+        ~[(rpoke /msg-reply/(scot %p requester.rem)/(scot %da msg-id.rem) requester.rem `remote:noltbook`[%remote-msg-unavailable %cover requester.rem msg-id.rem eid.rem])]
       :_  state
       :~  (rpoke /msg-reply/(scot %p requester.rem)/(scot %da msg-id.rem) requester.rem `remote:noltbook`[%remote-cover-msg-reply requester.rem i.found])
       ==
@@ -4891,14 +4897,24 @@
         gossip-envelopes
       =/  meid=(unit @uv)  ?~(meta.msg ~ `eid.u.meta.msg)
       =/  mentioned=?  &(!=(author.msg our.bowl) (has-our-mention text.msg our.bowl))
+      =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) %cover) ~)
+      ::  a refetch of the same message -- history hydration, a reload, a second client --
+      ::  must not add the same mention again. eid-first, msg-id fallback, as elsewhere.
+      =/  already-mentioned=?
+        %+  lien  cur-m
+        |=  r=[id=@da eid=(unit @uv) author=@p]
+        ?:  &(?=(^ meid) ?=(^ eid.r))  =(u.eid.r u.meid)
+        =(id.r id.msg)
       =/  active-mentioned=?
-        ?&(mentioned !(mention-cleared (fall (~(get by cleared-mentions) %cover) ~) id.msg meid))
+        ?&  mentioned
+            !already-mentioned
+            !(mention-cleared (fall (~(get by cleared-mentions) %cover) ~) id.msg meid)
+        ==
       =/  mention-cards=(list card)
         ?.  active-mentioned  ~
         (attn-mention-cards %cover id.msg meid author.msg)
       =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
         ?.  active-mentioned  mentions
-        =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) %cover) ~)
         (~(put by mentions) %cover (snoc cur-m [id.msg meid author.msg]))
       =/  upd=update:noltbook  [%cover-msg-content %cover msg]
       :_  state(gossip-envelopes new-envs, mentions new-mentions)
@@ -4978,7 +4994,13 @@
           ?^  by-eid  by-eid
           (skim cur |=(m=message:noltbook &(=(id.m msg-id.rem) =(author.m our.bowl))))
         (skim cur |=(m=message:noltbook &(=(id.m msg-id.rem) =(author.m our.bowl))))
-      ?~  found  `state
+      ?~  found
+        ::  we don't hold it (deleted, or never had it). Say so, instead of staying
+        ::  silent and leaving the requester to time out and ask again forever. One
+        ::  generic answer by design: it never says WHY, so it never confirms a
+        ::  deletion. The requester only believes it from the message's author.
+        :_  state
+        ~[(rpoke /msg-reply/(scot %p requester.rem)/(scot %da msg-id.rem) requester.rem `remote:noltbook`[%remote-msg-unavailable nid requester.rem msg-id.rem eid.rem])]
       :_  state
       :~  (rpoke /msg-reply/(scot %p requester.rem)/(scot %da msg-id.rem) requester.rem `remote:noltbook`[%remote-gossip-msg-reply nid requester.rem i.found])
       ==
@@ -5020,14 +5042,24 @@
         gossip-envelopes
       =/  meid=(unit @uv)  ?~(meta.msg ~ `eid.u.meta.msg)
       =/  mentioned=?  &(!=(author.msg our.bowl) (has-our-mention text.msg our.bowl))
+      =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) nid) ~)
+      ::  a refetch of the same message -- history hydration, a reload, a second client --
+      ::  must not add the same mention again. eid-first, msg-id fallback, as elsewhere.
+      =/  already-mentioned=?
+        %+  lien  cur-m
+        |=  r=[id=@da eid=(unit @uv) author=@p]
+        ?:  &(?=(^ meid) ?=(^ eid.r))  =(u.eid.r u.meid)
+        =(id.r id.msg)
       =/  active-mentioned=?
-        ?&(mentioned !(mention-cleared (fall (~(get by cleared-mentions) nid) ~) id.msg meid))
+        ?&  mentioned
+            !already-mentioned
+            !(mention-cleared (fall (~(get by cleared-mentions) nid) ~) id.msg meid)
+        ==
       =/  mention-cards=(list card)
         ?.  active-mentioned  ~
         (attn-mention-cards nid id.msg meid author.msg)
       =/  new-mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
         ?.  active-mentioned  mentions
-        =/  cur-m=(list [id=@da eid=(unit @uv) author=@p])  (fall (~(get by mentions) nid) ~)
         (~(put by mentions) nid (snoc cur-m [id.msg meid author.msg]))
       ::  do NOT persist full message — ephemeral forward only
       =/  upd=update:noltbook  [%cover-msg-content nid msg]
@@ -5035,15 +5067,45 @@
       ::  (this path also serves %cover content fetches — never signal cover).
       =/  note-u  (~(get by notes) nid)
       =/  is-user-gossip=?  &(?=(^ note-u) =(%gossip type.u.note-u))
+      ::  This path serves BOTH a just-arrived message and older history being loaded
+      ::  back in. Only the newest message the note knows about may become the sidebar
+      ::  preview or raise a sidebar signal; otherwise hydrating an old post rewinds the
+      ::  durable preview and marks the note unread for something already seen.
+      =/  is-newest=?
+        ?&  !(lien ~(val by nenv) |=(e=envelope:noltbook (gth timestamp.e timestamp.msg)))
+            !(lien cur |=(m=message:noltbook (gth timestamp.m timestamp.msg)))
+        ==
       =/  new-notes2=(map @ta note:noltbook)
         ?.  ?=(^ note-u)  notes
         ?.  =(%gossip type.u.note-u)  notes
+        ?.  is-newest  notes
         (~(put by notes) nid u.note-u(last-author `author.msg, last-preview `text.msg))
       =/  sig-cards=(list card)
         ?.  is-user-gossip  ~
+        ?.  is-newest  ~
         ~[(sidebar-signal nid author.msg `text.msg %gossip now.bowl)]
       :_  state(gossip-envelopes new-envs, mentions new-mentions, notes new-notes2)
       :(weld ~[(gf-notes upd)] mention-cards sig-cards)
+    ::
+        %remote-msg-unavailable
+      ::  the AUTHOR says it no longer holds a gossip or cover message we asked for.
+      ::  Believed only from that message's author, as recorded on the envelope we
+      ::  hold, and only for a request we made. No state: the browser just stops
+      ::  asking and clears its loading state.
+      ?.  =(requester.rem our.bowl)  `state
+      =/  nid=@ta  note-id.rem
+      =/  nenv=(map @da envelope:noltbook)
+        (fall (~(get by gossip-envelopes) nid) *(map @da envelope:noltbook))
+      =/  env=(unit envelope:noltbook)
+        ?^  eid.rem
+          =/  by-eid  (skim ~(val by nenv) |=(e=envelope:noltbook ?~(meta.e %.n =(eid.u.meta.e u.eid.rem))))
+          ?^  by-eid  `i.by-eid
+          (~(get by nenv) msg-id.rem)
+        (~(get by nenv) msg-id.rem)
+      ?~  env  `state
+      ?.  =(src.bowl author.u.env)  `state
+      :_  state
+      ~[(gf-notes `update:noltbook`[%gossip-msg-unavailable nid msg-id.rem eid.rem])]
     ::
         %remote-rumor
       ::  RUMORS: anonymous gossip from a peer. Identity model is
@@ -5060,6 +5122,11 @@
       =/  targets=(list @p)
         %+  skim  ~(tap in pal-outgoing)
         |=(p=@p !=(p src.bowl))
+      ::  ANONYMITY: relays send the SAME hop value the author sends (0). Counting up
+      ::  let the first peer to receive a rumor read hops=0 and know its sender
+      ::  WROTE it -- the author field is stripped, the counter gave it away anyway.
+      ::  A constant carries no information. Nothing is lost: the received count is
+      ::  never used (we store chash -> 0) and dedup is by content hash, not hops.
       =/  relay=(list card)
         ?:  =(0 (lent targets))  ~
         ?.  =(0 (~(rad og eny.bowl) 2))
@@ -5067,10 +5134,10 @@
           %+  turn  targets
           |=  p=@p
           ^-  card
-          (rpoke /rum-out/(scot %p p) p `remote:noltbook`[%remote-rumor anon-msg (add hops.rem 1)])
+          (rpoke /rum-out/(scot %p p) p `remote:noltbook`[%remote-rumor anon-msg 0])
         ::  proxy through one random peer
         =/  proxy=@p  (snag (~(rad og +(eny.bowl)) (lent targets)) targets)
-        ~[(rpoke /rum-out/(scot %p proxy) proxy `remote:noltbook`[%remote-rumor anon-msg (add hops.rem 1)])]
+        ~[(rpoke /rum-out/(scot %p proxy) proxy `remote:noltbook`[%remote-rumor anon-msg 0])]
       :_  state(messages (~(put by messages) %ars-rumors (snoc cur anon-msg)), gossip-hops (~(put by gossip-hops) `@da`chash 0))
       [(gf-paths ~[/notes/ars-rumors] upd) relay]
     ::
@@ -8186,7 +8253,20 @@
     (rpoke /prof-out/(scot %p p) p `remote:noltbook`[%remote-profile our.bowl prof])
   ::  Phase 3: no protocol advertisement — both ships run the same build. DM reference
   ::  delivery is unconditional; peer-proto is left dormant (no state revision).
-  [:(weld prof-cards call-cards (ensure-data-desk bowl)) this(state loaded)]
+  ::  PAL RECONCILIATION. Push our authoritative view of every relationship to each ship
+  ::  we have one with, so a lost relationship message or one-sided state loss heals.
+  ::  It used to run on every /notes subscribe -- every tab load, every SSE channel
+  ::  replacement, and every other app subscribing -- re-poking every pal each time a
+  ::  browser reconnected. Every real change (%add-pal, %remove-pal, %block-pal,
+  ::  %unblock-pal, %dismiss-pal-request) already sends its own sync immediately, so
+  ::  this is only a backstop: once per agent load needs no state and no timer. The
+  ::  receiver replies only when it disagrees, so it cannot ping-pong.
+  =/  pal-sync-cards=(list card)
+    =/  s=(set @p)  (~(uni in pal-outgoing.loaded) pal-incoming.loaded)
+    =/  s=(set @p)  (~(uni in s) pal-blocked.loaded)
+    %+  turn  ~(tap in (~(del in s) our.bowl))
+    |=(p=@p (pal-sync-card p pal-outgoing.loaded pal-incoming.loaded pal-blocked.loaded))
+  [:(weld prof-cards call-cards pal-sync-cards (ensure-data-desk bowl)) this(state loaded)]
 ++  on-watch
   |=  =path
   ^-  (quip card _this)
@@ -8240,16 +8320,6 @@
       ?:  (~(has in pal-incoming) p)  %requested
       %none
     =/  palupd=update:noltbook  [%pal-list pal-pairs]
-    ::  durable reconciliation: on session start push our authoritative pal view to
-    ::  every ship we have a relationship with, so a missed hey/bye or one-sided state
-    ::  loss self-heals. bounded one-shot (no timer), relationship ships only.
-    =/  pal-sync-set=(set @p)
-      =/  s=(set @p)  (~(uni in pal-outgoing) pal-incoming)
-      =/  s=(set @p)  (~(uni in s) pal-blocked)
-      (~(del in s) our.bowl)
-    =/  pal-sync-cards=(list card)
-      %+  turn  ~(tap in pal-sync-set)
-      |=(p=@p (pal-sync-card p pal-outgoing pal-incoming pal-blocked))
     =/  contactupd=update:noltbook  [%contact-list ~(tap in contacts)]
     =/  dialupd=update:noltbook  [%dial-update dial]
     ::  NOLTBOOK ACTIVITY reload hydration. %wallet-update is an authoritative
@@ -8442,7 +8512,7 @@
     :_  this(notes notes-now, messages messages-now, notification-acks pruned-acks, note-activity pruned-activity, note-unread-activity pruned-unread-activity, note-read pruned-read, app-notifications pruned-app-notifications)
     =/  build-cards=(list card)
       ~[(gf-paths ~ `update:noltbook`[%build-stamp (build-stamp bowl)])]
-    :(weld build-cards init-cards pal-sync-cards mention-cards attention-cards call-cards active-cards jr-cards role-cards bb-cards hs-cards lineage-cards pfi-cards ack-cards activity-cards read-cards unread-activity-cards app-notification-cards dm-ref-cards)
+    :(weld build-cards init-cards mention-cards attention-cards call-cards active-cards jr-cards role-cards bb-cards hs-cards lineage-cards pfi-cards ack-cards activity-cards read-cards unread-activity-cards app-notification-cards dm-ref-cards)
   ::
       [%notes @ ~]
     =/  nid=@ta  i.t.path

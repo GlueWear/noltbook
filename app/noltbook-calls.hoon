@@ -182,6 +182,19 @@
   ?:  =(e 'request-retired')                     %conflict
   ?:  =(e 'in-progress')                         %conflict
   %malformed
+::  +quota-detail-of: recover WHICH limit err-of collapsed into %quota. Closed
+::  vocabulary: an unrecognised string yields ~, never a passed-through value.
+++  quota-detail-of
+  |=  e=@t
+  ^-  (unit quota-detail:nc)
+  ?:  =(e 'room-quota')         `%room
+  ?:  =(e 'room-quota-host')    `%room-host
+  ?:  =(e 'room-quota-global')  `%room-global
+  ?:  =(e 'ticket-quota')       `%ticket
+  ?:  =(e 'ticket-quota-room')  `%ticket-room
+  ?:  =(e 'ticket-quota-host')  `%ticket-host
+  ?:  =(e 'command-cap')        `%command
+  ~
 --
 %-  agent:dbug
 =|  state-3
@@ -476,6 +489,21 @@
       ?~  return.u.pd  `this
       :_  this
       ~[(hand-off:hc u.return.u.pd [%failed context.u.pd who.u.pd err.rem])]
+    ::
+        %call-fail-detail
+      ::  the diagnostic subtype for the %call-fail right behind it on this wire.
+      ::  READ-ONLY: the pending record stays for that %call-fail to consume.
+      ::  Given on /diagnostics to local subscribers only (on-watch requires
+      ::  src.bowl == our.bowl); nothing is poked, so a return agent that never
+      ::  subscribes -- including one decoding its own copy of these molds --
+      ::  sees no change at all.
+      ?.  =(src.bowl broker.state)  `this
+      =/  pd  (~(get by outbox.state) [src.bowl req.rem])
+      ?~  pd  `this
+      :_  this
+      :~  :*  %give  %fact  ~[/diagnostics]  %noltbook-calls-diagnostic
+              !>(`call-diagnostic:nc`[%quota context.u.pd who.u.pd op.u.pd detail.rem])
+      ==  ==
     ==
   ==
 ::
@@ -557,8 +585,14 @@
       =,  dejs-soft:format
       (ot ~[['error' so]])
     =/  cat=call-error:nc  ?~(ez %malformed (err-of `@t`u.ez))
+    ::  For %quota, also send WHICH limit, from a closed vocabulary. It goes
+    ::  FIRST: answer uses one wire per [who req], so Ames delivers the two in
+    ::  order and the requester still holds its pending record when the detail
+    ::  arrives. Every other failure is unchanged.
+    =/  qd=(unit quota-detail:nc)  ?~(ez ~ (quota-detail-of `@t`u.ez))
     :_  this
-    ~[(fail-to:hc who req cat)]
+    ?~  qd  ~[(fail-to:hc who req cat)]
+    ~[(answer:hc who req [%call-fail-detail req u.qd]) (fail-to:hc who req cat)]
   ::  success. Room-level operations carry no credential.
   ?.  ?|(=(op.pd %issue-access) =(op.pd %renew-access))
     =/  rr  (room-of:hc u.jon room.pd)

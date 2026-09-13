@@ -490,6 +490,11 @@
       [%remote-gossip-ref note-id=@ta env=envelope hops=@ud]
       [%remote-fetch-gossip-msg note-id=@ta requester=@p msg-id=@da eid=(unit @uv)]
       [%remote-gossip-msg-reply note-id=@ta requester=@p msg=message]
+      ::  the author no longer holds a requested gossip or cover message (note-id=%cover
+      ::  for cover). Replaces silence, so requesters stop asking again. Carries no
+      ::  reason. Believed only from the envelope's author. Additive: a requester without
+      ::  this variant rejects just this message.
+      [%remote-msg-unavailable note-id=@ta requester=@p msg-id=@da eid=(unit @uv)]
       [%remote-rumor msg=message hops=@ud]
       [%remote-profile ship=@p profile=profile]
       ::  Phase 3: explicit profile lookup by ship. Sender is src.bowl on both
@@ -1102,6 +1107,9 @@
       ::  vale on any peer still running the previous version. Join on msg-id.
       [%envelope-hops note-id=@ta hops=(list [msg-id=@da hops=@ud])]
       [%cover-msg-content note-id=@ta msg=message]
+      ::  LOCAL fact: a requested gossip/cover body is not available from its author.
+      ::  Clients stop re-requesting it and clear any loading state.
+      [%gossip-msg-unavailable note-id=@ta msg-id=@da eid=(unit @uv)]
       [%rumor-message msg=message]
       [%note-redirect old-id=@ta new-id=@ta]
       [%note-users-updated id=@ta type=note-type users=(list @p) removed=(list @p) rev=@ud]

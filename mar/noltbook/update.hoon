@@ -348,6 +348,18 @@
           ['message' (msg-to-json msg.upd)]
       ==
     ::
+    ::  LOCAL fact. Keys match how the frontend already tracks a fetch: 'msgId' is
+    ::  milliseconds (the same da-to-ms as an envelope's 'id'), 'eid' is the same
+    ::  (scot %uv) string as an envelope's meta.eid, 'msgIdRaw' is the exact @da.
+        %gossip-msg-unavailable
+      %+  frond  'gossip-msg-unavailable'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['msgId' (numb (da-to-ms msg-id.upd))]
+          ['msgIdRaw' s+(scot %da msg-id.upd)]
+          ['eid' ?~(eid.upd ~ s+(scot %uv u.eid.upd))]
+      ==
+    ::
         %rumor-message
       %+  frond  'rumor-message'
       %-  pairs
