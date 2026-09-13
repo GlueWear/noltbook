@@ -315,6 +315,85 @@
       documents=(map @ta document-current:noltbook)
       document-history=(map @ta (list document-version:noltbook))
   ==
+::  state-79: state-78 plus per-member active status for gossip notes. state-78 is
+::  FROZEN from here on -- !< nests on the mold, so narrowing anything in it breaks
+::  the decode of a saved %78 noun.
+::
+::    gossip-active   note id -> [member desk] -> that member's app status. Our own
+::                    rows carry a local deadline, enforced by a behn wake; every
+::                    other member's row has expires-at = *@da and stays until that
+::                    member says it stopped, a block or unfollow removes it, or a
+::                    local app drops it.
++$  state-79
+  $:  %79
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      calls=(map @ta call-snapshot:noltbook)
+      call-leases=(map @ta (map @p @da))
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      note-unread-activity=(map @ta @da)
+      note-members=(map @ta (set @p))
+      app-notifications=(map [@tas @t] app-notification:noltbook)
+      dm-artifact-refs=(map @uv dm-artifact-ref:noltbook)
+      dm-artifact-tombs=(map @uv dm-artifact-tomb:noltbook)
+      dm-msg-tombs=(map dm-message-key:noltbook @da)
+      peer-proto=(map @p @ud)
+      pending-dm-fetches=(map @ta pending-dm-fetch:noltbook)
+      note-artifact-tombs=(map @ta note-artifact-tomb:noltbook)
+      mesh-tombs=(set @uv)
+      mesh-tomb-meta=(map @uv mesh-tomb:noltbook)
+      dm-imports=(map @uv dm-import:noltbook)
+      import-only-dms=(set @ta)
+      pending-icon-fetches=(map @ta pending-icon-fetch:noltbook)
+      pending-img-writes=(map @ta pending-img-write:noltbook)
+      pending-profile-lookups=(map @ud pending-profile-lookup:noltbook)
+      sfu-mode=call-transport:noltbook
+      ::  ===== document notes =====
+      documents=(map @ta document-current:noltbook)
+      document-history=(map @ta (list document-version:noltbook))
+      ::  ===== gossip-note active status =====
+      gossip-active=(map @ta (map [@p @tas] note-active:noltbook))
+  ==
 +$  card  card:agent:gall
 ::
 ::  Gossip reservoir caps are now NO-OPS. "What you store/pass" (the gossip
@@ -491,6 +570,121 @@
   %-  ~(gas by *(map @ta note-active:noltbook))
   %+  skim  ~(tap by m)
   |=([@ta a=note-active:noltbook] (gth expires-at.a now))
+::  ===== gossip-note active status (per member) =====
+::  A %gossip note has no host, so its app "active" status is kept PER MEMBER in
+::  gossip-active: note id -> [member desk] -> row. Our own rows carry a local deadline
+::  (a behn wake sends "stopped" if the app stops refreshing); every other member's row
+::  has expires-at = *@da and stays until that member says it stopped, a block or an
+::  unfollow removes it, or a local app drops it. Pals hear starts, visible changes and
+::  stops only -- refreshes never leave the ship.
+::
+::  gossip-active-ok: user %gossip notes only -- never cover, Rumors or another ars-*
+::  system note.
+++  gossip-active-ok
+  |=  [nid=@ta n=note:noltbook]
+  ^-  ?
+  ?&  =(%gossip type.n)
+      !=(nid %cover)
+      !=("ars-" (scag 4 (trip nid)))
+  ==
+::  gossip-active-live: a note's live rows. Ours until their deadline; every other
+::  member's (expires-at = *@da) until removed.
+++  gossip-active-live
+  |=  [m=(map [@p @tas] note-active:noltbook) now=@da]
+  ^-  (list note-active:noltbook)
+  %+  skim  ~(val by m)
+  |=  a=note-active:noltbook
+  ?|  =(*@da expires-at.a)
+      (gth expires-at.a now)
+  ==
+::  gossip-active-upd: one authoritative replacement of a note's live rows.
+++  gossip-active-upd
+  |=  [nid=@ta m=(map [@p @tas] note-active:noltbook) now=@da]
+  ^-  update:noltbook
+  [%gossip-active-updated nid (gossip-active-live m now)]
+::  gossip-active-mine: the desks of OUR rows on one note, live or not yet woken.
+++  gossip-active-mine
+  |=  [our=@p m=(map [@p @tas] note-active:noltbook)]
+  ^-  (list @tas)
+  %+  murn  ~(tap by m)
+  |=  [k=[p=@p d=@tas] a=note-active:noltbook]
+  ^-  (unit @tas)
+  ?.(=(p.k our) ~ `d.k)
+::  gossip-active-shared: a row as pals receive it. No app count (counts are per
+::  viewer; the badge counts members) and no deadline (they hold it until it stops).
+++  gossip-active-shared
+  |=  a=note-active:noltbook
+  ^-  note-active:noltbook
+  a(count ~, expires-at *@da)
+::  gossip-active-audience: who hears our status -- the ships our gossip reaches
+::  directly (followers), minus anyone we block. Never relayed onward.
+++  gossip-active-audience
+  |=  [our=@p incoming=(set @p) blocked=(set @p)]
+  ^-  (list @p)
+  %+  skim  ~(tap in incoming)
+  |=(p=@p &(!=(p our) !(~(has in blocked) p)))
+::  gossip-active-send: one poke per ship, all on ONE wire per (ship, note), so Ames
+::  delivers a member's starts and stops for a note in the order they were sent.
+++  gossip-active-send
+  |=  [who=(list @p) nid=@ta rem=remote:noltbook]
+  ^-  (list card:agent:gall)
+  %+  turn  who
+  |=(p=@p (rpoke /gossip-active-out/(scot %p p)/[nid] p rem))
+::  gossip-active-wire: the behn wake for one of our rows, armed at its deadline.
+++  gossip-active-wire
+  |=  [nid=@ta dsk=@tas at=@da]
+  ^-  wire
+  /gossip-active/[nid]/(scot %tas dsk)/(scot %da at)
+::  gossip-active-hello: our live rows on every gossip note, for a ship that has just
+::  started following us (so it need not wait for our next start).
+++  gossip-active-hello
+  |=  [who=@p our=@p ga=(map @ta (map [@p @tas] note-active:noltbook)) now=@da]
+  ^-  (list card:agent:gall)
+  %-  zing
+  %+  turn  ~(tap by ga)
+  |=  [nid=@ta m=(map [@p @tas] note-active:noltbook)]
+  ^-  (list card:agent:gall)
+  %+  turn
+    %+  skim  (gossip-active-live m now)
+    |=(a=note-active:noltbook =(set-by.a our))
+  |=  a=note-active:noltbook
+  (rpoke /gossip-active-out/(scot %p who)/[nid] who `remote:noltbook`[%remote-gossip-active nid (gossip-active-shared a) %.n])
+::  gossip-active-goodbye: a stop for each of our rows, for a ship that will no longer
+::  hear our gossip.
+++  gossip-active-goodbye
+  |=  [who=@p our=@p ga=(map @ta (map [@p @tas] note-active:noltbook))]
+  ^-  (list card:agent:gall)
+  %-  zing
+  %+  turn  ~(tap by ga)
+  |=  [nid=@ta m=(map [@p @tas] note-active:noltbook)]
+  ^-  (list card:agent:gall)
+  %+  turn  (gossip-active-mine our m)
+  |=(d=@tas (rpoke /gossip-active-out/(scot %p who)/[nid] who `remote:noltbook`[%remote-gossip-inactive nid d]))
+::  gossip-active-drop-ship: forget every row one ship holds on any gossip note (a block
+::  either way, or we stopped following them -- we would never hear those rows stop).
+::  Local only; returns the sidebar facts for the notes that changed.
+++  gossip-active-drop-ship
+  |=  $:  who=@p  our=@p  now=@da
+          ga=(map @ta (map [@p @tas] note-active:noltbook))
+          nm=(map @ta (set @p))
+          nmap=(map @ta note:noltbook)
+      ==
+  ^-  (quip card:agent:gall (map @ta (map [@p @tas] note-active:noltbook)))
+  =/  nids=(list @ta)  (turn ~(tap by ga) head)
+  =|  cards=(list card:agent:gall)
+  |-  ^-  (quip card:agent:gall (map @ta (map [@p @tas] note-active:noltbook)))
+  ?~  nids  [cards ga]
+  =/  m=(map [@p @tas] note-active:noltbook)  (~(got by ga) i.nids)
+  =/  m2=(map [@p @tas] note-active:noltbook)
+    %-  ~(gas by *(map [@p @tas] note-active:noltbook))
+    %+  skip  ~(tap by m)
+    |=([k=[p=@p d=@tas] a=note-active:noltbook] =(p.k who))
+  ?:  =(~(wyt by m) ~(wyt by m2))  $(nids t.nids)
+  %=  $
+    nids   t.nids
+    ga     ?~(m2 (~(del by ga) i.nids) (~(put by ga) i.nids m2))
+    cards  (weld cards (human-note-cards i.nids our nm nmap ~[(gf-notes (gossip-active-upd i.nids m2 now))]))
+  ==
 ::  collect-notebook-descendants: walk a note's children recursively; collect
 ::  the ids of descendants whose type is %notebook. Root itself excluded —
 ::  caller flips the root explicitly.
@@ -1439,6 +1633,26 @@
       ['updatedAt' (numb:enjs:format (api-da-ms updated-at.u.active))]
       ['expiresAt' (numb:enjs:format (api-da-ms expires-at.u.active))]
   ==
+::  api-gossip-active-json: a gossip note's live per-member rows ([] for any other
+::  note). expiresAt is null on other members' rows: they have no local deadline.
+++  api-gossip-active-json
+  |=  [m=(unit (map [@p @tas] note-active:noltbook)) now=@da]
+  ^-  json
+  :-  %a
+  ?~  m  ~
+  %+  turn  (gossip-active-live u.m now)
+  |=  a=note-active:noltbook
+  ^-  json
+  %-  pairs:enjs:format
+  :~  ['desk' s+(scot %tas desk.a)]
+      ['title' ?~(title.a ~ s+u.title.a)]
+      ['publisher' ?~(publisher.a ~ s+(scot %p u.publisher.a))]
+      ['label' s+label.a]
+      ['count' ?~(count.a ~ (numb:enjs:format u.count.a))]
+      ['setBy' s+(scot %p set-by.a)]
+      ['updatedAt' (numb:enjs:format (api-da-ms updated-at.a))]
+      ['expiresAt' ?:(=(*@da expires-at.a) ~ (numb:enjs:format (api-da-ms expires-at.a)))]
+  ==
 ::  api-pin-json: stable read shape for a note's one pin. null when none. Resolves
 ::  the target at read time: %message -> messageId/author/preview/timestamp; %artifact
 ::  -> artifactId/artifactName/artifactType. Resolved fields are null if the target is
@@ -2206,8 +2420,8 @@
 ::  lose==win. Group/fork/gossip-only fields hold no ordinary-DM data and are left
 ::  alone; pending-dm-fetches/dm-msg-tombs key by entry identity (not note-id).
 ++  reconcile-dm-roots
-  |=  [st=state-78 lose=@ta win=@ta cn=note:noltbook]
-  ^-  state-78
+  |=  [st=state-79 lose=@ta win=@ta cn=note:noltbook]
+  ^-  state-79
   ?:  =(lose win)  st
   =*  s  st
   ::  notes: install canonical winner, drop loser
@@ -2395,6 +2609,40 @@
 ::  empty lease map. A call in flight does NOT survive: every note that had one gets
 ::  a cleared record at generation 1 -- a real generation-bearing empty snapshot, so
 ::  the browser badge disappears on load and the next start allocates generation 2.
+++  upgrade-78-to-79
+  ::  Adds per-member active status for gossip notes. Additive: every other field is
+  ::  carried across verbatim and gossip-active starts empty. note-active loses only
+  ::  its rows for %gossip notes -- short heartbeats (600s at most) that the app's next
+  ::  refresh replaces with a gossip-active row.
+  |=  o=state-78
+  ^-  state-79
+  =/  active-kept=(map @ta note-active:noltbook)
+    %-  ~(gas by *(map @ta note-active:noltbook))
+    %+  skip  ~(tap by note-active.o)
+    |=  [nid=@ta *]
+    =/  n=(unit note:noltbook)  (~(get by notes.o) nid)
+    ?&(?=(^ n) =(%gossip type.u.n))
+  :*  %79
+      notes.o  messages.o  artifacts.o  profiles.o  transactions.o
+      current-note.o  peers.o  has-avatar.o
+      pal-outgoing.o  pal-incoming.o  pal-blocked.o  blocked-by.o
+      dial.o  gossip-hops.o  mentions.o  calls.o  call-leases.o
+      gossip-envelopes.o  headlines.o  seq-counters.o  join-requests.o
+      note-admins.o  note-muted.o  artifact-envelopes.o  host-status.o
+      fork-origin.o  fork-version.o  fork-of.o  pending-fork-invites.o
+      fork-invitees.o  contacts.o  dm-prefs.o  member-revs.o
+      fork-parent-version.o  host-checks.o  notification-acks.o
+      note-activity.o  note-read.o  attention.o  cleared-mentions.o
+      via-by-eid.o  note-pins.o  note-apps.o  active-kept  app-grants.o
+      note-unread-activity.o  note-members.o  app-notifications.o
+      dm-artifact-refs.o  dm-artifact-tombs.o  dm-msg-tombs.o  peer-proto.o
+      pending-dm-fetches.o  note-artifact-tombs.o  mesh-tombs.o
+      mesh-tomb-meta.o  dm-imports.o  import-only-dms.o
+      pending-icon-fetches.o  pending-img-writes.o  pending-profile-lookups.o
+      sfu-mode.o  documents.o  document-history.o
+      ::  new in %79
+      *(map @ta (map [@p @tas] note-active:noltbook))
+  ==
 ++  upgrade-77-to-78
   ::  Adds document notes. Purely additive: every existing field is carried
   ::  across verbatim and both new maps start empty, so no existing note gains
@@ -2585,8 +2833,8 @@
       pending-profile-lookups.o
   ==
 ++  migrate-dm-artifacts
-  |=  [our=@p st=state-78]
-  ^-  state-78
+  |=  [our=@p st=state-79]
+  ^-  state-79
   =*  s  st
   =/  targets=(list [aid=@ta a=artifact:noltbook])
     %+  murn  ~(tap by artifacts.s)
@@ -2598,7 +2846,7 @@
     ?~  nt  ~
     ?.  (is-ordinary-dm u.nt)  ~
     `[aid a]
-  |-  ^-  state-78
+  |-  ^-  state-79
   ?~  targets  s
   =/  a=artifact:noltbook  a.i.targets
   =/  eid=@uv  (dm-artifact-eid a)
@@ -3106,7 +3354,7 @@
 ::  than relying on that. See FUTURE(cleanup-scope) above for why these exclusions are
 ::  a group and must be relaxed together, never individually.
 ++  notebook-subtree-private
-  |=  [our=@p ids=(list @ta) st=state-78]
+  |=  [our=@p ids=(list @ta) st=state-79]
   ^-  ?
   ::  an empty subtree proves nothing.
   ?~  ids  %.n
@@ -4006,11 +4254,11 @@
   ::  Option-1: the whole %noltbook-remote dispatch moved OUT of the on-poke battery.
   ::  =| / =* / =. re-expose state-67 faces exactly like the door, so handler bodies are
   ::  unchanged except this->state. on-poke delegates: =^ cards state (rem-handle bowl rem state).
-  |=  [=bowl:gall rem=remote:noltbook sin=state-78]
-  =|  state-78
+  |=  [=bowl:gall rem=remote:noltbook sin=state-79]
+  =|  state-79
   =*  state  -
   =.  state  sin
-  ^-  (quip card state-78)
+  ^-  (quip card state-79)
     ?-  -.rem
     ::
     ::  ===== document notes =====
@@ -5107,6 +5355,73 @@
       :_  state
       ~[(gf-notes `update:noltbook`[%gossip-msg-unavailable nid msg-id.rem eid.rem])]
     ::
+        %remote-gossip-active
+      ::  a member of a gossip note we hold started, or changed, an app "active" status.
+      ::  The member is src.bowl, never the payload. desk/title/publisher/label are what
+      ::  the sender's server stamped from its app attribution, re-capped here; count is
+      ::  never kept. No deadline: the row stays until that member says it stopped, a
+      ::  block or unfollow removes it, or a local app drops it.
+      =/  nid=@ta  note-id.rem
+      ?:  =(src.bowl our.bowl)  `state
+      ?:  (~(has in pal-blocked) src.bowl)  `state
+      =/  nt  (~(get by notes) nid)
+      ?~  nt  `state
+      ?.  (gossip-active-ok nid u.nt)  `state
+      =/  inc=note-active:noltbook  active.rem
+      ?.  ((sane %tas) desk.inc)  `state
+      =/  lbl=@t
+        =/  raw=@t  (crip (scag 32 (trip label.inc)))
+        ?:(=('' raw) 'live' raw)
+      =/  row=note-active:noltbook
+        :*  desk.inc
+            ?~(title.inc ~ `(crip (scag 80 (trip u.title.inc))))
+            publisher.inc
+            lbl
+            ~
+            src.bowl
+            now.bowl
+            *@da
+        ==
+      =/  mem=(map [@p @tas] note-active:noltbook)
+        (fall (~(get by gossip-active) nid) *(map [@p @tas] note-active:noltbook))
+      =/  prev=(unit note-active:noltbook)  (~(get by mem) [src.bowl desk.inc])
+      ::  a repeat of what we already show (an answer, a hello) changes nothing
+      =/  unchanged=?
+        ?~  prev  %.n
+        ?&  =(title.u.prev title.row)
+            =(publisher.u.prev publisher.row)
+            =(label.u.prev label.row)
+        ==
+      =/  mem2=(map [@p @tas] note-active:noltbook)
+        ?:  unchanged  mem
+        (~(put by mem) [src.bowl desk.inc] row)
+      ::  ask=&: they just started. If they are in our own audience, answer once with our
+      ::  live rows here, ask=|, so an answer is never answered.
+      =/  answer-cards=(list card)
+        ?.  ask.rem  ~
+        ?.  (~(has in pal-incoming) src.bowl)  ~
+        %+  turn
+          %+  skim  (gossip-active-live mem2 now.bowl)
+          |=(a=note-active:noltbook =(set-by.a our.bowl))
+        |=  a=note-active:noltbook
+        (rpoke /gossip-active-out/(scot %p src.bowl)/[nid] src.bowl `remote:noltbook`[%remote-gossip-active nid (gossip-active-shared a) %.n])
+      =/  fact-cards=(list card)
+        ?:  unchanged  ~
+        (human-note-cards nid our.bowl note-members notes ~[(gf-notes (gossip-active-upd nid mem2 now.bowl))])
+      :_  state(gossip-active (~(put by gossip-active) nid mem2))
+      (weld answer-cards fact-cards)
+    ::
+        %remote-gossip-inactive
+      ::  that member's app status on this note stopped. Removal only, keyed on src.bowl.
+      =/  nid=@ta  note-id.rem
+      ?:  =(src.bowl our.bowl)  `state
+      =/  mem=(map [@p @tas] note-active:noltbook)
+        (fall (~(get by gossip-active) nid) *(map [@p @tas] note-active:noltbook))
+      ?.  (~(has by mem) [src.bowl desk.rem])  `state
+      =/  mem2=(map [@p @tas] note-active:noltbook)  (~(del by mem) [src.bowl desk.rem])
+      :_  state(gossip-active ?~(mem2 (~(del by gossip-active) nid) (~(put by gossip-active) nid mem2)))
+      (human-note-cards nid our.bowl note-members notes ~[(gf-notes (gossip-active-upd nid mem2 now.bowl))])
+    ::
         %remote-rumor
       ::  RUMORS: anonymous gossip from a peer. Identity model is
       ::  content-hash (not entry-meta) — see %send-message %ars-rumors.
@@ -5429,8 +5744,12 @@
         ?:  (~(has in pal-incoming) src.bowl)  ~
         ?.  (~(has in pal-outgoing) src.bowl)  ~
         ~[(rpoke /pal-hey/(scot %p src.bowl) src.bowl `remote:noltbook`[%remote-hey ~])]
+      ::  a NEW follower hears our live gossip-note statuses now, not at our next start
+      =/  ga-cards=(list card)
+        ?:  (~(has in pal-incoming) src.bowl)  ~
+        (gossip-active-hello src.bowl our.bowl gossip-active now.bowl)
       :_  state(pal-incoming new-incoming, peers new-peers)
-      :(weld [prof-card (gf-notes upd) ~] hey-back)
+      :(weld [prof-card (gf-notes upd) ~] hey-back ga-cards)
     ::
         %remote-bye
       ::  a ship no longer wants to be pals
@@ -5482,8 +5801,13 @@
       =/  reply-cards=(list card)
         ?:  =(incoming.rem we-follow)  ~
         ~[(pal-sync-card peer pal-outgoing new-incoming pal-blocked)]
+      ::  a ship that has only now become a follower hears our live gossip-note statuses
+      =/  ga-cards=(list card)
+        ?.  (~(has in new-incoming) peer)  ~
+        ?:  (~(has in pal-incoming) peer)  ~
+        (gossip-active-hello peer our.bowl gossip-active now.bowl)
       :_  state(pal-incoming new-incoming)
-      (weld status-cards reply-cards)
+      :(weld status-cards reply-cards ga-cards)
     ::
         %remote-introduce
       ::  no-op: auto peer-introduce removed; variant retained for future
@@ -5949,8 +6273,11 @@
         %remote-blocked
       ::  someone blocked us — persist in blocked-by and notify frontend
       =/  upd=update:noltbook  [%blocked-notification src.bowl]
+      ::  they will never tell us their gossip-note statuses stopped, so forget them now
+      =^  ga-cards  gossip-active
+        (gossip-active-drop-ship src.bowl our.bowl now.bowl gossip-active note-members notes)
       :_  state(blocked-by (~(put in blocked-by) src.bowl))
-      ~[(gf-notes upd)]
+      [(gf-notes upd) ga-cards]
     ::
         %remote-unblocked
       ::  someone unblocked us — remove from blocked-by and notify frontend
@@ -7955,8 +8282,8 @@
 ::  artifact, already-tombstoned, or unauthorized sender — is a harmless no-op ([~ st]), so
 ::  duplicate and replayed requests neither mutate state nor emit a marker.
 ++  delete-note-artifact
-  |=  [=bowl:gall sender=@p nid=@ta aid=@ta st=state-78]
-  ^-  [(list card:agent:gall) state-78]
+  |=  [=bowl:gall sender=@p nid=@ta aid=@ta st=state-79]
+  ^-  [(list card:agent:gall) state-79]
   =/  nt  (~(get by notes.st) nid)
   ?~  nt  [~ st]
   ::  we must host this note; shared %group/%notebook only
@@ -8015,7 +8342,7 @@
   =/  del-upd=update:noltbook  [%artifact-deleted aid]
   =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
   =/  pax=path  ~[%notes nid]
-  =/  st2=state-78
+  =/  st2=state-79
     %=  st
       artifacts             (~(del by artifacts.st) aid)
       note-pins             new-pins
@@ -8149,7 +8476,7 @@
   ~[(gf-paths paths `update:noltbook`[%app-notifications-updated ~(val by live)])]
 --
 %-  agent:dbug
-=|  state-78
+=|  state-79
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -8173,16 +8500,18 @@
   ::  FROZEN -- !< nests on the mold, so narrowing anything in it breaks the decode.
   ?>  ?|  ?=([%75 *] q.old)  ?=([%76 *] q.old)
           ?=([%77 *] q.old)  ?=([%78 *] q.old)
+          ?=([%79 *] q.old)
       ==
-  =/  base=state-78
-    ?:  ?=([%78 *] q.old)  !<(state-78 old)
+  =/  base=state-79
+    ?:  ?=([%79 *] q.old)  !<(state-79 old)
     ::  The ladder is walked at its TERMINUS, never by wrapping every arm:
-    ::  %75 -> %76 -> %77 -> %78. Each older mold stays FROZEN, so a noun
+    ::  %75 -> %76 -> %77 -> %78 -> %79. Each older mold stays FROZEN, so a noun
     ::  saved by any of those builds still decodes on its own mold.
-    ?:  ?=([%77 *] q.old)  (upgrade-77-to-78 !<(state-77 old))
-    ?:  ?=([%76 *] q.old)  (upgrade-77-to-78 (upgrade-76-to-77 !<(state-76 old)))
-    (upgrade-77-to-78 (upgrade-76-to-77 (upgrade-75-to-76 !<(state-75 old))))
-  =/  based=state-78
+    ?:  ?=([%78 *] q.old)  (upgrade-78-to-79 !<(state-78 old))
+    ?:  ?=([%77 *] q.old)  (upgrade-78-to-79 (upgrade-77-to-78 !<(state-77 old)))
+    ?:  ?=([%76 *] q.old)  (upgrade-78-to-79 (upgrade-77-to-78 (upgrade-76-to-77 !<(state-76 old))))
+    (upgrade-78-to-79 (upgrade-77-to-78 (upgrade-76-to-77 (upgrade-75-to-76 !<(state-75 old)))))
+  =/  based=state-79
     %=  base
       note-members       (ensure-note-members note-members.base notes.base)
       app-notifications  (app-notifications-live app-notifications.base now.bowl)
@@ -8221,11 +8550,11 @@
     ^-  [@ta call-snapshot:noltbook]
     ?.  (~(has in ended) nid)  [nid sn]
     [nid [nid +(gen.sn) ~]]
-  =/  based=state-78
+  =/  based=state-79
     based(calls reloaded, call-leases *(map @ta (map @p @da)))
   ::  idempotent normalization of remote-owned ordinary-DM %file/%app artifacts into
   ::  content-free references (no content read/write; nothing serveable by a noncreator).
-  =/  loaded=state-78  (migrate-dm-artifacts our.bowl based)
+  =/  loaded=state-79  (migrate-dm-artifacts our.bowl based)
   ::  tell our own browser the full call list (which now includes any PRESERVED remote
   ::  cache), tell the members of every call we just ended that it is over, and ask every
   ::  remote host for its current truth. Those three are why a reload converges on both
@@ -8355,6 +8684,14 @@
       ^-  (unit card)
       ?.  (~(has in vis-set) nid)  ~
       `(gf-paths ~ `update:noltbook`[%note-active-updated nid `a])
+    ::  gossip notes: each note's live member rows, one replacement fact per note
+    =/  gossip-active-cards=(list card)
+      %+  murn  ~(tap by gossip-active)
+      |=  [nid=@ta m=(map [@p @tas] note-active:noltbook)]
+      ^-  (unit card)
+      ?.  (~(has in vis-set) nid)  ~
+      ?:  =(~ (gossip-active-live m now.bowl))  ~
+      `(gf-paths ~ (gossip-active-upd nid m now.bowl))
     ::  send pending join requests (host only sees their own)
     =/  jr-list=(list [note-id=@ta ship=@p note-name=@t])
       %-  zing
@@ -8512,7 +8849,7 @@
     :_  this(notes notes-now, messages messages-now, notification-acks pruned-acks, note-activity pruned-activity, note-unread-activity pruned-unread-activity, note-read pruned-read, app-notifications pruned-app-notifications)
     =/  build-cards=(list card)
       ~[(gf-paths ~ `update:noltbook`[%build-stamp (build-stamp bowl)])]
-    :(weld build-cards init-cards mention-cards attention-cards call-cards active-cards jr-cards role-cards bb-cards hs-cards lineage-cards pfi-cards ack-cards activity-cards read-cards unread-activity-cards app-notification-cards dm-ref-cards)
+    :(weld build-cards init-cards mention-cards attention-cards call-cards active-cards gossip-active-cards jr-cards role-cards bb-cards hs-cards lineage-cards pfi-cards ack-cards activity-cards read-cards unread-activity-cards app-notification-cards dm-ref-cards)
   ::
       [%notes @ ~]
     =/  nid=@ta  i.t.path
@@ -8721,6 +9058,7 @@
           ['app' (api-app-json (~(get by note-apps) nid))]
           ['pin' (api-pin-json (~(get by note-pins) nid) nid messages artifacts)]
           ['active' (api-active-json (~(get by note-active) nid) now.bowl)]
+          ['gossipActive' (api-gossip-active-json (~(get by gossip-active) nid) now.bowl)]
       ==
     ``[%json !>(jon)]
   ::
@@ -8948,6 +9286,7 @@
           ['app' (api-app-json (~(get by note-apps) nid))]
           ['pin' (api-pin-json (~(get by note-pins) nid) nid messages artifacts)]
           ['active' (api-active-json (~(get by note-active) nid) now.bowl)]
+          ['gossipActive' (api-gossip-active-json (~(get by gossip-active) nid) now.bowl)]
           ['capabilities' (pairs:enjs:format caps)]
       ==
     ``[%json !>(jon)]
@@ -10080,6 +10419,53 @@
       ?:  (is-write-blocked note-id.aa host-status notes our.bowl)
         :_  this
         (api-result-card request-id.aa %.n %rejected 'write blocked' `note-id.aa ~ ~)
+      ::  gossip notes are hostless, so the status is PER MEMBER: each ship sets only its
+      ::  own row, keyed [our desk], with no creator check. Refreshes stay on this ship;
+      ::  pals hear a start, a change they can see (title, publisher or label) and a stop
+      ::  -- never a heartbeat. Hosted notes continue below, unchanged and creator-only.
+      ?:  =(%gossip type.nt)
+        ?.  (gossip-active-ok note-id.aa nt)
+          :_  this
+          (api-result-card request-id.aa %.n %unsupported 'system notes do not support active status' `note-id.aa ~ ~)
+        =/  lbl=@t
+          =/  raw=@t  ?~(label.aa '' (crip (scag 32 (trip u.label.aa))))
+          ?:(=('' raw) 'live' raw)
+        =/  cnt=(unit @ud)  ?~(count.aa ~ `(min 999 u.count.aa))
+        ::  90s floor: a lapse sends "stopped" and then "started" to every pal, and a
+        ::  background browser tab can throttle its timers to once a minute.
+        =/  ttl-s=@ud  (max 90 ?~(ttl.aa 120 (min 600 u.ttl.aa)))
+        =/  exp=@da  (add now.bowl (mul ttl-s ~s1))
+        =/  dsk=@tas  desk.u.app.aa
+        =/  mem=(map [@p @tas] note-active:noltbook)
+          (fall (~(get by gossip-active) note-id.aa) *(map [@p @tas] note-active:noltbook))
+        =/  prev=(unit note-active:noltbook)  (~(get by mem) [our.bowl dsk])
+        =/  row=note-active:noltbook
+          [dsk title.u.app.aa publisher.u.app.aa lbl cnt our.bowl now.bowl exp]
+        =/  mem2=(map [@p @tas] note-active:noltbook)  (~(put by mem) [our.bowl dsk] row)
+        ::  what pals hear: ~ nothing (a refresh), `& a start, `| a visible change
+        =/  news=(unit ?)
+          ?~  prev  `%.y
+          ?.  (gth expires-at.u.prev now.bowl)  `%.y
+          ?:  ?&  =(title.u.prev title.row)
+                  =(publisher.u.prev publisher.row)
+                  =(label.u.prev label.row)
+              ==
+            ~
+          `%.n
+        =/  aud=(list @p)  (gossip-active-audience our.bowl pal-incoming pal-blocked)
+        =/  net-cards=(list card)
+          ?~  news  ~
+          (gossip-active-send aud note-id.aa `remote:noltbook`[%remote-gossip-active note-id.aa (gossip-active-shared row) u.news])
+        ::  one pending wake per row: cancel the previous deadline's wake, arm this one
+        =/  wake-card=card  [%pass (gossip-active-wire note-id.aa dsk exp) %arvo %b %wait exp]
+        =/  wake-cards=(list card)
+          ?~  prev  ~[wake-card]
+          ~[[%pass (gossip-active-wire note-id.aa dsk expires-at.u.prev) %arvo %b %rest expires-at.u.prev] wake-card]
+        ::  the local fact goes out on every set: the sidebar prunes our row at its deadline
+        =/  fact-cards=(list card)
+          (human-note-cards note-id.aa our.bowl note-members notes ~[(gf-notes (gossip-active-upd note-id.aa mem2 now.bowl))])
+        :_  this(gossip-active (~(put by gossip-active) note-id.aa mem2))
+        :(weld net-cards wake-cards fact-cards (api-result-card request-id.aa %.y %active-set 'active set' `note-id.aa ~ ~))
       ?.  =(our.bowl creator.nt)
         :_  this
         (api-result-card request-id.aa %.n %rejected 'only the note creator can set active status' `note-id.aa ~ ~)
@@ -10110,6 +10496,31 @@
       ?.  (pin-note-ok nt)
         :_  this
         (api-result-card request-id.aa %.n %unsupported 'note type does not support active status' `note-id.aa ~ ~)
+      ::  gossip: clears OUR rows only -- the calling app's row when attributed, otherwise
+      ::  every row of ours on this note -- and tells pals each one stopped. Pending wakes
+      ::  are left to find no row.
+      ?:  =(%gossip type.nt)
+        =/  mem=(map [@p @tas] note-active:noltbook)
+          (fall (~(get by gossip-active) note-id.aa) *(map [@p @tas] note-active:noltbook))
+        =/  gone=(list @tas)
+          %+  skim  (gossip-active-mine our.bowl mem)
+          |=(d=@tas ?~(app.aa %.y =(d desk.u.app.aa)))
+        =/  mem2=(map [@p @tas] note-active:noltbook)
+          =/  ds=(list @tas)  gone
+          =/  m=(map [@p @tas] note-active:noltbook)  mem
+          |-  ^-  (map [@p @tas] note-active:noltbook)
+          ?~  ds  m
+          $(ds t.ds, m (~(del by m) [our.bowl i.ds]))
+        =/  aud=(list @p)  (gossip-active-audience our.bowl pal-incoming pal-blocked)
+        =/  stop-cards=(list card)
+          %-  zing
+          %+  turn  gone
+          |=(d=@tas (gossip-active-send aud note-id.aa `remote:noltbook`[%remote-gossip-inactive note-id.aa d]))
+        =/  fact-cards=(list card)
+          ?~  gone  ~
+          (human-note-cards note-id.aa our.bowl note-members notes ~[(gf-notes (gossip-active-upd note-id.aa mem2 now.bowl))])
+        :_  this(gossip-active ?~(mem2 (~(del by gossip-active) note-id.aa) (~(put by gossip-active) note-id.aa mem2)))
+        :(weld stop-cards fact-cards (api-result-card request-id.aa %.y %active-cleared 'active cleared' `note-id.aa ~ ~))
       ?:  (is-write-blocked note-id.aa host-status notes our.bowl)
         :_  this
         (api-result-card request-id.aa %.n %rejected 'write blocked' `note-id.aa ~ ~)
@@ -10124,6 +10535,35 @@
       :_  this(note-active (~(del by note-active) note-id.aa))
       %+  weld  clear-cards
       (api-result-card request-id.aa %.y %active-cleared 'active cleared' `note-id.aa ~ ~)
+    ::
+        %drop-gossip-active
+      ::  a LOCAL app reports another member gone -- e.g. Glurff's own "are you still
+      ::  there?" check failed. The API is same-ship only. Removal only and never sent
+      ::  anywhere, so it cannot add, change or fake a row. Our own rows are cleared with
+      ::  clear-note-active instead, which tells pals.
+      =/  pre  (api-ship-pre request-id.aa ship.aa our.bowl)
+      ?:  ?=(%.n -.pre)  [p.pre this]
+      =/  who=@p  p.pre
+      =/  dsk=(unit @tas)  ?~(desk.aa ~ (rush u.desk.aa sym))
+      ?:  ?&(?=(^ desk.aa) ?=(~ dsk))
+        :_  this
+        (api-result-card request-id.aa %.n %invalid-desk 'desk must be a term' `note-id.aa ~ ~)
+      =/  mem=(map [@p @tas] note-active:noltbook)
+        (fall (~(get by gossip-active) note-id.aa) *(map [@p @tas] note-active:noltbook))
+      =/  mem2=(map [@p @tas] note-active:noltbook)
+        %-  ~(gas by *(map [@p @tas] note-active:noltbook))
+        %+  skip  ~(tap by mem)
+        |=  [k=[p=@p d=@tas] a=note-active:noltbook]
+        ?.  =(p.k who)  %.n
+        ?~  dsk  %.y
+        =(d.k u.dsk)
+      ?:  =(~(wyt by mem) ~(wyt by mem2))
+        :_  this
+        (api-result-card request-id.aa %.y %active-dropped 'nothing to drop' `note-id.aa ~ ~)
+      :_  this(gossip-active ?~(mem2 (~(del by gossip-active) note-id.aa) (~(put by gossip-active) note-id.aa mem2)))
+      %+  weld
+        (human-note-cards note-id.aa our.bowl note-members notes ~[(gf-notes (gossip-active-upd note-id.aa mem2 now.bowl))])
+      (api-result-card request-id.aa %.y %active-dropped 'dropped' `note-id.aa ~ ~)
     ::
         %set-app-notification
       ?~  app.aa
@@ -12876,11 +13316,15 @@
         ?:  still-visible  [%pal-update ship.act status]
         [%pal-removed ship.act]
       =/  cupd=update:noltbook  [%contact-list ~(tap in new-contacts)]
+      ::  we stop hearing their gossip, so we would never hear their statuses stop
+      =^  ga-cards  gossip-active
+        (gossip-active-drop-ship ship.act our.bowl now.bowl gossip-active note-members notes)
       :_  this(pal-outgoing new-outgoing, contacts new-contacts)
-      :~  bye-card
+      :*  bye-card
           (pal-sync-card ship.act new-outgoing pal-incoming pal-blocked)
           (gf-notes upd)
           (gf-notes cupd)
+          ga-cards
       ==
     ::
         %dismiss-pal-request
@@ -12898,8 +13342,12 @@
       =/  upd=update:noltbook
         ?:  still-visible  [%pal-update ship.act status]
         [%pal-removed ship.act]
+      ::  they no longer hear our gossip: tell them our gossip-note statuses stopped
+      =/  ga-cards=(list card)
+        ?.  (~(has in pal-incoming) ship.act)  ~
+        (gossip-active-goodbye ship.act our.bowl gossip-active)
       :_  this(pal-incoming new-incoming)
-      ~[(pal-sync-card ship.act pal-outgoing new-incoming pal-blocked) (gf-notes upd)]
+      [(pal-sync-card ship.act pal-outgoing new-incoming pal-blocked) (gf-notes upd) ga-cards]
     ::
         %block-pal
       ?:  =(ship.act our.bowl)  `this
@@ -13030,8 +13478,11 @@
         =/  cleaned=(set @p)  (~(del in ships) ship.act)
         ?:  =(~ cleaned)  acc
         (~(put by acc) nid cleaned)
+      ::  forget their gossip-note statuses (the %remote-blocked above makes them forget ours)
+      =^  ga-cards  gossip-active
+        (gossip-active-drop-ship ship.act our.bowl now.bowl gossip-active note-members notes)
       :_  this(notes new-notes.leave-result, messages new-msgs.leave-result, artifacts new-arts.leave-result, note-admins blk-admins, note-muted blk-muted, note-members blk-members, member-revs blk-revs-final, pal-outgoing new-outgoing, pal-incoming new-incoming, pal-blocked new-blocked, join-requests new-jr)
-      :(weld [(gf-notes upd) (pal-sync-card ship.act new-outgoing new-incoming new-blocked) ~] bye-cards cards.removal-result blk-users-cards blk-role-cards cards.leave-result)
+      :(weld [(gf-notes upd) (pal-sync-card ship.act new-outgoing new-incoming new-blocked) ~] bye-cards cards.removal-result blk-users-cards blk-role-cards cards.leave-result ga-cards)
     ::
         %unblock-pal
       ?:  =(ship.act our.bowl)  `this
@@ -13412,8 +13863,15 @@
         =/  upd=update:noltbook  [%note-deleted id.act]
         =/  msgs-after  (~(del by messages) id.act)
         =/  base-cards=(list card)  ~[(gf-notes upd)]
-        :_  this(notes (~(del by notes) id.act), messages msgs-after, artifacts cleaned-arts, gossip-envelopes (~(del by gossip-envelopes) id.act), cleared-mentions (~(del by cleared-mentions) id.act), note-members (~(del by note-members) id.act))
-        base-cards
+        ::  pals stop counting us here now, rather than when our rows' wakes fire
+        =/  aud=(list @p)  (gossip-active-audience our.bowl pal-incoming pal-blocked)
+        =/  stop-cards=(list card)
+          %-  zing
+          %+  turn
+            (gossip-active-mine our.bowl (fall (~(get by gossip-active) id.act) *(map [@p @tas] note-active:noltbook)))
+          |=(d=@tas (gossip-active-send aud id.act `remote:noltbook`[%remote-gossip-inactive id.act d]))
+        :_  this(notes (~(del by notes) id.act), messages msgs-after, artifacts cleaned-arts, gossip-envelopes (~(del by gossip-envelopes) id.act), cleared-mentions (~(del by cleared-mentions) id.act), note-members (~(del by note-members) id.act), gossip-active (~(del by gossip-active) id.act))
+        (weld base-cards stop-cards)
       ::  sole user: act like delete
       ?:  (lte user-count 1)
         =/  trimmed=(map @ta note:noltbook)
@@ -14309,10 +14767,18 @@
         =/  new-outgoing=(set @p)  (~(del in pal-outgoing) ship.act)
         =/  new-incoming=(set @p)  (~(del in pal-incoming) ship.act)
         =/  pal-upd=update:noltbook  [%pal-update ship.act %blocked]
+        ::  forget their gossip-note statuses. This block sends no %remote-blocked, so
+        ::  also tell them ours stopped.
+        =/  ga-bye-cards=(list card)
+          ?.  (~(has in pal-incoming) ship.act)  ~
+          (gossip-active-goodbye ship.act our.bowl gossip-active)
+        =^  ga-cards  gossip-active
+          (gossip-active-drop-ship ship.act our.bowl now.bowl gossip-active note-members notes)
         :_  this(pal-blocked new-blocked, pal-outgoing new-outgoing, pal-incoming new-incoming)
-        :~  deny-card
+        :*  deny-card
             (gf-notes pal-upd)
             (gf-notes jr-upd)
+            (weld ga-bye-cards ga-cards)
         ==
       ::  admin: note-scoped block (add to removed)
       =/  new-removed=(set @p)  (~(put in removed.u.old) ship.act)
@@ -14505,6 +14971,27 @@
 ++  on-arvo
   |=  [=wire =sign-arvo]
   ^-  (quip card _this)
+  ::  Gossip-note active status: the wake armed by the latest set-note-active for one of
+  ::  OUR rows. The wire carries note, desk and that set's deadline. Each refresh cancels
+  ::  the previous wake and arms its own, so a matching deadline that has passed means
+  ::  the app stopped refreshing: drop the row and tell pals it stopped. An overdue wake
+  ::  still fires after a restart.
+  ?:  ?=([%gossip-active @ @ @ ~] wire)
+    ?.  ?=([%behn %wake *] sign-arvo)  `this
+    =/  nid=@ta  i.t.wire
+    =/  dsk=@tas  i.t.t.wire
+    =/  at=@da  (slav %da i.t.t.t.wire)
+    =/  mem=(map [@p @tas] note-active:noltbook)
+      (fall (~(get by gossip-active) nid) *(map [@p @tas] note-active:noltbook))
+    =/  cur=(unit note-active:noltbook)  (~(get by mem) [our.bowl dsk])
+    ?~  cur  `this
+    ?.  =(expires-at.u.cur at)  `this
+    ?:  (gth expires-at.u.cur now.bowl)  `this
+    =/  mem2=(map [@p @tas] note-active:noltbook)  (~(del by mem) [our.bowl dsk])
+    :_  this(gossip-active ?~(mem2 (~(del by gossip-active) nid) (~(put by gossip-active) nid mem2)))
+    %+  weld
+      (human-note-cards nid our.bowl note-members notes ~[(gf-notes (gossip-active-upd nid mem2 now.bowl))])
+    (gossip-active-send (gossip-active-audience our.bowl pal-incoming pal-blocked) nid `remote:noltbook`[%remote-gossip-inactive nid dsk])
   ::  Call lease expiry. The wire carries note, CALL ID, participant and deadline, and
   ::  every one is re-checked below, in that order. Nothing is ever cancelled, so no
   ::  timer bookkeeping can leak; a wake that no longer describes reality simply returns.
@@ -15907,6 +16394,11 @@
       ~&  [%child-out-failed wire u.p.sign]
       `this
     ==
+  ::
+      [%gossip-active-out @ @ ~]
+    ::  gossip-note active status pokes. A ship without the feature nacks the new
+    ::  messages, which is expected in a mixed network, so nothing is logged.
+    `this
   ::
       [%ars-out @ ~]
     ::  ack/nack for ars notoria gossip pokes

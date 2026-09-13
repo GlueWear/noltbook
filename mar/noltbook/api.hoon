@@ -281,7 +281,10 @@
       ::  label/count/ttl from data; `app` is the poke's top-level attribution.
       [%set-note-active rid app nid (get-str 'label') (get-num 'count') (get-num 'ttl')]
     ?:  =('clear-note-active' tag)
-      [%clear-note-active rid nid]
+      ::  `app` (optional) matters on gossip notes only: it clears just that app's row.
+      [%clear-note-active rid app nid]
+    ?:  =('drop-gossip-active' tag)
+      [%drop-gossip-active rid nid (fall (get-str 'ship') '') (get-str 'desk')]
     ?:  =('set-note-app' tag)
       ::  app three-state: explicit JSON null => %clear; object => %set (raw strings,
       ::  validated server-side); absent or non-null non-object => %invalid (the

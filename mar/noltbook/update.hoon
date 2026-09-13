@@ -525,6 +525,13 @@
           ['active' (active-to-json active.upd)]
       ==
     ::
+        %gossip-active-updated
+      %+  frond  'gossip-active-updated'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['active' a+(turn active.upd gossip-active-to-json)]
+      ==
+    ::
         %artifact-envelope
       %+  frond  'artifact-envelope'
       %-  pairs
@@ -736,6 +743,20 @@
           ['setBy' s+(scot %p set-by.u.active)]
           ['updatedAt' (numb (da-to-ms updated-at.u.active))]
           ['expiresAt' (numb (da-to-ms expires-at.u.active))]
+      ==
+    ::  one member's row on a gossip note. expiresAt is null on other members' rows:
+    ::  they have no local deadline and stay until that member says it stopped.
+    ++  gossip-active-to-json
+      |=  a=note-active:noltbook
+      %-  pairs
+      :~  ['desk' s+(scot %tas desk.a)]
+          ['title' ?~(title.a ~ s+u.title.a)]
+          ['publisher' ?~(publisher.a ~ s+(scot %p u.publisher.a))]
+          ['label' s+label.a]
+          ['count' ?~(count.a ~ (numb u.count.a))]
+          ['setBy' s+(scot %p set-by.a)]
+          ['updatedAt' (numb (da-to-ms updated-at.a))]
+          ['expiresAt' ?:(=(*@da expires-at.a) ~ (numb (da-to-ms expires-at.a)))]
       ==
     ::
     ++  note-to-json

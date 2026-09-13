@@ -495,6 +495,13 @@
       ::  reason. Believed only from the envelope's author. Additive: a requester without
       ::  this variant rejects just this message.
       [%remote-msg-unavailable note-id=@ta requester=@p msg-id=@da eid=(unit @uv)]
+      ::  gossip notes: one member's app "active" status. Sent only when it starts, when a
+      ::  field others see changes (title, publisher, label), and when it stops -- never
+      ::  as a heartbeat. The member is src.bowl on the receiver, never the payload.
+      ::  ask=& means "I just started": a receiver that is live on the note answers once
+      ::  with its own rows, ask=|. Additive: a ship without these rejects just this message.
+      [%remote-gossip-active note-id=@ta active=note-active ask=?]
+      [%remote-gossip-inactive note-id=@ta desk=@tas]
       [%remote-rumor msg=message hops=@ud]
       [%remote-profile ship=@p profile=profile]
       ::  Phase 3: explicit profile lookup by ship. Sender is src.bowl on both
@@ -1024,9 +1031,16 @@
       [%clear-note-pin request-id=(unit @ud) note-id=@ta]
       ::  developer/API-only note "active" status. app = the poke's top-level
       ::  attribution (REQUIRED; missing-app otherwise). label/count/ttl from data;
-      ::  ttl is seconds (default 120, capped 600). Creator-only.
+      ::  ttl is seconds (default 120, capped 600). Creator-only on hosted notes.
+      ::  On a %gossip note both are PER MEMBER: each ship sets and clears only its own
+      ::  row, with no creator check; the gossip ttl has a 90s floor; and clear with app
+      ::  attribution clears just that app's row (without, every row of ours).
       [%set-note-active request-id=(unit @ud) app=(unit api-app) note-id=@ta label=(unit @t) count=(unit @ud) ttl=(unit @ud)]
-      [%clear-note-active request-id=(unit @ud) note-id=@ta]
+      [%clear-note-active request-id=(unit @ud) app=(unit api-app) note-id=@ta]
+      ::  gossip notes: a local app reports another member gone (e.g. its own liveness
+      ::  check failed). Removes that member's rows -- one desk, or all -- and is never
+      ::  sent anywhere. ship/desk are raw text, validated server-side.
+      [%drop-gossip-active request-id=(unit @ud) note-id=@ta ship=@t desk=(unit @t)]
   ==
 ::  subscription updates (agent to client)
 ::  api-result: per-request outcome fact for %noltbook-api clients. Emitted on
@@ -1148,6 +1162,10 @@
       [%note-pin-updated note-id=@ta pin=(unit note-pin)]
       ::  developer/API-only note "active" status. ~ = cleared/expired.
       [%note-active-updated note-id=@ta active=(unit note-active)]
+      ::  gossip notes: every live member row for one note, as an authoritative
+      ::  replacement (~ = nobody). Our own rows keep their local expires-at; every
+      ::  other member's row has expires-at = *@da (no deadline; held until it stops).
+      [%gossip-active-updated note-id=@ta active=(list note-active)]
       ::  cover/gossip artifact envelope updates
       [%artifact-envelope note-id=@ta env=artifact-envelope hops=@ud]
       [%artifact-envelope-list note-id=@ta envs=(list artifact-envelope)]
