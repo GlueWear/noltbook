@@ -394,6 +394,85 @@
       ::  ===== gossip-note active status =====
       gossip-active=(map @ta (map [@p @tas] note-active:noltbook))
   ==
+::  state-80: state-79 plus the per-call moderation record. state-79 is FROZEN from
+::  here on -- !< nests on the mold, so narrowing anything in it breaks the decode of
+::  a saved %79 noun.
+::
+::    call-mods   note id -> the HOST's moderation record for that note's call
+::                (promoted admins, muted, booted, recording), ordered by `rev`.
+::                The host authors it; members hold the host's copy.
++$  state-80
+  $:  %80
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      calls=(map @ta call-snapshot:noltbook)
+      call-leases=(map @ta (map @p @da))
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      note-unread-activity=(map @ta @da)
+      note-members=(map @ta (set @p))
+      app-notifications=(map [@tas @t] app-notification:noltbook)
+      dm-artifact-refs=(map @uv dm-artifact-ref:noltbook)
+      dm-artifact-tombs=(map @uv dm-artifact-tomb:noltbook)
+      dm-msg-tombs=(map dm-message-key:noltbook @da)
+      peer-proto=(map @p @ud)
+      pending-dm-fetches=(map @ta pending-dm-fetch:noltbook)
+      note-artifact-tombs=(map @ta note-artifact-tomb:noltbook)
+      mesh-tombs=(set @uv)
+      mesh-tomb-meta=(map @uv mesh-tomb:noltbook)
+      dm-imports=(map @uv dm-import:noltbook)
+      import-only-dms=(set @ta)
+      pending-icon-fetches=(map @ta pending-icon-fetch:noltbook)
+      pending-img-writes=(map @ta pending-img-write:noltbook)
+      pending-profile-lookups=(map @ud pending-profile-lookup:noltbook)
+      sfu-mode=call-transport:noltbook
+      ::  ===== document notes =====
+      documents=(map @ta document-current:noltbook)
+      document-history=(map @ta (list document-version:noltbook))
+      ::  ===== gossip-note active status =====
+      gossip-active=(map @ta (map [@p @tas] note-active:noltbook))
+      ::  ===== call moderation =====
+      call-mods=(map @ta call-mod-snap:noltbook)
+  ==
 +$  card  card:agent:gall
 ::
 ::  Gossip reservoir caps are now NO-OPS. "What you store/pass" (the gossip
@@ -2420,8 +2499,8 @@
 ::  lose==win. Group/fork/gossip-only fields hold no ordinary-DM data and are left
 ::  alone; pending-dm-fetches/dm-msg-tombs key by entry identity (not note-id).
 ++  reconcile-dm-roots
-  |=  [st=state-79 lose=@ta win=@ta cn=note:noltbook]
-  ^-  state-79
+  |=  [st=state-80 lose=@ta win=@ta cn=note:noltbook]
+  ^-  state-80
   ?:  =(lose win)  st
   =*  s  st
   ::  notes: install canonical winner, drop loser
@@ -2609,6 +2688,31 @@
 ::  empty lease map. A call in flight does NOT survive: every note that had one gets
 ::  a cleared record at generation 1 -- a real generation-bearing empty snapshot, so
 ::  the browser badge disappears on load and the next start allocates generation 2.
+++  upgrade-79-to-80
+  ::  Adds the per-call moderation record. Purely additive: every field is carried
+  ::  across verbatim and call-mods starts empty, so a call in progress simply has
+  ::  no promoted admins, mutes or removals yet.
+  |=  o=state-79
+  ^-  state-80
+  :*  %80
+       notes.o  messages.o  artifacts.o  profiles.o  transactions.o  current-note.o
+       peers.o  has-avatar.o  pal-outgoing.o  pal-incoming.o  pal-blocked.o
+       blocked-by.o  dial.o  gossip-hops.o  mentions.o  calls.o  call-leases.o
+       gossip-envelopes.o  headlines.o  seq-counters.o  join-requests.o  note-admins.o
+       note-muted.o  artifact-envelopes.o  host-status.o  fork-origin.o
+       fork-version.o  fork-of.o  pending-fork-invites.o  fork-invitees.o  contacts.o
+       dm-prefs.o  member-revs.o  fork-parent-version.o  host-checks.o
+       notification-acks.o  note-activity.o  note-read.o  attention.o
+       cleared-mentions.o  via-by-eid.o  note-pins.o  note-apps.o  note-active.o
+       app-grants.o  note-unread-activity.o  note-members.o  app-notifications.o
+       dm-artifact-refs.o  dm-artifact-tombs.o  dm-msg-tombs.o  peer-proto.o
+       pending-dm-fetches.o  note-artifact-tombs.o  mesh-tombs.o  mesh-tomb-meta.o
+       dm-imports.o  import-only-dms.o  pending-icon-fetches.o  pending-img-writes.o
+       pending-profile-lookups.o  sfu-mode.o  documents.o  document-history.o
+       gossip-active.o
+      ::  new in %80
+      *(map @ta call-mod-snap:noltbook)
+  ==
 ++  upgrade-78-to-79
   ::  Adds per-member active status for gossip notes. Additive: every other field is
   ::  carried across verbatim and gossip-active starts empty. note-active loses only
@@ -2833,8 +2937,8 @@
       pending-profile-lookups.o
   ==
 ++  migrate-dm-artifacts
-  |=  [our=@p st=state-79]
-  ^-  state-79
+  |=  [our=@p st=state-80]
+  ^-  state-80
   =*  s  st
   =/  targets=(list [aid=@ta a=artifact:noltbook])
     %+  murn  ~(tap by artifacts.s)
@@ -2846,7 +2950,7 @@
     ?~  nt  ~
     ?.  (is-ordinary-dm u.nt)  ~
     `[aid a]
-  |-  ^-  state-79
+  |-  ^-  state-80
   ?~  targets  s
   =/  a=artifact:noltbook  a.i.targets
   =/  eid=@uv  (dm-artifact-eid a)
@@ -3354,7 +3458,7 @@
 ::  than relying on that. See FUTURE(cleanup-scope) above for why these exclusions are
 ::  a group and must be relaxed together, never individually.
 ++  notebook-subtree-private
-  |=  [our=@p ids=(list @ta) st=state-79]
+  |=  [our=@p ids=(list @ta) st=state-80]
   ^-  ?
   ::  an empty subtree proves nothing.
   ?~  ids  %.n
@@ -3875,6 +3979,22 @@
   =/  room=@tas  (sfu-room our.bowl nid cid)
   ~[(sfu-poke bowl [%evict (sfu-req nid cid gen %evict who) room who])]
 ::
+::  +sfu-mute-cards: take publishing away from (or give it back to) ONE participant
+::  on the call server itself, then hand them fresh access that matches -- the
+::  server change revokes what they held. The request id is bound to the moderation
+::  revision `rev`, so mute, unmute and mute again are three operations at the
+::  Warden, never a duplicate of the first. The access is correlated at the call's
+::  current generation, like any other grant.
+++  sfu-mute-cards
+  |=  [=bowl:gall nid=@ta cid=@ta gen=@ud rev=@ud who=@p mute=?]
+  ^-  (list card:agent:gall)
+  =/  room=@tas  (sfu-room our.bowl nid cid)
+  =/  cx=@t      (sfu-ctx nid cid gen)
+  =/  req=@ud    `@ud`(sham [nid cid rev ?:(mute %mute %unmute) who])
+  ?:  mute
+    ~[(sfu-poke bowl [%mute-access req room who %noltbook cx])]
+  ~[(sfu-poke bowl [%unmute-access req room who %noltbook cx])]
+::
 ::  +sfu-end-cards: the final teardown. The Warden revokes every ticket,
 ::  kicks remaining clients and deletes the managed group.
 ++  sfu-end-cards
@@ -4057,6 +4177,237 @@
   ^-  (list card)
   =/  upd=update:noltbook  [%call-snap snap]
   ~[(gf-paths ~[/notes/[note-id.snap]] upd) (gf-notes upd)]
+::  ===== call moderation (step 1: call roles + boot) =====
+::  call-mod-of: THIS call's moderation record -- an empty one when none is held or the
+::  held record belongs to an earlier call. A record never outlives its call-id.
+++  call-mod-of
+  |=  [cm=(map @ta call-mod-snap:noltbook) nid=@ta cid=@ta]
+  ^-  call-mod:noltbook
+  =/  held  (~(get by cm) nid)
+  ?~  held  [cid ~ ~ ~ ~]
+  ?~  mod.u.held  [cid ~ ~ ~ ~]
+  ?.  =(cid call-id.u.mod.u.held)  [cid ~ ~ ~ ~]
+  u.mod.u.held
+::  call-mod-for: THIS call's record as the host reasons about it. Until the first
+::  change is stored, the call's admin list is its default -- whoever started the call
+::  (the host is an admin regardless) -- so the starter sits on the list like anyone
+::  promoted, and the host can take them off it.
+++  call-mod-for
+  |=  [cm=(map @ta call-mod-snap:noltbook) nid=@ta ci=call-info:noltbook host=@p]
+  ^-  call-mod:noltbook
+  =/  seed=call-mod:noltbook
+    [call-id.ci ?:(=(started-by.ci host) ~ (sy ~[started-by.ci])) ~ ~ ~]
+  =/  held  (~(get by cm) nid)
+  ?~  held  seed
+  ?~  mod.u.held  seed
+  ?.  =(call-id.ci call-id.u.mod.u.held)  seed
+  u.mod.u.held
+::  call-mod-rev: the revision we hold for a note's moderation record (0 = none).
+++  call-mod-rev
+  |=  [cm=(map @ta call-mod-snap:noltbook) nid=@ta]
+  ^-  @ud
+  =/  held  (~(get by cm) nid)
+  ?~(held 0 rev.u.held)
+::  call-booted: was `who` removed from THIS call? The host refuses their rejoin.
+++  call-booted
+  |=  [cm=(map @ta call-mod-snap:noltbook) nid=@ta cid=@ta who=@p]
+  ^-  ?
+  =/  m=call-mod:noltbook  (call-mod-of cm nid cid)
+  (~(has in booted.m) who)
+::  call-admin: the ONE rule for who moderates a call -- the host (note creator), the
+::  note's admins while they hold that role, and the call's own admin list (see
+::  call-mod-for: it starts with whoever started the call and gains anyone promoted
+::  during it). The host can take anyone off that list.
+++  call-admin
+  |=  $:  who=@p  nt=note:noltbook  ci=call-info:noltbook
+          mod=call-mod:noltbook  nadm=(map @ta (set @p))
+      ==
+  ^-  ?
+  ?|  =(who creator.nt)
+      (~(has in (fall (~(get by nadm) note-id.ci) ~)) who)
+      (~(has in admins.mod) who)
+  ==
+::  call-mod-snap-cards: host -> every note member, like call-snap-cards: the record is
+::  note-visible state, not just participants' state.
+++  call-mod-snap-cards
+  |=  [to=(set @p) ms=call-mod-snap:noltbook our=@p]
+  ^-  (list card)
+  %+  murn  ~(tap in to)
+  |=  p=@p
+  ^-  (unit card)
+  ?:  =(p our)  ~
+  `(rpoke /call-mod-snap/(scot %p p)/[note-id.ms] p `remote:noltbook`[%remote-call-mod-snap ms])
+::  call-mod-local-cards: the same record to our own frontend, on both paths.
+++  call-mod-local-cards
+  |=  ms=call-mod-snap:noltbook
+  ^-  (list card)
+  =/  upd=update:noltbook  [%call-mod-snap ms]
+  ~[(gf-paths ~[/notes/[note-id.ms]] upd) (gf-notes upd)]
+::  call-mod-depart: a participant has left the call (leave, lease lapse). If they were
+::  recording it, the recording is over: the record to store and broadcast, else ~.
+++  call-mod-depart
+  |=  [cm=(map @ta call-mod-snap:noltbook) nid=@ta cid=@ta who=@p]
+  ^-  (unit call-mod-snap:noltbook)
+  =/  m=call-mod:noltbook  (call-mod-of cm nid cid)
+  ?~  recording.m  ~
+  ?.  =(by.u.recording.m who)  ~
+  =/  m2=call-mod:noltbook  m(recording ~)
+  `[nid +((call-mod-rev cm nid)) `m2]
+::  call-mod-depart-cards: broadcast a call-mod-depart result, when there is one.
+++  call-mod-depart-cards
+  |=  [to=(set @p) ms=(unit call-mod-snap:noltbook) our=@p]
+  ^-  (list card)
+  ?~  ms  ~
+  (weld (call-mod-snap-cards to u.ms our) (call-mod-local-cards u.ms))
+::  visible-call-mods: the moderation records for notes this subscriber can see.
+++  visible-call-mods
+  |=  [cm=(map @ta call-mod-snap:noltbook) vis=(set @ta)]
+  ^-  (list call-mod-snap:noltbook)
+  %+  murn  ~(tap by cm)
+  |=  [nid=@ta ms=call-mod-snap:noltbook]
+  ^-  (unit call-mod-snap:noltbook)
+  ?.  (~(has in vis) nid)  ~
+  `ms
+::  call-mod-apply: the HOST authors one moderation change. `actor` is the authenticated
+::  asker: our.bowl for our own browser, src.bowl for a forwarded request. Every refusal
+::  is a silent no-op, so a stale, duplicate or unauthorised request changes nothing.
+::
+::    %promote  make a participant an admin of this call
+::    %demote   take someone off the call's admin list: whoever started the call, or
+::              anyone promoted in it. The host only, by the rule below. The note's
+::              admins stay call admins while they hold that role.
+::    %boot     remove a member from this call; they cannot rejoin until it ends
+::    %unboot   let a removed member rejoin
+::    %mute     turn off a participant's mic, camera and screen share for the rest of
+::              this call: their own app turns them off and locks them, and every other
+::              app stops playing and showing them. It survives leaving and rejoining.
+::    %unmute   lift it; they turn their own mic and camera back on
+::    %record-start, %record-stop  see RECORDING below; the only ops a DM
+::              call accepts
+::
+::  Nobody targets the host or themselves, and only the host acts on another admin.
+::  DM calls have no moderation, but either person may record one.
+++  call-mod-apply
+  |=  [=bowl:gall actor=@p nid=@ta cid=@ta target=@p op=@tas sin=state-80]
+  =|  state-80
+  =*  state  -
+  =.  state  sin
+  ^-  (quip card state-80)
+  =/  nt-u  (~(get by notes) nid)
+  ?~  nt-u  `state
+  =/  nt=note:noltbook  u.nt-u
+  ::  a DM call has no moderation, but either person may record it
+  =/  rec-op=?  ?=(?(%record-start %record-stop) op)
+  ?:  ?&(=(%dm type.nt) !rec-op)  `state
+  ?.  =(our.bowl creator.nt)  `state
+  =/  cur  (~(get by calls) nid)
+  ?~  cur  `state
+  ?~  call.u.cur  `state
+  =/  ci=call-info:noltbook  u.call.u.cur
+  ?.  =(cid call-id.ci)  `state
+  ?.  (~(has in users.nt) actor)  `state
+  =/  mod=call-mod:noltbook  (call-mod-for call-mods nid ci creator.nt)
+  ::  RECORDING. Starting needs the recorder in the call and allowed to record it: an
+  ::  admin of a group call, or either person on a DM call. One recording at a time.
+  ::  The recorder or the host stops it, and it ends when the recorder leaves the call
+  ::  (call-mod-depart). The recording itself happens in the recorder's browser.
+  ?:  rec-op
+    =/  nxt=(unit call-mod:noltbook)
+      ?:  ?=(%record-start op)
+        ?.  (~(has in participants.ci) actor)  ~
+        ?.  ?|(=(%dm type.nt) (call-admin actor nt ci mod note-admins))  ~
+        ?^  recording.mod  ~
+        =/  m2=call-mod:noltbook  mod(recording `[actor now.bowl])
+        `m2
+      ?~  recording.mod  ~
+      ?.  ?|(=(actor by.u.recording.mod) =(actor creator.nt))  ~
+      =/  m2=call-mod:noltbook  mod(recording ~)
+      `m2
+    ?~  nxt  `state
+    =/  rs=call-mod-snap:noltbook  [nid +((call-mod-rev call-mods nid)) nxt]
+    =.  call-mods  (~(put by call-mods) nid rs)
+    :_  state
+    (weld (call-mod-snap-cards users.nt rs our.bowl) (call-mod-local-cards rs))
+  ?.  (call-admin actor nt ci mod note-admins)  `state
+  ?:  =(target creator.nt)  `state
+  ?:  =(target actor)  `state
+  =/  target-admin=?  (call-admin target nt ci mod note-admins)
+  ?:  ?&(target-admin !=(actor creator.nt))  `state
+  =/  plan=(unit [nxt=call-mod:noltbook drop=?])
+    ?+  op  ~
+        %promote
+      ?.  (~(has in participants.ci) target)  ~
+      ?:  target-admin  ~
+      =/  m2=call-mod:noltbook  mod(admins (~(put in admins.mod) target))
+      `[m2 %.n]
+    ::
+        %demote
+      ?.  (~(has in admins.mod) target)  ~
+      =/  m2=call-mod:noltbook  mod(admins (~(del in admins.mod) target))
+      `[m2 %.n]
+    ::
+        %boot
+      ?.  (~(has in users.nt) target)  ~
+      ?:  (~(has in booted.mod) target)  ~
+      =/  m2=call-mod:noltbook
+        mod(booted (~(put in booted.mod) target), admins (~(del in admins.mod) target))
+      ::  a booted recorder's recording is over
+      =?  recording.m2  ?&(?=(^ recording.m2) =(by.u.recording.m2 target))  ~
+      `[m2 %.y]
+    ::
+        %unboot
+      ?.  (~(has in booted.mod) target)  ~
+      =/  m2=call-mod:noltbook  mod(booted (~(del in booted.mod) target))
+      `[m2 %.n]
+    ::
+        %mute
+      ?.  (~(has in participants.ci) target)  ~
+      ?:  (~(has in muted.mod) target)  ~
+      =/  m2=call-mod:noltbook  mod(muted (~(put in muted.mod) target))
+      `[m2 %.n]
+    ::
+        %unmute
+      ?.  (~(has in muted.mod) target)  ~
+      =/  m2=call-mod:noltbook  mod(muted (~(del in muted.mod) target))
+      `[m2 %.n]
+    ==
+  ?~  plan  `state
+  =/  ms=call-mod-snap:noltbook  [nid +((call-mod-rev call-mods nid)) `nxt.u.plan]
+  =.  call-mods  (~(put by call-mods) nid ms)
+  =/  mod-cards=(list card)
+    (weld (call-mod-snap-cards users.nt ms our.bowl) (call-mod-local-cards ms))
+  ::  on a managed (call-server) call a mute is also enforced by the server itself
+  =/  srv-cards=(list card)
+    ?.  ?=(%sfu transport.ci)  ~
+    ?+  op  ~
+      %mute    (sfu-mute-cards bowl nid call-id.ci gen.u.cur rev.ms target %.y)
+      %unmute  (sfu-mute-cards bowl nid call-id.ci gen.u.cur rev.ms target %.n)
+    ==
+  ?.  ?&(drop.u.plan (~(has in participants.ci) target))
+    [(weld mod-cards srv-cards) state]
+  ::  a boot of someone in the call leaves through the ONE removal path a departure
+  ::  uses: peers hang up, their signals stop being relayed, and a managed room evicts
+  ::  them -- or ends, when they were the last one in it.
+  =/  res  (host-drop now.bowl u.cur target)
+  =/  cur-msgs=(list message:noltbook)  (fall (~(get by messages) nid) ~)
+  =/  pax=path  ~[%notes nid]
+  =.  calls  (~(put by calls) nid out.res)
+  =.  call-leases  (del-lease call-leases nid target)
+  =?  call-leases  ended.res  (~(del by call-leases) nid)
+  =.  messages  (~(put by messages) nid (weld cur-msgs msgs.res))
+  :_  state
+  ;:  weld
+    mod-cards
+    (call-snap-cards users.nt out.res our.bowl)
+    (call-local-cards out.res)
+    %+  turn  msgs.res
+    |=  m=message:noltbook
+    (gf-paths ~[pax] `update:noltbook`[%new-message m ~ ~ ~])
+    %+  sfu-if  transport.ci
+    ?:  ended.res
+      (sfu-end-cards bowl nid call-id.ci gen.out.res)
+    (sfu-evict-cards bowl nid call-id.ci gen.out.res target)
+  ==
 ::  lease-wake: a behn wake carrying note, CALL ID, participant and deadline. All four
 ::  are re-checked on wake, so a wake left over from a renewed heartbeat, an ended call,
 ::  a different call or a participant who already left is a silent no-op, and nothing is
@@ -4254,11 +4605,11 @@
   ::  Option-1: the whole %noltbook-remote dispatch moved OUT of the on-poke battery.
   ::  =| / =* / =. re-expose state-67 faces exactly like the door, so handler bodies are
   ::  unchanged except this->state. on-poke delegates: =^ cards state (rem-handle bowl rem state).
-  |=  [=bowl:gall rem=remote:noltbook sin=state-79]
-  =|  state-79
+  |=  [=bowl:gall rem=remote:noltbook sin=state-80]
+  =|  state-80
   =*  state  -
   =.  state  sin
-  ^-  (quip card state-79)
+  ^-  (quip card state-80)
     ?-  -.rem
     ::
     ::  ===== document notes =====
@@ -6685,6 +7036,8 @@
       ?~  cur  `state
       ?~  call.u.cur  `state
       =/  ci  u.call.u.cur
+      ::  removed from THIS call by the host or an admin: no way back in until it ends
+      ?:  (call-booted call-mods note-id.rem call-id.ci src.bowl)  `state
       =/  dl=@da  (add now.bowl call-lease-ttl)
       ::  already a participant: refresh liveness and re-request access. This
       ::  recovers a failed first grant and gives a returning browser fresh
@@ -6735,10 +7088,14 @@
       =.  call-leases  (del-lease call-leases note-id.rem src.bowl)
       =?  call-leases  ended.res  (~(del by call-leases) note-id.rem)
       =.  messages  (~(put by messages) note-id.rem (weld cur-msgs msgs.res))
+      ::  a recorder leaving ends their recording
+      =/  rec-ms  (call-mod-depart call-mods note-id.rem call-id.u.call.u.cur src.bowl)
+      =?  call-mods  ?=(^ rec-ms)  (~(put by call-mods) note-id.rem u.rec-ms)
       :_  state
       ;:  weld
         (call-snap-cards users.u.exists out.res our.bowl)
         (call-local-cards out.res)
+        (call-mod-depart-cards users.u.exists rec-ms our.bowl)
         %+  turn  msgs.res
         |=  m=message:noltbook
         (gf-paths ~[pax] `update:noltbook`[%new-message m ~ ~ ~])
@@ -6789,7 +7146,21 @@
       ::  member -> HOST: "current call state of these notes". We answer only for notes
       ::  we host and the asker is in. An EMPTY generation-bearing snapshot is a real
       ::  answer -- it is what clears a badge left behind by downtime.
+      ::  The moderation record rides along, so a returning member also learns who is an
+      ::  admin of the call and who was removed from it.
+      =/  mod-cards=(list card)
+        %+  murn  note-ids.rem
+        |=  nid=@ta
+        ^-  (unit card)
+        =/  nt  (~(get by notes) nid)
+        ?~  nt  ~
+        ?.  =(our.bowl creator.u.nt)  ~
+        ?.  (~(has in users.u.nt) src.bowl)  ~
+        =/  ms  (~(get by call-mods) nid)
+        ?~  ms  ~
+        `(rpoke /call-mod-snap/(scot %p src.bowl)/[nid] src.bowl `remote:noltbook`[%remote-call-mod-snap u.ms])
       :_  state
+      %+  weld  mod-cards
       %+  murn  note-ids.rem
       |=  nid=@ta
       ^-  (unit card)
@@ -6842,6 +7213,25 @@
       =/  pax=path  ~[%notes nid]
       :_  state
       ~[(gf-paths ~[pax] upd)]
+    ::
+        %remote-call-mod
+      ::  member -> HOST: a call-moderation request. The asker is src.bowl, and
+      ::  call-mod-apply decides whether that ship may do it.
+      (call-mod-apply bowl src.bowl note-id.rem call-id.rem target.rem op.rem state)
+    ::
+        %remote-call-mod-snap
+      ::  HOST -> us: the call's moderation record. Accepted only from the note creator,
+      ::  only for a note we are in, and only when its revision is strictly newer.
+      =/  nid=@ta  note-id.snap.rem
+      ?:  =(src.bowl our.bowl)  `state
+      =/  exists  (~(get by notes) nid)
+      ?~  exists  `state
+      ?.  =(src.bowl creator.u.exists)  `state
+      ?.  (~(has in users.u.exists) our.bowl)  `state
+      ?.  (gth rev.snap.rem (call-mod-rev call-mods nid))  `state
+      =.  call-mods  (~(put by call-mods) nid snap.rem)
+      :_  state
+      (call-mod-local-cards snap.rem)
     ::
         %remote-join-request
       ::  someone wants to join one of our notes
@@ -8282,8 +8672,8 @@
 ::  artifact, already-tombstoned, or unauthorized sender — is a harmless no-op ([~ st]), so
 ::  duplicate and replayed requests neither mutate state nor emit a marker.
 ++  delete-note-artifact
-  |=  [=bowl:gall sender=@p nid=@ta aid=@ta st=state-79]
-  ^-  [(list card:agent:gall) state-79]
+  |=  [=bowl:gall sender=@p nid=@ta aid=@ta st=state-80]
+  ^-  [(list card:agent:gall) state-80]
   =/  nt  (~(get by notes.st) nid)
   ?~  nt  [~ st]
   ::  we must host this note; shared %group/%notebook only
@@ -8342,7 +8732,7 @@
   =/  del-upd=update:noltbook  [%artifact-deleted aid]
   =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
   =/  pax=path  ~[%notes nid]
-  =/  st2=state-79
+  =/  st2=state-80
     %=  st
       artifacts             (~(del by artifacts.st) aid)
       note-pins             new-pins
@@ -8476,7 +8866,7 @@
   ~[(gf-paths paths `update:noltbook`[%app-notifications-updated ~(val by live)])]
 --
 %-  agent:dbug
-=|  state-79
+=|  state-80
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -8500,18 +8890,21 @@
   ::  FROZEN -- !< nests on the mold, so narrowing anything in it breaks the decode.
   ?>  ?|  ?=([%75 *] q.old)  ?=([%76 *] q.old)
           ?=([%77 *] q.old)  ?=([%78 *] q.old)
-          ?=([%79 *] q.old)
+          ?=([%79 *] q.old)  ?=([%80 *] q.old)
       ==
-  =/  base=state-79
-    ?:  ?=([%79 *] q.old)  !<(state-79 old)
+  =/  base=state-80
+    ?:  ?=([%80 *] q.old)  !<(state-80 old)
     ::  The ladder is walked at its TERMINUS, never by wrapping every arm:
-    ::  %75 -> %76 -> %77 -> %78 -> %79. Each older mold stays FROZEN, so a noun
-    ::  saved by any of those builds still decodes on its own mold.
-    ?:  ?=([%78 *] q.old)  (upgrade-78-to-79 !<(state-78 old))
-    ?:  ?=([%77 *] q.old)  (upgrade-78-to-79 (upgrade-77-to-78 !<(state-77 old)))
-    ?:  ?=([%76 *] q.old)  (upgrade-78-to-79 (upgrade-77-to-78 (upgrade-76-to-77 !<(state-76 old))))
-    (upgrade-78-to-79 (upgrade-77-to-78 (upgrade-76-to-77 (upgrade-75-to-76 !<(state-75 old)))))
-  =/  based=state-79
+    ::  %75 -> %76 -> %77 -> %78 -> %79 -> %80. Each older mold stays FROZEN, so a
+    ::  noun saved by any of those builds still decodes on its own mold.
+    =/  s79=state-79
+      ?:  ?=([%79 *] q.old)  !<(state-79 old)
+      ?:  ?=([%78 *] q.old)  (upgrade-78-to-79 !<(state-78 old))
+      ?:  ?=([%77 *] q.old)  (upgrade-78-to-79 (upgrade-77-to-78 !<(state-77 old)))
+      ?:  ?=([%76 *] q.old)  (upgrade-78-to-79 (upgrade-77-to-78 (upgrade-76-to-77 !<(state-76 old))))
+      (upgrade-78-to-79 (upgrade-77-to-78 (upgrade-76-to-77 (upgrade-75-to-76 !<(state-75 old)))))
+    (upgrade-79-to-80 s79)
+  =/  based=state-80
     %=  base
       note-members       (ensure-note-members note-members.base notes.base)
       app-notifications  (app-notifications-live app-notifications.base now.bowl)
@@ -8550,11 +8943,11 @@
     ^-  [@ta call-snapshot:noltbook]
     ?.  (~(has in ended) nid)  [nid sn]
     [nid [nid +(gen.sn) ~]]
-  =/  based=state-79
+  =/  based=state-80
     based(calls reloaded, call-leases *(map @ta (map @p @da)))
   ::  idempotent normalization of remote-owned ordinary-DM %file/%app artifacts into
   ::  content-free references (no content read/write; nothing serveable by a noncreator).
-  =/  loaded=state-79  (migrate-dm-artifacts our.bowl based)
+  =/  loaded=state-80  (migrate-dm-artifacts our.bowl based)
   ::  tell our own browser the full call list (which now includes any PRESERVED remote
   ::  cache), tell the members of every call we just ended that it is over, and ask every
   ::  remote host for its current truth. Those three are why a reload converges on both
@@ -8675,7 +9068,9 @@
     ::  note. Empty records travel too, so the browser inherits our generations and can
     ::  reject a stale per-note fact that arrives after hydration.
     =/  call-cards=(list card)
-      ~[(gf-paths ~ `update:noltbook`[%call-list (visible-call-snaps calls vis-set)])]
+      :~  (gf-paths ~ `update:noltbook`[%call-list (visible-call-snaps calls vis-set)])
+          (gf-paths ~ `update:noltbook`[%call-mod-list (visible-call-mods call-mods vis-set)])
+      ==
     ::  send live "active" status snapshots (unexpired only) so the sidebar shows
     ::  them after a hard refresh / reconnect, like active call states.
     =/  active-cards=(list card)
@@ -14467,14 +14862,18 @@
       =/  pax=path  ~[%notes note-id.act]
       =/  leases-1  (del-lease call-leases note-id.act our.bowl)
       =/  leases-2  ?:(ended.res (~(del by leases-1) note-id.act) leases-1)
+      ::  a recorder leaving ends their recording
+      =/  rec-ms  (call-mod-depart call-mods note-id.act call-id.u.call.u.cur our.bowl)
       :_  %=  this
             calls        (~(put by calls) note-id.act out.res)
             call-leases  leases-2
             messages     (~(put by messages) note-id.act (weld cur-msgs msgs.res))
+            call-mods    ?~(rec-ms call-mods (~(put by call-mods) note-id.act u.rec-ms))
           ==
       ;:  weld
         (call-snap-cards users.u.exists out.res our.bowl)
         (call-local-cards out.res)
+        (call-mod-depart-cards users.u.exists rec-ms our.bowl)
         %+  turn  msgs.res
         |=  m=message:noltbook
         (gf-paths ~[pax] `update:noltbook`[%new-message m ~ ~ ~])
@@ -14538,7 +14937,9 @@
       ::  every remote host for its current truth, so a missed ending self-heals.
       :_  this
       %+  weld
-        ~[(gf-notes `update:noltbook`[%call-list ~(val by calls)])]
+        :~  (gf-notes `update:noltbook`[%call-list ~(val by calls)])
+            (gf-notes `update:noltbook`[%call-mod-list ~(val by call-mods)])
+        ==
       (call-sync-cards notes our.bowl)
     ::
         %call-signal
@@ -14559,6 +14960,25 @@
             to.act
           `remote:noltbook`[%remote-call-signal call-id.ci our.bowl sig-type.act payload.act]
       ==
+    ::
+        %call-mod
+      ::  our browser asks for a call-moderation change (see call-mod-apply). The host
+      ::  applies it here; any other ship forwards it to the host, which decides.
+      =/  exists  (~(get by notes) note-id.act)
+      ?~  exists  `this
+      =/  cur  (~(get by calls) note-id.act)
+      ?~  cur  `this
+      ?~  call.u.cur  `this
+      ?.  =(our.bowl creator.u.exists)
+        :_  this
+        :~  %^    rpoke
+                /call-mod/(scot %p creator.u.exists)/[note-id.act]
+              creator.u.exists
+            `remote:noltbook`[%remote-call-mod note-id.act call-id.u.call.u.cur target.act op.act]
+        ==
+      =^  cards  state
+        (call-mod-apply bowl our.bowl note-id.act call-id.u.call.u.cur target.act op.act state)
+      [cards this]
     ::
         %clear-calls
       ::  operator escape hatch. For notes we HOST this is a real authoritative end
@@ -14925,9 +15345,14 @@
     ?.  =(our.bowl creator.u.ex)  `this
     =/  cur  (~(get by calls) nid.u.cx)
     ?~  cur  `this
-    ::  and the call must still be the SAME incarnation, at the SAME
-    ::  generation the request was issued under
-    ?.  =(gen.u.cur gen.u.cx)  `this
+    ::  and the call must still be the SAME incarnation: the same call-id (checked
+    ::  below), at the revision the request was issued under or a LATER one. gen is
+    ::  a revision counter, not an identity -- it moves whenever anyone joins or
+    ::  leaves -- so demanding equality silently dropped every grant that arrived
+    ::  after somebody else joined, and nothing asked again. The member side
+    ::  (%remote-call-access, %remote-call-fail) and the browser already accept
+    ::  later revisions.
+    ?.  (gte gen.u.cur gen.u.cx)  `this
     ?~  call.u.cur  `this
     ?.  =(call-id.u.call.u.cur cid.u.cx)  `this
     ?.  ?=(%active status.u.call.u.cur)  `this
@@ -15030,14 +15455,18 @@
     =/  pax=path  ~[%notes nid]
     =/  leases-1  (del-lease call-leases nid who)
     =/  leases-2  ?:(ended.res (~(del by leases-1) nid) leases-1)
+    ::  a recorder whose lease lapsed has left: their recording is over
+    =/  rec-ms  (call-mod-depart call-mods nid cid who)
     :_  %=  this
           calls        (~(put by calls) nid out.res)
           call-leases  leases-2
           messages     (~(put by messages) nid (weld cur-msgs msgs.res))
+          call-mods    ?~(rec-ms call-mods (~(put by call-mods) nid u.rec-ms))
         ==
     ;:  weld
       (call-snap-cards users.u.nt out.res our.bowl)
       (call-local-cards out.res)
+      (call-mod-depart-cards users.u.nt rec-ms our.bowl)
       %+  turn  msgs.res
       |=  m=message:noltbook
       (gf-paths ~[pax] `update:noltbook`[%new-message m ~ ~ ~])
@@ -16501,6 +16930,19 @@
       ~&  [%call-sync-failed wire]
       `this
     ==
+  ::
+      [%call-mod @ @ ~]
+    ?+  -.sign  `this
+        %poke-ack
+      ?~  p.sign  `this
+      ~&  [%call-mod-failed wire]
+      `this
+    ==
+  ::
+      [%call-mod-snap @ @ ~]
+    ::  a ship without call moderation nacks the record. Its calls keep working, so
+    ::  there is nothing to retry.
+    `this
   ::
       [%call-sig @ @ ~]
     ?+  -.sign  `this

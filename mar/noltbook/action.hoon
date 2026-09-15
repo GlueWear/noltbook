@@ -623,6 +623,15 @@
     ::  clear-calls
     ?:  =('clear-calls' tag)
       [%clear-calls ~]
+    ::  call-mod
+    ?:  =('call-mod' tag)
+      =/  nid-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] nid-nd)
+      =/  ship-nd  (need (~(get by d) 'ship'))
+      ?>  ?=([%s *] ship-nd)
+      =/  op-nd  (need (~(get by d) 'op'))
+      ?>  ?=([%s *] op-nd)
+      [%call-mod `@ta`p.nid-nd (slav %p p.ship-nd) `@tas`p.op-nd]
     ::  fetch-cover-msg
     ?:  =('fetch-cover-msg' tag)
       =/  nid-nd  (~(get by d) 'noteId')

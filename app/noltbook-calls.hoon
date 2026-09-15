@@ -181,6 +181,7 @@
   ?:  =(e 'request-id-reused-with-different-body')  %conflict
   ?:  =(e 'request-retired')                     %conflict
   ?:  =(e 'in-progress')                         %conflict
+  ?:  =(e 'mute-unstable')                       %service-unavailable
   %malformed
 ::  +quota-detail-of: recover WHICH limit err-of collapsed into %quota. Closed
 ::  vocabulary: an unrecognised string yields ~, never a passed-through value.
@@ -249,6 +250,8 @@
         %access         context.act
         %renew-access   context.act
         %ensure-access  context.act
+        %mute-access    context.act
+        %unmute-access  context.act
       ==
     ?-    -.act
         %set-broker
@@ -338,6 +341,24 @@
         [now.bowl %evict-participant room.act `who.act ~ ctx]
       :_  this
       ~[(ask:hc req.act %evict-participant room.act `who.act 0 ~ ctx)]
+    ::
+        %mute-access
+      ?.  sfu-gate.state  `this
+      ::  The return agent rides with the room request, but only the access that
+      ::  follows a SUCCESSFUL change is ever handed to it (%call-room below).
+      =.  outbox.state
+        %+  ~(put by outbox.state)  [broker.state req.act]
+        [now.bowl %mute-participant room.act `who.act `return.act ctx]
+      :_  this
+      ~[(ask:hc req.act %mute-participant room.act `who.act 0 ~ ctx)]
+    ::
+        %unmute-access
+      ?.  sfu-gate.state  `this
+      =.  outbox.state
+        %+  ~(put by outbox.state)  [broker.state req.act]
+        [now.bowl %unmute-participant room.act `who.act `return.act ctx]
+      :_  this
+      ~[(ask:hc req.act %unmute-participant room.act `who.act 0 ~ ctx)]
     ::
         %end
       ?.  sfu-gate.state  `this
@@ -459,6 +480,18 @@
       ::  from the stable ensure id, so duplicate room replies cannot mint a
       ::  second credential and an application retry remains idempotent.
       ?~  pd  `this
+      ::  A mute or unmute has landed and revoked what the participant held: now
+      ::  issue access that matches it. Derived from the change's own id, so a
+      ::  duplicate room reply cannot mint twice.
+      ?:  ?=(?(%mute-participant %unmute-participant) op.u.pd)
+        ?~  who.u.pd     `this
+        ?~  return.u.pd  `this
+        =/  next=@ud  `@ud`(sham [req.rem %renew-access u.who.u.pd])
+        =.  outbox.state
+          %+  ~(put by outbox.state)  [src.bowl next]
+          [now.bowl %renew-access room.u.pd who.u.pd return.u.pd context.u.pd]
+        :_  this
+        ~[(ask:hc next %renew-access room.u.pd who.u.pd 0 return.u.pd context.u.pd)]
       ?.  =(%ensure-room op.u.pd)  `this
       ?~  who.u.pd     `this
       ?~  return.u.pd  `this
@@ -487,6 +520,9 @@
         `req.rem
       ?~  pd  `this
       ?~  return.u.pd  `this
+      ::  a failed mute or unmute is not an access failure: the participant's call
+      ::  must not fail because the server change did
+      ?:  ?=(?(%mute-participant %unmute-participant) op.u.pd)  `this
       :_  this
       ~[(hand-off:hc u.return.u.pd [%failed context.u.pd who.u.pd err.rem])]
     ::

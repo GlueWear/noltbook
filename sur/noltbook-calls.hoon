@@ -235,6 +235,12 @@
       [%renew req=@ud room=@tas ttl=@ud]
       [%room-status req=@ud room=@tas]
       [%evict req=@ud room=@tas who=@p]
+      ::  Mute or unmute ONE participant on the call server (Galene "present":
+      ::  publishing), then issue that participant fresh access, strictly after the
+      ::  change -- the change itself revokes the credentials they held. Only the
+      ::  fresh access reaches `return`: a failed mute never fails the participant.
+      [%mute-access req=@ud room=@tas who=@p return=@tas context=ctx]
+      [%unmute-access req=@ud room=@tas who=@p return=@tas context=ctx]
       [%end req=@ud room=@tas]
       ::  participant access. `who` is the intended participant and is
       ::  SEPARATE from the requesting host, which is the room authority.

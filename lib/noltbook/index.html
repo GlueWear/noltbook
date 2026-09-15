@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="nb-build" content="07crh52aud">
+<meta name="nb-build" content="8r0bi1n8c0">
 <title>NOLTBOOK</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20355.9%20355.9%22%20width=%22355.9%22%20height=%22355.9%22%3E%3Cg%20fill=%22%23ffffff%22%20transform=%22translate(-10.9901536%2036.4439936)%20scale(1.06235712)%22%3E%3Cpolygon%20points=%2266%20159.5%2066%2021.2%20204.3%2021.2%20204.3%2080.8%20204.3%20112.5%20204.3%20159.5%20160.7%20159.5%20160.7%20180.7%20225.5%20180.7%20225.5%20112.5%20225.5%2080.8%20225.5%200%2044.8%200%2044.8%20180.7%20121%20180.7%20121%20159.5%2066%20159.5%22/%3E%3Cpolygon%20points=%22234.7%2085.7%20234.7%20106.9%20289.8%20106.9%20289.8%20245.3%20151.4%20245.3%20151.4%20186.8%20151.4%20180.7%20151.4%20159.5%20151.4%20155.1%20151.4%20106.9%20195%20106.9%20195%2085.7%20130.2%2085.7%20130.2%20151.8%20130.2%20159.5%20130.2%20180.7%20130.2%20183.5%20130.2%20266.4%20310.9%20266.4%20310.9%2085.7%20234.7%2085.7%22/%3E%3C/g%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -835,13 +835,34 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 /* the staged tile grows with the rail; fitting rules below are never overridden */
 .call-rail:fullscreen #callMedia .media-tile.staged,
 .call-rail.rail-fs-fallback #callMedia .media-tile.staged{max-height:70vh}
-.call-controls{position:relative;display:flex;gap:.5rem;padding:.75rem .75rem var(--nb-footer-inset);border-top:1px solid var(--border);flex-shrink:0;justify-content:center}
+.call-controls{position:relative;display:flex;gap:.5rem;padding:.75rem .75rem var(--nb-footer-inset);border-top:1px solid var(--border);flex-shrink:0;justify-content:center;flex-wrap:wrap}
+/* ADMIN, REC and the settings gear take a second row while ADMIN or REC is shown
+   (.has-tools, set by syncCallControls). Otherwise the rows dissolve and every button
+   shares one row. */
+.call-ctrl-row{display:contents}
+.call-controls.has-tools{flex-direction:column;flex-wrap:nowrap}
+.call-controls.has-tools .call-ctrl-row{display:flex;flex-wrap:wrap;gap:.5rem;justify-content:center}
 .call-device-menu{position:absolute;bottom:100%;right:.5rem;left:.5rem;z-index:50;background:var(--bg2);border:1px solid #555;padding:.75rem;box-shadow:0 -4px 20px #0006;max-height:65vh;overflow-y:auto;font-size:.75rem}
 .call-device-menu[hidden]{display:none}
 .call-device-menu header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.7rem}
 .call-device-menu label{display:block;margin-top:.65rem;color:var(--text)}
 .call-device-menu select{display:block;width:100%;min-width:0;margin-top:.25rem;padding:.4rem;background:var(--bg);color:var(--text);border:1px solid #555;font:inherit}
 .call-device-menu button{font:inherit;background:transparent;color:var(--text);border:1px solid #555;padding:.25rem .4rem;cursor:pointer}
+.call-admin-menu .cadm-row{padding:.4rem 0;border-top:1px solid #333}
+.call-admin-menu .cadm-head{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap}
+.call-admin-menu .cadm-acts{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.3rem}
+.call-admin-menu .cadm-acts:empty{display:none}
+.call-admin-menu .cadm-acts button{padding:.2rem .35rem;white-space:nowrap}
+#callRecBtn[hidden]{display:none}
+.call-rec-menu #callRecBody button{display:block;width:100%;margin-top:.5rem;text-align:left}
+.call-admin-menu .cadm-row:first-child{border-top:0}
+.call-admin-menu .cadm-name{flex:1 1 7rem;min-width:0;overflow-wrap:anywhere;color:var(--text)}
+.call-admin-menu .cadm-role{font-size:.65rem;letter-spacing:.05em;color:#ffaa00}
+.call-admin-menu .cadm-section{margin-top:.7rem;padding-top:.4rem;border-top:1px solid #333;color:var(--text-dim);font-size:.65rem;letter-spacing:.05em}
+.call-admin-menu .cadm-section+.cadm-row{border-top:0}
+#callAdminBtn[hidden]{display:none}
+.media-tile-role{position:absolute;left:0;top:0;z-index:3;font-size:.6rem;letter-spacing:.05em;padding:.15rem .35rem;background:rgba(0,0,0,.8);color:#ffaa00;pointer-events:none}
+.media-tile-role[hidden]{display:none}
 .call-device-menu .call-noise{display:flex;align-items:center;gap:.5rem}
 .call-device-menu input{accent-color:#ffaa00}
 .call-device-menu small{display:block;color:#aaa;line-height:1.5;margin-top:.4rem}
@@ -849,10 +870,14 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .call-device-status{font-size:.7rem;line-height:1.5;margin-top:.6rem;overflow-wrap:anywhere}
 .call-device-status.error{color:#ff8888}
 .call-ctrl-btn{font-family:var(--font);font-size:.7rem;padding:.35rem .6rem;background:transparent;cursor:pointer;letter-spacing:.05em;transition:box-shadow .15s}
-/* explicit state classes -- exactly one of .on/.off/.idle is set by syncCallControls() */
+/* explicit state classes -- exactly one of .on/.off/.idle/.offer is set by syncCallControls() */
 .call-ctrl-btn.on{border:1px solid #00ff88;color:#00ff88}
 .call-ctrl-btn.off{border:1px solid #ff4444;color:#ff4444}
 .call-ctrl-btn.idle{border:1px solid #666;color:#888}
+.call-ctrl-btn.offer{border:1px solid #ffaa00;color:#ffaa00}
+/* the settings gear: a larger glyph, centred, without making its row any taller */
+#callSettingsBtn{display:inline-flex;align-items:center;justify-content:center;padding:0 .55rem}
+#callSettingsBtn .call-gear{font-size:1.2rem;line-height:1}
 /* the muted slash is presentation only and must survive hover/focus */
 .call-ctrl-btn.muted-state{text-decoration:line-through}
 /* hover/focus adds a glow in the button's CURRENT colour and changes nothing else, so an
@@ -860,6 +885,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .call-ctrl-btn:hover,.call-ctrl-btn:focus-visible{box-shadow:0 0 8px currentColor}
 .note-call-badge{display:none;align-items:center;gap:3px;margin-left:auto;flex-shrink:0;font-size:.65rem;color:#00ff88}
 .note-call-badge .call-pip{width:6px;height:6px;border-radius:50%;background:#00ff88;animation:callPulse 1.5s ease-in-out infinite}
+.note-call-badge .call-rec{color:#ff4444;font-weight:700;letter-spacing:.05em;margin-left:2px}
 .note-item.has-call .note-call-badge{display:flex}
 .note-item.has-call .note-dot{display:none}
 .note-active-badge{display:none;align-items:center;gap:3px;margin-left:auto;flex-shrink:0;font-size:.65rem;color:#00ff88;white-space:nowrap}
@@ -1232,10 +1258,19 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
         <div class="call-empty" style="font-size:.8rem;color:var(--text-dim)">No active call</div>
       </div>
       <div class="call-controls" id="callControls" style="display:none">
-        <button class="call-ctrl-btn mute" id="muteBtn" onclick="toggleMute()">MIC</button>
-        <button class="call-ctrl-btn video" id="videoBtn" onclick="toggleVideo()">CAM</button>
-        <button class="call-ctrl-btn screen" id="screenBtn" onclick="toggleScreen()">SCREEN</button>
-        <button class="call-ctrl-btn idle" id="callSettingsBtn" type="button" onclick="toggleCallSettings()" aria-label="Audio and video settings" title="Audio and video settings" aria-expanded="false" aria-controls="callDeviceMenu">⚙</button>
+        <!-- Two rows while ADMIN or REC is shown: MIC CAM SCREEN, then ADMIN REC and the
+             gear. Otherwise the rows dissolve into one (display:contents). syncCallControls
+             sets .has-tools. -->
+        <div class="call-ctrl-row">
+          <button class="call-ctrl-btn mute" id="muteBtn" onclick="toggleMute()">MIC</button>
+          <button class="call-ctrl-btn video" id="videoBtn" onclick="toggleVideo()">CAM</button>
+          <button class="call-ctrl-btn screen" id="screenBtn" onclick="toggleScreen()">SCREEN</button>
+        </div>
+        <div class="call-ctrl-row">
+          <button class="call-ctrl-btn offer" id="callAdminBtn" type="button" onclick="toggleCallAdmin()" aria-label="Call admin" title="Call admin" aria-expanded="false" aria-controls="callAdminMenu" hidden>ADMIN</button>
+          <button class="call-ctrl-btn offer" id="callRecBtn" type="button" onclick="toggleCallRecord()" aria-label="Record this call" title="Record this call" aria-expanded="false" aria-controls="callRecMenu" hidden>REC</button>
+          <button class="call-ctrl-btn offer" id="callSettingsBtn" type="button" onclick="toggleCallSettings()" aria-label="Audio and video settings" title="Audio and video settings" aria-expanded="false" aria-controls="callDeviceMenu"><span class="call-gear" aria-hidden="true">⚙</span></button>
+        </div>
         <div class="call-device-menu" id="callDeviceMenu" role="dialog" aria-label="Audio and video settings" hidden>
           <header><span>Audio &amp; video</span><button type="button" onclick="closeCallSettings(true)" aria-label="Close audio and video settings">×</button></header>
           <label>Microphone<select id="callMicDevice" onchange="changeCallDevice('mic',this.value)"><option value="">System default</option></select></label>
@@ -1245,7 +1280,17 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
           <small id="callOutputHelp"></small>
           <label class="call-noise"><input id="callNoiseReduction" type="checkbox" checked onchange="changeCallDevice('noise',this.checked)">Reduce background noise</label>
           <small id="callNoiseHelp">On by default. Echo cancellation stays on.</small>
+          <button id="callDiagCopy" type="button" onclick="copyCallDiagnostics()">Copy call diagnostics</button>
+          <small>For bug reports: what this browser saw during calls. It contains no call credentials.</small>
           <div class="call-device-status" id="callDeviceStatus" role="status" aria-live="polite"></div>
+        </div>
+        <div class="call-device-menu call-admin-menu" id="callAdminMenu" role="dialog" aria-label="Call admin" hidden>
+          <header><span>Call admin</span><button type="button" onclick="closeCallAdmin(true)" aria-label="Close call admin">×</button></header>
+          <div id="callAdminBody"></div>
+        </div>
+        <div class="call-device-menu call-rec-menu" id="callRecMenu" role="dialog" aria-label="Record this call" hidden>
+          <header><span>Record this call</span><button type="button" onclick="closeCallRecordMenu(true)" aria-label="Close record menu">×</button></header>
+          <div id="callRecBody"></div>
         </div>
       </div>
     </aside>
@@ -1924,7 +1969,9 @@ const api = {
     console.log('[SSE] replaced, re-subscribed to',oldMeta.length,'paths');
   }
 };
-const state={notes:{},messages:{},pendingSends:{},artifacts:{},profiles:{},callGens:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),manualExpanded:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,editingEid:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},gossipUnavailable:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteUnreadActivity:{},noteRead:{},coverPreview:null,notePins:{},pinArtId:null,noteActive:{},gossipActive:{},appNotifications:{},artifactRefs:{},pendingRedirect:null,pendingDmTransition:null,documents:{},documentHistory:{},docView:{},docSaveWait:{},docReqSeq:0,docPeek:{},docSessionSeq:0};
+const state={notes:{},messages:{},pendingSends:{},artifacts:{},profiles:{},callGens:{},callMods:{},camOff:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),manualExpanded:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,editingEid:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},gossipUnavailable:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteUnreadActivity:{},noteRead:{},coverPreview:null,notePins:{},pinArtId:null,noteActive:{},gossipActive:{},appNotifications:{},artifactRefs:{},pendingRedirect:null,pendingDmTransition:null,documents:{},documentHistory:{},docView:{},docSaveWait:{},docReqSeq:0,docPeek:{},docSessionSeq:0};
+// call recording runtime (step 4), declared early so the call teardown paths reach it
+const callRec={active:false,starting:false,stopping:false,wanted:null,noteId:null,callId:null,audioOnly:false,recorder:null,parts:[],bytes:0,mime:'',startedAt:0,ctx:null,dest:null,sources:new Map(),canvas:null,drawTimer:null,uiTimer:null};
 // Phase G4 freshness: resolved profiles are fresh for 10 min; negative results
 // (missing/invalid) cool down 5 min; unreachable cools down 2 min. Render cycles
 // poke only when fresh-expired AND past the cooldown (and not in flight).
@@ -2979,7 +3026,10 @@ function handleUpdate(upd){
   else if(upd['build-stamp']){_nbShipBuild=String(upd['build-stamp']||'').trim()||null;renderBuildBadge()}
   else if(upd['call-snap']){if(applyCallSnap(upd['call-snap'])){updateCallUI();scheduleNoteList()}}
   else if(upd['call-list']){applyCallList(upd['call-list']);updateCallUI();scheduleNoteList()}
-  else if(upd['call-signal']){const{noteId,from,sigType,payload}=upd['call-signal'];console.log('[call-signal]',noteId,from,sigType);if(state.inCall===noteId)rtcManager.handleSignal(from,sigType,payload)}
+  // call moderation: one call's record (revision-ordered), or the visible set on hydration
+  else if(upd['call-mod-snap']){if(applyCallModSnap(upd['call-mod-snap']))updateCallUI()}
+  else if(upd['call-mod-list']){applyCallModList(upd['call-mod-list']);updateCallUI()}
+  else if(upd['call-signal']){const{noteId,from,sigType,payload}=upd['call-signal'];console.log('[call-signal]',noteId,from,sigType);if(state.inCall===noteId){if(sigType==='cam-state')applyRemoteCamState(from,payload);else rtcManager.handleSignal(from,sigType,payload)}}
   else if(upd['kick-notification']){const{noteId,noteName,from}=upd['kick-notification'];clearPendingSendsForNote(noteId);state.blockNotifications.push({noteId,noteName,from,time:Date.now()});state.removedFromNotes[noteId]=from;updateLogoBadge()}
   else if(upd['blocked-notification']){const{from}=upd['blocked-notification'];state.blockedBy[from]=true;state.blockNotifications.push({noteId:null,noteName:null,from,time:Date.now(),type:'blocked'});updateLogoBadge();if(state.currentNoteId){const cn=state.notes[state.currentNoteId];if(cn&&cn.type==='dm'){const cp=dmCounterparty(cn);if(cp===from)updateMuteUI()}}}
   else if(upd['unblocked-notification']){const{from}=upd['unblocked-notification'];delete state.blockedBy[from];if(state.currentNoteId){const cn=state.notes[state.currentNoteId];if(cn&&cn.type==='dm'){const cp=dmCounterparty(cn);if(cp===from)updateMuteUI()}}}
@@ -2992,7 +3042,7 @@ function handleUpdate(upd){
   else if(upd['note-deleted-notification']){const{noteId,noteName}=upd['note-deleted-notification'];state.blockNotifications.push({noteId,noteName,from:null,time:Date.now(),type:'deleted'});updateLogoBadge()}
   else if(upd['notification-acks']){const acks=upd['notification-acks']||[];state.notificationAcks=new Set(acks.map(a=>notifAckKey(a.kind,a.noteId)));console.log('[notification-acks]',state.notificationAcks.size,'acked');rebuildDurableNotifications();updateLogoBadge()}
   else if(upd['app-notifications-updated']){state.appNotifications={};for(const n of(upd['app-notifications-updated']||[])){state.appNotifications[appNotifKey(n)]=n}updateLogoBadge();refreshGrimoireIfOpen()}
-  else if(upd['admins-updated']){const{id,admins}=upd['admins-updated'];state.noteAdmins[id]=admins;console.log('[admins-updated]',id,admins);refreshDocPermissions(id);if(id===state.currentNoteId){const _sb=document.getElementById('shareBtn');if(_sb)_sb.style.display=canShareNote(state.notes[id])?'block':'none'}refreshNoteInfoMembers(id)}
+  else if(upd['admins-updated']){const{id,admins}=upd['admins-updated'];state.noteAdmins[id]=admins;console.log('[admins-updated]',id,admins);refreshDocPermissions(id);if(id===state.currentNoteId){const _sb=document.getElementById('shareBtn');if(_sb)_sb.style.display=canShareNote(state.notes[id])?'block':'none'}refreshNoteInfoMembers(id);if(state.inCall===id||state.currentNoteId===id)renderCallRail()}
   else if(upd['muted-updated']){const{id,muted}=upd['muted-updated'];state.noteMuted[id]=muted;console.log('[muted-updated]',id,muted);refreshDocPermissions(id);if(state.currentNoteId===id)updateMuteUI();refreshNoteInfoMembers(id)}
   else if(upd['note-pin-updated']){const{noteId,pin}=upd['note-pin-updated'];if(pin)state.notePins[noteId]=pin;else delete state.notePins[noteId];if(noteId===state.currentNoteId){renderPinSurface(noteId);scheduleRender(noteId)}}
   else if(upd['note-active-updated']){const{noteId,active}=upd['note-active-updated'];if(active)state.noteActive[noteId]=active;else delete state.noteActive[noteId];scheduleActiveExpiry(noteId);renderNoteList()}
@@ -3989,7 +4039,7 @@ function makeNoteItem(n,depth){
   const hasCustomIcon=!!n.iconUrl||!!dmCounterparty(n);
   const sourceColor=rawSource?shipColor(rawSource):'';
   const dotColor=hasMention?'#ffaa00':'var(--bot)';
-  const callBadge=hasCall?`<span class="note-call-badge"><span class="call-pip"></span>${state.activeCalls[n.id].participants.length}</span>`:'<span class="note-call-badge"></span>';
+  const callBadge=hasCall?`<span class="note-call-badge"><span class="call-pip"></span>${state.activeCalls[n.id].participants.length}${callRecordingOf(n.id)?'<span class="call-rec" title="This call is being recorded">REC</span>':''}</span>`:'<span class="note-call-badge"></span>';
   // live/presence badge in the call slot: count only, or "live" when no count.
   // (label stays in the API/read data + noltbook-dev; not shown in the row.)
   const activeBadge=active?`<span class="note-active-badge" title="${escAttr(active.label||'live')}"><span class="active-pip"></span>${active.count!=null?escHtml(''+active.count):'live'}</span>`:'';
@@ -13664,6 +13714,7 @@ const rtcManager={
   },
 
   onPeerLeft(ship){
+    delete state.camOff[ship];
     if(callIsSfu()){sfuDropShip(ship);renderCallRail();return}
     const p=this.peers[ship];
     if(p){
@@ -13676,6 +13727,7 @@ const rtcManager={
   },
 
   hangUp(){
+    if(callRec.active)finishCallRecorder();   // save what was recorded before media stops
     callDeviceEpoch++;closeCallSettings(false);spkStop();
     // one release path for both transports. Under %mesh this is a no-op.
     sfuDisconnect('hang-up');
@@ -13702,6 +13754,7 @@ const rtcManager={
     }
     this.muted=false;
     this.videoOn=false;
+    state.camOff={};
     this.screenOn=false;
     this.screenAudioOn=false;
     this.screenAudioAvailable=false;
@@ -14637,6 +14690,22 @@ function sfuOnJoined(m){
     return;
   }
   if(stated)sfu.username=assigned;
+  // Publishing follows Galene's "present" permission. A mute takes it away: Galene
+  // closes our outgoing streams itself and refuses new ones, so we drop ours and
+  // wait. An unmute gives it back, so we publish again (the mic stays off until
+  // the user turns it on).
+  if(Array.isArray(m.permissions)){
+    const could=sfuMayPublish();
+    sfu.permissions=m.permissions.slice();
+    if(m.kind==='change'&&sfu.joined){
+      const can=sfuMayPublish();
+      if(could&&!can){sfuCloseUpstream('camera');sfuCloseUpstream('screen');renderCallRail()}
+      else if(!could&&can){
+        sfuPublishCamera();
+        if(rtcManager.screenOn&&rtcManager.screenStream)sfuPublishScreen();
+      }
+    }
+  }
   if(m.kind==='join'){
     sfu.joined=true;
     sfu.status='connected';
@@ -14914,7 +14983,7 @@ function sfuNewUpstream(kind){
   return u;
 }
 async function sfuPublishCamera(){
-  if(!sfu.joined)return;
+  if(!sfu.joined||!sfuMayPublish())return;
   const audio=rtcManager.outboundAudioTrack();
   const video=(rtcManager.videoOn&&rtcManager.localStream)
     ?(rtcManager.localStream.getVideoTracks()[0]||null):null;
@@ -14963,7 +15032,7 @@ async function sfuReplaceOutboundAudio(){
   catch(e){console.error('[sfu] outbound audio replace failed',e)}
 }
 async function sfuPublishScreen(){
-  if(!sfu.joined)return;
+  if(!sfu.joined||!sfuMayPublish())return;
   const ss=rtcManager.screenStream;
   if(!ss)return;
   const vt=ss.getVideoTracks()[0]||null;
@@ -15092,6 +15161,123 @@ function snapDominates(snap){
 }
 function snapLive(c){
   return !!c&&c.status==='active'&&Array.isArray(c.participants)&&c.participants.length>0;
+}
+// ---- call moderation (host-authored, one record per call) ----
+// state.callMods[noteId] = {noteId, rev, mod:{callId, admins, muted, booted, recording}|null}.
+// A record belongs to ONE call: callModFor() returns it only while its callId is the live
+// call's, so a record left over from an earlier call never applies to a new one.
+function applyCallModSnap(ms){
+  if(!ms||typeof ms.noteId!=='string'||typeof ms.rev!=='number')return false;
+  const cur=state.callMods[ms.noteId];
+  if(cur&&ms.rev<=cur.rev)return false;
+  state.callMods[ms.noteId]=ms;
+  return true;
+}
+function applyCallModList(list){
+  state.callMods={};
+  for(const ms of (Array.isArray(list)?list:[])){
+    if(ms&&typeof ms.noteId==='string'&&typeof ms.rev==='number')state.callMods[ms.noteId]=ms;
+  }
+}
+function callModFor(noteId){
+  const call=state.activeCalls[noteId];const ms=state.callMods[noteId];
+  if(!call||!ms||!ms.mod||ms.mod.callId!==call.callId)return null;
+  return ms.mod;
+}
+// The call's own admin list: the stored record's or, before the first change, its
+// default -- whoever started the call. The host can take anyone off it.
+function callAdminList(noteId){
+  const call=state.activeCalls[noteId];if(!call)return[];
+  const m=callModFor(noteId);
+  if(m)return m.admins||[];
+  const n=state.notes[noteId];
+  return(call.startedBy&&!(n&&call.startedBy===n.creator))?[call.startedBy]:[];
+}
+// The same rule the host's ship enforces. DM calls have no moderation. Otherwise the
+// admins are the host (note owner), the note's admins while they hold that role, and
+// the call's own admin list. Returns 'host', 'admin' or null.
+function callRoleOf(noteId,ship){
+  const n=state.notes[noteId];const call=state.activeCalls[noteId];
+  if(!n||!call||n.type==='dm'||!ship)return null;
+  if(ship===n.creator)return'host';
+  if((state.noteAdmins[noteId]||[]).includes(ship))return'admin';
+  if(callAdminList(noteId).includes(ship))return'admin';
+  return null;
+}
+function callBootedMe(noteId){
+  const m=callModFor(noteId);
+  return !!m&&(m.booted||[]).includes('~'+api.ship);
+}
+// Muted by the host or an admin: mic, camera and screen share are off for the rest of
+// this call. Our own app enforces it on us (enforceCallMute) and every other app stops
+// playing and showing that participant (renderCallRail).
+function callShipMuted(noteId,ship){
+  const m=callModFor(noteId);
+  return !!m&&(m.muted||[]).includes(ship);
+}
+function callMutedMe(){
+  return !!state.inCall&&callShipMuted(state.inCall,'~'+api.ship);
+}
+let _callMuteBusy=false;
+function enforceCallMute(){
+  if(_callMuteBusy||!callMutedMe())return;
+  const mic=!rtcManager.muted,screen=!!rtcManager.screenOn,cam=!!rtcManager.videoOn;
+  if(!mic&&!screen&&!cam)return;
+  _callMuteBusy=true;
+  (async()=>{
+    let changed=false;
+    try{
+      if(mic){rtcManager.muted=true;syncMicrophoneMute();changed=true}
+      if(screen&&rtcManager.screenOn){await rtcManager.stopScreenShare();changed=true}
+      // the OFF half of the camera toggle. A camera start already running is left to
+      // finish; its own control sync comes back through here and turns it off.
+      if(cam&&rtcManager.videoOn&&!callCameraBusy){await toggleVideoInner();changed=true}
+    }catch(e){console.error('[call] enforcing a mute failed',e)}
+    finally{_callMuteBusy=false;if(changed){syncCallControls();renderCallRail()}}
+  })();
+}
+function callModPoke(noteId,ship,op){
+  return api.poke('noltbook','noltbook-action',{action:'call-mod',data:{noteId,ship,op}});
+}
+// HOST / ADMIN / MUTED badge on a participant's call tile (moderated calls only)
+function syncTileRole(tile,noteId,ship){
+  let el=tile.querySelector('.media-tile-role');
+  const role=callRoleOf(noteId,ship);
+  const parts=[];
+  if(role)parts.push(role.toUpperCase());
+  if(callShipMuted(noteId,ship))parts.push('MUTED');
+  if(!parts.length){if(el)el.hidden=true;return}
+  if(!el){el=document.createElement('span');el.className='media-tile-role';tile.appendChild(el)}
+  const txt=parts.join(' · ');
+  if(el.textContent!==txt)el.textContent=txt;
+  el.hidden=false;
+}
+// Turning a camera off only stops sending frames. Nothing tells the other side, which
+// keeps showing the last frame, so every participant is told our camera state over the
+// call-signal channel. The payload is JSON, so an older app parses it and ignores it.
+function sendCamState(on){
+  const nid=state.inCall;const call=nid?state.activeCalls[nid]:null;
+  if(!call)return;
+  const me='~'+api.ship;
+  const payload=JSON.stringify({on:!!on});
+  for(const ship of call.participants){
+    if(ship===me)continue;
+    api.poke('noltbook','noltbook-action',{action:'call-signal',data:{noteId:nid,to:ship,sigType:'cam-state',payload}});
+  }
+}
+// Their camera state as they announced it: 'off' shows their picture instead of a
+// frozen frame, 'on' lets live video through again.
+function applyRemoteCamState(ship,payload){
+  let on;
+  try{on=!!JSON.parse(payload).on}catch(e){return}
+  if(on)delete state.camOff[ship];else state.camOff[ship]=true;
+  renderCallRail();
+}
+// Galene's "present" permission is what lets us publish on the call server. A host or
+// admin mute takes it away there (step 3); unknown means allowed, and the server
+// enforces it either way.
+function sfuMayPublish(){
+  return !Array.isArray(sfu.permissions)||sfu.permissions.indexOf('present')>=0;
 }
 function applyCallSnap(snap){
   if(!snap||typeof snap.noteId!=='string')return false;
@@ -15294,6 +15480,11 @@ function updateCallUI(){
     if(state.inCall===noteId){
       btn.textContent='END';
       btn.classList.add('in-call');
+      btn.classList.remove('joinable');
+    }else if(callBootedMe(noteId)){
+      // removed from THIS call by the host or an admin; the host's ship refuses a rejoin
+      btn.textContent='REMOVED';
+      btn.classList.remove('in-call');
       btn.classList.remove('joinable');
     }else{
       btn.textContent='JOIN';
@@ -16080,6 +16271,36 @@ function renderCallRail(){
   }else if(failEl){
     failEl.remove();
   }
+  // muted by the host or an admin: say so plainly above the tiles
+  let muteEl=body.querySelector('#callMutedNote');
+  if(state.inCall===noteId&&callMutedMe()){
+    if(!muteEl){
+      muteEl=document.createElement('div');
+      muteEl.id='callMutedNote';
+      muteEl.style.cssText='font-size:.75rem;letter-spacing:.04em;color:#ffaa00;'+
+        'padding:.4rem .5rem;border:1px solid currentColor;border-radius:3px;margin-bottom:.5rem';
+      muteEl.textContent='MUTED BY AN ADMIN · MIC, CAMERA AND SCREEN ARE OFF';
+    }
+    if(muteEl.parentNode!==body)body.insertBefore(muteEl,body.firstChild);
+  }else if(muteEl){
+    muteEl.remove();
+  }
+  // recording: everyone looking at this call is told, above the tiles
+  let recEl=body.querySelector('#callRecNote');
+  const recNow=callRecordingOf(noteId);
+  if(recNow){
+    if(!recEl){
+      recEl=document.createElement('div');
+      recEl.id='callRecNote';
+      recEl.style.cssText='font-size:.75rem;letter-spacing:.04em;color:#ff4444;'+
+        'padding:.4rem .5rem;border:1px solid currentColor;border-radius:3px;margin-bottom:.5rem';
+    }
+    const recTxt='● REC · '+(recNow.by==='~'+api.ship?'You are':displayName(recNow.by)+' is')+' recording this call';
+    if(recEl.textContent!==recTxt)recEl.textContent=recTxt;
+    if(recEl.parentNode!==body)body.insertBefore(recEl,body.firstChild);
+  }else if(recEl){
+    recEl.remove();
+  }
 
   const participants=call?call.participants:(state.inCall?[me]:[]);
   // Participant rows used to list every name with an ICE state beside it. With cameras
@@ -16114,11 +16335,15 @@ function renderCallRail(){
     wantScreen.set('screen:'+me+':local',{stream:rtcManager.screenStream,label:'Your screen'});
   for(const ship of Object.keys(rtcManager.peers)){
     const peer=rtcManager.peers[ship];
-    const cam=peerCamStream(peer);
+    // muted by the host or an admin: nothing of theirs is shown or played here, whatever
+    // their own app does
+    const silenced=callShipMuted(noteId,ship);
+    // a camera announced off shows their picture, never a frozen last frame
+    const cam=(silenced||state.camOff[ship])?null:peerCamStream(peer);
     if(cam)wantCam.set(ship,cam);
-    for(const sc of peerScreenStreams(peer))
+    if(!silenced)for(const sc of peerScreenStreams(peer))
       wantScreen.set('screen:'+ship+':'+sc.id,{stream:sc.stream,label:displayName(ship)+"'s screen"});
-    // remote audio: one hidden <audio> per peer, unchanged behaviour
+    // remote audio: one hidden <audio> per peer; a muted participant's is silenced
     const aud=peerAudioStream(peer);
     if(aud&&aud.getAudioTracks().length>0){
       if(!peer.audioEl){
@@ -16128,7 +16353,10 @@ function renderCallRail(){
         applyCallOutput(peer.audioEl);
       }
       if(peer.audioEl.srcObject!==aud)peer.audioEl.srcObject=aud;
-      spkWatch(ship,aud);
+      if(peer.audioEl.muted!==silenced)peer.audioEl.muted=silenced;
+      if(silenced)spkUnwatch(ship);else spkWatch(ship,aud);
+    }else if(peer.audioEl&&peer.audioEl.muted!==silenced){
+      peer.audioEl.muted=silenced;
     }
   }
   // ---- desired tile set (key -> {kind,stream,label}) ----
@@ -16179,6 +16407,7 @@ function renderCallRail(){
     if(tile.parentNode!==home)home.appendChild(tile);
     if(staged)media.insertBefore(tile,strip);
     syncTileControl(tile,info.label);
+    if(info.kind==='cam')syncTileRole(tile,noteId,info.ship);
   }
   if(theater)applyTheaterWidth();
   // theater changes the rail header layout, so re-assert the single CALL button's slot
@@ -16195,7 +16424,7 @@ function syncCallControls(){
   const set=(id,on,offClass,titleOn,titleOff)=>{
     const b=document.getElementById(id);
     if(!b)return;
-    b.classList.remove('on','off','idle','active','muted-state');
+    b.classList.remove('on','off','idle','offer','active','muted-state');
     b.classList.add(on?'on':offClass);
     if(id==='muteBtn'&&!on)b.classList.add('muted-state');
     b.setAttribute('aria-pressed',on?'true':'false');
@@ -16204,10 +16433,36 @@ function syncCallControls(){
   // MIC is "on" when NOT muted; muted is red AND keeps the slash.
   set('muteBtn',!rtcManager.muted,'off','Microphone on','Microphone muted');
   set('videoBtn',!!rtcManager.videoOn,'off','Camera on','Camera off');
-  // SCREEN idle is neutral gray, not red -- it is an offer, not a fault.
-  set('screenBtn',!!rtcManager.screenOn,'idle','Sharing screen','Share screen');
-  document.getElementById('videoBtn').disabled=callDeviceBusy||callCameraBusy;
-  document.getElementById('screenBtn').disabled=callDeviceBusy||_screenPending;
+  // SCREEN idle is amber, not red -- it is an offer, not a fault. Sharing turns it green.
+  set('screenBtn',!!rtcManager.screenOn,'offer','Sharing screen','Share screen');
+  // muted by the host or an admin: MIC, CAM and SCREEN are locked off for this call
+  const locked=callMutedMe();
+  document.getElementById('muteBtn').disabled=locked;
+  document.getElementById('videoBtn').disabled=locked||callDeviceBusy||callCameraBusy;
+  document.getElementById('screenBtn').disabled=locked||callDeviceBusy||_screenPending;
+  if(locked)for(const id of ['muteBtn','videoBtn','screenBtn'])document.getElementById(id).title='Muted by the host or an admin of this call';
+  // ADMIN: the host and call admins only; an open menu follows every call and role change
+  const adm=document.getElementById('callAdminBtn');
+  if(adm){const v=callAdminVisible();if(adm.hidden===v)adm.hidden=!v;syncCallAdminMenu()}
+  enforceCallMute();
+  // REC: an admin of a group call, or either person on a DM call. Red while anyone is
+  // recording this call; STOP with the elapsed time while we are.
+  const rb=document.getElementById('callRecBtn');
+  if(rb){
+    const nid=state.inCall;
+    const r=nid?callRecordingOf(nid):null;
+    const show=!!nid&&(callMayRecord(nid)||callRec.active);
+    if(rb.hidden===show)rb.hidden=!show;
+    rb.classList.remove('on','off','idle','offer','active','muted-state');
+    rb.classList.add((r||callRec.active)?'off':'offer');
+    const txt=callRec.active?('STOP '+callRecElapsed()):((callRec.wanted||callRec.starting)?'REC…':(r?'● REC':'REC'));
+    if(rb.textContent!==txt)rb.textContent=txt;
+    rb.title=callRec.active?'Stop recording and save the file':(r?displayName(r.by)+' is recording this call':'Record this call');
+    syncCallRecording();
+  }
+  // ADMIN, REC and the gear move to a second row while ADMIN or REC is shown
+  const ctl=document.getElementById('callControls');
+  if(ctl)ctl.classList.toggle('has-tools',!!((adm&&!adm.hidden)||(rb&&!rb.hidden)));
 }
 let _callPending=false;
 // Temporary, query-gated phone diagnostics. Nothing is rendered unless the page was
@@ -16470,6 +16725,9 @@ async function _toggleCallInner(){
     return;
   }
 
+  // removed from this call by the host or an admin: the host refuses the rejoin, so do
+  // not start a join that could only time out
+  if(callBootedMe(noteId)){callDebugMark('removed from this call; not rejoining');updateCallUI();return}
   // enforce single-call: leave current call before joining another
   if(state.inCall){
     console.log('[toggleCall] leaving previous call',state.inCall,'before joining',noteId);
@@ -16746,10 +17004,391 @@ async function captureCallCamera(){
     callDevices.camera='';saveCallDevices();return stream;
   }
 }
+// "Copy call diagnostics" in call settings. The call debug record never holds a
+// credential -- only whether a grant exists -- and this adds the call's moderation state.
+function copyCallDiagnostics(){
+  let text;
+  try{
+    const d=JSON.parse(callDebugText());
+    const nid=callDebugNoteId();
+    d.moderation={record:state.callMods[nid]||null,myRole:callRoleOf(nid,'~'+api.ship),
+      mutedMe:callMutedMe(),bootedMe:callBootedMe(nid)};
+    d.recording={active:callRec.active,starting:callRec.starting,stopping:callRec.stopping,
+      wanted:!!callRec.wanted,bytes:callRec.bytes,mime:callRec.mime};
+    text=JSON.stringify(d,null,2);
+  }catch(e){text=callDebugText()}
+  const done=ok=>callDeviceMessage(ok?'Call diagnostics copied.':'This browser would not copy the call diagnostics.',!ok);
+  const ta=document.createElement('textarea');
+  ta.value=text;ta.readOnly=true;
+  ta.style.cssText='position:fixed;left:-9999px;top:0;opacity:0';
+  document.body.appendChild(ta);
+  ta.select();ta.setSelectionRange(0,text.length);
+  let copied=false;
+  try{copied=document.execCommand('copy')}catch(e){}
+  ta.remove();
+  if(copied){done(true);return}
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(()=>done(true),()=>done(false));
+    return;
+  }
+  done(false);
+}
 function callDeviceMessage(text,error){
   const el=document.getElementById('callDeviceStatus');if(!el)return;
   el.textContent=text;el.classList.toggle('error',!!error);
 }
+// ---- call admin menu: the host and call admins, in a moderated (non-DM) call ----
+let _callAdminSig='';
+function callAdminVisible(){
+  const nid=state.inCall;
+  return !!nid&&!!callRoleOf(nid,'~'+api.ship);
+}
+function closeCallAdmin(focus){
+  const menu=document.getElementById('callAdminMenu');if(menu)menu.hidden=true;
+  const btn=document.getElementById('callAdminBtn');
+  if(btn){btn.setAttribute('aria-expanded','false');if(focus&&!btn.hidden)btn.focus()}
+}
+function toggleCallAdmin(){
+  const menu=document.getElementById('callAdminMenu');if(!menu)return;
+  if(!menu.hidden){closeCallAdmin(true);return}
+  closeCallSettings(false);
+  menu.hidden=false;document.getElementById('callAdminBtn').setAttribute('aria-expanded','true');
+  _callAdminSig='';renderCallAdmin();
+  const b=menu.querySelector('button');if(b)b.focus();
+}
+function syncCallAdminMenu(){
+  const menu=document.getElementById('callAdminMenu');
+  if(!menu||menu.hidden)return;
+  if(!callAdminVisible()){closeCallAdmin(false);return}
+  renderCallAdmin();
+}
+function renderCallAdmin(){
+  const body=document.getElementById('callAdminBody');if(!body)return;
+  const nid=state.inCall;const call=nid?state.activeCalls[nid]:null;
+  if(!call){body.textContent='';_callAdminSig='';return}
+  const me='~'+api.ship;
+  const iAmHost=callRoleOf(nid,me)==='host';
+  const m=callModFor(nid)||{admins:[],booted:[],muted:[]};
+  const promoted=callAdminList(nid);
+  const muted=m.muted||[];
+  const booted=(m.booted||[]).filter(sh=>call.participants.indexOf(sh)<0);
+  // rebuild only when something shown here changed: this runs on every rail render
+  const sig=JSON.stringify([nid,call.callId,call.participants,promoted,muted,booted,
+    state.noteAdmins[nid]||[],call.startedBy,iAmHost]);
+  if(sig===_callAdminSig)return;
+  _callAdminSig=sig;
+  body.textContent='';
+  const act=(label,ship,op,title)=>{
+    const b=document.createElement('button');
+    b.type='button';b.textContent=label;b.title=title;
+    b.onclick=()=>{b.disabled=true;callModPoke(nid,ship,op)};
+    return b;
+  };
+  // A row is two lines: who (with their tags), then the actions, left-aligned on a
+  // line of their own so they fit the call column without wrapping.
+  const row=ship=>{
+    const r=document.createElement('div');r.className='cadm-row';
+    const head=document.createElement('div');head.className='cadm-head';
+    const name=document.createElement('span');name.className='cadm-name';
+    name.textContent=ship===me?'You':displayName(ship);name.title=ship;
+    head.appendChild(name);
+    const role=callRoleOf(nid,ship);
+    if(role){
+      const t=document.createElement('span');t.className='cadm-role';
+      t.textContent=role.toUpperCase();head.appendChild(t);
+    }
+    if(muted.includes(ship)){
+      const t=document.createElement('span');t.className='cadm-role';
+      t.textContent='MUTED';head.appendChild(t);
+    }
+    const acts=document.createElement('div');acts.className='cadm-acts';
+    r.appendChild(head);r.appendChild(acts);
+    return[r,role,acts];
+  };
+  for(const ship of call.participants){
+    const[r,role,a]=row(ship);
+    // nobody acts on the host or on themselves, and only the host acts on an admin
+    if(ship!==me&&role!=='host'&&(iAmHost||!role)){
+      if(!role)a.appendChild(act('MAKE ADMIN',ship,'promote','Make '+displayName(ship)+' an admin of this call'));
+      else if(promoted.includes(ship))a.appendChild(act('REMOVE ADMIN',ship,'demote','Stop '+displayName(ship)+' being an admin of this call'));
+      if(muted.includes(ship))a.appendChild(act('UNMUTE',ship,'unmute','Let '+displayName(ship)+' turn their mic, camera and screen share back on'));
+      else a.appendChild(act('MUTE',ship,'mute','Turn off '+displayName(ship)+"'s mic, camera and screen share for this call"));
+      a.appendChild(act('BOOT',ship,'boot','Remove '+displayName(ship)+' from this call. They cannot rejoin until it ends.'));
+    }
+    body.appendChild(r);
+  }
+  if(booted.length){
+    const h=document.createElement('div');h.className='cadm-section';
+    h.textContent='BOOTED FROM THIS CALL';body.appendChild(h);
+    for(const ship of booted){
+      const[r,role,a]=row(ship);
+      if(iAmHost||!role)a.appendChild(act('ALLOW BACK',ship,'unboot','Let '+displayName(ship)+' rejoin this call'));
+      body.appendChild(r);
+    }
+  }
+}
+document.addEventListener('pointerdown',e=>{
+  const menu=document.getElementById('callAdminMenu');const btn=document.getElementById('callAdminBtn');
+  if(menu&&!menu.hidden&&!menu.contains(e.target)&&!(btn&&btn.contains(e.target)))closeCallAdmin(false);
+});
+document.addEventListener('keydown',e=>{
+  const menu=document.getElementById('callAdminMenu');
+  if(e.key==='Escape'&&menu&&!menu.hidden){e.preventDefault();e.stopImmediatePropagation();closeCallAdmin(true)}
+},true);
+// ---- call recording (step 4): in the recorder's own browser, saved to their computer ----
+// The host's ship announces a recording before it starts, and every member of the note
+// sees it: a REC notice in the call view and a REC mark on the sidebar call badge. The
+// recorder mixes what they hear -- their own outgoing audio plus every participant an
+// admin has not muted -- and, unless audio only, draws the call tiles onto a canvas.
+const CALL_REC_MAX_BYTES=1536*1024*1024;   // stop and save before the tab runs out of memory
+function callRecordingOf(noteId){
+  const m=callModFor(noteId);const call=state.activeCalls[noteId];
+  if(!m||!m.recording||!call)return null;
+  return m.recording;
+}
+// an admin of a group call, or either person on a DM call; recording needs MediaRecorder
+function callMayRecord(noteId){
+  if(typeof MediaRecorder==='undefined')return false;
+  const n=state.notes[noteId];const call=state.activeCalls[noteId];
+  const me='~'+api.ship;
+  if(!n||!call||state.inCall!==noteId||call.participants.indexOf(me)<0)return false;
+  if(n.type==='dm')return true;
+  return !!callRoleOf(noteId,me);
+}
+function callRecElapsed(){
+  const s=Math.max(0,Math.floor((Date.now()-callRec.startedAt)/1000));
+  return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+}
+function startCallRecording(audioOnly){
+  const nid=state.inCall;
+  if(!nid||!callMayRecord(nid)||callRec.active||callRec.starting||callRec.stopping)return;
+  if(callRecordingOf(nid))return;
+  callRec.wanted={noteId:nid,callId:state.activeCalls[nid].callId,audioOnly:!!audioOnly,at:Date.now()};
+  callModPoke(nid,'~'+api.ship,'record-start');
+  syncCallControls();
+}
+function stopCallRecording(){
+  const nid=callRec.noteId||(callRec.wanted&&callRec.wanted.noteId)||state.inCall;
+  callRec.wanted=null;
+  if(callRec.active)finishCallRecorder();
+  if(nid)callModPoke(nid,'~'+api.ship,'record-stop');
+  syncCallControls();
+}
+// The local recorder follows the host's record: it begins once the record names us and
+// stops when it no longer does (stopped by the host, we left, the call ended).
+function syncCallRecording(){
+  const me='~'+api.ship;
+  const w=callRec.wanted;
+  if(w){
+    const call=state.activeCalls[w.noteId];const r=callRecordingOf(w.noteId);
+    if(!call||call.callId!==w.callId||state.inCall!==w.noteId||Date.now()-w.at>15000||(r&&r.by!==me)){
+      callRec.wanted=null;
+    }else if(r&&r.by===me&&!callRec.starting&&!callRec.active){
+      callRec.wanted=null;
+      beginCallRecorder(w.noteId,w.callId,w.audioOnly);
+    }
+  }
+  if(callRec.active&&!callRec.stopping){
+    const call=state.activeCalls[callRec.noteId];const r=callRecordingOf(callRec.noteId);
+    if(!call||call.callId!==callRec.callId||state.inCall!==callRec.noteId||!r||r.by!==me){
+      finishCallRecorder();
+      return;
+    }
+    callRecSyncAudio();
+  }
+}
+function callRecPickMime(audioOnly){
+  const c=audioOnly?['audio/webm;codecs=opus','audio/webm','audio/mp4']
+                   :['video/webm;codecs=vp8,opus','video/webm','video/mp4'];
+  if(typeof MediaRecorder.isTypeSupported!=='function')return'';
+  for(const m of c)if(MediaRecorder.isTypeSupported(m))return m;
+  return'';
+}
+function beginCallRecorder(noteId,callId,audioOnly){
+  callRec.starting=true;
+  const me='~'+api.ship;
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext;
+    const ctx=new AC();
+    try{ctx.resume()}catch(e){}
+    callRec.ctx=ctx;callRec.dest=ctx.createMediaStreamDestination();callRec.sources=new Map();
+    callRec.noteId=noteId;callRec.callId=callId;callRec.audioOnly=!!audioOnly;
+    callRecSyncAudio();
+    let stream=callRec.dest.stream;
+    if(!audioOnly){
+      const cv=document.createElement('canvas');cv.width=1280;cv.height=720;
+      callRec.canvas=cv;callRecDraw();
+      callRec.drawTimer=setInterval(callRecDraw,1000/15);
+      stream=new MediaStream([...cv.captureStream(15).getVideoTracks(),...callRec.dest.stream.getAudioTracks()]);
+    }
+    const mime=callRecPickMime(audioOnly);
+    const mr=mime?new MediaRecorder(stream,{mimeType:mime}):new MediaRecorder(stream);
+    callRec.recorder=mr;callRec.parts=[];callRec.bytes=0;
+    callRec.mime=mr.mimeType||mime||(audioOnly?'audio/webm':'video/webm');
+    mr.ondataavailable=e=>{
+      if(!e.data||!e.data.size)return;
+      callRec.parts.push(e.data);callRec.bytes+=e.data.size;
+      if(callRec.bytes>=CALL_REC_MAX_BYTES&&!callRec.stopping)stopCallRecording();
+    };
+    mr.onstop=()=>callRecSave();
+    mr.onerror=()=>{if(!callRec.stopping)stopCallRecording()};
+    mr.start(1000);
+    callRec.startedAt=Date.now();callRec.active=true;
+    callRec.uiTimer=setInterval(syncCallControls,1000);
+  }catch(e){
+    console.error('[rec] could not start recording',e);
+    callRecCleanup();
+    callModPoke(noteId,me,'record-stop');
+  }finally{
+    callRec.starting=false;
+    syncCallControls();
+  }
+}
+function finishCallRecorder(){
+  if(callRec.stopping)return;
+  callRec.stopping=true;callRec.active=false;
+  const mr=callRec.recorder;
+  if(mr&&mr.state!=='inactive'){try{mr.stop();return}catch(e){}}
+  callRecSave();
+}
+function callRecSave(){
+  try{
+    if(callRec.parts.length){
+      const type=(callRec.mime||'video/webm').split(';')[0];
+      const blob=new Blob(callRec.parts,{type});
+      const ext=type.indexOf('mp4')>=0?(callRec.audioOnly?'m4a':'mp4'):'webm';
+      const n=state.notes[callRec.noteId];
+      const base=String(n?noteDisplayName(n):'call').replace(/[^\w.-]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40)||'call';
+      const at=new Date(callRec.startedAt||Date.now()).toISOString().replace(/[:.]/g,'-').slice(0,19);
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download='noltbook-'+base+'-'+at+(callRec.audioOnly?'-audio':'')+'.'+ext;
+      document.body.appendChild(a);a.click();a.remove();
+      setTimeout(()=>URL.revokeObjectURL(a.href),60000);
+    }
+  }catch(e){console.error('[rec] saving the recording failed',e)}
+  finally{callRecCleanup()}
+}
+function callRecCleanup(){
+  if(callRec.drawTimer){clearInterval(callRec.drawTimer);callRec.drawTimer=null}
+  if(callRec.uiTimer){clearInterval(callRec.uiTimer);callRec.uiTimer=null}
+  for(const node of callRec.sources.values()){try{node.disconnect()}catch(e){}}
+  callRec.sources=new Map();
+  if(callRec.ctx){try{callRec.ctx.close()}catch(e){}}
+  callRec.ctx=null;callRec.dest=null;callRec.canvas=null;callRec.recorder=null;
+  callRec.parts=[];callRec.bytes=0;callRec.active=false;callRec.stopping=false;
+  callRec.noteId=null;callRec.callId=null;
+  syncCallControls();
+}
+// what the recorder hears: our outgoing audio (mic, plus shared-screen audio when it is
+// mixed in) and every participant an admin has not muted
+function callRecSyncAudio(){
+  if(!callRec.ctx||!callRec.dest)return;
+  const want=new Map();
+  const lt=rtcManager.outboundAudioTrack?rtcManager.outboundAudioTrack():null;
+  if(lt&&lt.readyState==='live')want.set('self:'+lt.id,lt);
+  for(const ship of Object.keys(rtcManager.peers)){
+    if(callRec.noteId&&callShipMuted(callRec.noteId,ship))continue;
+    const aud=peerAudioStream(rtcManager.peers[ship]);
+    if(!aud)continue;
+    for(const t of aud.getAudioTracks())if(t.readyState==='live')want.set(ship+':'+t.id,t);
+  }
+  for(const [k,node] of callRec.sources){
+    if(want.has(k))continue;
+    try{node.disconnect()}catch(e){}
+    callRec.sources.delete(k);
+  }
+  for(const [k,t] of want){
+    if(callRec.sources.has(k))continue;
+    try{
+      const src=callRec.ctx.createMediaStreamSource(new MediaStream([t]));
+      src.connect(callRec.dest);callRec.sources.set(k,src);
+    }catch(e){}
+  }
+}
+// the picture: the call's own tiles, so it matches the call view -- shared screens large
+// on the left with cameras and pictures beside them, otherwise a grid
+function callRecDraw(){
+  const cv=callRec.canvas;if(!cv)return;
+  const g=cv.getContext('2d');const W=cv.width,H=cv.height;
+  g.fillStyle='#000';g.fillRect(0,0,W,H);
+  const tiles=Array.from(document.querySelectorAll('#callMedia .media-tile'));
+  const screens=tiles.filter(t=>t.classList.contains('screen'));
+  const cams=tiles.filter(t=>t.classList.contains('cam'));
+  const me='~'+api.ship;
+  const cell=(t,x,y,w,h)=>{
+    g.fillStyle='#161616';g.fillRect(x+2,y+2,w-4,h-4);
+    const v=t.querySelector('video');
+    if(v&&!t.classList.contains('no-video')&&v.videoWidth>0&&v.readyState>=2){
+      const sc=Math.min((w-4)/v.videoWidth,(h-4)/v.videoHeight);
+      const dw=v.videoWidth*sc,dh=v.videoHeight*sc;
+      try{g.drawImage(v,x+(w-dw)/2,y+(h-dh)/2,dw,dh)}catch(e){}
+    }
+    const lb=t.querySelector('.media-tile-label');
+    let label=lb?lb.textContent:'';
+    if(label==='You')label=displayName(me);
+    if(!label)return;
+    const fs=Math.max(13,Math.min(24,Math.round(h/16)));
+    g.font='500 '+fs+'px system-ui,-apple-system,sans-serif';
+    const pad=6,th=fs+10;
+    const tw=Math.min(w-4,g.measureText(label).width+pad*2);
+    g.fillStyle='rgba(0,0,0,.75)';g.fillRect(x+2,y+h-th-2,tw,th);
+    g.fillStyle='#fff';g.textBaseline='middle';
+    g.fillText(label,x+2+pad,y+h-2-th/2,tw-pad*2);
+  };
+  const grid=(list,x,y,w,h)=>{
+    if(!list.length)return;
+    const cols=Math.ceil(Math.sqrt(list.length)),rows=Math.ceil(list.length/cols);
+    const cw=w/cols,ch=h/rows;
+    list.forEach((t,i)=>cell(t,x+(i%cols)*cw,y+Math.floor(i/cols)*ch,cw,ch));
+  };
+  if(screens.length){grid(screens,0,0,W*0.75,H);grid(cams,W*0.75,0,W*0.25,H)}
+  else grid(cams,0,0,W,H);
+}
+function closeCallRecordMenu(focus){
+  const menu=document.getElementById('callRecMenu');if(menu)menu.hidden=true;
+  const btn=document.getElementById('callRecBtn');
+  if(btn){btn.setAttribute('aria-expanded','false');if(focus&&!btn.hidden)btn.focus()}
+}
+function toggleCallRecord(){
+  if(callRec.active){stopCallRecording();return}
+  if(callRec.starting||callRec.stopping||callRec.wanted)return;
+  const menu=document.getElementById('callRecMenu');if(!menu)return;
+  if(!menu.hidden){closeCallRecordMenu(true);return}
+  closeCallSettings(false);closeCallAdmin(false);
+  renderCallRecordMenu();
+  menu.hidden=false;document.getElementById('callRecBtn').setAttribute('aria-expanded','true');
+  const b=menu.querySelector('#callRecBody button')||menu.querySelector('button');if(b)b.focus();
+}
+function renderCallRecordMenu(){
+  const body=document.getElementById('callRecBody');if(!body)return;
+  body.textContent='';
+  const nid=state.inCall;if(!nid)return;
+  const n=state.notes[nid];const me='~'+api.ship;const r=callRecordingOf(nid);
+  const say=text=>{const el=document.createElement('small');el.textContent=text;body.appendChild(el)};
+  const btn=(label,fn)=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=fn;body.appendChild(b)};
+  if(r&&r.by!==me){
+    say(displayName(r.by)+' is recording this call.');
+    // the host may stop anyone's recording
+    if(n&&n.creator===me)btn('Stop their recording',()=>{callModPoke(nid,r.by,'record-stop');closeCallRecordMenu(true)});
+    return;
+  }
+  say('Everyone in this '+(n&&n.type==='dm'?'conversation':'group')+' sees that you are recording. The file saves to this computer when you stop. Keep this tab open while recording.');
+  btn('Record video and audio',()=>{closeCallRecordMenu(false);startCallRecording(false)});
+  btn('Record audio only',()=>{closeCallRecordMenu(false);startCallRecording(true)});
+}
+document.addEventListener('pointerdown',e=>{
+  const menu=document.getElementById('callRecMenu');const btn=document.getElementById('callRecBtn');
+  if(menu&&!menu.hidden&&!menu.contains(e.target)&&!(btn&&btn.contains(e.target)))closeCallRecordMenu(false);
+});
+document.addEventListener('keydown',e=>{
+  const menu=document.getElementById('callRecMenu');
+  if(e.key==='Escape'&&menu&&!menu.hidden){e.preventDefault();e.stopImmediatePropagation();closeCallRecordMenu(true)}
+},true);
+// leaving the page mid-recording would lose the file: ask first
+window.addEventListener('beforeunload',function(e){
+  if(callRec.active){e.preventDefault();e.returnValue=''}
+});
 function closeCallSettings(focus){
   const menu=document.getElementById('callDeviceMenu');if(menu)menu.hidden=true;
   const btn=document.getElementById('callSettingsBtn');
@@ -16914,6 +17553,8 @@ if(navigator.mediaDevices&&navigator.mediaDevices.addEventListener)navigator.med
 });
 
 function toggleMute(){
+  // muted by the host or an admin: the microphone stays off until they unmute us
+  if(callMutedMe()){if(!rtcManager.muted){rtcManager.muted=true;syncMicrophoneMute()}syncCallControls();return}
   rtcManager.muted=!rtcManager.muted;
   syncMicrophoneMute();
   syncCallControls();
@@ -16930,6 +17571,7 @@ function toggleScreenAudio(){
 }
 async function toggleVideo(){
   if(callDeviceBusy||callCameraBusy)return;
+  if(callMutedMe()&&!rtcManager.videoOn){syncCallControls();return}
   callCameraBusy=true;syncCallDeviceAvailability();
   try{await toggleVideoInner()}finally{callCameraBusy=false;syncCallDeviceAvailability()}
 }
@@ -16970,6 +17612,7 @@ async function toggleVideoInner(){
     console.error('[video] toggleVideo error:',e);
     rtcManager.videoOn=false;
   }
+  sendCamState(rtcManager.videoOn);
   syncCallControls();
   renderCallRail();
 }
@@ -16977,6 +17620,7 @@ async function toggleVideoInner(){
 let _screenPending=false;
 async function toggleScreen(){
   if(callDeviceBusy)return;
+  if(callMutedMe()&&!rtcManager.screenOn){syncCallControls();return}
   // rapid clicks must not open two captures or two AudioContexts
   if(_screenPending)return;
   _screenPending=true;

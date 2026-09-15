@@ -425,6 +425,16 @@
       %+  frond  'call-list'
       a+(turn snaps.upd snap-to-json)
     ::
+        %call-mod-snap
+      ::  one call's moderation record. `mod` is null when there is none; `rev` orders it.
+      %+  frond  'call-mod-snap'
+      (mod-snap-to-json snap.upd)
+    ::
+        %call-mod-list
+      ::  authoritative REPLACEMENT of the visible moderation records
+      %+  frond  'call-mod-list'
+      a+(turn snaps.upd mod-snap-to-json)
+    ::
         %call-signal
       %+  frond  'call-signal'
       %-  pairs
@@ -689,6 +699,30 @@
           ::  host-authored and fixed for the life of the call. The browser
           ::  reads it from the authoritative snapshot and never infers it.
           ['transport' s+(crip (trip (scot %tas transport.c)))]
+      ==
+    ++  mod-snap-to-json
+      |=  ms=call-mod-snap:noltbook
+      ^-  ^json
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.ms))]
+          ['rev' (numb rev.ms)]
+          ['mod' ?~(mod.ms ~ (call-mod-to-json u.mod.ms))]
+      ==
+    ++  call-mod-to-json
+      |=  m=call-mod:noltbook
+      ^-  ^json
+      =/  rec=^json
+        ?~  recording.m  ~
+        %-  pairs
+        :~  ['by' s+(scot %p by.u.recording.m)]
+            ['since' (numb (da-to-ms since.u.recording.m))]
+        ==
+      %-  pairs
+      :~  ['callId' s+(crip (trip call-id.m))]
+          ['admins' a+(turn ~(tap in admins.m) |=(p=@p s+(scot %p p)))]
+          ['muted' a+(turn ~(tap in muted.m) |=(p=@p s+(scot %p p)))]
+          ['booted' a+(turn ~(tap in booted.m) |=(p=@p s+(scot %p p)))]
+          ['recording' rec]
       ==
     ::
     ++  da-to-ms

@@ -424,6 +424,34 @@
       gen=@ud
       call=(unit call-info)
   ==
+::  call-mod: the HOST's moderation record for ONE call, kept beside call-snapshot.
+::
+::  A separate record on its own message, not new fields on call-info: call-snapshot
+::  is also the wire shape of %remote-call-snap, so widening it would break every call
+::  between an updated ship and one that is not. A ship without this ignores it.
+::
+::  `admins` is the call's own admin list: it starts with whoever started the call and
+::  gains anyone promoted during it, and the host can take anyone off it. The host and
+::  the note's admins are admins by rule and are never listed. `booted` ships cannot
+::  rejoin this call. `muted` ships have their mic, camera and screen share off for
+::  this call: their own app enforces it and every other app stops playing them.
+::  `recording` names who is recording this call in their own browser, and since
+::  when; every member of the note is shown it. Everything is bound to `call-id`: a
+::  record for an earlier call means nothing.
++$  call-mod
+  $:  call-id=@ta
+      admins=(set @p)
+      muted=(set @p)
+      booted=(set @p)
+      recording=(unit [by=@p since=@da])
+  ==
+::  call-mod-snap: the host's record for one note, ordered by `rev`, a per-note revision
+::  the host advances once per change -- the same strict ordering as call-snapshot's gen.
++$  call-mod-snap
+  $:  note-id=@ta
+      rev=@ud
+      mod=(unit call-mod)
+  ==
 ::
 ::  message-body search result row (Phase 2 sidebar search). Carries enough
 ::  for the frontend to render a row and route a click to openNote(note-id).
@@ -568,6 +596,13 @@
       ::  note creator, and only when it dominates what we already hold.
       [%remote-call-snap snap=call-snapshot]
       [%remote-call-signal call-id=@ta from=@p sig-type=@t payload=@t]
+      ::  member -> HOST: a call-moderation request (op %promote %demote %boot %unboot
+      ::  %mute %unmute %record-start %record-stop). The asker is src.bowl; the host
+      ::  alone decides whether that ship may do it.
+      [%remote-call-mod note-id=@ta call-id=@ta target=@p op=@tas]
+      ::  host -> member: the call's moderation record. Accepted only from the note
+      ::  creator and only when its revision is newer. Additive.
+      [%remote-call-mod-snap snap=call-mod-snap]
       ::  block: host kicked you from a note
       [%remote-kick note-id=@ta note-name=@t]
       ::  block: high-level notification that someone blocked you
@@ -822,6 +857,10 @@
       ::  ask every relevant host for current call state (frontend channel reconnect)
       [%sync-calls ~]
       [%call-signal note-id=@ta to=@p sig-type=@t payload=@t]
+      ::  call moderation from our own browser (op %promote %demote %boot %unboot %mute
+      ::  %unmute %record-start %record-stop). The host applies it; any other ship
+      ::  forwards it to the host.
+      [%call-mod note-id=@ta target=@p op=@tas]
       [%clear-calls ~]
       [%fetch-cover-msg note-id=@ta author=@p msg-id=@da eid=(unit @uv)]
       [%set-headline id=@ta headline=@t]
@@ -1143,6 +1182,8 @@
       [%call-snap snap=call-snapshot]
       [%call-list snaps=(list call-snapshot)]
       [%call-signal note-id=@ta from=@p sig-type=@t payload=@t]
+      [%call-mod-snap snap=call-mod-snap]
+      [%call-mod-list snaps=(list call-mod-snap)]
       ::  block: you were kicked from a note
       [%headline-updated id=@ta headline=(unit @t)]
       [%kick-notification note-id=@ta note-name=@t from=@p]
