@@ -1145,6 +1145,11 @@
       [%pal-list pals=(list [@p pal-status])]
       [%pal-update ship=@p status=pal-status]
       [%pal-removed ship=@p]
+      ::  Notification suppression is deliberately separate from relationship
+      ::  truth: a declined incoming request remains %requested until its sender
+      ::  withdraws it, but local inboxes should not present it again.
+      [%pal-declined-list ships=(list @p)]
+      [%pal-declined-updated ship=@p declined=?]
       [%contact-list ships=(list @p)]
       [%dial-update dial=@ud]
       [%gossip-message msg=message hops=@ud]

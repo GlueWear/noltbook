@@ -293,6 +293,17 @@
       %+  frond  'pal-removed'
       (pairs ~[['ship' s+(scot %p ship.upd)]])
     ::
+        %pal-declined-list
+      %+  frond  'pal-declined-list'
+      a+(turn ships.upd |=(p=@p s+(scot %p p)))
+    ::
+        %pal-declined-updated
+      %+  frond  'pal-declined-updated'
+      %-  pairs
+      :~  ['ship' s+(scot %p ship.upd)]
+          ['declined' b+declined.upd]
+      ==
+    ::
         %contact-list
       %+  frond  'contact-list'
       a+(turn ships.upd |=(p=@p s+(scot %p p)))

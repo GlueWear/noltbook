@@ -473,6 +473,81 @@
       ::  ===== call moderation =====
       call-mods=(map @ta call-mod-snap:noltbook)
   ==
+::  state-81: state-80 plus durable suppression for declined incoming pal
+::  requests. state-80 is FROZEN from here on. A ship stays in pal-declined while
+::  its current outgoing request remains live; observing that request withdrawn
+::  clears the marker so a genuinely new request may be shown later.
++$  state-81
+  $:  %81
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      calls=(map @ta call-snapshot:noltbook)
+      call-leases=(map @ta (map @p @da))
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      note-unread-activity=(map @ta @da)
+      note-members=(map @ta (set @p))
+      app-notifications=(map [@tas @t] app-notification:noltbook)
+      dm-artifact-refs=(map @uv dm-artifact-ref:noltbook)
+      dm-artifact-tombs=(map @uv dm-artifact-tomb:noltbook)
+      dm-msg-tombs=(map dm-message-key:noltbook @da)
+      peer-proto=(map @p @ud)
+      pending-dm-fetches=(map @ta pending-dm-fetch:noltbook)
+      note-artifact-tombs=(map @ta note-artifact-tomb:noltbook)
+      mesh-tombs=(set @uv)
+      mesh-tomb-meta=(map @uv mesh-tomb:noltbook)
+      dm-imports=(map @uv dm-import:noltbook)
+      import-only-dms=(set @ta)
+      pending-icon-fetches=(map @ta pending-icon-fetch:noltbook)
+      pending-img-writes=(map @ta pending-img-write:noltbook)
+      pending-profile-lookups=(map @ud pending-profile-lookup:noltbook)
+      sfu-mode=call-transport:noltbook
+      documents=(map @ta document-current:noltbook)
+      document-history=(map @ta (list document-version:noltbook))
+      gossip-active=(map @ta (map [@p @tas] note-active:noltbook))
+      call-mods=(map @ta call-mod-snap:noltbook)
+      ::  ===== declined incoming pal requests =====
+      pal-declined=(set @p)
+  ==
 +$  card  card:agent:gall
 ::
 ::  Gossip reservoir caps are now NO-OPS. "What you store/pass" (the gossip
@@ -2499,8 +2574,8 @@
 ::  lose==win. Group/fork/gossip-only fields hold no ordinary-DM data and are left
 ::  alone; pending-dm-fetches/dm-msg-tombs key by entry identity (not note-id).
 ++  reconcile-dm-roots
-  |=  [st=state-80 lose=@ta win=@ta cn=note:noltbook]
-  ^-  state-80
+  |=  [st=state-81 lose=@ta win=@ta cn=note:noltbook]
+  ^-  state-81
   ?:  =(lose win)  st
   =*  s  st
   ::  notes: install canonical winner, drop loser
@@ -2688,6 +2763,33 @@
 ::  empty lease map. A call in flight does NOT survive: every note that had one gets
 ::  a cleared record at generation 1 -- a real generation-bearing empty snapshot, so
 ::  the browser badge disappears on load and the next start allocates generation 2.
+++  upgrade-80-to-81
+  ::  Adds durable suppression for a declined incoming pal request. Existing
+  ::  relationships are unchanged and no request begins declined.
+  |=  o=state-80
+  ^-  state-81
+  :*  %81
+      notes.o  messages.o  artifacts.o  profiles.o  transactions.o
+      current-note.o  peers.o  has-avatar.o
+      pal-outgoing.o  pal-incoming.o  pal-blocked.o  blocked-by.o
+      dial.o  gossip-hops.o  mentions.o  calls.o  call-leases.o
+      gossip-envelopes.o  headlines.o  seq-counters.o  join-requests.o
+      note-admins.o  note-muted.o  artifact-envelopes.o  host-status.o
+      fork-origin.o  fork-version.o  fork-of.o  pending-fork-invites.o
+      fork-invitees.o  contacts.o  dm-prefs.o  member-revs.o
+      fork-parent-version.o  host-checks.o  notification-acks.o
+      note-activity.o  note-read.o  attention.o  cleared-mentions.o
+      via-by-eid.o  note-pins.o  note-apps.o  note-active.o  app-grants.o
+      note-unread-activity.o  note-members.o  app-notifications.o
+      dm-artifact-refs.o  dm-artifact-tombs.o  dm-msg-tombs.o  peer-proto.o
+      pending-dm-fetches.o  note-artifact-tombs.o  mesh-tombs.o
+      mesh-tomb-meta.o  dm-imports.o  import-only-dms.o
+      pending-icon-fetches.o  pending-img-writes.o  pending-profile-lookups.o
+      sfu-mode.o  documents.o  document-history.o  gossip-active.o
+      call-mods.o
+      ::  new in %81
+      *(set @p)
+  ==
 ++  upgrade-79-to-80
   ::  Adds the per-call moderation record. Purely additive: every field is carried
   ::  across verbatim and call-mods starts empty, so a call in progress simply has
@@ -2937,8 +3039,8 @@
       pending-profile-lookups.o
   ==
 ++  migrate-dm-artifacts
-  |=  [our=@p st=state-80]
-  ^-  state-80
+  |=  [our=@p st=state-81]
+  ^-  state-81
   =*  s  st
   =/  targets=(list [aid=@ta a=artifact:noltbook])
     %+  murn  ~(tap by artifacts.s)
@@ -2950,7 +3052,7 @@
     ?~  nt  ~
     ?.  (is-ordinary-dm u.nt)  ~
     `[aid a]
-  |-  ^-  state-80
+  |-  ^-  state-81
   ?~  targets  s
   =/  a=artifact:noltbook  a.i.targets
   =/  eid=@uv  (dm-artifact-eid a)
@@ -3458,7 +3560,7 @@
 ::  than relying on that. See FUTURE(cleanup-scope) above for why these exclusions are
 ::  a group and must be relaxed together, never individually.
 ++  notebook-subtree-private
-  |=  [our=@p ids=(list @ta) st=state-80]
+  |=  [our=@p ids=(list @ta) st=state-81]
   ^-  ?
   ::  an empty subtree proves nothing.
   ?~  ids  %.n
@@ -4288,11 +4390,11 @@
 ::  Nobody targets the host or themselves, and only the host acts on another admin.
 ::  DM calls have no moderation, but either person may record one.
 ++  call-mod-apply
-  |=  [=bowl:gall actor=@p nid=@ta cid=@ta target=@p op=@tas sin=state-80]
-  =|  state-80
+  |=  [=bowl:gall actor=@p nid=@ta cid=@ta target=@p op=@tas sin=state-81]
+  =|  state-81
   =*  state  -
   =.  state  sin
-  ^-  (quip card state-80)
+  ^-  (quip card state-81)
   =/  nt-u  (~(get by notes) nid)
   ?~  nt-u  `state
   =/  nt=note:noltbook  u.nt-u
@@ -4605,11 +4707,11 @@
   ::  Option-1: the whole %noltbook-remote dispatch moved OUT of the on-poke battery.
   ::  =| / =* / =. re-expose state-67 faces exactly like the door, so handler bodies are
   ::  unchanged except this->state. on-poke delegates: =^ cards state (rem-handle bowl rem state).
-  |=  [=bowl:gall rem=remote:noltbook sin=state-80]
-  =|  state-80
+  |=  [=bowl:gall rem=remote:noltbook sin=state-81]
+  =|  state-81
   =*  state  -
   =.  state  sin
-  ^-  (quip card state-80)
+  ^-  (quip card state-81)
     ?-  -.rem
     ::
     ::  ===== document notes =====
@@ -6078,6 +6180,9 @@
       ::  a ship wants to be pals with us
       ::  ignore if blocked
       ?:  (~(has in pal-blocked) src.bowl)  `state
+      ::  Relationship truth and notification state are separate. Even after a
+      ::  decline, their live outgoing intent remains our incoming %requested;
+      ::  pal-declined only suppresses the local inbox row.
       ::  add to incoming + peers bookkeeping, compute status, notify frontend
       =/  new-incoming=(set @p)  (~(put in pal-incoming) src.bowl)
       =/  new-peers=(set @p)  (~(put in peers) src.bowl)
@@ -6105,6 +6210,9 @@
         %remote-bye
       ::  a ship no longer wants to be pals
       =/  new-incoming=(set @p)  (~(del in pal-incoming) src.bowl)
+      ::  Withdrawal completes the declined request's lifecycle. A later hey is
+      ::  therefore a genuinely new request and may be shown again.
+      =/  new-declined=(set @p)  (~(del in pal-declined) src.bowl)
       =/  still-visible=?
         ?|  (~(has in contacts) src.bowl)
             (~(has in pal-outgoing) src.bowl)
@@ -6116,8 +6224,11 @@
       =/  upd=update:noltbook
         ?:  still-visible  [%pal-update src.bowl status]
         [%pal-removed src.bowl]
-      :_  state(pal-incoming new-incoming)
-      ~[(gf-notes upd)]
+      =/  decline-cards=(list card)
+        ?.  (~(has in pal-declined) src.bowl)  ~
+        ~[(gf-notes `update:noltbook`[%pal-declined-updated src.bowl %.n])]
+      :_  state(pal-incoming new-incoming, pal-declined new-declined)
+      (weld ~[(gf-notes upd)] decline-cards)
     ::
         %remote-pal-sync
       ::  durable reconciliation. `outgoing`/`blocked` from the peer are authoritative;
@@ -6125,13 +6236,21 @@
       =/  peer=@p  src.bowl
       =/  we-follow=?  (~(has in pal-outgoing) peer)
       =/  i-block=?  (~(has in pal-blocked) peer)
+      =/  old-declined=?  (~(has in pal-declined) peer)
+      ::  Their authoritative outgoing=false withdraws the old request and permits
+      ::  a future one. outgoing=true preserves relationship truth but cannot
+      ::  re-alert a request we declined.
+      =/  new-declined=(set @p)
+        ?:  outgoing.rem  pal-declined
+        (~(del in pal-declined) peer)
+      =/  declined=?  (~(has in new-declined) peer)
       =/  old-status=pal-status:noltbook
         (pal-status-of peer pal-outgoing pal-incoming pal-blocked)
       ::  apply their authoritative outgoing -> our pal-incoming. never keep them in
       ::  incoming while we block them, while they block us, or when they don't follow us.
       =/  new-incoming=(set @p)
         ?:  i-block  (~(del in pal-incoming) peer)
-        ?:  |(blocked.rem =(%.n outgoing.rem))  (~(del in pal-incoming) peer)
+        ?:  ?|(blocked.rem =(%.n outgoing.rem))  (~(del in pal-incoming) peer)
         (~(put in pal-incoming) peer)
       =/  new-status=pal-status:noltbook
         (pal-status-of peer pal-outgoing new-incoming pal-blocked)
@@ -6146,6 +6265,9 @@
           ==
         ?:  still-visible  ~[(gf-notes [%pal-update peer new-status])]
         ~[(gf-notes [%pal-removed peer])]
+      =/  decline-cards=(list card)
+        ?:  =(old-declined declined)  ~
+        ~[(gf-notes `update:noltbook`[%pal-declined-updated peer declined])]
       ::  reply with OUR authoritative sync only when their belief about whether we
       ::  follow them (incoming.rem) disagrees with reality. converges in one round and
       ::  cannot ping-pong: pal-outgoing is owner-authoritative and never mutated here.
@@ -6157,8 +6279,8 @@
         ?.  (~(has in new-incoming) peer)  ~
         ?:  (~(has in pal-incoming) peer)  ~
         (gossip-active-hello peer our.bowl gossip-active now.bowl)
-      :_  state(pal-incoming new-incoming)
-      :(weld status-cards reply-cards ga-cards)
+      :_  state(pal-incoming new-incoming, pal-declined new-declined)
+      :(weld status-cards decline-cards reply-cards ga-cards)
     ::
         %remote-introduce
       ::  no-op: auto peer-introduce removed; variant retained for future
@@ -8672,8 +8794,8 @@
 ::  artifact, already-tombstoned, or unauthorized sender — is a harmless no-op ([~ st]), so
 ::  duplicate and replayed requests neither mutate state nor emit a marker.
 ++  delete-note-artifact
-  |=  [=bowl:gall sender=@p nid=@ta aid=@ta st=state-80]
-  ^-  [(list card:agent:gall) state-80]
+  |=  [=bowl:gall sender=@p nid=@ta aid=@ta st=state-81]
+  ^-  [(list card:agent:gall) state-81]
   =/  nt  (~(get by notes.st) nid)
   ?~  nt  [~ st]
   ::  we must host this note; shared %group/%notebook only
@@ -8732,7 +8854,7 @@
   =/  del-upd=update:noltbook  [%artifact-deleted aid]
   =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
   =/  pax=path  ~[%notes nid]
-  =/  st2=state-80
+  =/  st2=state-81
     %=  st
       artifacts             (~(del by artifacts.st) aid)
       note-pins             new-pins
@@ -8866,7 +8988,7 @@
   ~[(gf-paths paths `update:noltbook`[%app-notifications-updated ~(val by live)])]
 --
 %-  agent:dbug
-=|  state-80
+=|  state-81
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -8884,30 +9006,37 @@
 ++  on-load
   |=  old=vase
   ^-  (quip card _this)
-  ::  TWO accepted shapes and no ladder: %75 (the previous development state, migrated
-  ::  exactly once) and %76 (our own, on every reload after that). Anything else is a
-  ::  foreign or corrupt noun and fails loudly rather than being coerced. state-75 is
-  ::  FROZEN -- !< nests on the mold, so narrowing anything in it breaks the decode.
+  ::  Accept every frozen state in the explicit migration ladder. Anything else is a
+  ::  foreign or corrupt noun and fails loudly rather than being coerced.
   ?>  ?|  ?=([%75 *] q.old)  ?=([%76 *] q.old)
           ?=([%77 *] q.old)  ?=([%78 *] q.old)
           ?=([%79 *] q.old)  ?=([%80 *] q.old)
+          ?=([%81 *] q.old)
       ==
-  =/  base=state-80
-    ?:  ?=([%80 *] q.old)  !<(state-80 old)
+  =/  base=state-81
+    ?:  ?=([%81 *] q.old)  !<(state-81 old)
     ::  The ladder is walked at its TERMINUS, never by wrapping every arm:
-    ::  %75 -> %76 -> %77 -> %78 -> %79 -> %80. Each older mold stays FROZEN, so a
+    ::  %75 -> %76 -> %77 -> %78 -> %79 -> %80 -> %81. Each older mold stays FROZEN, so a
     ::  noun saved by any of those builds still decodes on its own mold.
-    =/  s79=state-79
-      ?:  ?=([%79 *] q.old)  !<(state-79 old)
-      ?:  ?=([%78 *] q.old)  (upgrade-78-to-79 !<(state-78 old))
-      ?:  ?=([%77 *] q.old)  (upgrade-78-to-79 (upgrade-77-to-78 !<(state-77 old)))
-      ?:  ?=([%76 *] q.old)  (upgrade-78-to-79 (upgrade-77-to-78 (upgrade-76-to-77 !<(state-76 old))))
-      (upgrade-78-to-79 (upgrade-77-to-78 (upgrade-76-to-77 (upgrade-75-to-76 !<(state-75 old)))))
-    (upgrade-79-to-80 s79)
-  =/  based=state-80
+    =/  s80=state-80
+      ?:  ?=([%80 *] q.old)  !<(state-80 old)
+      =/  s79=state-79
+        ?:  ?=([%79 *] q.old)  !<(state-79 old)
+        ?:  ?=([%78 *] q.old)  (upgrade-78-to-79 !<(state-78 old))
+        ?:  ?=([%77 *] q.old)  (upgrade-78-to-79 (upgrade-77-to-78 !<(state-77 old)))
+        ?:  ?=([%76 *] q.old)  (upgrade-78-to-79 (upgrade-77-to-78 (upgrade-76-to-77 !<(state-76 old))))
+        (upgrade-78-to-79 (upgrade-77-to-78 (upgrade-76-to-77 (upgrade-75-to-76 !<(state-75 old)))))
+      (upgrade-79-to-80 s79)
+    (upgrade-80-to-81 s80)
+  =/  based=state-81
     %=  base
       note-members       (ensure-note-members note-members.base notes.base)
       app-notifications  (app-notifications-live app-notifications.base now.bowl)
+      ::  Repair state written by the first decline implementation, which
+      ::  removed the real incoming relationship. A decline marker proves the
+      ::  request was live when dismissed; reconciliation removes both if the
+      ::  sender has since withdrawn it.
+      pal-incoming            (~(uni in pal-incoming.base) pal-declined.base)
       ::  in-flight lookups cannot survive a reload; the 28s frontend timeout covers it
       pending-profile-lookups  *(map @ud pending-profile-lookup:noltbook)
       ::  app-cap stays broad for storage compatibility, so strip any inert label from
@@ -8943,11 +9072,11 @@
     ^-  [@ta call-snapshot:noltbook]
     ?.  (~(has in ended) nid)  [nid sn]
     [nid [nid +(gen.sn) ~]]
-  =/  based=state-80
+  =/  based=state-81
     based(calls reloaded, call-leases *(map @ta (map @p @da)))
   ::  idempotent normalization of remote-owned ordinary-DM %file/%app artifacts into
   ::  content-free references (no content read/write; nothing serveable by a noncreator).
-  =/  loaded=state-80  (migrate-dm-artifacts our.bowl based)
+  =/  loaded=state-81  (migrate-dm-artifacts our.bowl based)
   ::  tell our own browser the full call list (which now includes any PRESERVED remote
   ::  cache), tell the members of every call we just ended that it is over, and ask every
   ::  remote host for its current truth. Those three are why a reload converges on both
@@ -8979,13 +9108,17 @@
   ::  we have one with, so a lost relationship message or one-sided state loss heals.
   ::  It used to run on every /notes subscribe -- every tab load, every SSE channel
   ::  replacement, and every other app subscribing -- re-poking every pal each time a
-  ::  browser reconnected. Every real change (%add-pal, %remove-pal, %block-pal,
-  ::  %unblock-pal, %dismiss-pal-request) already sends its own sync immediately, so
-  ::  this is only a backstop: once per agent load needs no state and no timer. The
+  ::  browser reconnected. Every graph change (%add-pal, %remove-pal, %block-pal,
+  ::  %unblock-pal) already sends its own sync immediately; %dismiss-pal-request is
+  ::  notification-only and deliberately sends no relationship sync. This is
+  ::  only a backstop: once per agent load needs no state and no timer. The
   ::  receiver replies only when it disagrees, so it cannot ping-pong.
   =/  pal-sync-cards=(list card)
     =/  s=(set @p)  (~(uni in pal-outgoing.loaded) pal-incoming.loaded)
     =/  s=(set @p)  (~(uni in s) pal-blocked.loaded)
+    ::  A declined ship remains incoming, and stays in this backstop until we
+    ::  observe that its outgoing request was withdrawn.
+    =/  s=(set @p)  (~(uni in s) pal-declined.loaded)
     %+  turn  ~(tap in (~(del in s) our.bowl))
     |=(p=@p (pal-sync-card p pal-outgoing.loaded pal-incoming.loaded pal-blocked.loaded))
   [:(weld prof-cards call-cards pal-sync-cards (ensure-data-desk bowl)) this(state loaded)]
@@ -9042,6 +9175,7 @@
       ?:  (~(has in pal-incoming) p)  %requested
       %none
     =/  palupd=update:noltbook  [%pal-list pal-pairs]
+    =/  paldecl=update:noltbook  [%pal-declined-list ~(tap in pal-declined)]
     =/  contactupd=update:noltbook  [%contact-list ~(tap in contacts)]
     =/  dialupd=update:noltbook  [%dial-update dial]
     ::  NOLTBOOK ACTIVITY reload hydration. %wallet-update is an authoritative
@@ -9225,6 +9359,9 @@
     =/  init-cards=(list card)
       :~  (gf-paths ~ upd)
           (gf-paths ~ pupd)
+          ::  Suppression arrives before relationship status so a reload never
+          ::  flashes a declined request back into the inbox.
+          (gf-paths ~ paldecl)
           (gf-paths ~ palupd)
           (gf-paths ~ contactupd)
           (gf-paths ~ dialupd)
@@ -13661,6 +13798,9 @@
       ?:  =(ship.act our.bowl)  `this
       ::  unblock if blocked
       =/  new-blocked=(set @p)  (~(del in pal-blocked) ship.act)
+      ::  An explicit local add accepts any live incoming request and supersedes
+      ::  an earlier decline of that ship.
+      =/  new-declined=(set @p)  (~(del in pal-declined) ship.act)
       ::  add to outgoing + peers bookkeeping, send %remote-hey + our profile
       =/  new-outgoing=(set @p)  (~(put in pal-outgoing) ship.act)
       =/  new-peers=(set @p)  (~(put in peers) ship.act)
@@ -13678,13 +13818,18 @@
         %requesting
       =/  upd=update:noltbook  [%pal-update ship.act status]
       =/  cupd=update:noltbook  [%contact-list ~(tap in new-contacts)]
-      :_  this(pal-outgoing new-outgoing, pal-blocked new-blocked, peers new-peers, contacts new-contacts)
-      :~  hey-card
-          prof-card
-          (pal-sync-card ship.act new-outgoing pal-incoming new-blocked)
-          (gf-notes upd)
-          (gf-notes cupd)
-      ==
+      =/  decline-cards=(list card)
+        ?.  (~(has in pal-declined) ship.act)  ~
+        ~[(gf-notes `update:noltbook`[%pal-declined-updated ship.act %.n])]
+      :_  this(pal-outgoing new-outgoing, pal-blocked new-blocked, pal-declined new-declined, peers new-peers, contacts new-contacts)
+      %+  weld
+        :~  hey-card
+            prof-card
+            (pal-sync-card ship.act new-outgoing pal-incoming new-blocked)
+            (gf-notes upd)
+            (gf-notes cupd)
+        ==
+      decline-cards
     ::
         %remove-pal
       ?:  =(ship.act our.bowl)  `this
@@ -13724,25 +13869,18 @@
     ::
         %dismiss-pal-request
       ?:  =(ship.act our.bowl)  `this
-      =/  new-incoming=(set @p)  (~(del in pal-incoming) ship.act)
-      =/  still-visible=?
-        ?|  (~(has in contacts) ship.act)
-            (~(has in pal-outgoing) ship.act)
-            (~(has in pal-blocked) ship.act)
-        ==
-      =/  status=pal-status:noltbook
-        ?:  (~(has in pal-blocked) ship.act)  %blocked
-        ?:  (~(has in pal-outgoing) ship.act)  %requesting
-        %none
-      =/  upd=update:noltbook
-        ?:  still-visible  [%pal-update ship.act status]
-        [%pal-removed ship.act]
-      ::  they no longer hear our gossip: tell them our gossip-note statuses stopped
-      =/  ga-cards=(list card)
-        ?.  (~(has in pal-incoming) ship.act)  ~
-        (gossip-active-goodbye ship.act our.bowl gossip-active)
-      :_  this(pal-incoming new-incoming)
-      [(pal-sync-card ship.act pal-outgoing new-incoming pal-blocked) (gf-notes upd) ga-cards]
+      ::  Decline is valid only for a plain incoming request. It is not a block,
+      ::  does not alter our outgoing intent, and cannot dismantle a mutual pal.
+      ?.  ?&  (~(has in pal-incoming) ship.act)
+              !(~(has in pal-outgoing) ship.act)
+              !(~(has in pal-blocked) ship.act)
+          ==
+        `this
+      =/  new-declined=(set @p)  (~(put in pal-declined) ship.act)
+      ::  Do not mutate pal-incoming, send a contradictory sync, or stop gossip.
+      ::  The sender is still requesting us; only this request's alert is dismissed.
+      :_  this(pal-declined new-declined)
+      ~[(gf-notes `update:noltbook`[%pal-declined-updated ship.act %.y])]
     ::
         %block-pal
       ?:  =(ship.act our.bowl)  `this
