@@ -877,6 +877,7 @@
       [%ack-durable-notification kind=durable-notification-kind note-id=@ta]
       ::  durable green sidebar unread: mark a note read (last-opened time)
       [%mark-note-read note-id=@ta]
+      [%fetch-note-history note-id=@ta]
       ::  one active pin per note: target a message (kind=%message, by meta.eid) or
       ::  a %file/%app artifact (kind=%artifact, by meta.eid). Creator/host only,
       ::  host-authoritative + broadcast. Setting replaces; clearing keeps the target.
@@ -1243,7 +1244,7 @@
       ::  compact live sidebar signal: closed-note dot/preview without routing
       ::  full artifact/gossip content facts to global /notes. preview=~ means
       ::  dot-only (do not overwrite an existing preview).
-      [%note-sidebar-signal note-id=@ta author=@p preview=(unit @t) kind=?(%message %artifact %gossip) time=@da]
+      [%note-sidebar-signal note-id=@ta author=@p preview=(unit @t) kind=?(%message %artifact %gossip %control) time=@da]
       ::  App Notifications: authoritative high-level plugin notification snapshot.
       ::  Replayed on /notes watch and emitted after set/clear; expired rows are omitted.
       [%app-notifications-updated notifications=(list app-notification)]

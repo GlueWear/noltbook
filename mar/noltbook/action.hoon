@@ -730,6 +730,11 @@
       =/  note-id-nd  (need (~(get by d) 'noteId'))
       ?>  ?=([%s *] note-id-nd)
       [%mark-note-read `@ta`p.note-id-nd]
+    ::  fetch-note-history: the rest of a capped message snapshot for one note.
+    ?:  =('fetch-note-history' tag)
+      =/  note-id-nd  (need (~(get by d) 'noteId'))
+      ?>  ?=([%s *] note-id-nd)
+      [%fetch-note-history `@ta`p.note-id-nd]
     ::  set-dial (final case)
     ?>  =('set-dial' tag)
     =/  dial-nd  (need (~(get by d) 'dial'))

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="nb-build" content="fqdabjjaol">
+<meta name="nb-build" content="il5th95i3s">
 <title>NOLTBOOK</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20355.9%20355.9%22%20width=%22355.9%22%20height=%22355.9%22%3E%3Cg%20fill=%22%23ffffff%22%20transform=%22translate(-10.9901536%2036.4439936)%20scale(1.06235712)%22%3E%3Cpolygon%20points=%2266%20159.5%2066%2021.2%20204.3%2021.2%20204.3%2080.8%20204.3%20112.5%20204.3%20159.5%20160.7%20159.5%20160.7%20180.7%20225.5%20180.7%20225.5%20112.5%20225.5%2080.8%20225.5%200%2044.8%200%2044.8%20180.7%20121%20180.7%20121%20159.5%2066%20159.5%22/%3E%3Cpolygon%20points=%22234.7%2085.7%20234.7%20106.9%20289.8%20106.9%20289.8%20245.3%20151.4%20245.3%20151.4%20186.8%20151.4%20180.7%20151.4%20159.5%20151.4%20155.1%20151.4%20106.9%20195%20106.9%20195%2085.7%20130.2%2085.7%20130.2%20151.8%20130.2%20159.5%20130.2%20180.7%20130.2%20183.5%20130.2%20266.4%20310.9%20266.4%20310.9%2085.7%20234.7%2085.7%22/%3E%3C/g%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -887,11 +887,11 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .note-call-badge .call-pip{width:6px;height:6px;border-radius:50%;background:#00ff88;animation:callPulse 1.5s ease-in-out infinite}
 .note-call-badge .call-rec{color:#ff4444;font-weight:700;letter-spacing:.05em;margin-left:2px}
 .note-item.has-call .note-call-badge{display:flex}
-.note-item.has-call .note-dot{display:none}
+.note-item.has-call .note-dot:not(.attn){display:none}
 .note-active-badge{display:none;align-items:center;gap:3px;margin-left:auto;flex-shrink:0;font-size:.65rem;color:#00ff88;white-space:nowrap}
 .note-active-badge .active-pip{width:6px;height:6px;border-radius:50%;background:#00ff88;animation:callPulse 1.5s ease-in-out infinite}
 .note-item.has-active .note-active-badge{display:flex}
-.note-item.has-active .note-dot{display:none}
+.note-item.has-active .note-dot:not(.attn){display:none}
 /* fixed footprint: the box reserves its final size before the image loads, so
    late artifact image loads do not expand the card and yank the timeline. */
 .artifact-img-box{display:block;width:100%;max-width:400px;height:300px;background:var(--bg2);border:1px solid var(--border);margin-top:.35rem;overflow:hidden}
@@ -1082,7 +1082,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 <body>
 <div class="app" data-mview="notes">
   <header class="app-header">
-    <span class="logo-stack"><span class="logo" id="noltbookLogo" onclick="openGrimoireMenu()"><svg class="logo-mark" viewBox="0 0 641.2 103.7" role="img" aria-label="Noltbook"><defs><clipPath id="nbLogoClip"><rect x="134.2" y="16.8" width="506.9" height="63.8"/></clipPath></defs><g clip-path="url(#nbLogoClip)"><path fill="#ffaa00" d="M583.9,79.4h15.3V18h-15.3v61.4ZM599.4,46.9l22,32.5h19.3l-24.4-32.8,24.9-28.6h-17.5l-24.3,28.9ZM550.8,33.3c3.7,3.8,5.6,9,5.6,15.4s-1.9,11.6-5.6,15.5c-2.5,2.6-5.8,4-9.7,4s-7.3-1.3-9.8-4c-3.7-3.9-5.6-9.1-5.6-15.7s1.9-11.3,5.6-15.2c2.6-2.6,5.8-4,9.8-4s7.2,1.3,9.7,4M525.2,20.7c-4.7,2.6-8.2,6.1-10.7,10.7-2.9,5.4-4.3,11-4.3,16.9,0,11.5,3.9,20.3,11.7,26.3,5.2,4,11.6,6.1,19.1,6.1s18.2-3.6,24-10.7c4.6-5.7,6.8-12.7,6.8-21.1s-1.4-12.1-4.3-17.3c-1.8-3.3-4.3-6.1-7.4-8.5-5.2-4-11.6-6.1-19.1-6.1s-11.2,1.3-15.8,3.8M480.9,33.3c3.7,3.8,5.6,9,5.6,15.4s-1.9,11.6-5.6,15.5c-2.5,2.6-5.8,4-9.7,4s-7.3-1.3-9.8-4c-3.7-3.9-5.6-9.1-5.6-15.7s1.9-11.3,5.6-15.2c2.6-2.6,5.8-4,9.8-4s7.2,1.3,9.7,4M455.3,20.7c-4.7,2.6-8.2,6.1-10.7,10.7-2.9,5.4-4.3,11-4.3,16.9,0,11.5,3.9,20.3,11.7,26.3,5.2,4,11.6,6.1,19.1,6.1s18.2-3.6,24-10.7c4.6-5.7,6.8-12.7,6.8-21.1s-1.4-12.1-4.3-17.3c-1.8-3.3-4.3-6.1-7.4-8.5-5.2-4-11.6-6.1-19.1-6.1s-11.2,1.3-15.8,3.8M395,53.6h8.2c4.1,0,7,.2,8.7.6,3.1.7,4.6,2.8,4.6,6.2s-1.6,5.4-4.7,6.1c-1.5.3-4.5.4-8.8.4h-7.9v-13.3ZM395,30.5h7.4c4.4,0,7.4.4,8.9,1.1,1.5.7,2.3,2.1,2.3,4.2s-1.1,4.2-3.4,4.7c-1.4.4-4,.5-7.8.5h-7.3v-10.6ZM380.4,79.4h20.5c5.5,0,9.4-.1,11.7-.3,2.3-.2,4.5-.6,6.7-1.3,4-1.2,7.2-3.3,9.4-6.3,2.2-3,3.3-6.5,3.3-10.6s-1.5-8.3-4.5-11c-1.4-1.3-3.2-2.4-5.5-3.5,4.7-2.8,7.1-6.8,7.1-12s-.8-6.1-2.4-8.6c-1.6-2.5-3.9-4.3-6.7-5.5-3.8-1.5-9.9-2.3-18.4-2.3h-21.1v61.4ZM322,30.5h16.3v48.9h15.3V30.5h16.9v-12.5h-48.6v12.5ZM274.7,79.4h43v-12.5h-27.7V18h-15.3v61.4ZM241.5,33.3c3.7,3.8,5.6,9,5.6,15.4s-1.9,11.6-5.6,15.5c-2.5,2.6-5.8,4-9.7,4s-7.3-1.3-9.8-4c-3.7-3.9-5.6-9.1-5.6-15.7s1.9-11.3,5.6-15.2c2.6-2.6,5.8-4,9.8-4s7.2,1.3,9.7,4M216,20.7c-4.7,2.6-8.2,6.1-10.7,10.7-2.9,5.4-4.3,11-4.3,16.9,0,11.5,3.9,20.3,11.7,26.3,5.2,4,11.6,6.1,19.1,6.1s18.2-3.6,24-10.7c4.6-5.7,6.8-12.7,6.8-21.1s-1.4-12.1-4.3-17.3c-1.8-3.3-4.3-6.1-7.4-8.5-5.2-4-11.6-6.1-19.1-6.1s-11.1,1.3-15.8,3.8M134.2,79.4h15v-37.8l25.4,37.8h14.2V18h-15v36.3l-24.8-36.3h-14.9v61.4Z"/></g><g fill="#ffaa00"><polygon points="8.2 62.1 8.2 8.2 62.1 8.2 62.1 31.5 62.1 43.8 62.1 62.1 45.1 62.1 45.1 70.4 70.4 70.4 70.4 43.8 70.4 31.5 70.4 0 0 0 0 70.4 29.7 70.4 29.7 62.1 8.2 62.1"/><polygon points="74 33.4 74 41.6 95.4 41.6 95.4 95.5 41.5 95.5 41.5 72.7 41.5 70.4 41.5 62.1 41.5 60.4 41.5 41.6 58.5 41.6 58.5 33.4 33.3 33.4 33.3 59.1 33.3 62.1 33.3 70.4 33.3 71.4 33.3 103.7 103.6 103.7 103.6 33.4 74 33.4"/></g></svg><span class="logo-badge"></span></span><span class="build-badge" id="buildBadge" onclick="copyBuildBadge()"></span></span>
+    <span class="logo-stack"><span class="logo" id="noltbookLogo" onclick="openGrimoireMenu()"><svg class="logo-mark" viewBox="0 0 641.2 103.7" role="img" aria-label="Noltbook"><defs><clipPath id="nbLogoClip"><rect x="134.2" y="16.8" width="506.9" height="63.8"/></clipPath></defs><g clip-path="url(#nbLogoClip)"><path fill="#ffaa00" d="M583.9,79.4h15.3V18h-15.3v61.4ZM599.4,46.9l22,32.5h19.3l-24.4-32.8,24.9-28.6h-17.5l-24.3,28.9ZM550.8,33.3c3.7,3.8,5.6,9,5.6,15.4s-1.9,11.6-5.6,15.5c-2.5,2.6-5.8,4-9.7,4s-7.3-1.3-9.8-4c-3.7-3.9-5.6-9.1-5.6-15.7s1.9-11.3,5.6-15.2c2.6-2.6,5.8-4,9.8-4s7.2,1.3,9.7,4M525.2,20.7c-4.7,2.6-8.2,6.1-10.7,10.7-2.9,5.4-4.3,11-4.3,16.9,0,11.5,3.9,20.3,11.7,26.3,5.2,4,11.6,6.1,19.1,6.1s18.2-3.6,24-10.7c4.6-5.7,6.8-12.7,6.8-21.1s-1.4-12.1-4.3-17.3c-1.8-3.3-4.3-6.1-7.4-8.5-5.2-4-11.6-6.1-19.1-6.1s-11.2,1.3-15.8,3.8M480.9,33.3c3.7,3.8,5.6,9,5.6,15.4s-1.9,11.6-5.6,15.5c-2.5,2.6-5.8,4-9.7,4s-7.3-1.3-9.8-4c-3.7-3.9-5.6-9.1-5.6-15.7s1.9-11.3,5.6-15.2c2.6-2.6,5.8-4,9.8-4s7.2,1.3,9.7,4M455.3,20.7c-4.7,2.6-8.2,6.1-10.7,10.7-2.9,5.4-4.3,11-4.3,16.9,0,11.5,3.9,20.3,11.7,26.3,5.2,4,11.6,6.1,19.1,6.1s18.2-3.6,24-10.7c4.6-5.7,6.8-12.7,6.8-21.1s-1.4-12.1-4.3-17.3c-1.8-3.3-4.3-6.1-7.4-8.5-5.2-4-11.6-6.1-19.1-6.1s-11.2,1.3-15.8,3.8M395,53.6h8.2c4.1,0,7,.2,8.7.6,3.1.7,4.6,2.8,4.6,6.2s-1.6,5.4-4.7,6.1c-1.5.3-4.5.4-8.8.4h-7.9v-13.3ZM395,30.5h7.4c4.4,0,7.4.4,8.9,1.1,1.5.7,2.3,2.1,2.3,4.2s-1.1,4.2-3.4,4.7c-1.4.4-4,.5-7.8.5h-7.3v-10.6ZM380.4,79.4h20.5c5.5,0,9.4-.1,11.7-.3,2.3-.2,4.5-.6,6.7-1.3,4-1.2,7.2-3.3,9.4-6.3,2.2-3,3.3-6.5,3.3-10.6s-1.5-8.3-4.5-11c-1.4-1.3-3.2-2.4-5.5-3.5,4.7-2.8,7.1-6.8,7.1-12s-.8-6.1-2.4-8.6c-1.6-2.5-3.9-4.3-6.7-5.5-3.8-1.5-9.9-2.3-18.4-2.3h-21.1v61.4ZM322,30.5h16.3v48.9h15.3V30.5h16.9v-12.5h-48.6v12.5ZM274.7,79.4h43v-12.5h-27.7V18h-15.3v61.4ZM241.5,33.3c3.7,3.8,5.6,9,5.6,15.4s-1.9,11.6-5.6,15.5c-2.5,2.6-5.8,4-9.7,4s-7.3-1.3-9.8-4c-3.7-3.9-5.6-9.1-5.6-15.7s1.9-11.3,5.6-15.2c2.6-2.6,5.8-4,9.8-4s7.2,1.3,9.7,4M216,20.7c-4.7,2.6-8.2,6.1-10.7,10.7-2.9,5.4-4.3,11-4.3,16.9,0,11.5,3.9,20.3,11.7,26.3,5.2,4,11.6,6.1,19.1,6.1s18.2-3.6,24-10.7c4.6-5.7,6.8-12.7,6.8-21.1s-1.4-12.1-4.3-17.3c-1.8-3.3-4.3-6.1-7.4-8.5-5.2-4-11.6-6.1-19.1-6.1s-11.1,1.3-15.8,3.8M134.2,79.4h15v-37.8l25.4,37.8h14.2V18h-15v36.3l-24.8-36.3h-14.9v61.4Z"/></g><g fill="#ffaa00"><polygon points="8.2 62.1 8.2 8.2 62.1 8.2 62.1 31.5 62.1 43.8 62.1 62.1 45.1 62.1 45.1 70.4 70.4 70.4 70.4 43.8 70.4 31.5 70.4 0 0 0 0 70.4 29.7 70.4 29.7 62.1 8.2 62.1"/><polygon points="74 33.4 74 41.6 95.4 41.6 95.4 95.5 41.5 95.5 41.5 72.7 41.5 70.4 41.5 62.1 41.5 60.4 41.5 41.6 58.5 41.6 58.5 33.4 33.3 33.4 33.3 59.1 33.3 62.1 33.3 70.4 33.3 71.4 33.3 103.7 103.6 103.7 103.6 33.4 74 33.4"/></g></svg><span class="logo-badge"></span></span><span class="build-badge" id="buildBadge" onclick="copyBuildBadge(event)"></span></span>
     <div class="header-dial" id="dialWrap">
       <span class="dial-label">DIAL</span>
       <div class="dial-box active" onclick="setDial(0)">0</div>
@@ -1690,6 +1690,74 @@ else initMobileShell();
 // same channel on its own. Only sustained failure earns ONE replacement, whose retries
 // are bounded and reuse the same channel id.
 const SSE_RECOVER_MS=20000, SSE_RETRY_BASE=2000, SSE_RETRY_MAX=60000;
+// ---- update traffic meter (diagnostic) -------------------------------------------
+// Counts every SSE fact by subscription path and update type, so "which updates cost
+// the most" is answered with numbers instead of a guess. Ctrl+Shift+U copies a report.
+// Cost is one object lookup and two adds per fact; it stores no message content.
+const nbStats={since:Date.now(),events:0,bytes:0,rows:Object.create(null)};
+function nbTally(meta,raw,json){
+  try{
+    const rawPath=(meta&&meta.path)||'(unknown)';
+    // every ordinary note collapses to one bucket; cover and rumors stay separate
+    const path=/^\/notes\/(cover|ars-rumors)$/.test(rawPath)?rawPath
+      :(rawPath.indexOf('/notes/')===0?'/notes/<id>':rawPath);
+    const type=(json&&typeof json==='object')?(Object.keys(json)[0]||'(empty)'):String(typeof json);
+    const key=path+' '+type;
+    const row=nbStats.rows[key]||(nbStats.rows[key]={n:0,bytes:0});
+    const size=(raw&&raw.length)||0;
+    row.n++;row.bytes+=size;nbStats.events++;nbStats.bytes+=size;
+  }catch(e){}
+}
+function nbStatsReset(){nbStats.since=Date.now();nbStats.events=0;nbStats.bytes=0;nbStats.rows=Object.create(null)}
+function nbStatsReport(){
+  const secs=Math.max(1,Math.round((Date.now()-nbStats.since)/1000));
+  const kb=b=>(b/1024).toFixed(1)+'K';
+  const pct=b=>nbStats.bytes?((b*100)/nbStats.bytes).toFixed(1)+'%':'0%';
+  const paths=Object.create(null);
+  const rows=Object.keys(nbStats.rows).map(k=>{
+    const sp=k.indexOf(' '),path=k.slice(0,sp),type=k.slice(sp+1),r=nbStats.rows[k];
+    paths[path]=(paths[path]||0)+r.bytes;
+    return {path:path,type:type,n:r.n,bytes:r.bytes};
+  }).sort((a,b)=>b.bytes-a.bytes);
+  const stampEl=document.querySelector('meta[name="nb-build"]');
+  let out='NOLTBOOK UPDATE TRAFFIC\n';
+  out+='build '+(stampEl?stampEl.content:'?')+'  ship ~'+((window.api&&api.ship)||'?')+
+       '  window '+Math.floor(secs/60)+'m'+(secs%60)+'s'+
+       '  events '+nbStats.events+'  total '+kb(nbStats.bytes)+'\n';
+  out+='(sizes are SSE payload characters, close to bytes for ASCII)\n\nBY PATH\n';
+  Object.keys(paths).sort((a,b)=>paths[b]-paths[a]).forEach(p=>{
+    out+='  '+p.padEnd(18)+kb(paths[p]).padStart(9)+'  '+pct(paths[p]).padStart(7)+'\n';
+  });
+  out+='\nBY PATH + TYPE (largest first)\n';
+  rows.forEach(r=>{
+    out+='  '+r.path.padEnd(18)+r.type.padEnd(26)+String(r.n).padStart(5)+' ev'+
+         kb(r.bytes).padStart(9)+'  avg '+String(Math.round(r.bytes/r.n)).padStart(5)+'  '+pct(r.bytes)+'\n';
+  });
+  return out;
+}
+function nbStatsCopy(){
+  const text=nbStatsReport();
+  const say=good=>{
+    const d=document.createElement('div');
+    d.textContent=good?('Update traffic copied ('+nbStats.events+' events).'):'Copy failed; report is in the console.';
+    d.style.cssText='position:fixed;left:50%;bottom:2rem;transform:translateX(-50%);z-index:99999;'+
+      'background:#111;color:#ffb347;border:1px solid #ffb347;border-radius:6px;padding:.5rem .9rem;font:13px monospace';
+    document.body.appendChild(d);setTimeout(()=>{d.remove()},2600);
+    if(!good)console.log(text);
+  };
+  const ta=document.createElement('textarea');
+  ta.value=text;ta.readOnly=true;ta.style.cssText='position:fixed;left:-9999px;top:0;opacity:0';
+  document.body.appendChild(ta);ta.select();ta.setSelectionRange(0,text.length);
+  let ok=false;try{ok=document.execCommand('copy')}catch(e){}
+  ta.remove();
+  if(ok){say(true);return}
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(()=>say(true),()=>say(false));return}
+  say(false);
+}
+document.addEventListener('keydown',function(e){
+  if(e.ctrlKey&&e.shiftKey&&(e.key==='U'||e.key==='u')){e.preventDefault();e.stopPropagation();nbStatsCopy()}
+},true);
+console.log('[nb] update traffic meter armed: Ctrl+Shift+U, or shift-click the build badge');
 const api = {
   // msgId is MONOTONIC for the whole page, never reset by newChannel(). Resetting it
   // let a replacement channel reissue a wire id an old alias still referred to, so a
@@ -1847,7 +1915,7 @@ const api = {
         this._beginReplace('subscription '+d.id+' quit');
         return;
       }
-      if(d.response==='diff'&&this.subs[d.id])this.subs[d.id](d.json);
+      if(d.response==='diff'){nbTally(this.subMeta[d.id],e.data,d.json);if(this.subs[d.id])this.subs[d.id](d.json)}
     };
     es.onerror=()=>{
       if(gen!==this._esGen)return;
@@ -1969,7 +2037,7 @@ const api = {
     console.log('[SSE] replaced, re-subscribed to',oldMeta.length,'paths');
   }
 };
-const state={notes:{},messages:{},pendingSends:{},artifacts:{},profiles:{},callGens:{},callMods:{},camOff:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),manualExpanded:new Set(),expandedSections:{ars:true,notes:true,shared:true},replyingTo:null,replyingToEid:null,editingMsgId:null,editingEid:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},palRequestDeclined:new Set(),palRequestTimes:{},palRequestBusy:{},palRequestErrors:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},gossipUnavailable:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteUnreadActivity:{},noteRead:{},coverPreview:null,notePins:{},pinArtId:null,noteActive:{},gossipActive:{},appNotifications:{},artifactRefs:{},pendingRedirect:null,pendingDmTransition:null,documents:{},documentHistory:{},docView:{},docSaveWait:{},docReqSeq:0,docPeek:{},docSessionSeq:0};
+const state={notes:{},messages:{},pendingSends:{},artifacts:{},profiles:{},callGens:{},callMods:{},camOff:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),manualExpanded:new Set(),expandedSections:{ars:true,notes:true,shared:true,dm:true},replyingTo:null,replyingToEid:null,editingMsgId:null,editingEid:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},palRequestDeclined:new Set(),palRequestTimes:{},palRequestBusy:{},palRequestErrors:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},gossipUnavailable:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteUnreadActivity:{},noteRead:{},coverPreview:null,notePins:{},pinArtId:null,noteActive:{},gossipActive:{},appNotifications:{},artifactRefs:{},pendingRedirect:null,pendingDmTransition:null,documents:{},documentHistory:{},docView:{},docSaveWait:{},docReqSeq:0,docPeek:{},docSessionSeq:0};
 // call recording runtime (step 4), declared early so the call teardown paths reach it
 const callRec={active:false,starting:false,stopping:false,wanted:null,noteId:null,callId:null,audioOnly:false,recorder:null,parts:[],bytes:0,mime:'',startedAt:0,ctx:null,dest:null,sources:new Map(),canvas:null,drawTimer:null,uiTimer:null};
 // Phase G4 freshness: resolved profiles are fresh for 10 min; negative results
@@ -1983,9 +2051,23 @@ function isPinnedUnreadNote(id){return id==='cover'||(''+id).startsWith('ars-')}
 // Phase B: durable unread uses noteUnreadActivity (a message advances
 // noteActivity for recency but NOT noteUnreadActivity, so they never create the dot).
 function noteUnread(id){return !isPinnedUnreadNote(id)&&id!==state.currentNoteId&&(state.noteUnreadActivity[id]||0)>(state.noteRead[id]||0)}
+// _dotLog: every recomputation of a DM's dot, with the caller that triggered it, so a
+// dot that is set and then wiped names its own culprit. Diagnostic; nbDotLog() prints it.
+const _dotLog=[];
+function nbDotLog(){const t=_dotLog.slice(-60);console.log(JSON.stringify(t,null,2));return t}
 function rederiveNoteUnread(id){
   if(isPinnedUnreadNote(id))return;
-  if(noteUnread(id))state.notifications.add(id);else state.notifications.delete(id);
+  const u=noteUnread(id);
+  if(u)state.notifications.add(id);else state.notifications.delete(id);
+  try{
+    if(state.notes[id]&&state.notes[id].type==='dm'){
+      const st=(new Error().stack||'').split('\n').slice(2,5).map(function(x){return x.trim().replace(/^at\s+/,'').split(' (')[0]});
+      _dotLog.push({t:new Date().toISOString().slice(11,23),id:id,unread:u,
+        ua:state.noteUnreadActivity[id]||0,rd:state.noteRead[id]||0,
+        open:state.currentNoteId===id,inNotif:state.notifications.has(id),from:st});
+      if(_dotLog.length>200)_dotLog.shift();
+    }
+  }catch(e){}
 }
 // full rebuild from durable maps; only manages non-pinned ids, leaving any
 // live-only/pinned (cover/ars-rumors) notification entries untouched.
@@ -2687,6 +2769,7 @@ function clearAttentionTarget(noteId,t){
   const el=document.getElementById('chatMessages');
   if(!el){setTimeout(attachReadTracker,100);return}
   el.addEventListener('scroll',scheduleMarkVisible,{passive:true});
+  el.addEventListener('scroll',maybeLoadEarlierOnScroll,{passive:true});
 })();
 // A selected search phrase stays visible until the user deliberately interacts
 // with the note. Programmatic scrolling emits none of these input events, so it
@@ -2786,7 +2869,7 @@ function handleUpdate(upd){
     }
     if(state.currentNoteId===id)openNote('cover');
   })();renderNoteList()}
-  else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];
+  else if(upd['message-list']){const{noteId,messages,artifacts}=upd['message-list'];delete _historyLoading[noteId];
     /* Optimistic reconciliation runs FIRST -- before the _lastMsgHash early return,
        before state.messages is replaced, before any render is scheduled, and before
        renderPendingSends() could re-append a row the snapshot has already confirmed. */
@@ -2817,7 +2900,7 @@ function handleUpdate(upd){
       return;
     }
     _lastMsgHash[noteId]=hash;state.messages[noteId]=messages;for(const a of artifacts)state.artifacts[a.id]=a;if(state.currentNoteId===noteId){if(!ScrollCo.consumeOpenIntent(noteId))scheduleRender(noteId);renderPinSurface(noteId)}updateCoverPreview();scheduleNoteList()}
-  else if(upd['new-message']){const msg=upd['new-message'];if(!state.messages[msg.noteId])state.messages[msg.noteId]=[];/* optimistic reconciliation runs FIRST: a replayed fact (host duplicate confirmation) must still convert a pending row even though the dedup below will drop the message itself. */const _nbRec=reconcilePendingSend(msg);/* Part 1B: EID-first dedup. A modern msg dups only by matching eid; a legacy msg only by [author,id]. Same @da id with different eids both survive. */if(state.messages[msg.noteId].some(m=>msgKeyOf(m)===msgKeyOf(msg)))return;state.messages[msg.noteId].push(msg);/* call markers stay stored but have no UI effect: no preview, no notification, no unread divider, no render */if(isHiddenCallMsg(msg))return;if(state.notes[msg.noteId]&&state.notes[msg.noteId].type==='dm'&&!msg.import){state.notes[msg.noteId].localImport=false;hydrateDmNoteProfile(state.notes[msg.noteId])}/* correction 5: a \01SYS:art-delete deletion marker must never become the sidebar preview; preserve the preceding preview/source so live and reload agree (backend leaves note.last-preview untouched). */if(state.notes[msg.noteId]&&!isArtDeleteControl(msg.text)){state.notes[msg.noteId].lastAuthor=msg.author;state.notes[msg.noteId].lastPreview=msg.text}if(state.currentNoteId===msg.noteId){const isOwn=msg.author===('~'+api.ship);if(_nbRec){updateCoverPreview();markOpenNoteReadSoon(msg.noteId);scheduleNoteList();return}if(!isOwn){const _cmEl=document.getElementById('chatMessages');if(_cmEl&&!isNearBottom(_cmEl)&&!state.unreadDividers[msg.noteId]){const _ord=msgOrder(msg);if(typeof _ord==='number')state.unreadDividers[msg.noteId]={order:_ord,until:_ord}}}appendMessage(msg,isOwn)}else state.notifications.add(msg.noteId);updateCoverPreview();markOpenNoteReadSoon(msg.noteId);scheduleNoteList()}
+  else if(upd['new-message']){const msg=upd['new-message'];if(!state.messages[msg.noteId])state.messages[msg.noteId]=[];/* optimistic reconciliation runs FIRST: a replayed fact (host duplicate confirmation) must still convert a pending row even though the dedup below will drop the message itself. */const _nbRec=reconcilePendingSend(msg);/* Part 1B: EID-first dedup. A modern msg dups only by matching eid; a legacy msg only by [author,id]. Same @da id with different eids both survive. */if(state.messages[msg.noteId].some(m=>msgKeyOf(m)===msgKeyOf(msg)))return;state.messages[msg.noteId].push(msg);/* call markers stay stored but have no UI effect: no preview, no notification, no unread divider, no render */if(isHiddenCallMsg(msg))return;if(state.notes[msg.noteId]&&state.notes[msg.noteId].type==='dm'&&!msg.import){state.notes[msg.noteId].localImport=false;hydrateDmNoteProfile(state.notes[msg.noteId])}/* correction 5: a \01SYS:art-delete deletion marker must never become the sidebar preview; preserve the preceding preview/source so live and reload agree (backend leaves note.last-preview untouched). */if(state.notes[msg.noteId]&&!isArtDeleteControl(msg.text)){state.notes[msg.noteId].lastAuthor=msg.author;state.notes[msg.noteId].lastPreview=msg.text}if(state.currentNoteId===msg.noteId){const isOwn=msg.author===('~'+api.ship);if(_nbRec){updateCoverPreview();markOpenNoteReadSoon(msg.noteId);scheduleNoteList();/* The optimistic row sits under its parent, but the renderer puts a thread block at its NEWEST reply's position -- the end. Surgical reconcile never moves a row, so only the sender saw the reply in the wrong place. A reply already forces a full render when it arrives from anyone else (canAppendMessageFast), so this matches. */if(msg.replyTo||(msg.meta&&msg.meta.replyToEid))scheduleRender(msg.noteId);return}if(!isOwn){const _cmEl=document.getElementById('chatMessages');if(_cmEl&&!isNearBottom(_cmEl)&&!state.unreadDividers[msg.noteId]){const _ord=msgOrder(msg);if(typeof _ord==='number')state.unreadDividers[msg.noteId]={order:_ord,until:_ord}}}appendMessage(msg,isOwn)}else state.notifications.add(msg.noteId);updateCoverPreview();markOpenNoteReadSoon(msg.noteId);scheduleNoteList()}
   else if(upd['send-pending']){const d=upd['send-pending'];bindPendingSend(d.clientId,d.msgId,d.message)}
   else if(upd['send-rejected']){const d=upd['send-rejected'];rejectPendingSend(d.noteId,d.msgId)}
   else if(upd['artifact-created']){const a=upd['artifact-created'];state.artifacts[a.id]=a;if((a.type==='app'||a.type==='file')&&a.noteId===state.currentNoteId){scheduleRender(a.noteId);renderPinSurface(a.noteId)}}
@@ -3006,7 +3089,7 @@ function handleUpdate(upd){
     const _wasOpen=(state.currentNoteId===oldId);
     if(state.notes[oldId]&&!state.notes[newId]){state.notes[newId]=Object.assign({},state.notes[oldId],{id:newId});}
     clearPendingSendsForNote(oldId);
-    delete state.notes[oldId];delete state.messages[oldId];state.notifications.delete(oldId);
+    delete state.notes[oldId];delete state.messages[oldId];state.notifications.delete(oldId);/* the counters moved above; the dot is derived from them, so recompute it for the surviving id or a re-keyed DM keeps its preview and loses its dot */rederiveNoteUnread(newId);
     if(_wasOpen){
       state.pendingRedirect={from:oldId,to:newId};state.currentNoteId=newId;
       // this hop is ours, not the user's -- keep a waiting-created transition alive
@@ -3057,7 +3140,7 @@ function handleUpdate(upd){
   // Phase B: durable UNREAD activity (drives the green dot; recency stays on noteActivity).
   else if(upd['note-unread-activity-list']){const list=upd['note-unread-activity-list']||[];state.noteUnreadActivity={};for(const a of list)state.noteUnreadActivity[a.noteId]=a.activity;rebuildSidebarUnread();scheduleNoteList()}
   else if(upd['note-unread-activity']){const d=upd['note-unread-activity'];const cur=state.noteUnreadActivity[d.noteId]||0;if(d.activity>cur)state.noteUnreadActivity[d.noteId]=d.activity;rederiveNoteUnread(d.noteId);scheduleNoteList()}
-  else if(upd['note-sidebar-signal']){const{noteId,author,preview,kind,time}=upd['note-sidebar-signal'];if(noteId==='cover'){if(preview!==null)state.coverPreview={author:author,preview:preview};scheduleNoteList()}else{if(preview!==null&&state.notes[noteId]){state.notes[noteId].lastAuthor=author;state.notes[noteId].lastPreview=preview}if(state.currentNoteId===noteId){state.notifications.delete(noteId);markOpenNoteReadSoon(noteId)}else if(author!==('~'+api.ship)){state.notifications.add(noteId)}scheduleNoteList()}}
+  else if(upd['note-sidebar-signal']){const{noteId,author,preview,kind,time}=upd['note-sidebar-signal'];/* %control marks a hidden call marker: no preview, no dot, no reorder. */if(kind==='control')return;/* bodies no longer arrive here for closed notes, so a first DM message must still hydrate its profile row. */const _sbN=state.notes[noteId];if(_sbN&&_sbN.type==='dm')hydrateDmNoteProfile(_sbN);if(noteId==='cover'){if(preview!==null)state.coverPreview={author:author,preview:preview};scheduleNoteList()}else{if(preview!==null&&state.notes[noteId]){state.notes[noteId].lastAuthor=author;state.notes[noteId].lastPreview=preview}/* the signal now carries what %note-activity and %note-unread-activity said for a new message: sidebar ordering, and unread unless it is our own. Both are raise-only, so a stray older value can never pull a note backwards. */if(typeof time==='number'){if((state.noteActivity[noteId]||0)<time)state.noteActivity[noteId]=time;if(author!==('~'+api.ship)&&(state.noteUnreadActivity[noteId]||0)<time)state.noteUnreadActivity[noteId]=time;rederiveNoteUnread(noteId)}if(state.currentNoteId===noteId){state.notifications.delete(noteId);markOpenNoteReadSoon(noteId)}else if(author!==('~'+api.ship)){state.notifications.add(noteId)}scheduleNoteList()}}
 }
 // ===== sidebar expansion: active-branch model =====
 // expandedNotes stays the ONLY set rendering and notification trickling read.
@@ -3176,6 +3259,8 @@ function dmTransitionClaims(id){
   return true;
 }
 async function openNote(id,opts){
+  /* each open serves the capped tail again, so the control must come back with it */
+  delete _historyAsked[arguments[0]];
   // Manual or unrelated navigation cancels a pending DM transition. Covers every route
   // into openNote, not just sidebar clicks. Our own internal hop is authorised one-shot.
   if(state.pendingDmTransition&&!dmTransitionClaims(id))dmTransitionClear();
@@ -3721,7 +3806,7 @@ function makeArsItem(entry){
   const iconImg=entry.icon?`<img src="${entry.icon}" style="width:100%;height:100%;object-fit:contain">`:'';
   const arsSourceColor=entry.id==='ars-rumors'?(last?'#652287':''):(cp?shipColor(cp.author):(last?shipColor(last.author):''));
   const dotColor=hasMention?'#ffaa00':'var(--bot)';
-  div.innerHTML=`<span class="note-arrow" style="visibility:hidden">&#9654;</span><div class="note-icon" style="${bgStyle};display:flex;align-items:center;justify-content:center;overflow:hidden">${iconImg}</div><div class="note-text"><span class="note-name">${escHtml(entry.name)}</span><span class="note-source"${arsSourceColor?' style="color:'+arsSourceColor+'"':''}>${escHtml(source)}</span><span class="note-preview">${previewHtml}</span></div><span class="note-dot" style="background:${dotColor}"></span>`;
+  div.innerHTML=`<span class="note-arrow" style="visibility:hidden">&#9654;</span><div class="note-icon" style="${bgStyle};display:flex;align-items:center;justify-content:center;overflow:hidden">${iconImg}</div><div class="note-text"><span class="note-name">${escHtml(entry.name)}</span><span class="note-source"${arsSourceColor?' style="color:'+arsSourceColor+'"':''}>${escHtml(source)}</span><span class="note-preview">${previewHtml}</span></div><span class="note-dot${hasMention?' attn':''}" style="background:${dotColor}"></span>`;
   div.onclick=()=>{openNote(entry.id)};
   return div;
 }
@@ -4045,7 +4130,7 @@ function makeNoteItem(n,depth){
   // live/presence badge in the call slot: count only, or "live" when no count.
   // (label stays in the API/read data + noltbook-dev; not shown in the row.)
   const activeBadge=active?`<span class="note-active-badge" title="${escAttr(active.label||'live')}"><span class="active-pip"></span>${active.count!=null?escHtml(''+active.count):'live'}</span>`:'';
-  div.innerHTML=`${chevron}<div class="note-icon" ${hasCustomIcon?'style="display:flex"':''}>${iconContent}</div><div class="note-text"><span class="note-name">${escHtml(displayNameStr)}</span><span class="note-source"${sourceColor?' style="color:'+sourceColor+'"':''}>${escHtml(source)}</span><span class="note-preview">${previewHtml}</span></div>${callBadge}${activeBadge}<span class="note-dot" style="background:${dotColor}"></span>`;
+  div.innerHTML=`${chevron}<div class="note-icon" ${hasCustomIcon?'style="display:flex"':''}>${iconContent}</div><div class="note-text"><span class="note-name">${escHtml(displayNameStr)}</span><span class="note-source"${sourceColor?' style="color:'+sourceColor+'"':''}>${escHtml(source)}</span><span class="note-preview">${previewHtml}</span></div>${callBadge}${activeBadge}<span class="note-dot${hasMention?' attn':''}" style="background:${dotColor}"></span>`;
   let clickTimer=null;
   div.onclick=()=>{
     // PHONE: long-press is the secondary action here, so there is no double-click to
@@ -5101,6 +5186,56 @@ function renderNode(el,node,depth,isThreadAnchor){
   else if(node.kind==='env')renderEnvCard(el,node.raw,depth,isThreadAnchor);
   else if(node.kind==='ref')renderRefCard(el,node.raw,depth,isThreadAnchor);
 }
+// ===== bounded history =====
+// A note opens with its most recent NB_HISTORY_CAP messages, which must match the
+// ship's history-cap. A full snapshot per open was the largest single cost measured.
+// The rest arrives when somebody scrolls back to the top -- no button, and the render
+// that follows resolves to 'preserve', so the view stays where the reader left it.
+const NB_HISTORY_CAP=300;
+const _historyAsked={};
+const _historyLoading={};
+function historyIsCapped(noteId){
+  return !!noteId&&!_historyAsked[noteId]&&(state.messages[noteId]||[]).length>=NB_HISTORY_CAP;
+}
+function loadEarlierMessages(noteId){
+  if(!historyIsCapped(noteId))return;
+  _historyAsked[noteId]=true;_historyLoading[noteId]=true;
+  const el=document.getElementById('chatMessages');
+  if(el&&state.currentNoteId===noteId)maybeAddHistoryNotice(noteId,el);
+  api.poke('noltbook','noltbook-action',{action:'fetch-note-history',data:{noteId:noteId}});
+}
+// scrolling into the top of the timeline is the request for older messages
+function maybeLoadEarlierOnScroll(){
+  const el=document.getElementById('chatMessages');
+  if(!el||el.scrollTop>120)return;
+  loadEarlierMessages(state.currentNoteId);
+}
+function maybeAddHistoryNotice(noteId,el){
+  if(!_historyLoading[noteId])return;
+  if(document.getElementById('historyLoadingNote'))return;
+  const d=document.createElement('div');
+  d.id='historyLoadingNote';d.textContent='Loading earlier messages...';
+  d.style.cssText='text-align:center;color:var(--text-dim);font-size:.75rem;padding:.4rem 0';
+  el.insertBefore(d,el.firstChild);
+}
+// nbDot: why does (or doesn't) a note show its dot? Prints every input the sidebar
+// uses. With no argument it reports every DM. Diagnostic only.
+function nbDot(nid){
+  const ids=nid?[nid]:Object.keys(state.notes).filter(k=>state.notes[k]&&state.notes[k].type==='dm');
+  const out=ids.map(function(id){
+    const row=document.querySelector('[data-note-id="'+id+'"]');
+    return {noteId:id,known:!!state.notes[id],open:state.currentNoteId===id,
+      inNotifications:state.notifications.has(id),
+      activity:state.noteActivity[id]||0,unreadActivity:state.noteUnreadActivity[id]||0,
+      read:state.noteRead[id]||0,noteUnread:noteUnread(id),
+      dotted:!!(state._trickleDotted&&state._trickleDotted.has(id)),
+      dmSectionExpanded:!!state.expandedSections.dm,
+      attentionTargets:(getAttentionTargets(id)||[]).length,
+      rowClass:row?row.className:null};
+  });
+  console.log(JSON.stringify(out,null,2));
+  return out;
+}
 function renderMessages(noteId,target){
   const el=document.getElementById('chatMessages');
   // ===== DOCUMENT NOTES =====
@@ -5130,7 +5265,7 @@ function renderMessages(noteId,target){
   const dividerInfo=state.unreadDividers[noteId]||null;
   let dividerInserted=false;
   destroyPluginFramesWithin(el);
-  el.innerHTML='';state.lastMsgAuthor=null;state.lastMsgDepth=-1;
+  el.innerHTML='';state.lastMsgAuthor=null;state.lastMsgDepth=-1;maybeAddHistoryNotice(noteId,el);
   if(noteId==='ars-rumors'){
     const saying=RUMOR_SAYINGS[Math.floor(Math.random()*RUMOR_SAYINGS.length)];
     const hdr=document.createElement('div');
@@ -15470,7 +15605,9 @@ function renderBuildBadge(){
     :('Noltbook build '+mine+' (click to copy)');
   el.setAttribute('aria-label',el.title);
 }
-function copyBuildBadge(){
+function copyBuildBadge(e){
+  // shift-click copies the update-traffic report instead of the build stamp
+  if(e&&e.shiftKey){nbStatsCopy();return}
   const t=NB_BUILD||'';
   if(!t)return;
   try{navigator.clipboard.writeText(t)}catch(e){}

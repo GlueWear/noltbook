@@ -777,6 +777,30 @@
   ^-  (list @p)
   %+  skim  ~(tap in incoming)
   |=(p=@p &(!=(p our) !(~(has in blocked) p)))
+::  per-member-active-ok: which notes carry a PER-MEMBER active status instead of the
+::  host's single one. A gossip note is hostless, so every member speaks for itself; a
+::  %group note now does the same, so an app can show how many of a note's members are
+::  in it right now. Every other type keeps the creator-only status.
+++  per-member-active-ok
+  |=  [nid=@ta n=note:noltbook]
+  ^-  ?
+  ?|  (gossip-active-ok nid n)
+      ?&  =(%group type.n)
+          !=(nid %cover)
+          !=("ars-" (scag 4 (trip nid)))
+      ==
+  ==
+::  active-audience: who hears our status for this note. Gossip is hostless, so it
+::  reaches our followers; a %group note reaches that note's members, the host included.
+::  A blocked ship never hears it either way.
+++  active-audience
+  |=  [our=@p nid=@ta nmap=(map @ta note:noltbook) incoming=(set @p) blocked=(set @p)]
+  ^-  (list @p)
+  =/  nt  (~(get by nmap) nid)
+  ?:  ?&(?=(^ nt) =(%group type.u.nt))
+    %+  skim  ~(tap in users.u.nt)
+    |=(p=@p &(!=(p our) !(~(has in blocked) p)))
+  (gossip-active-audience our incoming blocked)
 ::  gossip-active-send: one poke per ship, all on ONE wire per (ship, note), so Ames
 ::  delivers a member's starts and stops for a note in the order they were sent.
 ++  gossip-active-send
@@ -1332,11 +1356,50 @@
   ^-  @t
   ?.  =('' name.env)  (rap 3 'shared ' name.env ~)
   'shared a file'
+::  history-cap: how much of a note's timeline the BROWSER gets when it opens the
+::  note. Measured, a full snapshot per open was the largest single cost -- about 28K
+::  each. A remote ship is never capped: its copy of the note IS that list.
+++  history-cap  ^-(@ud 300)
+::  history-tail: the most recent history-cap messages, oldest first, unchanged when
+::  the note is shorter than the cap.
+++  history-tail
+  |=  l=(list message:noltbook)
+  ^-  (list message:noltbook)
+  =/  n=@ud  (lent l)
+  ?:  (lte n history-cap)  l
+  (slag (sub n history-cap) l)
+::  preview-cap: the sidebar shows one short line, so a whole post on the global
+::  path is waste. Counted in BYTES, not characters.
+++  preview-cap  ^-(@ud 160)
+::  preview-clip: clip to preview-cap bytes, then back off a partial UTF-8 sequence.
+::  A continuation byte is 10xxxxxx and a lead byte 11xxxxxx, and a cut may land on
+::  neither -- a split character would corrupt the JSON the browser parses. Falls
+::  back to the whole text rather than ever returning a broken cord.
+++  preview-clip
+  |=  t=@t
+  ^-  @t
+  =/  b=(list @)  (rip 3 t)
+  ?:  (lte (lent b) preview-cap)  t
+  =/  n=@ud  preview-cap
+  |-  ^-  @t
+  ?:  =(0 n)  t
+  =/  hd=(list @)  (scag n b)
+  =/  top=@  (rsh [0 6] (rear hd))
+  ?:  |(=(2 top) =(3 top))  $(n (dec n))
+  (rap 3 hd)
+::  is-art-delete-marker: the durable artifact-deletion system message. It stays a
+::  real message and keeps its dot, but it must never become a sidebar preview --
+::  the same filter the browser applies today.
+++  is-art-delete-marker
+  |=  t=@t
+  ^-  ?
+  =/  pfx=tape  "\01SYS:art-delete:"
+  =(pfx (scag (lent pfx) (trip t)))
 ::  sidebar-signal: compact /notes fact for a closed-note dot/preview without
 ::  shipping full content. preview=~ = dot-only (frontend won't overwrite an
 ::  existing preview). Callers must not emit for pinned notes (cover/rumors).
 ++  sidebar-signal
-  |=  [nid=@ta author=@p preview=(unit @t) kind=?(%message %artifact %gossip) time=@da]
+  |=  [nid=@ta author=@p preview=(unit @t) kind=?(%message %artifact %gossip %control) time=@da]
   ^-  card
   [%give %fact ~[/notes] %noltbook-update !>(`update:noltbook`[%note-sidebar-signal nid author preview kind time])]
 ::  is-host-unavailable: host-deleted OR host-unreachable. Either state
@@ -3885,7 +3948,24 @@
 ++  gf-notes
   |=  upd=update:noltbook
   ^-  card
-  [%give %fact ~[/notes] %noltbook-update !>(upd)]
+  ::  A whole message body used to go to every client on this path, for every note,
+  ::  open or closed. Measured, that was 22% of live traffic with three quarters of
+  ::  it addressed to notes nobody had open, and it is what clogs this subscription.
+  ::  The body now travels only on /notes/[nid], which the open note already
+  ::  subscribes to; this path carries the compact signal the sidebar actually needs.
+  ::  Every other update is passed through untouched.
+  ?.  ?=([%new-message *] upd)
+    [%give %fact ~[/notes] %noltbook-update !>(upd)]
+  =/  m=message:noltbook  msg.upd
+  ::  a hidden call marker drives no preview, no dot and no ordering; kind=%control
+  ::  states that, matching the filter the browser already applies
+  ?:  (is-call-marker text.m)
+    (sidebar-signal note-id.m author.m ~ %control timestamp.m)
+  ::  an art-delete marker keeps its dot but must not become the preview
+  =/  pre=(unit @t)
+    ?:  (is-art-delete-marker text.m)  ~
+    `(preview-clip text.m)
+  (sidebar-signal note-id.m author.m pre %message timestamp.m)
 ::  Runtime-size (Option A): factor remote pokes OUT of the door. Each embedded
 ::  !>(`remote:noltbook`…) inlines the large remote type-noun; one copy here replaces
 ::  one per call site. Same %pass/%agent/%poke/%noltbook-remote card, same wire/ship/noun.
@@ -5169,7 +5249,8 @@
         ==
       =.  via-by-eid  (api-via-put via-by-eid via.rem local-msg)
       :_  state(notes (~(put by notes) target-nid upd-note), messages (~(put by messages) target-nid new-cur), seq-counters (~(put by seq-counters) target-nid nxt-seq), note-activity (put-activity note-activity target-nid now.bowl), note-unread-activity (put-unread-activity note-unread-activity target-nid now.bowl), import-only-dms (~(del in import-only-dms) target-nid))
-      :(weld note-cards msg-cards ~[(activity-fact target-nid now.bowl) (unread-activity-fact target-nid now.bowl)])
+      ::  ordering and unread ride the sidebar signal gf-notes now emits for a message
+      :(weld note-cards msg-cards)
     ::
         %remote-note-pin
       ::  Ordinary-DM shared message pin, compare-and-set. NO ECHO: this handler emits
@@ -5421,8 +5502,8 @@
       =.  via-by-eid  (api-via-put via-by-eid via.rem stamped)
       =/  new-unread-activity=(map @ta @da)
         (put-unread-activity note-unread-activity note-id.rem now.bowl)
-      =/  unread-card=(list card)
-        ~[(unread-activity-fact note-id.rem now.bowl)]
+      ::  the sidebar signal carries unread now; the durable cursor above is unchanged
+      =/  unread-card=(list card)  ~
       :_  state(notes (~(put by notes) note-id.rem upd-note), messages (~(put by messages) note-id.rem (snoc cur stamped)), mentions new-mentions, attention na.ar, seq-counters new-seq, note-activity (put-activity note-activity note-id.rem now.bowl), note-unread-activity new-unread-activity)
       ^-  (list card:agent:gall)
       ::  1B.2: durable state + /notes/[nid] transport delivery are unchanged; the
@@ -5432,7 +5513,6 @@
           note-members  notes
         :*  (gf-paths ~[pax] upd)
             (gf-notes upd)
-            (activity-fact note-id.rem now.bowl)
             (weld unread-card (weld mention-cards ac.ar))
         ==
       ==
@@ -5819,7 +5899,15 @@
       ?:  (~(has in pal-blocked) src.bowl)  `state
       =/  nt  (~(get by notes) nid)
       ?~  nt  `state
-      ?.  (gossip-active-ok nid u.nt)  `state
+      ::  gossip keeps its own rule; on a %group note both the sender and we must be
+      ::  members, so nobody can post a presence row into a note they are not in.
+      ?.  ?|  (gossip-active-ok nid u.nt)
+              ?&  =(%group type.u.nt)
+                  (~(has in users.u.nt) src.bowl)
+                  (~(has in users.u.nt) our.bowl)
+              ==
+          ==
+        `state
       =/  inc=note-active:noltbook  active.rem
       ?.  ((sane %tas) desk.inc)  `state
       =/  lbl=@t
@@ -9416,9 +9504,12 @@
       (fall (~(get by gossip-envelopes) nid) *(map @da envelope:noltbook))
     =/  init-cards=(list card)
       ?.  is-gossip-note
-        ::  non-gossip: always send full messages + the via rows for this snapshot
+        ::  non-gossip: the via rows for this snapshot, and the messages themselves --
+        ::  capped for the browser, never for a remote ship, whose copy of the note IS
+        ::  this list. The browser asks for the rest with %fetch-note-history.
         =/  served-msgs=(list message:noltbook)
-          ?:(is-local msgs (dm-import-free-messages msgs dm-imports))
+          ?.  is-local  (dm-import-free-messages msgs dm-imports)
+          (history-tail msgs)
         ~[(gf-paths ~ `update:noltbook`[%message-list nid served-msgs arts (api-via-snapshot served-msgs arts via-by-eid) ?:(is-local (dm-import-snapshot served-msgs dm-imports) ~)])]
       ?:  is-local
         ::  local frontend: own-authored messages + all envelopes for re-fetch
@@ -10295,10 +10386,8 @@
         ?^(existing ~ ~[(gf-notes `update:noltbook`[%import-dm-note-created fresh])])
       =/  mu=update:noltbook  [%new-message msg ~ ~ `row]
       =/  live-cards=(list card:agent:gall)
-        :~  (gf-notes mu)
-            (activity-fact nid now.bowl)
-            (unread-activity-fact nid now.bowl)
-        ==
+        ::  ordering and unread ride the sidebar signal
+        ~[(gf-notes mu)]
       :_  this
       (weld note-cards (weld live-cards (api-result-card request-id.aa %.y %imported 'message imported locally' `nid `now.bowl `eid)))
     ::
@@ -10955,8 +11044,10 @@
       ::  own row, keyed [our desk], with no creator check. Refreshes stay on this ship;
       ::  pals hear a start, a change they can see (title, publisher or label) and a stop
       ::  -- never a heartbeat. Hosted notes continue below, unchanged and creator-only.
-      ?:  =(%gossip type.nt)
-        ?.  (gossip-active-ok note-id.aa nt)
+      ?:  (per-member-active-ok note-id.aa nt)
+        ::  a gossip note answers to its own rule; on a %group note we must actually be
+        ::  one of its members, since only a member may speak for itself.
+        ?.  ?|((gossip-active-ok note-id.aa nt) (~(has in users.nt) our.bowl))
           :_  this
           (api-result-card request-id.aa %.n %unsupported 'system notes do not support active status' `note-id.aa ~ ~)
         =/  lbl=@t
@@ -10984,7 +11075,7 @@
               ==
             ~
           `%.n
-        =/  aud=(list @p)  (gossip-active-audience our.bowl pal-incoming pal-blocked)
+        =/  aud=(list @p)  (active-audience our.bowl note-id.aa notes pal-incoming pal-blocked)
         =/  net-cards=(list card)
           ?~  news  ~
           (gossip-active-send aud note-id.aa `remote:noltbook`[%remote-gossip-active note-id.aa (gossip-active-shared row) u.news])
@@ -11031,7 +11122,7 @@
       ::  gossip: clears OUR rows only -- the calling app's row when attributed, otherwise
       ::  every row of ours on this note -- and tells pals each one stopped. Pending wakes
       ::  are left to find no row.
-      ?:  =(%gossip type.nt)
+      ?:  (per-member-active-ok note-id.aa nt)
         =/  mem=(map [@p @tas] note-active:noltbook)
           (fall (~(get by gossip-active) note-id.aa) *(map [@p @tas] note-active:noltbook))
         =/  gone=(list @tas)
@@ -11043,7 +11134,7 @@
           |-  ^-  (map [@p @tas] note-active:noltbook)
           ?~  ds  m
           $(ds t.ds, m (~(del by m) [our.bowl i.ds]))
-        =/  aud=(list @p)  (gossip-active-audience our.bowl pal-incoming pal-blocked)
+        =/  aud=(list @p)  (active-audience our.bowl note-id.aa notes pal-incoming pal-blocked)
         =/  stop-cards=(list card)
           %-  zing
           %+  turn  gone
@@ -12599,7 +12690,8 @@
           ?:  =(other our.bowl)  ~
           ~[(rpoke /dm-msg/[note-id.act] other dm-rem)]
         =/  notes-cards=(list card:agent:gall)
-          ~[(gf-notes upd) (activity-fact note-id.act now.bowl) (unread-activity-fact note-id.act now.bowl) (note-read-fact note-id.act now.bowl)]
+          ::  ordering rides the sidebar signal; the read cursor still travels
+          ~[(gf-notes upd) (note-read-fact note-id.act now.bowl)]
         ::  Phase 11B: attribute our own stored DM copy (via.ship = us, the sender).
         =.  via-by-eid  (api-via-put via-by-eid via.act msg)
         :_  this(notes (~(put by notes) note-id.act upd-note), messages (~(put by messages) note-id.act (snoc cur msg)), seq-counters ?:(is-regular (~(put by seq-counters) note-id.act nxt-seq) seq-counters), note-activity (put-activity note-activity note-id.act now.bowl), note-unread-activity (put-unread-activity note-unread-activity note-id.act now.bowl), note-read (put-read note-read note-id.act now.bowl), import-only-dms (~(del in import-only-dms) note-id.act))
@@ -12658,9 +12750,8 @@
         ?.  human-vis  ~[(gf-paths ~[pax] upd)]
         :~  (gf-paths ~[pax] upd)
             (gf-notes upd)
-            (activity-fact note-id.act now.bowl)
         ==
-      =?  base-cards  human-vis  (snoc base-cards (unread-activity-fact note-id.act now.bowl))
+      ::  ordering and unread ride the sidebar signal that gf-notes emits above
       =?  base-cards  human-vis  (snoc base-cards (note-read-fact note-id.act now.bowl))
       :_  this(notes (~(put by notes) note-id.act upd-note), messages (~(put by messages) note-id.act (snoc cur msg)), seq-counters new-seq-counters, note-activity (put-activity note-activity note-id.act now.bowl), note-unread-activity new-unread-activity, note-read note-read)
       base-cards
@@ -14208,6 +14299,26 @@
       :_  this(note-read nr)
       ~[(note-read-fact note-id.act now.bowl)]
     ::
+        %fetch-note-history
+      ::  the rest of a capped snapshot, asked for only when somebody scrolls back past
+      ::  the tail. Same visibility rule as the subscription that served the tail, and
+      ::  the answer goes to that same per-note path, where it replaces the list.
+      =/  hn  (~(get by notes) note-id.act)
+      ?~  hn  `this
+      ?.  (human-sees-note note-id.act our.bowl note-members notes)  `this
+      =/  hist=(list message:noltbook)  (fall (~(get by messages) note-id.act) ~)
+      =/  harts=(list artifact:noltbook)
+        %+  skim  ~(val by artifacts)
+        |=(a=artifact:noltbook =(note-id.a note-id.act))
+      =/  hcard=card
+        %+  gf-paths  ~[/notes/[note-id.act]]
+        :*  %message-list  note-id.act  hist  harts
+            (api-via-snapshot hist harts via-by-eid)
+            (dm-import-snapshot hist dm-imports)
+        ==
+      :_  this
+      ~[hcard]
+    ::
         %set-note-pin
       ::  ---- ordinary DM: symmetric participant authority, %message only ----
       ::  `expect` MUST be read here, BEFORE the local pin is replaced, so the peer's
@@ -15554,7 +15665,7 @@
     :_  this(gossip-active ?~(mem2 (~(del by gossip-active) nid) (~(put by gossip-active) nid mem2)))
     %+  weld
       (human-note-cards nid our.bowl note-members notes ~[(gf-notes (gossip-active-upd nid mem2 now.bowl))])
-    (gossip-active-send (gossip-active-audience our.bowl pal-incoming pal-blocked) nid `remote:noltbook`[%remote-gossip-inactive nid dsk])
+    (gossip-active-send (active-audience our.bowl nid notes pal-incoming pal-blocked) nid `remote:noltbook`[%remote-gossip-inactive nid dsk])
   ::  Call lease expiry. The wire carries note, CALL ID, participant and deadline, and
   ::  every one is re-checked below, in that order. Nothing is ever cancelled, so no
   ::  timer bookkeeping can leak; a wake that no longer describes reality simply returns.
