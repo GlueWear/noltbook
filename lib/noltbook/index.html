@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="nb-build" content="il5th95i3s">
+<meta name="nb-build" content="9mo226h8nk">
 <title>NOLTBOOK</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20355.9%20355.9%22%20width=%22355.9%22%20height=%22355.9%22%3E%3Cg%20fill=%22%23ffffff%22%20transform=%22translate(-10.9901536%2036.4439936)%20scale(1.06235712)%22%3E%3Cpolygon%20points=%2266%20159.5%2066%2021.2%20204.3%2021.2%20204.3%2080.8%20204.3%20112.5%20204.3%20159.5%20160.7%20159.5%20160.7%20180.7%20225.5%20180.7%20225.5%20112.5%20225.5%2080.8%20225.5%200%2044.8%200%2044.8%20180.7%20121%20180.7%20121%20159.5%2066%20159.5%22/%3E%3Cpolygon%20points=%22234.7%2085.7%20234.7%20106.9%20289.8%20106.9%20289.8%20245.3%20151.4%20245.3%20151.4%20186.8%20151.4%20180.7%20151.4%20159.5%20151.4%20155.1%20151.4%20106.9%20195%20106.9%20195%2085.7%20130.2%2085.7%20130.2%20151.8%20130.2%20159.5%20130.2%20180.7%20130.2%20183.5%20130.2%20266.4%20310.9%20266.4%20310.9%2085.7%20234.7%2085.7%22/%3E%3C/g%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -3132,7 +3132,7 @@ function handleUpdate(upd){
   else if(upd['note-pin-updated']){const{noteId,pin}=upd['note-pin-updated'];if(pin)state.notePins[noteId]=pin;else delete state.notePins[noteId];if(noteId===state.currentNoteId){renderPinSurface(noteId);scheduleRender(noteId)}}
   else if(upd['note-active-updated']){const{noteId,active}=upd['note-active-updated'];if(active)state.noteActive[noteId]=active;else delete state.noteActive[noteId];scheduleActiveExpiry(noteId);renderNoteList()}
   // gossip notes: every live member row for the note, as an authoritative replacement
-  else if(upd['gossip-active-updated']){const{noteId,active}=upd['gossip-active-updated'];if(active&&active.length)state.gossipActive[noteId]=active;else delete state.gossipActive[noteId];scheduleGossipActiveExpiry(noteId);renderNoteList()}
+  else if(upd['gossip-active-updated']){const{noteId,active}=upd['gossip-active-updated'];/* A %group note's host republishes the same roster every couple of minutes purely to refresh each member's deadline. Keep the deadline and re-arm the timer, but do not redraw the sidebar for a roster that names the same ships, apps and labels. */const _gaSig=function(rows){return (rows||[]).map(function(x){return x.setBy+'|'+x.desk+'|'+(x.label||'')+'|'+(x.title||'')+'|'+(x.publisher||'')}).sort().join(',')};const _gaSame=_gaSig(state.gossipActive[noteId])===_gaSig(active);if(active&&active.length)state.gossipActive[noteId]=active;else delete state.gossipActive[noteId];scheduleGossipActiveExpiry(noteId);if(!_gaSame)renderNoteList()}
   else if(upd['note-activity-list']){const list=upd['note-activity-list']||[];state.noteActivity={};for(const a of list)state.noteActivity[a.noteId]=a.activity;console.log('[note-activity-list]',list.length,'entries');rebuildSidebarUnread();scheduleNoteList()}
   else if(upd['note-activity']){const d=upd['note-activity'];const cur=state.noteActivity[d.noteId]||0;if(d.activity>cur)state.noteActivity[d.noteId]=d.activity;rederiveNoteUnread(d.noteId);scheduleNoteList()}
   else if(upd['note-read-list']){const list=upd['note-read-list']||[];state.noteRead={};for(const r of list)state.noteRead[r.noteId]=r.read;console.log('[note-read-list]',list.length,'entries');rebuildSidebarUnread();scheduleNoteList()}

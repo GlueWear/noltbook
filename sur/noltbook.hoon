@@ -530,6 +530,10 @@
       ::  with its own rows, ask=|. Additive: a ship without these rejects just this message.
       [%remote-gossip-active note-id=@ta active=note-active ask=?]
       [%remote-gossip-inactive note-id=@ta desk=@tas]
+      ::  a %group note's host publishing its authoritative presence roster. Rows carry
+      ::  no deadline and no count: each member keeps its own deadline, and members
+      ::  count distinct ships.
+      [%remote-note-active-roster note-id=@ta rows=(list note-active) gen=@ud]
       [%remote-rumor msg=message hops=@ud]
       [%remote-profile ship=@p profile=profile]
       ::  Phase 3: explicit profile lookup by ship. Sender is src.bowl on both

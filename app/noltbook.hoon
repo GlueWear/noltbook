@@ -801,6 +801,111 @@
     %+  skim  ~(tap in users.u.nt)
     |=(p=@p &(!=(p our) !(~(has in blocked) p)))
   (gossip-active-audience our incoming blocked)
+::  ===== host-authoritative presence on %group notes =====
+::  A %group note has a host, so presence there is a LEASE rather than a claim each
+::  member broadcasts to everyone. A member renews with the host alone; the host holds
+::  one lease per [member, desk], drops a member that stops renewing, and publishes the
+::  roster. A crashed or disconnected ship therefore leaves the roster without having to
+::  come back and say so -- which is the whole point, and what the hostless gossip path
+::  cannot do.
+++  note-lease-ttl    ^-(@dr ~m5)
+::  the host republishes an unchanged roster on this beat, so every member's copy holds
+::  a deadline that keeps moving while the host is alive, and stops when it is not.
+++  note-roster-beat  ^-(@dr ~m2)
+++  note-roster-ttl   ^-(@dr ~m5)
+++  note-lease-wire
+  |=  [nid=@ta who=@p dsk=@tas at=@da]
+  ^-  wire
+  /note-lease/[nid]/(scot %p who)/[dsk]/(scot %da at)
+++  note-roster-wire
+  |=  [nid=@ta at=@da]
+  ^-  wire
+  /note-roster/[nid]/(scot %da at)
+++  note-roster-exp-wire
+  |=  [nid=@ta at=@da]
+  ^-  wire
+  /note-roster-exp/[nid]/(scot %da at)
+::  roster-same: two rosters are the same when they name the same ships, apps and
+::  labels. Deadlines and timestamps are deliberately excluded, so a renewal that
+::  changes nothing emits nothing, redraws nothing and notifies nobody.
+++  roster-same
+  |=  $:  a=(map [@p @tas] note-active:noltbook)
+          b=(map [@p @tas] note-active:noltbook)
+      ==
+  ^-  ?
+  =/  norm
+    |=  m=(map [@p @tas] note-active:noltbook)
+    ^-  (map [@p @tas] [@t (unit @t) (unit @p)])
+    (~(run by m) |=(x=note-active:noltbook [label.x title.x publisher.x]))
+  =((norm a) (norm b))
+::  note-roster-cards: the host's roster, to every other member. Our deadlines never
+::  travel -- each member keeps its own -- and count never travels, because members
+::  count distinct ships rather than trusting a number.
+++  note-roster-cards
+  |=  $:  nid=@ta  nt=note:noltbook  our=@p
+          mem=(map [@p @tas] note-active:noltbook)
+          blocked=(set @p)  now=@da
+      ==
+  ^-  (list card:agent:gall)
+  =/  rows=(list note-active:noltbook)
+    %+  turn  (gossip-active-live mem now)
+    |=(a=note-active:noltbook a(count ~, expires-at *@da))
+  %+  turn
+    %+  skim  ~(tap in users.nt)
+    |=(p=@p &(!=(p our) !(~(has in blocked) p)))
+  |=  p=@p
+  %-  rpoke
+  :+  /note-roster-out/(scot %p p)/[nid]
+    p
+  `remote:noltbook`[%remote-note-active-roster nid rows `@ud`now]
+::  note-lease-apply: record one member's renewal on the host and say what follows.
+::  Returns the cards and the new map. A renewal that changes no name, app or label
+::  moves only the deadline: no roster publish, no local fact.
+++  note-lease-apply
+  |=  $:  nid=@ta  nt=note:noltbook  our=@p  who=@p
+          row=note-active:noltbook
+          ga=(map @ta (map [@p @tas] note-active:noltbook))
+          blocked=(set @p)  now=@da
+      ==
+  ^-  [(list card:agent:gall) (map @ta (map [@p @tas] note-active:noltbook))]
+  =/  mem  (fall (~(get by ga) nid) *(map [@p @tas] note-active:noltbook))
+  =/  prev=(unit note-active:noltbook)  (~(get by mem) [who desk.row])
+  =/  exp=@da  (add now note-lease-ttl)
+  =/  fresh=note-active:noltbook  row(count ~, set-by who, updated-at now, expires-at exp)
+  =/  mem2  (~(put by mem) [who desk.row] fresh)
+  =/  changed=?  !(roster-same mem mem2)
+  ::  one wake per lease: cancel the deadline this renewal replaces, arm the new one
+  =/  wake-cards=(list card:agent:gall)
+    %+  weld
+      ?~  prev  ~
+      ?:  =(*@da expires-at.u.prev)  ~
+      ~[`card:agent:gall`[%pass (note-lease-wire nid who desk.row expires-at.u.prev) %arvo %b %rest expires-at.u.prev]]
+    ~[`card:agent:gall`[%pass (note-lease-wire nid who desk.row exp) %arvo %b %wait exp]]
+  ::  the republish beat starts with the note's first live lease and stops with its last
+  =/  beat-cards=(list card:agent:gall)
+    ?.  =(~ mem)  ~
+    =/  at=@da  (add now note-roster-beat)
+    ~[`card:agent:gall`[%pass (note-roster-wire nid at) %arvo %b %wait at]]
+  :_  (~(put by ga) nid mem2)
+  ?.  changed  (weld wake-cards beat-cards)
+  :(weld wake-cards beat-cards (note-roster-cards nid nt our mem2 blocked now))
+::  note-lease-drop: remove one member's lease on the host -- an explicit clear, an
+::  expiry, a removal or a block -- and publish what is left.
+++  note-lease-drop
+  |=  $:  nid=@ta  nt=note:noltbook  our=@p  who=@p  dsk=@tas
+          ga=(map @ta (map [@p @tas] note-active:noltbook))
+          blocked=(set @p)  now=@da
+      ==
+  ^-  [(list card:agent:gall) (map @ta (map [@p @tas] note-active:noltbook))]
+  =/  mem  (fall (~(get by ga) nid) *(map [@p @tas] note-active:noltbook))
+  =/  prev=(unit note-active:noltbook)  (~(get by mem) [who dsk])
+  ?~  prev  [~ ga]
+  =/  mem2  (~(del by mem) [who dsk])
+  :_  ?~(mem2 (~(del by ga) nid) (~(put by ga) nid mem2))
+  %+  weld
+    ?:  =(*@da expires-at.u.prev)  ~
+    ~[`card:agent:gall`[%pass (note-lease-wire nid who dsk expires-at.u.prev) %arvo %b %rest expires-at.u.prev]]
+  (note-roster-cards nid nt our mem2 blocked now)
 ::  gossip-active-send: one poke per ship, all on ONE wire per (ship, note), so Ames
 ::  delivers a member's starts and stops for a note in the order they were sent.
 ++  gossip-active-send
@@ -5908,6 +6013,38 @@
               ==
           ==
         `state
+      ::  %group presence is host-authoritative: only the note's creator records a
+      ::  member's renewal, and only the creator's roster is believed anywhere else.
+      ?:  =(%group type.u.nt)
+        ?.  =(our.bowl creator.u.nt)  `state
+        ?.  ((sane %tas) desk.active.rem)  `state
+        =/  glbl=@t
+          =/  raw=@t  (crip (scag 32 (trip label.active.rem)))
+          ?:(=('' raw) 'live' raw)
+        =/  grow=note-active:noltbook
+          :*  desk.active.rem
+              ?~(title.active.rem ~ `(crip (scag 80 (trip u.title.active.rem))))
+              publisher.active.rem
+              glbl
+              ~
+              src.bowl
+              now.bowl
+              *@da
+          ==
+        =/  gbefore  (fall (~(get by gossip-active) nid) *(map [@p @tas] note-active:noltbook))
+        =/  gres
+          %:  note-lease-apply
+            nid  u.nt  our.bowl  src.bowl  grow
+            gossip-active  pal-blocked  now.bowl
+          ==
+        =/  gafter  (fall (~(get by +.gres) nid) *(map [@p @tas] note-active:noltbook))
+        =/  glocal=(list card)
+          ?:  (roster-same gbefore gafter)  ~
+          %:  human-note-cards  nid  our.bowl  note-members  notes
+            ~[(gf-notes (gossip-active-upd nid gafter now.bowl))]
+          ==
+        :_  state(gossip-active +.gres)
+        (weld -.gres glocal)
       =/  inc=note-active:noltbook  active.rem
       ?.  ((sane %tas) desk.inc)  `state
       =/  lbl=@t
@@ -5956,12 +6093,73 @@
       ::  that member's app status on this note stopped. Removal only, keyed on src.bowl.
       =/  nid=@ta  note-id.rem
       ?:  =(src.bowl our.bowl)  `state
+      ::  on a %group note the lease lives with the creator, so a stop cancels the lease
+      ::  and republishes; no other member acts on a member's word.
+      =/  gnt  (~(get by notes) nid)
+      ?:  ?&(?=(^ gnt) =(%group type.u.gnt))
+        ?.  =(our.bowl creator.u.gnt)  `state
+        =/  gbefore  (fall (~(get by gossip-active) nid) *(map [@p @tas] note-active:noltbook))
+        =/  gres
+          %:  note-lease-drop
+            nid  u.gnt  our.bowl  src.bowl  desk.rem
+            gossip-active  pal-blocked  now.bowl
+          ==
+        =/  gafter  (fall (~(get by +.gres) nid) *(map [@p @tas] note-active:noltbook))
+        =/  glocal=(list card)
+          ?:  (roster-same gbefore gafter)  ~
+          %:  human-note-cards  nid  our.bowl  note-members  notes
+            ~[(gf-notes (gossip-active-upd nid gafter now.bowl))]
+          ==
+        :_  state(gossip-active +.gres)
+        (weld -.gres glocal)
       =/  mem=(map [@p @tas] note-active:noltbook)
         (fall (~(get by gossip-active) nid) *(map [@p @tas] note-active:noltbook))
       ?.  (~(has by mem) [src.bowl desk.rem])  `state
       =/  mem2=(map [@p @tas] note-active:noltbook)  (~(del by mem) [src.bowl desk.rem])
       :_  state(gossip-active ?~(mem2 (~(del by gossip-active) nid) (~(put by gossip-active) nid mem2)))
       (human-note-cards nid our.bowl note-members notes ~[(gf-notes (gossip-active-upd nid mem2 now.bowl))])
+    ::
+        %remote-note-active-roster
+      ::  the note's host saying who is present. Believed only from the creator of a
+      ::  %group note we are in. Rows are stored against OUR OWN deadline, so if the host
+      ::  goes quiet the badge clears here without anyone having to tell us.
+      =/  nid=@ta  note-id.rem
+      ?:  =(src.bowl our.bowl)  `state
+      =/  nt  (~(get by notes) nid)
+      ?~  nt  `state
+      ?.  =(%group type.u.nt)  `state
+      ?.  =(src.bowl creator.u.nt)  `state
+      ?.  (~(has in users.u.nt) our.bowl)  `state
+      =/  exp=@da  (add now.bowl note-roster-ttl)
+      =/  before  (fall (~(get by gossip-active) nid) *(map [@p @tas] note-active:noltbook))
+      =/  mem2=(map [@p @tas] note-active:noltbook)
+        %-  ~(gas by *(map [@p @tas] note-active:noltbook))
+        %+  murn  rows.rem
+        |=  a=note-active:noltbook
+        ^-  (unit [[@p @tas] note-active:noltbook])
+        ?.  ((sane %tas) desk.a)  ~
+        ::  a roster may only name current members, and never anyone we block
+        ?.  (~(has in users.u.nt) set-by.a)  ~
+        ?:  (~(has in pal-blocked) set-by.a)  ~
+        =/  lbl=@t
+          =/  raw=@t  (crip (scag 32 (trip label.a)))
+          ?:(=('' raw) 'live' raw)
+        `[[set-by.a desk.a] a(label lbl, count ~, expires-at exp)]
+      ::  one wake per note: cancel the deadline this roster replaces, arm the new one
+      =/  prev-exp=@da
+        =/  vals=(list note-active:noltbook)  ~(val by before)
+        ?~(vals *@da expires-at.i.vals)
+      =/  wake-cards=(list card)
+        %+  weld
+          ?:  =(*@da prev-exp)  ~
+          ~[`card:agent:gall`[%pass (note-roster-exp-wire nid prev-exp) %arvo %b %rest prev-exp]]
+        ?~  mem2  ~
+        ~[`card:agent:gall`[%pass (note-roster-exp-wire nid exp) %arvo %b %wait exp]]
+      :_  state(gossip-active ?~(mem2 (~(del by gossip-active) nid) (~(put by gossip-active) nid mem2)))
+      %+  weld  wake-cards
+      %:  human-note-cards  nid  our.bowl  note-members  notes
+        ~[(gf-notes (gossip-active-upd nid mem2 now.bowl))]
+      ==
     ::
         %remote-rumor
       ::  RUMORS: anonymous gossip from a peer. Identity model is
@@ -11040,6 +11238,52 @@
       ?:  (is-write-blocked note-id.aa host-status notes our.bowl)
         :_  this
         (api-result-card request-id.aa %.n %rejected 'write blocked' `note-id.aa ~ ~)
+      ::  ---- %group notes are HOST-AUTHORITATIVE ----
+      ::  The public API is unchanged: this same call renews a lease with the note's
+      ::  creator, which holds every member's lease and publishes the roster. Nothing is
+      ::  stored or broadcast from a member, and our own row comes back with the rest.
+      ?:  ?&(=(%group type.nt) !=(our.bowl creator.nt))
+        ?.  (~(has in users.nt) our.bowl)
+          :_  this
+          (api-result-card request-id.aa %.n %rejected 'not a member of this note' `note-id.aa ~ ~)
+        =/  lbl=@t
+          =/  raw=@t  ?~(label.aa '' (crip (scag 32 (trip u.label.aa))))
+          ?:(=('' raw) 'live' raw)
+        =/  row=note-active:noltbook
+          [desk.u.app.aa title.u.app.aa publisher.u.app.aa lbl ~ our.bowl now.bowl *@da]
+        :_  this
+        %+  weld
+          ::  one wire per note keeps our renewals and our stop in order
+          :~  %-  rpoke
+              :+  /note-active-out/[note-id.aa]
+                creator.nt
+              `remote:noltbook`[%remote-gossip-active note-id.aa row %.y]
+          ==
+        (api-result-card request-id.aa %.y %active-set 'active set' `note-id.aa ~ ~)
+      ::  the host records its own presence as a lease like anybody else's
+      ?:  ?&(=(%group type.nt) =(our.bowl creator.nt))
+        ?.  (~(has in users.nt) our.bowl)
+          :_  this
+          (api-result-card request-id.aa %.n %rejected 'not a member of this note' `note-id.aa ~ ~)
+        =/  lbl=@t
+          =/  raw=@t  ?~(label.aa '' (crip (scag 32 (trip u.label.aa))))
+          ?:(=('' raw) 'live' raw)
+        =/  row=note-active:noltbook
+          [desk.u.app.aa title.u.app.aa publisher.u.app.aa lbl ~ our.bowl now.bowl *@da]
+        =/  before  (fall (~(get by gossip-active) note-id.aa) *(map [@p @tas] note-active:noltbook))
+        =/  res
+          %:  note-lease-apply
+            note-id.aa  nt  our.bowl  our.bowl  row
+            gossip-active  pal-blocked  now.bowl
+          ==
+        =/  after  (fall (~(get by +.res) note-id.aa) *(map [@p @tas] note-active:noltbook))
+        =/  local-cards=(list card)
+          ?:  (roster-same before after)  ~
+          %:  human-note-cards  note-id.aa  our.bowl  note-members  notes
+            ~[(gf-notes (gossip-active-upd note-id.aa after now.bowl))]
+          ==
+        :_  this(gossip-active +.res)
+        :(weld -.res local-cards (api-result-card request-id.aa %.y %active-set 'active set' `note-id.aa ~ ~))
       ::  gossip notes are hostless, so the status is PER MEMBER: each ship sets only its
       ::  own row, keyed [our desk], with no creator check. Refreshes stay on this ship;
       ::  pals hear a start, a change they can see (title, publisher or label) and a stop
@@ -11119,6 +11363,36 @@
       ?.  (pin-note-ok nt)
         :_  this
         (api-result-card request-id.aa %.n %unsupported 'note type does not support active status' `note-id.aa ~ ~)
+      ::  %group: the lease lives on the host, so a clear is a stop sent there (or applied
+      ::  directly when we are the host). Attribution is required, because a lease is
+      ::  keyed by app and we no longer hold a local list of our own rows to sweep.
+      ?:  =(%group type.nt)
+        ?~  app.aa
+          :_  this
+          (api-result-card request-id.aa %.n %missing-app 'clear-note-active on a group note requires top-level app attribution' `note-id.aa ~ ~)
+        ?.  =(our.bowl creator.nt)
+          :_  this
+          %+  weld
+            :~  %-  rpoke
+                :+  /note-active-out/[note-id.aa]
+                  creator.nt
+                `remote:noltbook`[%remote-gossip-inactive note-id.aa desk.u.app.aa]
+            ==
+          (api-result-card request-id.aa %.y %active-cleared 'active cleared' `note-id.aa ~ ~)
+        =/  before  (fall (~(get by gossip-active) note-id.aa) *(map [@p @tas] note-active:noltbook))
+        =/  res
+          %:  note-lease-drop
+            note-id.aa  nt  our.bowl  our.bowl  desk.u.app.aa
+            gossip-active  pal-blocked  now.bowl
+          ==
+        =/  after  (fall (~(get by +.res) note-id.aa) *(map [@p @tas] note-active:noltbook))
+        =/  local-cards=(list card)
+          ?:  (roster-same before after)  ~
+          %:  human-note-cards  note-id.aa  our.bowl  note-members  notes
+            ~[(gf-notes (gossip-active-upd note-id.aa after now.bowl))]
+          ==
+        :_  this(gossip-active +.res)
+        :(weld -.res local-cards (api-result-card request-id.aa %.y %active-cleared 'active cleared' `note-id.aa ~ ~))
       ::  gossip: clears OUR rows only -- the calling app's row when attributed, otherwise
       ::  every row of ours on this note -- and tells pals each one stopped. Pending wakes
       ::  are left to find no row.
@@ -15650,6 +15924,61 @@
   ::  the previous wake and arms its own, so a matching deadline that has passed means
   ::  the app stopped refreshing: drop the row and tell pals it stopped. An overdue wake
   ::  still fires after a restart.
+  ::  %group presence: one member's lease lapsed on the host. Drop it and republish.
+  ?:  ?=([%note-lease @ @ @ @ ~] wire)
+    ?.  ?=([%behn %wake *] sign-arvo)  `this
+    =/  nid=@ta  i.t.wire
+    =/  who=@p  (slav %p i.t.t.wire)
+    =/  dsk=@tas  i.t.t.t.wire
+    =/  at=@da  (slav %da i.t.t.t.t.wire)
+    =/  nt  (~(get by notes) nid)
+    ?~  nt  `this
+    ?.  =(our.bowl creator.u.nt)  `this
+    =/  mem  (fall (~(get by gossip-active) nid) *(map [@p @tas] note-active:noltbook))
+    =/  cur  (~(get by mem) [who dsk])
+    ?~  cur  `this
+    ?.  =(expires-at.u.cur at)  `this
+    ?:  (gth expires-at.u.cur now.bowl)  `this
+    =/  res
+      %:  note-lease-drop
+        nid  u.nt  our.bowl  who  dsk
+        gossip-active  pal-blocked  now.bowl
+      ==
+    =/  after  (fall (~(get by +.res) nid) *(map [@p @tas] note-active:noltbook))
+    :_  this(gossip-active +.res)
+    %+  weld  -.res
+    %:  human-note-cards  nid  our.bowl  note-members  notes
+      ~[(gf-notes (gossip-active-upd nid after now.bowl))]
+    ==
+  ::  the host's republish beat: an unchanged roster still refreshes every member's
+  ::  deadline, and the beat stops with the note's last live lease.
+  ?:  ?=([%note-roster @ @ ~] wire)
+    ?.  ?=([%behn %wake *] sign-arvo)  `this
+    =/  nid=@ta  i.t.wire
+    =/  nt  (~(get by notes) nid)
+    ?~  nt  `this
+    ?.  =(our.bowl creator.u.nt)  `this
+    =/  mem  (fall (~(get by gossip-active) nid) *(map [@p @tas] note-active:noltbook))
+    =/  live=(list note-active:noltbook)  (gossip-active-live mem now.bowl)
+    ?~  live  `this
+    =/  at=@da  (add now.bowl note-roster-beat)
+    :_  this
+    %+  weld  (note-roster-cards nid u.nt our.bowl mem pal-blocked now.bowl)
+    ~[`card:agent:gall`[%pass (note-roster-wire nid at) %arvo %b %wait at]]
+  ::  a member's copy of the roster lapsed: the host stopped talking, so clear the badge.
+  ?:  ?=([%note-roster-exp @ @ ~] wire)
+    ?.  ?=([%behn %wake *] sign-arvo)  `this
+    =/  nid=@ta  i.t.wire
+    =/  at=@da  (slav %da i.t.t.wire)
+    =/  mem  (fall (~(get by gossip-active) nid) *(map [@p @tas] note-active:noltbook))
+    =/  vals=(list note-active:noltbook)  ~(val by mem)
+    ?~  vals  `this
+    ?.  =(at expires-at.i.vals)  `this
+    ?:  (gth expires-at.i.vals now.bowl)  `this
+    :_  this(gossip-active (~(del by gossip-active) nid))
+    %:  human-note-cards  nid  our.bowl  note-members  notes
+      ~[(gf-notes (gossip-active-upd nid *(map [@p @tas] note-active:noltbook) now.bowl))]
+    ==
   ?:  ?=([%gossip-active @ @ @ ~] wire)
     ?.  ?=([%behn %wake *] sign-arvo)  `this
     =/  nid=@ta  i.t.wire
