@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="nb-build" content="9mo226h8nk">
+<meta name="nb-build" content="8refbr2nkd">
 <title>NOLTBOOK</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20355.9%20355.9%22%20width=%22355.9%22%20height=%22355.9%22%3E%3Cg%20fill=%22%23ffffff%22%20transform=%22translate(-10.9901536%2036.4439936)%20scale(1.06235712)%22%3E%3Cpolygon%20points=%2266%20159.5%2066%2021.2%20204.3%2021.2%20204.3%2080.8%20204.3%20112.5%20204.3%20159.5%20160.7%20159.5%20160.7%20180.7%20225.5%20180.7%20225.5%20112.5%20225.5%2080.8%20225.5%200%2044.8%200%2044.8%20180.7%20121%20180.7%20121%20159.5%2066%20159.5%22/%3E%3Cpolygon%20points=%22234.7%2085.7%20234.7%20106.9%20289.8%20106.9%20289.8%20245.3%20151.4%20245.3%20151.4%20186.8%20151.4%20180.7%20151.4%20159.5%20151.4%20155.1%20151.4%20106.9%20195%20106.9%20195%2085.7%20130.2%2085.7%20130.2%20151.8%20130.2%20159.5%20130.2%20180.7%20130.2%20183.5%20130.2%20266.4%20310.9%20266.4%20310.9%2085.7%20234.7%2085.7%22/%3E%3C/g%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -9361,7 +9361,7 @@ function mountPluginHost(hostId,force){
   if(!frameHref){pluginFallback(host,'App launch unavailable',false);return}
   const iframe=document.createElement('iframe');
   const frameId='nb-plugin-frame-'+(++pluginFrameSeq),session=pluginSession();
-  iframe.id=frameId;iframe.src=frameHref;applyPluginFramePermissions(iframe,pluginMediaForFrame(spec,manifest));iframe.setAttribute('loading','lazy');iframe.setAttribute('referrerpolicy','same-origin');
+  iframe.id=frameId;iframe.src=frameHref;applyPluginFramePermissions(iframe,pluginMediaForFrame(spec,manifest),pluginPointerLockForFrame(spec,manifest));iframe.setAttribute('loading','lazy');iframe.setAttribute('referrerpolicy','same-origin');
   const size=spec.mode==='note-artifact'
     ?(pluginSurfaceSize(manifest.artifact,'artifact')||pluginSurfaceSize(spec,'artifact'))
     :(pluginSurfaceSize(spec,spec.mode==='embedded-app'?'embedded':'tool')||pluginSurfaceSize(spec.mode==='embedded-app'?manifest.launch:manifest.artifact,spec.mode==='embedded-app'?'embedded':'tool'));
@@ -9782,7 +9782,7 @@ function openPluginTool(desk){
   applyPluginShellSize(overlay&&overlay.querySelector('.plugin-tool-shell'),'tool',size);
   document.getElementById('pluginToolTitle').textContent=manifest.artifact.label||manifest.title||desk;
   overlay.classList.add('open');overlay.setAttribute('aria-hidden','false');
-  pluginHosts.set(hostId,{mode:'private-tool',desk:desk,publisher:appPublisher(desk)||null,noteId:state.currentNoteId,replyToEid:state.replyingToEid||null,persistent:true,width:size&&size.width,height:size&&size.height,media:!!(manifest.artifact&&manifest.artifact.media)});mountPluginHost(hostId,true);
+  pluginHosts.set(hostId,{mode:'private-tool',desk:desk,publisher:appPublisher(desk)||null,noteId:state.currentNoteId,replyToEid:state.replyingToEid||null,persistent:true,width:size&&size.width,height:size&&size.height,media:!!(manifest.artifact&&manifest.artifact.media),pointerLock:!!(manifest.artifact&&manifest.artifact.pointerLock)});mountPluginHost(hostId,true);
 }
 function closePluginTool(){
   const overlay=document.getElementById('pluginToolOverlay'),body=document.getElementById('pluginToolBody');if(!overlay||!body)return;
@@ -9803,7 +9803,7 @@ function openEmbeddedApp(href,desk,title,sizeHint,context,source){
   applyPluginShellSize(overlay&&overlay.querySelector('.embedded-app-shell'),'embedded',size);
   embeddedAppHref=safe;document.getElementById('embeddedAppTitle').textContent=title||('%'+desk);
   overlay.classList.add('open');overlay.setAttribute('aria-hidden','false');
-  pluginHosts.set(hostId,{mode:'embedded-app',desk:desk,publisher:appPublisher(desk)||null,noteId:state.currentNoteId,replyToEid:null,persistent:true,href:safe,width:size&&size.width,height:size&&size.height,media:!!(sizeHint&&sizeHint.media),context:context||null,sourceArtifactId:(source&&source.artifactId)||null,sourceNoteId:(source&&source.noteId)||null,sourceDesk:(source&&source.desk)||null});
+  pluginHosts.set(hostId,{mode:'embedded-app',desk:desk,publisher:appPublisher(desk)||null,noteId:state.currentNoteId,replyToEid:null,persistent:true,href:safe,width:size&&size.width,height:size&&size.height,media:!!(sizeHint&&sizeHint.media),pointerLock:!!(sizeHint&&sizeHint.pointerLock),context:context||null,sourceArtifactId:(source&&source.artifactId)||null,sourceNoteId:(source&&source.noteId)||null,sourceDesk:(source&&source.desk)||null});
   mountPluginHost(hostId,true);
 }
 // nb:open-app bridge: a registered plugin iframe asks the host to open the normal embedded
@@ -11879,7 +11879,7 @@ function pluginCopySize(target,size){
   return target;
 }
 function pluginSizeAttrs(size){
-  return (size&&size.width!=null?' data-grimoire-open-width="'+size.width+'"':'')+(size&&size.height!=null?' data-grimoire-open-height="'+size.height+'"':'')+(size&&size.media?' data-grimoire-open-media="1"':'');
+  return (size&&size.width!=null?' data-grimoire-open-width="'+size.width+'"':'')+(size&&size.height!=null?' data-grimoire-open-height="'+size.height+'"':'')+(size&&size.media?' data-grimoire-open-media="1"':'')+(size&&size.pointerLock?' data-grimoire-open-pointer-lock="1"':'');
 }
 function applyPluginShellSize(shell,kind,size){
   if(!shell)return;
@@ -11895,11 +11895,14 @@ function applyPluginArtifactHostSize(host,size){
 function pluginManifestPerm(src,perm){
   if(!src||typeof src!=='object')return false;
   if(perm==='media'&&src.media===true)return true;
+  if(perm==='pointer-lock'&&src.pointerLock===true)return true;
   const p=Array.isArray(src.permissions)?src.permissions:[];
   return p.some(x=>String(x).toLowerCase()===perm);
 }
-function pluginCopyMedia(target,enabled){
+function pluginCopyMedia(target,enabled,pointerLock){
   if(enabled)target.media=true;
+  // independent of media: a game that only wants the mouse gets no same-origin
+  if(pointerLock)target.pointerLock=true;
   return target;
 }
 function pluginMediaForFrame(spec,manifest){
@@ -11908,9 +11911,19 @@ function pluginMediaForFrame(spec,manifest){
   if(spec&&spec.mode==='embedded-app')return !!(manifest.launch&&manifest.launch.media);
   return !!(manifest.artifact&&manifest.artifact.media);
 }
-function applyPluginFramePermissions(iframe,media){
+// pointer lock: only for an app that declares it ("pointer-lock" in its permissions, or
+// pointerLock on the surface). The browser still requires a click in the frame, Esc
+// releases it, and the app learns mouse movement only.
+function pluginPointerLockForFrame(spec,manifest){
+  if(spec&&spec.pointerLock)return true;
+  if(!manifest)return false;
+  if(spec&&spec.mode==='embedded-app')return !!(manifest.launch&&manifest.launch.pointerLock);
+  return !!(manifest.artifact&&manifest.artifact.pointerLock);
+}
+function applyPluginFramePermissions(iframe,media,pointerLock){
   let sandbox='allow-scripts allow-forms allow-popups allow-downloads';
   if(media)sandbox+=' allow-presentation allow-same-origin';
+  if(pointerLock)sandbox+=' allow-pointer-lock';
   iframe.setAttribute('sandbox',sandbox);
   if(media){
     iframe.setAttribute('allow','accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture; fullscreen; web-share');
@@ -11921,6 +11934,7 @@ function normalizeNoltbookAppManifest(desk,m){
   if(!pluginDeskOk(desk)||!m||typeof m!=='object')return null;
   const version=pluginText(m.noltbook||m.noltbookVersion||m.version||1,32,'1');
   const topMedia=pluginManifestPerm(m,'media');
+  const topPointerLock=pluginManifestPerm(m,'pointer-lock');
   const rawActions=Array.isArray(m.actions)?m.actions:(Array.isArray(m.templates)?m.templates:[]);
   const actions=rawActions.map(function(a){
     if(!a||typeof a!=='object')return null;
@@ -11934,18 +11948,18 @@ function normalizeNoltbookAppManifest(desk,m){
     if(typeof a.href==='string')href=a.href.trim();
     else if(a.href&&typeof a.href==='object'&&typeof a.href.site==='string')href=a.href.site.trim();
     href=localPluginHref(desk,href);
-    return pluginCopyMedia(pluginCopySize({id:id,label:label,description:desc,kind:kind,href:href,target:target},pluginSurfaceSize(a,target==='embedded'?'embedded':'tool')),topMedia||pluginManifestPerm(a,'media'));
+    return pluginCopyMedia(pluginCopySize({id:id,label:label,description:desc,kind:kind,href:href,target:target},pluginSurfaceSize(a,target==='embedded'?'embedded':'tool')),topMedia||pluginManifestPerm(a,'media'),topPointerLock||pluginManifestPerm(a,'pointer-lock'));
   }).filter(Boolean).slice(0,6);
   const rawArtifact=(m.artifact&&typeof m.artifact==='object')?m.artifact:null;
   const artifact=rawArtifact?pluginCopyMedia(pluginCopySize({
     label:pluginText(rawArtifact.label||rawArtifact.title||m.title||desk,64,desk),
     href:localPluginHref(desk,rawArtifact.href||'')
-  },pluginSurfaceSize(rawArtifact,'artifact')),topMedia||pluginManifestPerm(rawArtifact,'media')):null;
+  },pluginSurfaceSize(rawArtifact,'artifact')),topMedia||pluginManifestPerm(rawArtifact,'media'),topPointerLock||pluginManifestPerm(rawArtifact,'pointer-lock')):null;
   const rawLaunch=(m.launch&&typeof m.launch==='object')?m.launch:null;
   const launch=rawLaunch?pluginCopyMedia(pluginCopySize({
     href:localPluginHref(desk,rawLaunch.href||''),
     target:rawLaunch.target==='embedded'?'embedded':(rawLaunch.target==='same-tab'?'same-tab':'new-tab')
-  },pluginSurfaceSize(rawLaunch,'embedded')),topMedia||pluginManifestPerm(rawLaunch,'media')):null;
+  },pluginSurfaceSize(rawLaunch,'embedded')),topMedia||pluginManifestPerm(rawLaunch,'media'),topPointerLock||pluginManifestPerm(rawLaunch,'pointer-lock')):null;
   return{
     desk:desk,
     version:version,
@@ -12098,7 +12112,7 @@ function grimoireOpenApp(href,target,desk,title,size){
   }
   window.open(href,'_blank','noopener');closeGrimoire();
 }
-document.addEventListener('click',function(e){const b=e.target.closest('[data-grimoire-open-href]');if(b)grimoireOpenApp(b.dataset.grimoireOpenHref,b.dataset.grimoireOpenTarget||'new-tab',b.dataset.grimoireOpenDesk||'',b.dataset.grimoireOpenTitle||'',{width:b.dataset.grimoireOpenWidth,height:b.dataset.grimoireOpenHeight,media:b.dataset.grimoireOpenMedia==='1'})});
+document.addEventListener('click',function(e){const b=e.target.closest('[data-grimoire-open-href]');if(b)grimoireOpenApp(b.dataset.grimoireOpenHref,b.dataset.grimoireOpenTarget||'new-tab',b.dataset.grimoireOpenDesk||'',b.dataset.grimoireOpenTitle||'',{width:b.dataset.grimoireOpenWidth,height:b.dataset.grimoireOpenHeight,media:b.dataset.grimoireOpenMedia==='1',pointerLock:b.dataset.grimoireOpenPointerLock==='1'})});
 function grimoireCopyAppRef(desk){
   const c=_grimoireApps.charges[desk];if(!c)return;
   const ref=appRefValue(desk,c);if(!ref)return;
