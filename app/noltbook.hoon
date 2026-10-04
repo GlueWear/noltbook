@@ -5192,9 +5192,8 @@
         =/  redir=update:noltbook  [%note-redirect old-id note-id.rem]
         =/  new-peers=(set @p)  (~(put in peers) creator.rem)
         =/  is-new-peer=?  !(~(has in peers) creator.rem)
-        =/  ars-cards=(list card)
-          ?.  is-new-peer  ~
-          ~[[%pass /ars/(scot %p creator.rem) %agent [creator.rem %noltbook] %watch /notes/cover]]
+        ::  no Cover subscription: Cover is gossip that reaches pals by poke
+        =/  ars-cards=(list card)  ~
         =/  upd=update:noltbook  [%note-created new-note]
         =/  sub-card=card
           [%pass /remote-note/[note-id.rem] %agent [creator.rem %noltbook] %watch /notes/[note-id.rem]]
@@ -5218,10 +5217,8 @@
       ::  add creator to peers, subscribe to their ars notoria
       =/  new-peers=(set @p)  (~(put in peers) creator.rem)
       =/  is-new-peer=?  !(~(has in peers) creator.rem)
-      =/  ars-cards=(list card)
-        ?.  is-new-peer
-          ~
-        ~[[%pass /ars/(scot %p creator.rem) %agent [creator.rem %noltbook] %watch /notes/cover]]
+      ::  no Cover subscription: Cover is gossip that reaches pals by poke
+      =/  ars-cards=(list card)  ~
       ::  notify local frontend (peers only, no pal intent on receive)
       =/  upd=update:noltbook  [%note-created new-note]
       ::  subscribe to creator for live updates (skip cover — ars handles it)
@@ -5245,9 +5242,8 @@
         [note-id.rem name.rem %gossip creator.rem users.rem ~ ~ ~ ~ %public ic & ~ hl]
       =/  new-peers=(set @p)  (~(put in peers) creator.rem)
       =/  is-new-peer=?  !(~(has in peers) creator.rem)
-      =/  ars-cards=(list card)
-        ?.  is-new-peer  ~
-        ~[[%pass /ars/(scot %p creator.rem) %agent [creator.rem %noltbook] %watch /notes/cover]]
+      ::  no Cover subscription: Cover is gossip that reaches pals by poke
+      =/  ars-cards=(list card)  ~
       =/  upd=update:noltbook  [%note-created new-note]
       ::  gossip is hostless: do NOT subscribe to the creator's /notes/[nid] (that host coupling
       ::  is what triggers the "host unreachable" probe). Posts arrive via the pals mesh instead.
@@ -7671,9 +7667,8 @@
           (rpoke /invite/(scot %p src.bowl)/[nid] src.bowl inv)
         =/  new-peers=(set @p)  (~(put in peers) src.bowl)
         =/  is-new-peer=?  !(~(has in peers) src.bowl)
-        =/  ars-cards=(list card)
-          ?.  is-new-peer  ~
-          ~[[%pass /ars/(scot %p src.bowl) %agent [src.bowl %noltbook] %watch /notes/cover]]
+        ::  no Cover subscription: Cover is gossip that reaches pals by poke
+        =/  ars-cards=(list card)  ~
         ::  Phase 3: cascade auto-approved joiner to %group descendants
         =/  group-descs=(list @ta)
           ?.  =(%group type.u.old)  ~
@@ -7861,9 +7856,8 @@
           (rpoke /invite/(scot %p target.rem)/[note-id.rem] target.rem inv)
         =/  new-peers=(set @p)  (~(put in peers) target.rem)
         =/  is-new-peer=?  !(~(has in peers) target.rem)
-        =/  ars-cards=(list card)
-          ?.  is-new-peer  ~
-          ~[[%pass /ars/(scot %p target.rem) %agent [target.rem %noltbook] %watch /notes/cover]]
+        ::  no Cover subscription: Cover is gossip that reaches pals by poke
+        =/  ars-cards=(list card)  ~
         =/  jr-list=(list [note-id=@ta ship=@p note-name=@t])
           %-  zing
           %+  turn  ~(tap by join-requests)
@@ -7971,9 +7965,8 @@
           (rpoke /invite/(scot %p target.rem)/[note-id.rem] target.rem inv)
         =/  new-peers=(set @p)  (~(put in peers) target.rem)
         =/  is-new-peer=?  !(~(has in peers) target.rem)
-        =/  ars-cards=(list card)
-          ?.  is-new-peer  ~
-          ~[[%pass /ars/(scot %p target.rem) %agent [target.rem %noltbook] %watch /notes/cover]]
+        ::  no Cover subscription: Cover is gossip that reaches pals by poke
+        =/  ars-cards=(list card)  ~
         =/  pax=path  ~[%notes note-id.rem]
         ::  auto-mute invitee if note is read-only
         =/  ro-muted=(set @p)
@@ -9407,7 +9400,22 @@
     =/  s=(set @p)  (~(uni in s) pal-declined.loaded)
     %+  turn  ~(tap in (~(del in s) our.bowl))
     |=(p=@p (pal-sync-card p pal-outgoing.loaded pal-incoming.loaded pal-blocked.loaded))
-  [:(weld prof-cards call-cards pal-sync-cards (ensure-data-desk bowl)) this(state loaded)]
+  ::  Retire the per-peer Cover subscription: leave every one we hold, and kick every
+  ::  remote ship still subscribed to ours. Idempotent -- a later load finds nothing.
+  =/  cover-cleanup-cards=(list card)
+    %+  weld
+      %+  murn  ~(tap by wex.bowl)
+      |=  [[w=wire s=ship t=term] [a=? p=path]]
+      ^-  (unit card)
+      ?.  ?=([%ars @ ~] w)  ~
+      `[%pass w %agent [s t] %leave ~]
+    %+  murn  ~(val by sup.bowl)
+    |=  [s=ship p=path]
+    ^-  (unit card)
+    ?.  =(p /notes/cover)  ~
+    ?:  =(s our.bowl)  ~
+    `[%give %kick ~[/notes/cover] `s]
+  [:(weld prof-cards call-cards pal-sync-cards cover-cleanup-cards (ensure-data-desk bowl)) this(state loaded)]
 ++  on-watch
   |=  =path
   ^-  (quip card _this)
@@ -9685,7 +9693,10 @@
                     (~(has in users.u.note) src.bowl)
                 ==
             ==
-            =(nid %cover)
+            ::  %cover is NOT open to remote ships any more. Our own browser passes the
+            ::  first clause (human-sees-note always admits Cover); a peer's old Cover
+            ::  subscription delivered nothing pal gossip does not, to ships that never
+            ::  display it.
             =(nid %ars-rumors)
         ==
     =/  msgs=(list message:noltbook)  (fall (~(get by messages) nid) ~)
@@ -13538,10 +13549,8 @@
       ::  subscribe to remote's ars notoria if new peer
       =/  new-peers=(set @p)  (~(put in peers) ship.act)
       =/  is-new-peer=?  !(~(has in peers) ship.act)
-      =/  ars-cards=(list card)
-        ?.  is-new-peer
-          ~
-        ~[[%pass /ars/(scot %p ship.act) %agent [ship.act %noltbook] %watch /notes/cover]]
+      ::  no Cover subscription: Cover is gossip that reaches pals by poke
+      =/  ars-cards=(list card)  ~
       ::  notify local frontend
       =/  upd=update:noltbook  [%note-created new-note]
       ::  auto-mute invitee if note is read-only (group only, skip host/admin)
@@ -13668,18 +13677,10 @@
         ^-  card
         =/  rem=remote:noltbook  [%remote-invite id.act name.effective-old type.effective-old our.bowl users.new-note visibility.effective-old writable.effective-old]
         (rpoke /invite/(scot %p p)/[id.act] p rem)
-      ::  peers + ars cover-watch per genuinely-new peer
+      ::  peers per genuinely-new peer. No Cover subscription: Cover is gossip that
+      ::  reaches pals by poke.
       =/  new-peers=(set @p)  (~(uni in peers) cleaned)
-      =/  newly-peered=(set @p)
-        %-  ~(rep in cleaned)
-        |=  [p=@p acc=(set @p)]
-        ?:  (~(has in peers) p)  acc
-        (~(put in acc) p)
-      =/  ars-cards=(list card)
-        %+  turn  ~(tap in newly-peered)
-        |=  p=@p
-        ^-  card
-        [%pass /ars/(scot %p p) %agent [p %noltbook] %watch /notes/cover]
+      =/  ars-cards=(list card)  ~
       ::  read-only group: auto-mute each cleaned non-host/non-admin invitee
       =/  is-ro-group=?  (read-only-mute-note effective-old)
       =/  admins=(set @p)  (fall (~(get by note-admins) id.act) ~)
@@ -15113,21 +15114,14 @@
       ::  peer setup
       =/  new-peers=(set @p)  (~(put in peers) ship.act)
       =/  is-new-peer=?  !(~(has in peers) ship.act)
-      =/  ars-cards=(list card)
-        ?.  is-new-peer  ~
-        ~[[%pass /ars/(scot %p ship.act) %agent [ship.act %noltbook] %watch /notes/cover]]
-      =/  new-outgoing=(set @p)
-        ?.  is-new-peer  pal-outgoing
-        (~(put in pal-outgoing) ship.act)
-      =/  hey-cards=(list card)
-        ?.  is-new-peer  ~
-        ~[(rpoke /pal-hey/(scot %p ship.act) ship.act `remote:noltbook`[%remote-hey ~])]
-      =/  pal-status-upd=(list card)
-        ?.  is-new-peer  ~
-        ~[(gf-notes `update:noltbook`[%pal-update ship.act %requesting])]
+      ::  no Cover subscription: Cover is gossip that reaches pals by poke
+      =/  ars-cards=(list card)  ~
+      ::  Starting a DM is not a pal request. It used to follow the other ship and send
+      ::  them %remote-hey on first contact, so a stranger's first message arrived with a
+      ::  pal request attached. Pals are now only ever asked for explicitly (%add-pal).
       =/  upd=update:noltbook  [%note-created new-dm]
-      :_  this(notes (~(put by notes) nid new-dm), messages (~(put by messages) nid *(list message:noltbook)), peers new-peers, pal-outgoing new-outgoing)
-      :(weld [poke-card (gf-notes upd) ~] ars-cards hey-cards pal-status-upd)
+      :_  this(notes (~(put by notes) nid new-dm), messages (~(put by messages) nid *(list message:noltbook)), peers new-peers)
+      :(weld [poke-card (gf-notes upd) ~] ars-cards)
     ::
         %convert-to-dm
       ::  convert a solo %notebook/%group note into the canonical DM for {us, ship}
@@ -15159,20 +15153,13 @@
       ::  peer setup
       =/  new-peers=(set @p)  (~(put in peers) ship.act)
       =/  is-new-peer=?  !(~(has in peers) ship.act)
-      =/  ars-cards=(list card)
-        ?.  is-new-peer  ~
-        ~[[%pass /ars/(scot %p ship.act) %agent [ship.act %noltbook] %watch /notes/cover]]
-      =/  new-outgoing=(set @p)
-        ?.  is-new-peer  pal-outgoing
-        (~(put in pal-outgoing) ship.act)
-      =/  hey-cards=(list card)
-        ?.  is-new-peer  ~
-        ~[(rpoke /pal-hey/(scot %p ship.act) ship.act `remote:noltbook`[%remote-hey ~])]
-      =/  pal-status-upd=(list card)
-        ?.  is-new-peer  ~
-        ~[(gf-notes `update:noltbook`[%pal-update ship.act %requesting])]
-      :_  this(notes (~(put by notes) id.act new-note), note-members (~(del by note-members) id.act), peers new-peers, pal-outgoing new-outgoing)
-      :(weld [poke-card (gf-notes upd) ~] ars-cards hey-cards pal-status-upd)
+      ::  no Cover subscription: Cover is gossip that reaches pals by poke
+      =/  ars-cards=(list card)  ~
+      ::  Starting a DM is not a pal request. It used to follow the other ship and send
+      ::  them %remote-hey on first contact, so a stranger's first message arrived with a
+      ::  pal request attached. Pals are now only ever asked for explicitly (%add-pal).
+      :_  this(notes (~(put by notes) id.act new-note), note-members (~(del by note-members) id.act), peers new-peers)
+      :(weld [poke-card (gf-notes upd) ~] ars-cards)
     ::
         %merge-into-dm
       ::  move content from a solo %notebook/%group note into existing canonical DM, delete source
@@ -15598,9 +15585,8 @@
       ::  peer setup
       =/  new-peers=(set @p)  (~(put in peers) ship.act)
       =/  is-new-peer=?  !(~(has in peers) ship.act)
-      =/  ars-cards=(list card)
-        ?.  is-new-peer  ~
-        ~[[%pass /ars/(scot %p ship.act) %agent [ship.act %noltbook] %watch /notes/cover]]
+      ::  no Cover subscription: Cover is gossip that reaches pals by poke
+      =/  ars-cards=(list card)  ~
       ::  emit updated join-request-list so host frontend removes processed request
       =/  jr-list=(list [note-id=@ta ship=@p note-name=@t])
         %-  zing
@@ -17224,9 +17210,9 @@
       ==
     ::
         %kick
-      ::  resubscribe to peer's ars notoria
-      :_  this
-      ~[[%pass wire %agent [peer %noltbook] %watch /notes/cover]]
+      ::  The per-peer Cover subscription is retired -- Cover is gossip delivered to pals
+      ::  by poke -- so a kick ends it rather than reopening it.
+      `this
     ::
         %watch-ack
       ?~  p.sign  `this
