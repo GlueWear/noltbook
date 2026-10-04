@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="nb-build" content="i3t0qc3blt">
+<meta name="nb-build" content="2p92nvrt47">
 <title>NOLTBOOK</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20355.9%20355.9%22%20width=%22355.9%22%20height=%22355.9%22%3E%3Cg%20fill=%22%23ffffff%22%20transform=%22translate(-10.9901536%2036.4439936)%20scale(1.06235712)%22%3E%3Cpolygon%20points=%2266%20159.5%2066%2021.2%20204.3%2021.2%20204.3%2080.8%20204.3%20112.5%20204.3%20159.5%20160.7%20159.5%20160.7%20180.7%20225.5%20180.7%20225.5%20112.5%20225.5%2080.8%20225.5%200%2044.8%200%2044.8%20180.7%20121%20180.7%20121%20159.5%2066%20159.5%22/%3E%3Cpolygon%20points=%22234.7%2085.7%20234.7%20106.9%20289.8%20106.9%20289.8%20245.3%20151.4%20245.3%20151.4%20186.8%20151.4%20180.7%20151.4%20159.5%20151.4%20155.1%20151.4%20106.9%20195%20106.9%20195%2085.7%20130.2%2085.7%20130.2%20151.8%20130.2%20159.5%20130.2%20180.7%20130.2%20183.5%20130.2%20266.4%20310.9%20266.4%20310.9%2085.7%20234.7%2085.7%22/%3E%3C/g%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -3043,7 +3043,7 @@ function handleUpdate(upd){
     if(status==='reachable'){state.profileLookupStatus[ship]='reachable';if(state.searchQuery)renderSidebarSearchResults();refreshOpenProfileCard(ship);return}
     delete state.profileLookupInFlight[reqId];if(state.profileLookupTimers[ship]){clearTimeout(state.profileLookupTimers[ship]);delete state.profileLookupTimers[ship]}const _plWasMention=!!(state._mentionLookups&&state._mentionLookups.has(ship));const _plCardOpen=!!findOpenProfileOverlay(ship);if(status==='ok'){delete state.profileLookupStatus[ship];if(state._mentionLookups)state._mentionLookups.delete(ship);removeMentionLookupPopover(ship,0);if(state.searchQuery)renderSidebarSearchResults();if(_plCardOpen){requestProfileRemoteNotes(ship);refreshOpenProfileCard(ship)}else if(_plWasMention){viewProfile(ship)}}else{state.profileLookupStatus[ship]=(status==='noltbook-unavailable')?'noltbook-unavailable':'unreachable';if(state.searchQuery)renderSidebarSearchResults();refreshOpenProfileCard(ship);if(_plWasMention){state._mentionLookups.delete(ship);if(_mentionLookupPopovers[ship]){showMentionLookupPopover(ship,"this user can't be reached",'#ff4444',null);removeMentionLookupPopover(ship,3000)}}}}
   else if(upd['profile-list']){queueMicrotask(refreshCallAvatars);const _plNid=state.currentNoteId;const _plAu=_plNid?new Set(visibleMsgs(state.messages[_plNid]).map(m=>m.author)):null;let _plDirty=false;let _plDmDirty=false;let _plStale=false;for(const entry of upd['profile-list']){if(reconcileStaleLookupOnProfile(entry.ship))_plStale=true;const _plOld=state.profiles[entry.ship];const _plChanged=JSON.stringify(_plOld)!==JSON.stringify(entry.profile);if(_plAu&&_plAu.has(entry.ship)&&_plChanged)_plDirty=true;state.profiles[entry.ship]=entry.profile;clearDmProfileHydrating(entry.ship);const uav=entry.profile&&entry.profile.avatar&&entry.profile.avatar.type==='urbit';if(uav){if(!avatarRevisionByShip[entry.ship])avatarRevisionByShip[entry.ship]=Date.now()}else{delete avatarRevisionByShip[entry.ship]}if(_plChanged&&findDmRoot(entry.ship))_plDmDirty=true}const me=state.profiles['~'+api.ship];if(me){if(me.displayName)document.getElementById('shipDisplay').textContent=me.displayName;updateSidebarSigil()}if(state.palsView)renderPalsList();if(_plDmDirty){scheduleNoteList();const _cn=state.currentNoteId?state.notes[state.currentNoteId]:null;if(_cn&&_cn.type==='dm'){const _cp=dmCounterparty(_cn);if(_cp&&upd['profile-list'].some(e=>e.ship===_cp)){const _el=document.getElementById('chatNoteName');if(_el)_el.textContent=noteDisplayName(_cn)}}}if(_plDirty)scheduleRender();if(_plStale&&state.searchQuery)renderSidebarSearchResults();if(document.querySelector('.view-profile-overlay')){for(const entry of upd['profile-list'])refreshOpenProfileCard(entry.ship)}if(pendingPalRequestShips().length)refreshGrimoireIfOpen()}
-  else if(upd['profile-updated']){queueMicrotask(refreshCallAvatars);const{ship,profile}=upd['profile-updated'];const _puOld=state.profiles[ship];state.profiles[ship]=profile;clearDmProfileHydrating(ship);const uav=profile&&profile.avatar&&profile.avatar.type==='urbit';if(uav){avatarRevisionByShip[ship]=Date.now()}else{delete avatarRevisionByShip[ship]}if(ship==='~'+api.ship&&!uav)clearOwnAvatarBlob();if(ship==='~'+api.ship){document.getElementById('shipDisplay').textContent=profile.displayName||'~'+api.ship;updateSidebarSigil()}if(state.palsView)renderPalsList();if(profileTouchesOpenNote(ship)&&JSON.stringify(_puOld)!==JSON.stringify(profile))scheduleRender();if(reconcileStaleLookupOnProfile(ship)&&state.searchQuery)renderSidebarSearchResults();refreshOpenProfileCard(ship);refreshNotePresentation();if(state.palStatus[ship]==='requested')refreshGrimoireIfOpen()}
+  else if(upd['profile-updated']){const{ship,profile}=upd['profile-updated'];const _puOld=state.profiles[ship];state.profiles[ship]=profile;clearDmProfileHydrating(ship);/* Relays, loads and re-subscribes repeat profiles that have not changed. Each one used to set a new picture address and redraw the sidebar, card and call tiles, so the sigil flashed while the picture reloaded. An identical repeat now only settles lookup bookkeeping. */if(JSON.stringify(_puOld)===JSON.stringify(profile)){if(reconcileStaleLookupOnProfile(ship)&&state.searchQuery)renderSidebarSearchResults();return}queueMicrotask(refreshCallAvatars);const uav=profile&&profile.avatar&&profile.avatar.type==='urbit';if(uav){avatarRevisionByShip[ship]=Date.now()}else{delete avatarRevisionByShip[ship]}if(ship==='~'+api.ship&&!uav)clearOwnAvatarBlob();if(ship==='~'+api.ship){document.getElementById('shipDisplay').textContent=profile.displayName||'~'+api.ship;updateSidebarSigil()}if(state.palsView)renderPalsList();if(profileTouchesOpenNote(ship)&&JSON.stringify(_puOld)!==JSON.stringify(profile))scheduleRender();if(reconcileStaleLookupOnProfile(ship)&&state.searchQuery)renderSidebarSearchResults();refreshOpenProfileCard(ship);refreshNotePresentation();if(state.palStatus[ship]==='requested')refreshGrimoireIfOpen()}
   else if(upd['remote-note-list']){const{ship,notes}=upd['remote-note-list'];Object.keys(state.discoveryNotes).forEach(k=>{if(state.discoveryNotes[k].creator===ship)delete state.discoveryNotes[k]});for(const n of notes)state.discoveryNotes[n.id]=n;const el=document.getElementById('viewProfileNotes');if(el&&state.viewingProfileShip===ship){el.innerHTML=renderProfileNotesHtml(ship,'none available')}if(state.pendingRefOpen&&state.pendingRefOpen.creator===ship){const _pnid=state.pendingRefOpen.noteId;clearTimeout(state.pendingRefOpen.timer);state.pendingRefOpen=null;if(state.discoveryNotes[_pnid]){openNoteDetailModal(_pnid)}else{showRefUnavailable(_pnid,'Note unavailable')}}}
   else if(upd['pal-list']){for(const entry of upd['pal-list']){const prior=state.palStatus[entry.ship];state.palStatus[entry.ship]=entry.status;trackPalRequestStatus(entry.ship,entry.status,prior)}if(state.palsView)renderPalsList();fetchVisibleEnvelopes();if(state.viewingProfileShip)updateViewProfileTags(state.viewingProfileShip);updateLogoBadge();refreshGrimoireIfOpen()}
   else if(upd['pal-declined-list']){state.palRequestDeclined=new Set(upd['pal-declined-list']);for(const ship of state.palRequestDeclined){delete state.palRequestTimes[ship];delete state.palRequestErrors[ship];clearPalRequestBusy(ship)}updateLogoBadge();refreshGrimoireIfOpen()}
@@ -5854,9 +5854,12 @@ function resolveAvatarUrl(ship){
   const av=prof.avatar;
   if(av.type==='urbit'){
     // host-scoped: my own ship serves locally, a remote ship's bytes arrive over Ames.
-    // Append ?v=<rev> so a changed avatar re-fetches instead of using the cached URL.
-    const rev=avatarRevisionByShip[ship];
     const base='/apps/noltbook/user-avatar/'+encodeURIComponent(ship);
+    // An upload carries its own version in url, so the address changes exactly when
+    // the picture does and every identical repeat reuses the cached image.
+    if(av.url)return base+'?v='+encodeURIComponent(av.url);
+    // older refs carry no version: fall back to the local revision counter
+    const rev=avatarRevisionByShip[ship];
     return rev?base+'?v='+rev:base;
   }
   if(av.url)return av.url;
@@ -10072,10 +10075,14 @@ function promptProfileIcon(){
     if(pendingBlob){
       const resp=await fetch('/apps/noltbook/upload-avatar',{method:'POST',body:pendingBlob,credentials:'include'});
       if(resp.ok){
-        state.profiles[ship]={...p,avatar:{type:'urbit',url:''}};
+        /* the bytes change but an Urbit avatar ref used to stay {urbit,''}, so a new
+           upload looked identical to every other ship. A per-upload version makes the
+           ref change exactly when the picture does. */
+        const _avVer=Date.now().toString(36);
+        state.profiles[ship]={...p,avatar:{type:'urbit',url:_avVer}};
         avatarRevisionByShip[ship]=Date.now();
         setOwnAvatarBlob(pendingBlob);
-        api.poke('noltbook','noltbook-action',{action:'update-profile',data:{displayName:p.displayName||null,avatar:{type:'urbit',url:''},walletAddress:p.walletAddress||null,azimuthAddress:p.azimuthAddress||null}});
+        api.poke('noltbook','noltbook-action',{action:'update-profile',data:{displayName:p.displayName||null,avatar:{type:'urbit',url:_avVer},walletAddress:p.walletAddress||null,azimuthAddress:p.azimuthAddress||null}});
         updateSidebarSigil();
       }
     }else{

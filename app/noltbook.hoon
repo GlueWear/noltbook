@@ -6196,6 +6196,9 @@
       ::  sender names itself, and the copy below is forwarded to note members, so a
       ::  ship naming anyone else would spoof that person note-wide.
       ?.  =(ship.rem src.bowl)  `state
+      ::  an identical repeat -- every load re-sends to all peers, every re-subscribe
+      ::  re-sends to the host -- changes nothing and must not echo to members
+      ?:  =(`profile.rem (~(get by profiles) ship.rem))  `state
       =/  upd=update:noltbook  [%profile-updated ship.rem profile.rem]
       ::  We host notes this ship belongs to: hand its profile to their members now,
       ::  over the note subscription that already carries the snapshot's profile list.
@@ -16790,15 +16793,19 @@
         ~[(gf-notes upd)]
       ::
           %profile-list
-        ::  store remote profiles locally and relay to frontend
-        =.  profiles
-          %-  ~(gas by profiles)
-          (turn profiles.upd |=([s=@p p=profile:noltbook] [s p]))
+        ::  store remote profiles locally and relay to frontend -- never our own: we are
+        ::  the authority on it, and a host's copy can only be the same or older
+        =/  kept=(list [@p profile:noltbook])
+          (skip profiles.upd |=([s=@p p=profile:noltbook] =(s our.bowl)))
+        =.  profiles  (~(gas by profiles) kept)
         :_  this
-        ~[(gf-notes upd)]
+        ~[(gf-notes `update:noltbook`[%profile-list kept])]
       ::
           %profile-updated
-        ::  store remote profile locally and relay to frontend
+        ::  a host relaying someone's profile. We are the authority on our own, and an
+        ::  identical repeat changes nothing: neither is stored or passed to the browser.
+        ?:  =(ship.upd our.bowl)  `this
+        ?:  =(`profile.upd (~(get by profiles) ship.upd))  `this
         =.  profiles  (~(put by profiles) ship.upd profile.upd)
         :_  this
         ~[(gf-notes upd)]
