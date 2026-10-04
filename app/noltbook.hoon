@@ -6192,10 +6192,26 @@
       [(gf-paths ~[/notes/ars-rumors] upd) relay]
     ::
         %remote-profile
-      ::  a peer sent us their profile
+      ::  a peer sent us their profile. Only a ship's OWN profile is accepted: every
+      ::  sender names itself, and the copy below is forwarded to note members, so a
+      ::  ship naming anyone else would spoof that person note-wide.
+      ?.  =(ship.rem src.bowl)  `state
       =/  upd=update:noltbook  [%profile-updated ship.rem profile.rem]
+      ::  We host notes this ship belongs to: hand its profile to their members now,
+      ::  over the note subscription that already carries the snapshot's profile list.
+      ::  Before this, members only learned it the next time they re-subscribed, so a
+      ::  new member stayed a bare @p to everyone who had never contacted them.
+      =/  hosted=(list path)
+        %+  murn  ~(tap by notes)
+        |=  [k=@ta n=note:noltbook]
+        ^-  (unit path)
+        ?.  =(our.bowl creator.n)  ~
+        ?.  ?=(?(%group %notebook %document) type.n)  ~
+        ?.  (~(has in users.n) src.bowl)  ~
+        `/notes/[k]
+      =/  fwd=(list card)  ?~(hosted ~ ~[(gf-paths hosted upd)])
       :_  state(profiles (~(put by profiles) ship.rem profile.rem))
-      ~[(gf-notes upd)]
+      [(gf-notes upd) fwd]
     ::
         %remote-profile-request
       ::  Phase 3: a peer is asking us for our profile. Silently drop if they
@@ -16958,11 +16974,20 @@
       =/  was-unreach=?  =(`%host-unreachable (~(get by host-status) nid))
       =.  host-checks  (~(del by host-checks) nid)
       ?~  p.sign
-        ?.  was-unreach  `this
+        ::  The host just accepted our subscription -- on joining, accepting an invite or
+        ::  re-subscribing -- so give it our profile now; its relay passes it to every
+        ::  member. Otherwise the host only heard it at our next load or profile edit.
+        =/  prof-card=card
+          %-  rpoke
+          :+  /prof-out/(scot %p src.bowl)
+            src.bowl
+          `remote:noltbook`[%remote-profile our.bowl (fall (~(get by profiles) our.bowl) *profile:noltbook)]
+        ?.  was-unreach  [~[prof-card] this]
         =.  host-status  (~(del by host-status) nid)
         =/  hu=update:noltbook  [%note-host-status nid ~]
         :_  this
-        :~  (gf-notes hu)
+        :~  prof-card
+            (gf-notes hu)
             (gf-paths ~[/notes/[nid]] hu)
         ==
       ~&  [%remote-note-watch-failed nid u.p.sign]
