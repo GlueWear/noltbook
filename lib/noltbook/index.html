@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="nb-build" content="2p92nvrt47">
+<meta name="nb-build" content="p9vjgvf76g">
 <title>NOLTBOOK</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20355.9%20355.9%22%20width=%22355.9%22%20height=%22355.9%22%3E%3Cg%20fill=%22%23ffffff%22%20transform=%22translate(-10.9901536%2036.4439936)%20scale(1.06235712)%22%3E%3Cpolygon%20points=%2266%20159.5%2066%2021.2%20204.3%2021.2%20204.3%2080.8%20204.3%20112.5%20204.3%20159.5%20160.7%20159.5%20160.7%20180.7%20225.5%20180.7%20225.5%20112.5%20225.5%2080.8%20225.5%200%2044.8%200%2044.8%20180.7%20121%20180.7%20121%20159.5%2066%20159.5%22/%3E%3Cpolygon%20points=%22234.7%2085.7%20234.7%20106.9%20289.8%20106.9%20289.8%20245.3%20151.4%20245.3%20151.4%20186.8%20151.4%20180.7%20151.4%20159.5%20151.4%20155.1%20151.4%20106.9%20195%20106.9%20195%2085.7%20130.2%2085.7%20130.2%20151.8%20130.2%20159.5%20130.2%20180.7%20130.2%20183.5%20130.2%20266.4%20310.9%20266.4%20310.9%2085.7%20234.7%2085.7%22/%3E%3C/g%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -38,7 +38,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .header-avatar{width:2.2rem;height:2.2rem;border-radius:3px;overflow:hidden;cursor:pointer;background:#000;flex-shrink:0;display:flex;align-items:center;justify-content:center;border:2px solid transparent}
 .header-avatar:hover{border-color:#ffaa00}
 .header-avatar img{width:100%;height:100%;object-fit:cover}
-.header-avatar svg{width:100%;height:100%}
+.header-avatar svg,.header-avatar img.nb-sigil{width:100%;height:100%}
 .ship-name:hover{background:var(--bg2)}
 .header-dial{display:flex;align-items:center;gap:.3rem;margin:0 auto}
 .header-dial .dial-label{font-size:.65rem;color:var(--text-dim);letter-spacing:.1em}
@@ -203,7 +203,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .msg:first-child{padding-top:.25rem}
 .msg.grouped{padding:0 1rem;margin-top:0}
 .msg-avatar{width:2.8rem;height:2.8rem;border-radius:3px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.8rem;background:#000;color:var(--text-dim);overflow:hidden}
-.msg-avatar svg{width:100%;height:100%}
+.msg-avatar svg,.msg-avatar img.nb-sigil{width:100%;height:100%}
 .msg.grouped .msg-avatar{display:none}
 .msg-body{flex:1;min-width:0}
 .msg-header{display:flex;align-items:baseline;gap:.6rem;margin-bottom:0}
@@ -450,7 +450,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .profile-sigil{width:80px;height:80px;flex-shrink:0;background:#000;border-radius:3px;overflow:hidden;cursor:pointer;border:2px solid transparent;box-sizing:content-box}
 .profile-sigil:hover{border-color:#ffaa00}
 .profile-sigil-inner{width:100%;height:100%;display:flex;align-items:center;justify-content:center}
-.profile-sigil-inner svg{width:100%;height:100%}
+.profile-sigil-inner svg,.profile-sigil-inner img.nb-sigil{width:100%;height:100%}
 .profile-info{flex:1;display:flex;flex-direction:column;gap:.75rem;min-width:0}
 .profile-field-label{font-size:.95rem;color:#ddd}
 .profile-name-input{font-family:var(--font);font-size:.95rem;background:transparent;border:none;border-bottom:1px solid var(--border2);color:#ddd;padding:.2rem 0;outline:none;flex:1}
@@ -513,7 +513,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .grimoire-head{display:flex;align-items:center;justify-content:space-between;padding:.6rem .8rem;border-bottom:1px solid var(--border,#333)}
 .grimoire-brand{display:flex;align-items:baseline;gap:.5rem}
 .grimoire-sigil{width:1.4rem;height:1.4rem;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden;align-self:center}
-.grimoire-sigil svg{width:100%;height:100%;display:block}
+.grimoire-sigil svg,.grimoire-sigil img.nb-sigil{width:100%;height:100%;display:block}
 .grimoire-sigil-fb{background:#ffaa00;border-radius:3px}
 .grimoire-title{color:#ffaa00;font-size:.95rem;letter-spacing:.14em}
 .grimoire-ver{color:#ffaa00;opacity:.55;font-size:.66rem;letter-spacing:.06em}
@@ -799,8 +799,8 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .media-tile-avatar{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:var(--bg2)}
 .media-tile.no-video .media-tile-avatar{display:flex}
 .media-tile.no-video video{display:none}
-.media-tile-avatar>svg{width:100%;height:100%;padding:12%;box-sizing:border-box}
-.media-tile-avatar>div>svg{width:100%;height:100%;padding:12%;box-sizing:border-box}
+.media-tile-avatar>svg,.media-tile-avatar>img.nb-sigil{width:100%;height:100%;padding:12%;box-sizing:border-box}
+.media-tile-avatar>div>svg,.media-tile-avatar>div>img.nb-sigil{width:100%;height:100%;padding:12%;box-sizing:border-box}
 /* An overlay paints above the opaque media without changing layout or intercepting controls. */
 .media-tile.speaking::after{content:'';position:absolute;inset:0;border:2px solid #ffaa00;z-index:2;pointer-events:none}
 .media-tile.screen video{object-fit:contain}
@@ -2088,22 +2088,19 @@ function markOpenNoteReadSoon(nid){
 // durable notification ack key: kind + noteId. Mirrors backend
 // durable-notification-ack (removed-status / host-deleted-status only).
 function notifAckKey(kind,noteId){return kind+'|'+noteId}
-let sigilFn=null;
-const sigilCache={};
-(async function loadSigil(){
-  try{
-    const mod=await import('https://esm.sh/@urbit/sigil-js@2.2.0?bundle');
-    sigilFn=mod.default||mod.sigil||mod;
-    console.log('[sigil] loaded',typeof sigilFn);
-    refreshCallAvatars();
-    // sigils rendered before the async lib arrived fell back to 2-letter initials
-    // (common on a fresh ship with no early profile/pal traffic to retrigger a
-    // render — e.g. a comet's own header). Re-render now that sigilFn exists.
-    try{if(typeof updateSidebarSigil==='function')updateSidebarSigil()}catch(e){}
-    try{if(typeof scheduleRender==='function'&&state&&state.currentNoteId)scheduleRender()}catch(e){}
-    try{if(typeof renderPalsList==='function'&&state&&state.palsView)renderPalsList()}catch(e){}
-  }catch(e){console.warn('[sigil] failed to load',e)}
-})();
+// ===== sigils =====
+// Drawn by the ship: /apps/noltbook/sigil/~ship (served by %noltbook-sigil) returns the
+// SVG. Noltbook and every other app on the ship show one drawing, sigils work with no
+// network, and no library is fetched from a third-party site at runtime (this used to
+// import @urbit/sigil-js from esm.sh, and fell back to two letters whenever it failed).
+function sigilUrl(ship){return '/apps/noltbook/sigil/'+encodeURIComponent(ship)}
+// a sigil that cannot load (a ship without the route yet) falls back to two letters
+function nbSigilFail(img){
+  const s=img.getAttribute('data-ship')||'';
+  const sp=document.createElement('span');
+  sp.style.color=shipColor(s);sp.style.fontSize='.65rem';sp.textContent=s.slice(1,3);
+  img.replaceWith(sp);
+}
 function shipType(ship){
   if(!ship||!ship.startsWith('~'))return'comet';
   const bare=ship.slice(1);
@@ -2135,92 +2132,13 @@ function shipPhonemes(ship){
   for(let i=0;i<flat.length;i+=3)out.push(flat.slice(i,i+3));
   return out;
 }
-function _extractSigilInner(svgStr){
-  const m=String(svgStr||'').match(/<svg[^>]*>([\s\S]*)<\/svg>/);
-  return m?m[1]:'';
-}
-function getTiledExtendedSigilSvg(ship,size){
-  if(!sigilFn)return null;
-  const phons=shipPhonemes(ship);
-  if(!phons)return null;
-  if(phons.length!==6&&phons.length!==8&&phons.length!==16)return null;
-  const color=shipColor(ship);
-  const cfg={size:128,foreground:color,background:'#000000',space:'none',detail:'default'};
-  let subs;
-  try{
-    if(phons.length===6){
-      subs=[
-        sigilFn(Object.assign({},cfg,{point:'~'+phons[0]+phons[1]})),
-        sigilFn(Object.assign({},cfg,{point:'~'+phons[2]+phons[3]})),
-        sigilFn(Object.assign({},cfg,{point:'~'+phons[4]+phons[5]})),
-      ];
-    }else if(phons.length===8){
-      subs=[
-        sigilFn(Object.assign({},cfg,{point:'~'+phons[0]+phons[1]})),
-        sigilFn(Object.assign({},cfg,{point:'~'+phons[2]+phons[3]})),
-        sigilFn(Object.assign({},cfg,{point:'~'+phons[4]+phons[5]})),
-        sigilFn(Object.assign({},cfg,{point:'~'+phons[6]+phons[7]})),
-      ];
-    }else{
-      subs=[
-        sigilFn(Object.assign({},cfg,{point:'~'+phons[0]+phons[1]+'-'+phons[2]+phons[3]})),
-        sigilFn(Object.assign({},cfg,{point:'~'+phons[4]+phons[5]+'-'+phons[6]+phons[7]})),
-        sigilFn(Object.assign({},cfg,{point:'~'+phons[8]+phons[9]+'-'+phons[10]+phons[11]})),
-        sigilFn(Object.assign({},cfg,{point:'~'+phons[12]+phons[13]+'-'+phons[14]+phons[15]})),
-      ];
-    }
-  }catch(e){console.warn('[sigil] extended tiled fallback error',ship,e);return null}
-  const inners=subs.map(_extractSigilInner);
-  if(inners.some(s=>!s))return null;
-  const transforms=phons.length===6
-    ?['translate(0,0) scale(0.5)','translate(64,0) scale(0.5)','translate(32,64) scale(0.5)']
-    :['translate(0,0) scale(0.5)','translate(64,0) scale(0.5)','translate(0,64) scale(0.5)','translate(64,64) scale(0.5)'];
-  const cells=inners.map((inner,i)=>'<g transform="'+transforms[i]+'">'+inner+'</g>').join('');
-  return '<svg xmlns="http://www.w3.org/2000/svg" width="'+size+'" height="'+size+'" viewBox="0 0 128 128" preserveAspectRatio="xMidYMid meet"><rect width="128" height="128" fill="#000000"/>'+cells+'</svg>';
-}
-function getExtendedSigilSvg(ship,size){
-  // Moons (6/8 phonemes) and comets (16 phonemes) aren't natively supported
-  // by @urbit/sigil-js. For those ships, render the individual phoneme
-  // symbols in a 4x4 layout: moons use corner/center cells, comets fill the grid.
-  if(!sigilFn)return null;
-  const phons=shipPhonemes(ship);
-  if(!phons)return null;
-  if(phons.length!==6&&phons.length!==8&&phons.length!==16)return null;
-  const color=shipColor(ship);
-  const cfg={size:128,foreground:color,background:'#000000',space:'none',detail:'default'};
-  const moon6Pos=[[0,0],[3,0],[0,3],[3,3],[1,1],[2,2]];
-  const moonPos=[[0,0],[3,0],[0,3],[3,3],[1,1],[2,1],[1,2],[2,2]];
-  const positions=phons.length===6?moon6Pos:(phons.length===8?moonPos:phons.map((_,i)=>[i%4,Math.floor(i/4)]));
-  let inners;
-  try{
-    inners=phons.map(p=>_extractSigilInner(sigilFn(Object.assign({},cfg,{point:'~'+p}))));
-  }catch(e){console.warn('[sigil] extended phoneme error',ship,e);return getTiledExtendedSigilSvg(ship,size)}
-  if(inners.some(s=>!s))return getTiledExtendedSigilSvg(ship,size);
-  const cells=inners.map((inner,i)=>{
-    const pos=positions[i];
-    return '<g transform="translate('+(pos[0]*32)+','+(pos[1]*32)+') scale(0.25)">'+inner+'</g>';
-  }).join('');
-  return '<svg xmlns="http://www.w3.org/2000/svg" width="'+size+'" height="'+size+'" viewBox="0 0 128 128" preserveAspectRatio="xMidYMid meet"><rect width="128" height="128" fill="#000000"/>'+cells+'</svg>';
-}
 function getSigilSvg(ship){
-  if(sigilCache[ship])return sigilCache[ship];
+  // Markup for this ship's sigil: an <img> of the ship-drawn SVG (the name is kept for its
+  // callers). 44px intrinsic, as the inline SVG was; containers that sized the SVG size
+  // the image too (see img.nb-sigil in the CSS).
   if(!ship||!ship.startsWith('~'))return null;
-  if(!sigilFn)return null;
-  const phons=shipPhonemes(ship);
-  if(!phons)return null;
-  try{
-    let svg;
-    if(phons.length<=4){
-      const color=shipColor(ship);
-      svg=sigilFn({point:ship,size:44,foreground:color,background:'#000000',space:'none',detail:'default'});
-    }else if(phons.length===6||phons.length===8||phons.length===16){
-      svg=getExtendedSigilSvg(ship,44);
-    }else{
-      return null;
-    }
-    if(svg)sigilCache[ship]=svg;
-    return svg||null;
-  }catch(e){console.warn('[sigil] error',ship,e);return null}
+  if(!shipPhonemes(ship))return null;
+  return '<img class="nb-sigil" data-ship="'+escAttr(ship)+'" src="'+escAttr(sigilUrl(ship))+'" width="44" height="44" alt="" draggable="false" onerror="nbSigilFail(this)">';
 }
 // ===== call-control system messages =====
 // The backend durably stores \x01SYS:call-started / -joined / -left / -ended markers.
@@ -11552,16 +11470,8 @@ function setGrimoireTab(t){_grimoireTab=t;if(t==='apps')loadGrimoireApps({preser
 // current user's sigil rendered in amber for the Grimoire header (true sigil,
 // not a profile avatar). Falls back to a small amber tile for long/comet ids.
 function grimoireSigilHtml(){
-  const ship='~'+api.ship;
-  try{
-    if(sigilFn){
-      const phons=shipPhonemes(ship);
-      if(phons&&phons.length<=4){
-        const svg=sigilFn({point:ship,size:22,foreground:'#ffaa00',background:'#000000',space:'none',detail:'default'});
-        if(svg)return '<span class="grimoire-sigil">'+svg+'</span>';
-      }
-    }
-  }catch(e){}
+  const svg=getSigilSvg('~'+api.ship);
+  if(svg)return '<span class="grimoire-sigil">'+svg+'</span>';
   return '<span class="grimoire-sigil grimoire-sigil-fb"></span>';
 }
 let _grimoireSystem={state:'idle',pikes:{},charges:{},runtime:'',error:null,
@@ -16257,7 +16167,7 @@ function paintTileAvatar(tile,ship){
   if(!ship)return;
   const av=tile.querySelector('.media-tile-avatar');
   if(!av)return;
-  const stamp=ship+'|'+(resolveAvatarUrl(ship)||'')+'|'+!!sigilFn;
+  const stamp=ship+'|'+(resolveAvatarUrl(ship)||'');
   if(av._avatarStamp===stamp)return;
   av._avatarStamp=stamp;av.setAttribute('data-ship',ship);
   av.innerHTML=avatarHtml(ship);
