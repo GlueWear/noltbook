@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="nb-build" content="p9vjgvf76g">
+<meta name="nb-build" content="t5reo2gb1j">
 <title>NOLTBOOK</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20355.9%20355.9%22%20width=%22355.9%22%20height=%22355.9%22%3E%3Cg%20fill=%22%23ffffff%22%20transform=%22translate(-10.9901536%2036.4439936)%20scale(1.06235712)%22%3E%3Cpolygon%20points=%2266%20159.5%2066%2021.2%20204.3%2021.2%20204.3%2080.8%20204.3%20112.5%20204.3%20159.5%20160.7%20159.5%20160.7%20180.7%20225.5%20180.7%20225.5%20112.5%20225.5%2080.8%20225.5%200%2044.8%200%2044.8%20180.7%20121%20180.7%20121%20159.5%2066%20159.5%22/%3E%3Cpolygon%20points=%22234.7%2085.7%20234.7%20106.9%20289.8%20106.9%20289.8%20245.3%20151.4%20245.3%20151.4%20186.8%20151.4%20180.7%20151.4%20159.5%20151.4%20155.1%20151.4%20106.9%20195%20106.9%20195%2085.7%20130.2%2085.7%20130.2%20151.8%20130.2%20159.5%20130.2%20180.7%20130.2%20183.5%20130.2%20266.4%20310.9%20266.4%20310.9%2085.7%20234.7%2085.7%22/%3E%3C/g%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -462,7 +462,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .profile-azimuth-input{font-family:var(--font);font-size:.75rem;background:transparent;border:1px solid var(--border2);color:var(--text);padding:.35rem .5rem;outline:none;width:100%;resize:none;height:calc(4 * 1.4em + .7rem);line-height:1.4;overflow:hidden;box-sizing:border-box}
 .profile-azimuth-input::placeholder{color:var(--text-dim);font-size:.75rem}
 .profile-azimuth-input:focus{border-color:var(--text-muted)}
-.profile-notes-list{font-size:.75rem;color:var(--text-dim);display:flex;flex-direction:column;gap:0}
+.profile-notes-list{font-size:.75rem;color:var(--text-dim);display:flex;flex-direction:column;gap:0;max-height:14rem;overflow-y:auto}
 .profile-note-entry{display:flex;align-items:flex-start;gap:.3rem;padding:.4rem 0;border-bottom:1px solid var(--border)}
 .profile-note-entry:last-child{border-bottom:none}
 .profile-note-icon{width:3.5rem;height:3.5rem;border-radius:3px;flex-shrink:0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;align-items:center;justify-items:center;justify-content:center;font-size:.75rem;background:#000;color:#bbb;line-height:1;overflow:hidden}
@@ -709,6 +709,8 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .wallet-modal-header{display:flex;justify-content:space-between;align-items:center;padding:.75rem 1rem;border-bottom:1px solid var(--border);color:var(--urbit);font-size:.85rem}
 .wallet-modal-body{padding:1rem}
 .wallet-modal-field{margin-bottom:.75rem}
+.wallet-fee-note{font-size:.7rem;color:var(--text-dim);margin-top:.35rem;line-height:1.35}
+.wallet-fee-unlock{background:none;border:1px solid var(--urbit);color:var(--urbit);font:inherit;font-size:.65rem;padding:.05rem .45rem;margin-left:.25rem;cursor:pointer}
 .wallet-modal-field label{display:block;font-size:.7rem;color:var(--text-dim);margin-bottom:.2rem;letter-spacing:.05em}
 .wallet-modal-field input{width:100%;padding:.4rem .5rem;font-family:var(--font);font-size:.85rem;background:var(--bg);border:1px solid #333;color:var(--text);box-sizing:border-box}
 .wallet-modal-field input:focus{outline:none;border-color:var(--urbit)}
@@ -955,7 +957,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 :root{--nb-phone:0}
 #mobileNav{display:none}
 @media (max-width:599.98px) and (pointer:coarse),(max-height:500px) and (orientation:landscape) and (pointer:coarse){
-  :root{--nb-phone:1;--nb-nav-h:52px}
+  :root{--nb-phone:1;--nb-nav-h:0px}
   /* dvh, not vh: iOS reports the LARGE viewport for vh, which puts the bottom of the
      app under the browser chrome. vh first as the fallback for engines without dvh.
      Desktop height behaviour is untouched -- this rule exists only inside the query. */
@@ -1054,7 +1056,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
     -webkit-tap-highlight-color:transparent}
 
   /* ---- fixed bottom navigation ---- */
-  #mobileNav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:900;
+  #mobileNav{display:none;position:fixed;left:0;right:0;bottom:0;z-index:900;
     background:var(--bg);border-top:1px solid var(--border);
     padding-bottom:env(safe-area-inset-bottom,0px);
     height:calc(var(--nb-nav-h) + env(safe-area-inset-bottom,0px))}
@@ -1128,7 +1130,7 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
         <div class="section-body open" id="dmBody"></div>
         <div class="section-header" onclick="toggleSection('shared')">
           <span class="section-arrow open" id="sharedArrow">▶</span>
-          <span class="section-title">SHARED NOTES</span>
+          <span class="section-title">GROUP NOTES</span>
         </div>
         <div class="section-body open" id="sharedBody"></div>
         <div class="section-header" onclick="toggleSection('ars')">
@@ -1419,10 +1421,52 @@ function setMobileView(view,opts){
   if(!app)return false;
   // leaving CHAT must not strand a full-screen artifact view or its history entry
   if(view!=='chat')mArtCloseForNav();
-  if(app.getAttribute('data-mview')!==view)app.setAttribute('data-mview',view);
+  const prev=app.getAttribute('data-mview')||'notes';
+  if(prev!==view)app.setAttribute('data-mview',view);
+  mHistorySync(prev,view,opts);
   syncMobileTabs();
   return true;
 }
+// Phone navigation rides browser history. Leaving the notes list pushes one entry, so the
+// platform's own Back -- iPhone's edge swipe, Android's back gesture, the Back button --
+// returns to it. It stacks under the artifact viewer's entry: Back closes an open
+// artifact first, then returns to the list. A home-screen (standalone) app has no
+// browser Back, so there a swipe in from the left edge does the same.
+let _mChatHist=false;
+function mHistorySync(prev,view,opts){
+  if(opts&&opts.fromPop)return;
+  if(view!=='notes'&&prev==='notes'&&!_mChatHist){
+    try{history.pushState({nbMview:1},'');_mChatHist=true}catch(e){}
+  }else if(view==='notes'&&_mChatHist){
+    _mChatHist=false;try{history.replaceState(null,'')}catch(e){}
+  }
+}
+window.addEventListener('popstate',function(e){
+  if(!_mChatHist||!phoneMode())return;
+  if(e.state&&e.state.nbMview)return;          // an entry above ours was popped; still in the note
+  _mChatHist=false;
+  if(mobileView()==='call'){                   // Back from a call view goes to its note first
+    setMobileView('chat',{fromPop:true});
+    try{history.pushState({nbMview:1},'');_mChatHist=true}catch(err){}
+    return;
+  }
+  setMobileView('notes',{fromPop:true});
+});
+(function(){
+  function standalone(){return window.navigator.standalone===true||!!(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)}
+  let sx=null,sy=0;
+  document.addEventListener('touchstart',function(e){
+    sx=null;
+    if(!_mChatHist||!phoneMode()||!standalone()||e.touches.length!==1)return;
+    const t=e.touches[0];if(t.clientX>24)return;
+    sx=t.clientX;sy=t.clientY;
+  },{passive:true});
+  document.addEventListener('touchend',function(e){
+    if(sx==null)return;
+    const t=e.changedTouches[0],dx=t.clientX-sx,dy=Math.abs(t.clientY-sy);sx=null;
+    if(dx>70&&dy<60&&_mChatHist)history.back();
+  },{passive:true});
+})();
 function syncMobileTabs(){
   const nav=document.getElementById('mobileNav');
   if(!nav)return;
@@ -1548,7 +1592,7 @@ function initMobileArtifactView(){
   mArtSync();
 }
 
-/* ---- phone long-press on a note row -> the existing Note Info modal ----
+/* ---- phone long-press on a note row -> the same menu a right-click opens on desktop ----
    Pointer Events only, phones only. Desktop mouse behaviour (click, dblclick-to-expand,
    right-click context menu) is untouched. */
 const LP_MS=550, LP_SLOP=10;
@@ -1570,6 +1614,17 @@ function _lpOpenNoteInfo(noteId){
   if(!n)return false;
   openNoteInfoModal(n);
   return true;
+}
+// The note menu right-click opens on desktop, positioned at the press point (it keeps
+// itself inside the screen). A row with no such menu (Cover) keeps its info card.
+function _lpOpenNoteMenu(rec){
+  const n=state.notes[rec.id];
+  if(n&&!n.isSpecial){
+    showNoteContextMenu({clientX:rec.x,clientY:rec.y,pageX:rec.x+window.scrollX,pageY:rec.y+window.scrollY,
+      target:rec.row,preventDefault:function(){},stopPropagation:function(){}},rec.id);
+    if(document.getElementById('noteContextMenu'))return true;
+  }
+  return _lpOpenNoteInfo(rec.id);
 }
 function initMobileLongPress(){
   const sb=document.getElementById('sidebar');
@@ -1597,7 +1652,7 @@ function initMobileLongPress(){
     rec.timer=setTimeout(function(){
       if(_lp!==rec)return;
       _lp=null;
-      if(_lpOpenNoteInfo(rec.id))
+      if(_lpOpenNoteMenu(rec))
         _lpSuppress={row:rec.row,pid:rec.pid,x:rec.x,y:rec.y};
     },LP_MS);
     _lp=rec;
@@ -1625,7 +1680,7 @@ function initMobileLongPress(){
     _lpSuppress=null;
     e.stopPropagation();e.preventDefault();
   },true);
-  // on a phone the platform long-press menu is replaced by Note Info
+  // on a phone the platform long-press menu is replaced by the note menu
   sb.addEventListener('contextmenu',function(e){
     if(!phoneMode())return;
     if(!e.target.closest('.note-item'))return;
@@ -3017,7 +3072,7 @@ function handleUpdate(upd){
     }
     else if(state.currentNoteId===newId)scheduleRender(newId);
     renderNoteList()}
-  else if(upd['wallet-update']){wallet.transactions=upd['wallet-update'].map(tx=>({type:tx.type,who:tx.counterparty,amount:tx.amount,time:new Date(tx.timestamp).toLocaleString(),txid:tx.txHash}));renderWalletNotes()}
+  else if(upd['wallet-update']){wallet.transactions=upd['wallet-update'].map(tx=>({type:tx.type,who:tx.counterparty,amount:tx.amount,time:new Date(tx.timestamp).toLocaleString(),ts:Number(new Date(tx.timestamp)),txid:tx.txHash}));renderWalletNotes()}
   else if(upd['gossip-message']){const{message,hops}=upd['gossip-message'];const nid=message.noteId||'cover';const msgEid=message.meta&&message.meta.eid||null;state.gossipHops[message.id]=hops;if(!state.messages[nid])state.messages[nid]=[];const nenvs=state.gossipEnvelopes[nid]||{};delete nenvs[message.id];if(msgEid)delete nenvs[msgEid];state.gossipEnvelopes[nid]=nenvs;const nfetch=state.gossipFetching[nid];if(nfetch){nfetch.delete(message.id);if(msgEid)nfetch.delete(msgEid)}const isDup=state.messages[nid].some(m=>(msgEid&&m.meta&&m.meta.eid===msgEid)||m.id===message.id);if(!isDup){state.messages[nid].push(message);const visible=coverMsgVisible(message);if(state.currentNoteId===nid&&visible){const isOwn=message.author===('~'+api.ship);appendMessage(message,isOwn)}else if(state.currentNoteId!==nid&&visible&&!isPinnedUnreadNote(nid))state.notifications.add(nid)}const visible=coverMsgVisible(message);if(visible&&state.notes[nid]){state.notes[nid].lastAuthor=message.author;state.notes[nid].lastPreview=message.text}if(nid==='cover'&&visible)state.coverPreview={author:message.author,preview:message.text};markOpenNoteReadSoon(nid);scheduleNoteList()}
   else if(upd['gossip-envelope']){const{noteId,envelope,hops}=upd['gossip-envelope'];const nid=noteId||'cover';const envEid=envelope.meta&&envelope.meta.eid||null;if((state.messages[nid]||[]).some(m=>(envEid&&m.meta&&m.meta.eid===envEid)||m.id===envelope.id))return;const nenvs=state.gossipEnvelopes[nid]||{};const envKey=envEid||envelope.id;if(nenvs[envKey])return;envelope._eid=envEid;nenvs[envKey]=envelope;state.gossipEnvelopes[nid]=nenvs;state.gossipHops[envelope.id]=hops;const shell={id:envelope.id,noteId:nid,author:envelope.author,text:null};fetchTopWindowEnvelopes(nid);if(state.currentNoteId!==nid&&coverMsgVisible(shell)&&!isPinnedUnreadNote(nid))state.notifications.add(nid);markOpenNoteReadSoon(nid);scheduleNoteList()}
   else if(upd['envelope-list']){const{noteId,envelopes}=upd['envelope-list'];const existingMsgs=state.messages[noteId]||[];const existingIds=new Set(existingMsgs.map(m=>m.id));const existingEids=new Set(existingMsgs.filter(m=>m.meta&&m.meta.eid).map(m=>m.meta.eid));const nenvs=state.gossipEnvelopes[noteId]||{};for(const env of envelopes){const eeid=env.meta&&env.meta.eid||null;const envKey=eeid||env.id;if(existingIds.has(env.id)||(eeid&&existingEids.has(eeid))||nenvs[envKey])continue;env._eid=eeid;nenvs[envKey]=env}state.gossipEnvelopes[noteId]=nenvs;const fetched=fetchTopWindowEnvelopes(noteId);if(fetched>0)scheduleNoteList()}
@@ -3858,7 +3913,8 @@ function computeTrickle(){
     const root=chain[0];
     const sec=sectionOf(root);
     // if section is collapsed, dot goes on section header only
-    if(!state.expandedSections[sec]){sections[sec]=true; continue;}
+    // the flat list shows every row, so a closed tab only diverts dots in the tabbed view
+    if(!state.sidebarFlat&&!state.expandedSections[sec]){sections[sec]=true; continue;}
     // walk root→leaf: last visible = deepest where all ancestors expanded
     let lv=chain[0];
     for(let i=1;i<chain.length;i++){
@@ -4053,7 +4109,11 @@ function makeNoteItem(n,depth){
   div.onclick=()=>{
     // PHONE: long-press is the secondary action here, so there is no double-click to
     // wait for and the tap opens in this same event turn. Same call, no second path.
-    if(phoneMode()){openNote(n.id);return}
+    if(phoneMode()){
+      // first tap on a note with nested notes shows them; the next tap opens the note
+      if(hasChildren&&!state.expandedNotes.has(n.id)){toggleNoteExpand(n.id);return}
+      openNote(n.id);return;
+    }
     if(clickTimer)return;clickTimer=setTimeout(()=>{clickTimer=null;openNote(n.id)},250)};
   div.ondblclick=(e)=>{clearTimeout(clickTimer);clickTimer=null;e.preventDefault();toggleNoteExpand(n.id)};
   div.oncontextmenu=(e)=>{e.preventDefault();showNoteContextMenu(e,n.id)};
@@ -4090,7 +4150,7 @@ function toggleNoteExpand(id){
   renderNoteList();
 }
 /* ===== SIDEBAR GROUPING =====
-   Two ways to read the same list. Grouped shows NOTES / DMS / SHARED NOTES / %GOSSIP;
+   Two ways to read the same list. Grouped shows NOTES / DMS / GROUP NOTES / %GOSSIP;
    flat drops the headings and shows one recency-ordered list. Ordering is identical in
    both -- the most recent root is on top either way -- so the toggle changes how the
    list is divided, never what it says.
@@ -4114,6 +4174,15 @@ function applySidebarGrouping(){
 function toggleSidebarGrouping(){
   state.sidebarFlat=!state.sidebarFlat;
   try{localStorage.setItem(SB_FLAT_KEY,state.sidebarFlat?'1':'')}catch(e){}
+  // the tabbed view starts with every tab closed; state and markup move together, so
+  // dot placement always agrees with what is on screen
+  if(!state.sidebarFlat){
+    for(const sec of ['notes','dm','shared','ars']){
+      state.expandedSections[sec]=false;
+      const b=document.getElementById(sec+'Body'),a=document.getElementById(sec+'Arrow');
+      if(b)b.classList.remove('open');if(a)a.classList.remove('open');
+    }
+  }
   applySidebarGrouping();
   renderNoteList();
 }
@@ -8688,7 +8757,8 @@ function sendToUser(author,msgId,eid){
   document.getElementById('sendModal').classList.add('open');
   if(_sendDd){_sendDd.destroy();_sendDd=null}
   const inp=document.getElementById('sendTo');
-  _sendDd=showUserDropdown(inp,document.getElementById('sendToField'),function(r){inp.value=r.ship});
+  _sendDd=showUserDropdown(inp,document.getElementById('sendToField'),function(r){inp.value=r.ship;scheduleFeePreview()});
+  sendFeeNote('');
   document.getElementById('sendAmount').focus();
 }
 function openSharePrompt(){
@@ -10191,6 +10261,7 @@ function refreshOpenProfileCard(ship){
     const _ls=state.profileLookupStatus[ship];
     const pending=_ls==='looking'||_ls==='reachable'||ov.dataset.notesRequested==='1';
     notes.innerHTML=renderProfileNotesHtml(ship,pending?'loading...':'none available');
+    capProfileNotes(notes);
   }
   updateViewProfileTags(ship);
   updateViewProfileStatus(ship);
@@ -10306,6 +10377,7 @@ async function openProfileModal(){
   const sharedNotes=[...pubNotes,...privNotes];
   if(sharedNotes.length===0){notesListEl.textContent='none available'}
   else{notesListEl.innerHTML=sharedNotes.map(n=>{const ic=n.iconUrl?`<img src="${escAttr(n.iconUrl)}">`:(noteCharacterSeal(n.id));const vis=n.visibility==='public'?'public':'private';const desc=n.headline||'';return `<div class="profile-note-entry"><div class="profile-note-icon">${ic}</div><div class="profile-note-text"><span class="profile-note-name">${escHtml(n.name)}</span><div class="profile-note-desc"><input type="text" value="${escAttr(desc)}" placeholder="add a description..." data-note-id="${n.id}" onchange="updateNoteDescription(this)" maxlength="120"></div><span class="profile-note-vis">${vis}</span></div></div>`}).join('')}
+  capProfileNotes(notesListEl);
   const sponsorEl=document.getElementById('profileSponsors');
   sponsorEl.textContent='loading...';
   document.getElementById('profileModal').classList.add('open');
@@ -12502,6 +12574,20 @@ const WALLET_SEND_FEE_MODE='default';// builder overrides with TEMP fixed fee be
 // 1 NOCK = 65,536 nicks -> 5 NOCK = 327,680 nicks. Test plumbing only.
 const TEMP_FIXED_SEND_FEE_NOCK=5;
 const TEMP_FIXED_SEND_FEE_NICKS=TEMP_FIXED_SEND_FEE_NOCK*NICKS_PER_NOCK;
+// Iris 1.3.0 (provider API 1.0.0) calculates the fee itself when a send omits it, shows
+// that exact fee for approval, and rejects anything below the minimum. It also offers
+// nock_buildSimpleTransaction: read-only, no popup, returns the exact fee before sending.
+// Older Iris has neither, so it keeps the fixed fee above.
+function irisVersionAtLeast(v,min){
+  const a=String(v||'').split('.').map(n=>parseInt(n,10)||0),b=min.split('.').map(n=>parseInt(n,10)||0);
+  for(let i=0;i<3;i++){if((a[i]||0)!==(b[i]||0))return (a[i]||0)>(b[i]||0)}
+  return true;
+}
+function irisCalculatesFee(){
+  const p=window.nockchain||{};
+  if(typeof p.api==='string')return true;      // the provider's api field arrived in 1.3.0
+  return irisVersionAtLeast(p.version,'1.3.0');
+}
 // Balance/chain-reads pinned to 0.1.1: it exposes the Pkh/SpendCondition classes
 // the proven getBalanceByFirstName path needs. 0.2.0 dropped those classes and its
 // getBalanceByAddress server-rejects our address shape ("improperly formatted").
@@ -12515,7 +12601,8 @@ const wallet={
   transactions:[],       // local tx log
   wasmReady:false,       // iris-wasm initialized
   irisWasm:null,         // wasm module ref
-  grpcClient:null        // wasm GrpcClient instance
+  grpcClient:null,       // wasm GrpcClient instance
+  chain:null             // on-chain view from nockscan.com: {address,fetchedAt,balance,total,txs,hasMore,error}
 };
 
 const WALLET_STORAGE_KEY='noltbook_wallet';
@@ -12613,6 +12700,7 @@ async function walletTryRestore(){
 
 function walletDisconnect(){
   wallet.connected=false;
+  wallet.chain=null;
   wallet.pkh=null;
   wallet.grpc=null;
   wallet.balance=null;
@@ -12801,58 +12889,137 @@ function ensureWalletOverflowResize(){
     updateWalletActivityOverflow(document.querySelector('#walletTxList .wallet-tx-scroll'));
   },{passive:true});
 }
+// ===== on-chain history (nockscan.com) =====
+// Iris keeps a history of its own but gives pages no way to read it, so the full on-chain
+// ledger comes from nockscan.com's free, keyless public API (CORS open, 120 requests a
+// minute per IP). It is a third party's view of the chain and is labelled as such; no
+// credentials or referrer are sent. Noltbook's own payment reports still supply names.
+const NOCKSCAN='https://nockscan.com';
+let _chainFetching=null;
+function walletFetchChainHistory(force){
+  if(!wallet.connected||!wallet.pkh)return null;
+  const c=wallet.chain;
+  if(!force&&c&&c.address===wallet.pkh&&!c.error&&Date.now()-c.fetchedAt<30000)return null;
+  if(_chainFetching)return _chainFetching;
+  const addr=wallet.pkh;
+  _chainFetching=(async function(){
+    try{
+      const ctrl=new AbortController();const t=setTimeout(function(){ctrl.abort()},20000);
+      const res=await fetch(NOCKSCAN+'/api/v1/address/'+encodeURIComponent(addr)+'?limit=50',{signal:ctrl.signal,credentials:'omit',referrerPolicy:'no-referrer'});
+      clearTimeout(t);
+      if(!res.ok)throw new Error(res.status===429?'rate limited, try again shortly':'HTTP '+res.status);
+      const d=await res.json();
+      if(wallet.pkh!==addr)return;               // the wallet changed while this was in flight
+      wallet.chain={address:addr,fetchedAt:Date.now(),balance:Number(d.currentBalance),total:Number(d.totalTransactions)||0,
+        txs:Array.isArray(d.transactions)?d.transactions:[],hasMore:!!(d.pagination&&d.pagination.hasMore),error:null};
+      // the chain balance only fills in when Noltbook's own lookup produced nothing
+      if(wallet.balance===null&&Number.isFinite(wallet.chain.balance)){wallet.balance=wallet.chain.balance;console.log('[wallet] balance path=nockscan')}
+    }catch(e){
+      if(wallet.pkh!==addr)return;
+      wallet.chain={address:addr,fetchedAt:Date.now(),balance:NaN,total:0,txs:[],hasMore:false,
+        error:(e&&e.name==='AbortError')?'timed out':String((e&&e.message)||e)};
+    }finally{_chainFetching=null}
+    walletUpdateUI();
+  })();
+  return _chainFetching;
+}
+function walletSectionHead(text){return '<div style="font-size:.65rem;color:#555;margin:.5rem 0 .3rem;letter-spacing:.08em">'+text+'</div>'}
+function walletSectionSub(html){return '<div style="font-size:.6rem;color:#444;margin-bottom:.35rem">'+html+'</div>'}
+// One on-chain ledger row. Every value is third-party data and is escaped.
+function chainRowHtml(t,knownWho){
+  const id=String((t&&t.txId)||'');
+  const coinbase=!!t.isCoinbase;
+  const sent=t.type==='sent';
+  const amt=Number(t.amount),fee=Number(t.fee);
+  const cp=Array.isArray(t.counterparties)?t.counterparties:[];
+  const named=knownWho[id];
+  let who;
+  if(coinbase)who='<span class="wallet-tx-who">Mining reward</span>';
+  else{
+    who=activityWhoHtml(named||cp[0]||null);
+    if(!named&&cp.length>1)who+='<span class="wallet-tx-who"> +'+(cp.length-1)+'</span>';
+  }
+  const tsec=Number(t.timestamp);
+  const when=Number.isFinite(tsec)?new Date(tsec*1000).toLocaleString():'';
+  const feeTxt=(sent&&fee>0)?' · fee '+formatNock(fee):'';
+  const shortId=id.length>12?id.slice(0,12)+'\u2026':id;
+  const link=coinbase
+    ?'<span class="wallet-tx-id">'+escHtml('block '+String(t.blockHeight==null?'':t.blockHeight))+'</span>'
+    :'<a class="wallet-tx-id" href="'+escAttr(escHtml(NOCKSCAN+'/tx/'+encodeURIComponent(id)))+'" target="_blank" rel="noopener noreferrer" title="'+escAttr(escHtml(id))+'">TX '+escHtml(shortId)+'</a>';
+  return '<div class="wallet-tx-item">'+
+    '<div class="wallet-tx-row">'+
+      '<span class="wallet-tx-party">'+(coinbase?'':'<span class="wallet-tx-label">'+escHtml(sent?'To:':'From:')+'</span>')+who+'</span>'+
+      '<span class="wallet-tx-amount '+(sent?'sent':'received')+'">'+escHtml((sent?'-':'+')+(Number.isFinite(amt)?formatNock(amt):'?'))+' $NOCK</span>'+
+    '</div>'+
+    '<div class="wallet-tx-time">'+escHtml(when+feeTxt)+link+'</div>'+
+  '</div>';
+}
+// One Noltbook payment report row (unchanged from before).
+function localRowHtml(tx){
+  const sent=tx.type==='sent';
+  const cls=sent?'sent':tx.type==='received'?'received':'';
+  const sign=sent?'-':tx.type==='received'?'+':'';
+  const nicks=Number(tx.amount);
+  const amt=Number.isFinite(nicks)?formatNock(nicks):'?';
+  const txid=usableTxId(tx.txid);
+  const when=tx.time==null?'':String(tx.time);
+  const shortId=txid.length>12?txid.slice(0,12)+'\u2026':txid;
+  return '<div class="wallet-tx-item">'+
+    '<div class="wallet-tx-row">'+
+      '<span class="wallet-tx-party">'+
+        '<span class="wallet-tx-label">'+escHtml(sent?'To:':'From:')+'</span>'+
+        activityWhoHtml(tx.who)+
+      '</span>'+
+      '<span class="wallet-tx-amount '+escAttr(cls)+'">'+escHtml(sign+amt)+' $NOCK</span>'+
+    '</div>'+
+    '<div class="wallet-tx-time">'+escHtml(when)+
+      '<span class="wallet-tx-id" title="'+escAttr(escHtml(txid))+'">TX '+escHtml(shortId)+'</span>'+
+    '</div>'+
+  '</div>';
+}
 function renderWalletNotes(){
   const el=document.getElementById('walletTxList');
-  // NOLTBOOK ACTIVITY lists sends we can actually identify. A row without a usable
-  // transaction id cannot be reconciled with anything, so it is not shown. This also
-  // hides pre-nicks legacy rows (which carry no id) without inspecting their values,
-  // without a migration and without rewriting stored state.
+  // Noltbook's own payment reports: only rows with a usable transaction id.
   const acts=(wallet.transactions||[]).filter(t=>!!usableTxId(t&&t.txid));
-  // UTXOs are individual spendable notes that compose the balance, not transaction
-  // history, so they are no longer rendered here. wallet.notes is untouched: it still
-  // hydrates from Iris and still drives balance and send construction. Presentation
-  // only -- this function neither reads nor mutates it, so the empty state now depends
-  // on eligible ACTIVITY alone (otherwise held notes would suppress the message).
-  if(!acts.length){
-    el.innerHTML='<div class="wallet-tx-empty">No Noltbook activity yet</div>';
+  const chain=(wallet.connected&&wallet.chain&&wallet.chain.address===wallet.pkh)?wallet.chain:null;
+  const chainOk=!!(chain&&!chain.error);
+  // a report knows WHO a payment was with; chain rows borrow that name by txid
+  const knownWho={};
+  for(const t of acts){const id=usableTxId(t.txid);if(id&&t.who)knownWho[id]=t.who}
+  // with a working chain list, a report only shows when its transaction is not on chain
+  // yet -- and a report older than a truncated chain page is not called pending
+  const onChain=new Set(chainOk?chain.txs.map(t=>String(t.txId)):[]);
+  const oldestMs=(chainOk&&chain.hasMore&&chain.txs.length)
+    ?Math.min.apply(null,chain.txs.map(t=>Number(t.timestamp)||Infinity))*1000:0;
+  const pending=chainOk
+    ?acts.filter(t=>!onChain.has(usableTxId(t.txid))&&(!oldestMs||!(Number(t.ts)<oldestMs)))
+    :acts;
+  let body='';
+  if(wallet.connected&&wallet.pkh){
+    const all='<a href="'+escAttr(escHtml(NOCKSCAN+'/address/'+encodeURIComponent(wallet.pkh)))+'" target="_blank" rel="noopener noreferrer" style="color:#666">view all on nockscan.com</a>';
+    if(!chain)body+=walletSectionHead('ON-CHAIN')+walletSectionSub('loading history from nockscan.com…');
+    else if(chain.error)body+=walletSectionHead('ON-CHAIN')+walletSectionSub('history unavailable from nockscan.com ('+escHtml(chain.error)+')');
+    else{
+      const count=chain.txs.length?('latest '+chain.txs.length+(chain.total>chain.txs.length?' of '+chain.total:'')):'no transactions yet';
+      body+=walletSectionHead('ON-CHAIN · VIA NOCKSCAN.COM')+walletSectionSub(escHtml(count)+' — '+all);
+      body+=chain.txs.map(t=>chainRowHtml(t,knownWho)).join('');
+    }
+  }
+  if(pending.length){
+    body+=walletSectionHead(chainOk?'NOT YET ON CHAIN · REPORTED VIA NOLTBOOK':'REPORTED VIA NOLTBOOK');
+    body+=walletSectionSub(chainOk?'sent through Noltbook; nockscan.com has not indexed it yet':'payment reports sent and received here — not full wallet history or chain-confirmed');
+    body+=pending.map(localRowHtml).join('');
+  }
+  if(!body){
+    el.innerHTML='<div class="wallet-tx-empty">No activity yet</div>';
     el.classList.remove('has-more');
     return;
   }
-  let html='';
-  html+='<div style="font-size:.65rem;color:#555;margin:.5rem 0 .3rem;letter-spacing:.08em">REPORTED VIA NOLTBOOK</div>';
-  html+='<div style="font-size:.6rem;color:#444;margin-bottom:.35rem">payment reports sent and received here — not full wallet history or chain-confirmed</div>';
-  {
-    // Every value below is stored or externally supplied and is therefore escaped.
-    // Amounts are INTEGER NICKS; formatNock() is the only place they become decimal.
-    html+='<div class="wallet-tx-scroll" tabindex="0" role="region" aria-label="Noltbook payment reports, scrollable">'+acts.map(tx=>{
-      const sent=tx.type==='sent';
-      const cls=sent?'sent':tx.type==='received'?'received':'';
-      const sign=sent?'-':tx.type==='received'?'+':'';
-      const nicks=Number(tx.amount);
-      const amt=Number.isFinite(nicks)?formatNock(nicks):'?';
-      const txid=usableTxId(tx.txid);
-      const when=tx.time==null?'':String(tx.time);
-      const shortId=txid.length>12?txid.slice(0,12)+'\u2026':txid;
-      return '<div class="wallet-tx-item">'+
-        '<div class="wallet-tx-row">'+
-          '<span class="wallet-tx-party">'+
-            '<span class="wallet-tx-label">'+escHtml(sent?'To:':'From:')+'</span>'+
-            activityWhoHtml(tx.who)+
-          '</span>'+
-          '<span class="wallet-tx-amount '+escAttr(cls)+'">'+escHtml(sign+amt)+' $NOCK</span>'+
-        '</div>'+
-        '<div class="wallet-tx-time">'+escHtml(when)+
-          '<span class="wallet-tx-id" title="'+escAttr(escHtml(txid))+'">TX '+escHtml(shortId)+'</span>'+
-        '</div>'+
-      '</div>';
-    }).join('')+'</div>';
-  }
-  el.innerHTML=html;
+  el.innerHTML='<div class="wallet-tx-scroll" tabindex="0" role="region" aria-label="Wallet activity, scrollable">'+body+'</div>';
   const sc=el.querySelector('.wallet-tx-scroll');
   if(!sc){el.classList.remove('has-more');return}
   sc.addEventListener('scroll',function(){updateWalletActivityOverflow(sc)},{passive:true});
   ensureWalletOverflowResize();
-  // measure after layout settles, then once more on the next frame
   updateWalletActivityOverflow(sc);
   if(typeof requestAnimationFrame==='function')requestAnimationFrame(function(){updateWalletActivityOverflow(sc)});
 }
@@ -12936,6 +13103,7 @@ async function walletConnect(){
 // --- Balance refresh ---
 async function walletRefreshBalance(){
   if(!wallet.connected||!wallet.pkh)return;
+  walletFetchChainHistory(true);   // on-chain history (and fallback balance) from nockscan.com
   // Try real chain query first
   if(wallet.grpcClient){
     try{
@@ -12982,10 +13150,77 @@ function openSendModal(){
   document.getElementById('sendModal').classList.add('open');
   if(_sendDd){_sendDd.destroy();_sendDd=null}
   const inp=document.getElementById('sendTo');
-  _sendDd=showUserDropdown(inp,document.getElementById('sendToField'),function(r){inp.value=r.ship});
+  _sendDd=showUserDropdown(inp,document.getElementById('sendToField'),function(r){inp.value=r.ship;scheduleFeePreview()});
+  sendFeeNote('');
   inp.focus();
 }
-function closeSendModal(){_noteSendSource=null;document.getElementById('sendModal').classList.remove('open');if(_sendDd){_sendDd.destroy();_sendDd=null}}
+function closeSendModal(){_noteSendSource=null;document.getElementById('sendModal').classList.remove('open');if(_sendDd){_sendDd.destroy();_sendDd=null}sendFeeNote('')}
+// ===== fee preview =====
+// Iris 1.3 builds the exact transaction without a popup and reports its fee, so the form
+// can show the real fee before the user commits. One build runs at a time per site
+// (Iris answers -32005 otherwise), so previews are debounced and only the newest counts.
+let _feeTimer=null,_feeSeq=0,_feeBusyRetries=0;
+function sendFeeNote(text,warn){
+  const el=document.getElementById('sendFeeNote');if(!el)return;
+  el.textContent=text||'';el.hidden=!text;el.style.color=warn?'#ff7777':'';
+}
+function resolveSendPkh(to){
+  if(!to)return null;
+  let ship=to;
+  if(!to.startsWith('~')){const f=resolveDisplayNameToShip(to);if(f)ship=f}
+  const pkh=ship.startsWith('~')?resolveWalletAddress(ship):ship;
+  return (pkh&&isValidNockAddress(pkh))?pkh:null;
+}
+function scheduleFeePreview(){clearTimeout(_feeTimer);_feeTimer=setTimeout(runFeePreview,500)}
+function sendFeeLocked(){
+  const el=document.getElementById('sendFeeNote');if(!el)return;
+  el.hidden=false;el.style.color='';el.textContent='Wallet locked — unlock to see the fee. ';
+  const b=document.createElement('button');
+  b.type='button';b.className='wallet-fee-unlock';b.textContent='UNLOCK';
+  b.onclick=function(){irisUnlockForFee()};
+  el.appendChild(b);
+}
+// nock_connect raises Iris's unlock prompt when the vault is locked; then re-check the fee
+async function irisUnlockForFee(){
+  sendFeeNote('Unlock Iris in its window…');
+  try{await window.nockchain.request({method:'nock_connect',api:IRIS_API_VERSION,timeout:120000})}catch(e){}
+  _feeBusyRetries=0;scheduleFeePreview();
+}
+async function runFeePreview(){
+  const modal=document.getElementById('sendModal');
+  if(!modal||!modal.classList.contains('open'))return;
+  const to=(document.getElementById('sendTo').value||'').trim();
+  const amount=parseFloat(document.getElementById('sendAmount').value);
+  if(!to||!(amount>0)||!wallet.connected||!irisReady()){sendFeeNote('');return}
+  if(!irisCalculatesFee()){
+    sendFeeNote('Network fee: '+formatNock(TEMP_FIXED_SEND_FEE_NICKS)+' NOCK (fixed — update Iris to 1.3 for an exact fee)');
+    return;
+  }
+  const pkh=resolveSendPkh(to);
+  if(!pkh){sendFeeNote('');return}
+  const nicks=Math.floor(amount*NICKS_PER_NOCK);
+  const seq=++_feeSeq;
+  sendFeeNote('Calculating network fee…');
+  try{
+    const b=await window.nockchain.request({method:'nock_buildSimpleTransaction',api:IRIS_API_VERSION,params:{to:pkh,amount:nicks},timeout:30000});
+    if(seq!==_feeSeq)return;                   // a newer preview superseded this one
+    _feeBusyRetries=0;
+    const fee=(b&&b.fee!=null)?Number(b.fee):NaN;
+    const min=(b&&b.minimumFee!=null)?Number(b.minimumFee):NaN;
+    if(!Number.isFinite(fee)){sendFeeNote('');return}
+    sendFeeNote('Network fee: '+formatNock(fee)+' NOCK'+((Number.isFinite(min)&&min!==fee)?' (minimum '+formatNock(min)+')':'')+' — Iris confirms the final amount');
+  }catch(e){
+    if(seq!==_feeSeq)return;
+    if(e&&e.code===-32005&&_feeBusyRetries<3){_feeBusyRetries++;scheduleFeePreview();return}
+    _feeBusyRetries=0;
+    const m=(e&&(e.message||(e.data&&e.data.message)))||'';
+    // Iris 1.3 auto-locks after 10 idle minutes unless set to Never, and this read-only
+    // check cannot raise its unlock prompt -- so offer one rather than show an error
+    if(/locked/i.test(String(m))||/locked/i.test(String(e&&e.code))){sendFeeLocked();return}
+    sendFeeNote('Fee estimate unavailable'+((m&&m!=='[object Object]')?': '+m:''),true);
+  }
+}
+document.addEventListener('input',function(e){const id=e.target&&e.target.id;if(id==='sendTo'||id==='sendAmount')scheduleFeePreview()});
 
 // Register wallet address with backend for @p→PKH resolution
 function walletRegister(pkh){
@@ -13050,12 +13285,26 @@ function receiptShip(tok){
 // hostile text that merely starts with the marker -- goes through renderText(),
 // which escapes. The recipient name is resolved at RENDER time, so stored receipts
 // are never rewritten and a later profile rename shows up on the next render.
+// Profile note lists show three notes, then scroll. Rows vary in height (descriptions
+// wrap), so the cap is measured from the third row; the CSS max-height covers the moment
+// before this runs, and a hidden list keeps it.
+function capProfileNotes(el){
+  if(!el)return;
+  requestAnimationFrame(function(){
+    const rows=el.children;
+    if(rows.length<=3){el.style.maxHeight='';return}
+    const h=Math.ceil(rows[2].getBoundingClientRect().bottom-el.getBoundingClientRect().top);
+    el.style.maxHeight=h>0?h+'px':'';
+  });
+}
 function renderMsgBody(text){
   if(!isNockSend(text))return{html:renderText(text),receipt:false};
   let m=null;
   try{m=NOCK_SEND_RE.exec(String(text).slice(NOCK_SEND_PREFIX.length).trim())}catch(e){m=null}
   const ship=m?receiptShip(m[2]):null;
   if(!ship)return{html:renderText(text),receipt:false};
+  // the recipient reads it from their side: "sent you 15 $NOCK" under the sender's name
+  if(ship===('~'+api.ship))return{html:'sent you '+escHtml(m[1])+' $NOCK',receipt:true};
   const who='<span class="nock-recip" title="'+escAttr(ship)+'" onclick="event.stopPropagation();viewProfile(\''+escAttr(ship)+'\')">'+escHtml(displayName(ship))+'</span>';
   // The stored text keeps its optional (tx:...) suffix -- that is the only link between
   // a receipt and its NOLTBOOK ACTIVITY row -- but it is never shown in conversation.
@@ -13073,6 +13322,7 @@ function receiptPlainText(text){
   try{m=NOCK_SEND_RE.exec(String(text).slice(NOCK_SEND_PREFIX.length).trim())}catch(e){m=null}
   const ship=m?receiptShip(m[2]):null;
   if(!ship)return text;
+  if(ship===('~'+api.ship))return 'sent you '+m[1]+' $NOCK';
   return 'sent '+m[1]+' $NOCK to '+displayName(ship);
 }
 // A usable identifier is the minimum for an ACTIVITY row: without one the row cannot be
@@ -13118,14 +13368,12 @@ function activityWhoHtml(who){
 // Single source of truth for the send request. Modern Iris API 1.0.0: object
 // params (NOT array), explicit fee in nicks (NEVER 0). Used by dry-run + real send.
 function buildWalletSendEnvelope(recipientPkh,nicks){
-  // TEMPORARY TEST MODE: always pass a fixed 5 NOCK fee (327680 nicks). No omitted-fee
-  // mode, never fee:0, object params (never array). Replace with Iris fee estimation later.
-  return{
-    method:'nock_sendTransaction',
-    api:IRIS_API_VERSION,
-    params:{to:recipientPkh,amount:nicks,fee:TEMP_FIXED_SEND_FEE_NICKS},
-    timeout:120000
-  };
+  // Iris 1.3.0+: omit the fee -- Iris builds the exact transaction and shows that fee for
+  // approval. Older Iris cannot calculate one, so it still gets the fixed fee.
+  const params=irisCalculatesFee()
+    ?{to:recipientPkh,amount:nicks}
+    :{to:recipientPkh,amount:nicks,fee:TEMP_FIXED_SEND_FEE_NICKS};
+  return{method:'nock_sendTransaction',api:IRIS_API_VERSION,params:params,timeout:120000};
 }
 // Pull a tx hash from the various shapes Iris may return; log anything unexpected.
 function extractTxHash(r){
@@ -13191,9 +13439,9 @@ async function walletSend(){
   // DRY RUN: show the exact real envelope; never send, poke, post, or refresh.
   if(WALLET_DRYRUN){
     console.log('[wallet][DRYRUN] modern send envelope (NOT sent):',JSON.parse(JSON.stringify(envelope)));
-    const feeLine=(WALLET_SEND_FEE_MODE==='omit')
-      ?'Fee mode: OMITTED — Iris should calculate/populate fee\nFee: omitted from request; inspect Iris popup for calculated fee.\n'
-      :'Fee mode: DEFAULT '+formatNock(DEFAULT_SEND_FEE_NICKS)+' NOCK / '+DEFAULT_SEND_FEE_NICKS+' nicks\n';
+    const feeLine=irisCalculatesFee()
+      ?'Fee: omitted from request; Iris calculates it and shows it for approval.\n'
+      :'Fee: fixed '+formatNock(TEMP_FIXED_SEND_FEE_NICKS)+' NOCK (Iris older than 1.3)\n';
     alert('DRY RUN ONLY — no transaction was sent.\n\n'
       +'Amount: '+amount.toFixed(4)+' NOCK ('+nicks+' nicks)\n'
       +feeLine
@@ -13216,7 +13464,7 @@ async function walletSend(){
   // ===== Modern real send (Iris API 1.0.0). Object params, fee in nicks (never 0). =====
   try{
     console.log('[wallet] REAL SEND envelope:',JSON.parse(JSON.stringify(envelope)));
-    console.log('[wallet] TEMPORARY FIXED TEST FEE = '+TEMP_FIXED_SEND_FEE_NOCK+' NOCK / '+TEMP_FIXED_SEND_FEE_NICKS+' nicks');
+    console.log('[wallet] fee: '+(irisCalculatesFee()?'calculated by Iris':'fixed '+TEMP_FIXED_SEND_FEE_NOCK+' NOCK (Iris older than 1.3)'));
     // Extension bug: it does new Error(errorObj) which gives "[object Object]"
     // Listen for the raw postMessage reply to capture the real error.
     let rawReplyError=null;
@@ -13245,6 +13493,7 @@ async function walletSend(){
     }
     window.removeEventListener('message',errSpy);
     console.log('[wallet] sendTransaction result:',r);
+    if(r&&typeof r==='object'&&r.fee!=null)console.log('[wallet] actual fee paid: '+formatNock(r.fee)+' NOCK');
     const txHash=extractTxHash(r);
 
     // Record this send in NOLTBOOK ACTIVITY. Iris has already broadcast, so nothing
@@ -15682,7 +15931,7 @@ const THEATER_FRACTION=0.55;    // ~50-60% of the space left of the rail
 // The sidebar DOM is never destroyed -- collapsing only sets width:0, so width, scroll
 // position, search text, expanded sections and note/call state all survive untouched.
 const SB_COLLAPSED_KEY='nb-sidebar-collapsed', SB_WIDTH_KEY='nb-sidebar-width';
-try{state.sidebarFlat=localStorage.getItem(SB_FLAT_KEY)==='1'}catch(e){state.sidebarFlat=false}
+state.sidebarFlat=true;   // Noltbook always opens on the one combined list, newest activity first
 let _sbAutoCollapsed=false;      // theater collapsed it, not the user
 let _sbPreTheater=null;          // user's collapsed state when theater opened
 let _sbManualInTheater=false;    // user overrode it while theater was active
@@ -18169,6 +18418,7 @@ callDebugInit();
       <div class="wallet-modal-field">
         <label>AMOUNT (NOCK)</label>
         <input type="number" id="sendAmount" placeholder="0.00" step="0.0001" min="0">
+        <div id="sendFeeNote" class="wallet-fee-note" hidden></div>
       </div>
     </div>
     <div class="wallet-modal-footer">

@@ -1361,6 +1361,18 @@
   ^-  (map @ta @da)
   ?:  (is-pinned-note nid)  na
   (~(put by na) nid time)
+::  presence-started: did someone ELSE's presence just start on a note -- a [ship desk]
+::  that was not active before and is now? Like any other notification that moves the
+::  note up the sidebar, durably and without marking it unread. A renewal, a label
+::  change or our own presence never counts.
+++  presence-started
+  |=  $:  our=@p
+          before=(map [@p @tas] note-active:noltbook)
+          after=(map [@p @tas] note-active:noltbook)
+      ==
+  ^-  ?
+  %+  lien  ~(tap in ~(key by after))
+  |=(k=[@p @tas] &(!=(-.k our) !(~(has by before) k)))
 ::  activity-fact: /notes fact telling the local frontend to re-sort the
 ::  sidebar for one note. Caller must not emit this for pinned notes.
 ++  activity-fact
@@ -6034,12 +6046,17 @@
             gossip-active  pal-blocked  now.bowl
           ==
         =/  gafter  (fall (~(get by +.gres) nid) *(map [@p @tas] note-active:noltbook))
+        =/  gstarted=?  (presence-started our.bowl gbefore gafter)
         =/  glocal=(list card)
           ?:  (roster-same gbefore gafter)  ~
           %:  human-note-cards  nid  our.bowl  note-members  notes
+            %+  weld  ?.(gstarted ~ ~[(activity-fact nid now.bowl)])
             ~[(gf-notes (gossip-active-upd nid gafter now.bowl))]
           ==
-        :_  state(gossip-active +.gres)
+        :_  %=  state
+              gossip-active  +.gres
+              note-activity  ?.(gstarted note-activity (put-activity note-activity nid now.bowl))
+            ==
         (weld -.gres glocal)
       =/  inc=note-active:noltbook  active.rem
       ?.  ((sane %tas) desk.inc)  `state
@@ -6079,10 +6096,17 @@
           |=(a=note-active:noltbook =(set-by.a our.bowl))
         |=  a=note-active:noltbook
         (rpoke /gossip-active-out/(scot %p src.bowl)/[nid] src.bowl `remote:noltbook`[%remote-gossip-active nid (gossip-active-shared a) %.n])
+      =/  gstart=?  (presence-started our.bowl mem mem2)
       =/  fact-cards=(list card)
         ?:  unchanged  ~
-        (human-note-cards nid our.bowl note-members notes ~[(gf-notes (gossip-active-upd nid mem2 now.bowl))])
-      :_  state(gossip-active (~(put by gossip-active) nid mem2))
+        %:  human-note-cards  nid  our.bowl  note-members  notes
+          %+  weld  ?.(gstart ~ ~[(activity-fact nid now.bowl)])
+          ~[(gf-notes (gossip-active-upd nid mem2 now.bowl))]
+        ==
+      :_  %=  state
+            gossip-active  (~(put by gossip-active) nid mem2)
+            note-activity  ?.(gstart note-activity (put-activity note-activity nid now.bowl))
+          ==
       (weld answer-cards fact-cards)
     ::
         %remote-gossip-inactive
@@ -6151,9 +6175,14 @@
           ~[`card:agent:gall`[%pass (note-roster-exp-wire nid prev-exp) %arvo %b %rest prev-exp]]
         ?~  mem2  ~
         ~[`card:agent:gall`[%pass (note-roster-exp-wire nid exp) %arvo %b %wait exp]]
-      :_  state(gossip-active ?~(mem2 (~(del by gossip-active) nid) (~(put by gossip-active) nid mem2)))
+      =/  started=?  (presence-started our.bowl before mem2)
+      :_  %=  state
+            gossip-active  ?~(mem2 (~(del by gossip-active) nid) (~(put by gossip-active) nid mem2))
+            note-activity  ?.(started note-activity (put-activity note-activity nid now.bowl))
+          ==
       %+  weld  wake-cards
       %:  human-note-cards  nid  our.bowl  note-members  notes
+        %+  weld  ?.(started ~ ~[(activity-fact nid now.bowl)])
         ~[(gf-notes (gossip-active-upd nid mem2 now.bowl))]
       ==
     ::
@@ -16859,12 +16888,16 @@
         ~[(gf-notes upd)]
       ::
           %note-active-updated
-        ::  host set/cleared the active status; store locally and relay to frontend.
+        ::  host set/cleared the active status; store locally and relay to frontend. A
+        ::  status that just STARTED moves the note up, like any other notification.
+        =/  started=?  &(?=(^ active.upd) !(~(has by note-active) note-id.upd))
         =.  note-active
           ?~  active.upd  (~(del by note-active) note-id.upd)
           (~(put by note-active) note-id.upd u.active.upd)
+        =?  note-activity  started  (put-activity note-activity note-id.upd now.bowl)
         :_  this
-        ~[(gf-notes upd)]
+        ?.  started  ~[(gf-notes upd)]
+        ~[(gf-notes upd) (activity-fact note-id.upd now.bowl)]
       ::
           %artifact-created
         ::  Phase 1: DM artifacts are delivered by the direct DM wires
