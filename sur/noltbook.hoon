@@ -1132,6 +1132,9 @@
       [%send-pending client-id=@t msg=message]
       ::  the host refused the post. Generic by design: no reason is carried.
       [%send-rejected note-id=@ta msg-id=@da]
+      ::  LOCAL FACT ONLY. Delivery receipt for a DM message we sent: %.y once the
+      ::  other ship's agent took it, %.n if it crashed on it. Silence is "not yet".
+      [%dm-delivery note-id=@ta msg-id=@da ok=?]
       [%message-edited note-id=@ta msg=message]
       [%message-deleted note-id=@ta msg-id=@da eid=(unit @uv)]
       [%artifact-created artifact=artifact]

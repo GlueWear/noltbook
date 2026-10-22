@@ -203,6 +203,15 @@
           ['msgId' s+(scot %da msg-id.upd)]
       ==
     ::
+    ::  LOCAL FACT ONLY. msgId is the raw @da, the same form as msgIdRaw.
+        %dm-delivery
+      %+  frond  'dm-delivery'
+      %-  pairs
+      :~  ['noteId' s+(crip (trip note-id.upd))]
+          ['msgId' s+(scot %da msg-id.upd)]
+          ['ok' b+ok.upd]
+      ==
+    ::
         %message-edited
       %+  frond  'message-edited'
       %-  pairs

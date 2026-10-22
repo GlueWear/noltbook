@@ -4090,6 +4090,12 @@
   |=  [=wire who=@p rem=remote:noltbook]
   ^-  card
   [%pass wire %agent [who %noltbook] %poke %noltbook-remote !>(rem)]
+::  wire for a DM message handed to the other ship. Carries the message id, because
+::  the poke-ack that comes back on it carries nothing else (see on-agent %dm-msg).
+++  dm-msg-wire
+  |=  [nid=@ta mid=@da]
+  ^-  wire
+  /dm-msg/[nid]/(scot %da mid)
 ::  wallet-id-clean: an opaque transaction identifier must carry no ASCII control
 ::  characters -- it is rendered (escaped) in the client, and a control byte would
 ::  corrupt the row. Format-agnostic otherwise: we never assume hex or base58.
@@ -12879,21 +12885,52 @@
       ?~  exists  `this
       ::  %document carries no timeline: refuse before any id, seq, mutation or fact.
       ?.  (note-allows-messages u.exists)  `this
-      ::  PREDETERMINED ID. Honored ONLY for the same-ship optimistic path into a note
-      ::  ANOTHER ship hosts -- the one path that forwards instead of storing, and so
-      ::  the only one whose sender may have to retry. Everywhere else (our own notes,
-      ::  DMs, cover, gossip, rumors, and any caller that omits msg-id) eff-id is
-      ::  exactly now.bowl, so behavior is byte-identical to before.
-      ::  Fixing the id before the first attempt is what makes retry safe: the host's
-      ::  [author msg-id] dedupe can only collapse attempts that name the same id.
-      =/  id-eligible=?
+      ::  PREDETERMINED ID. The browser fixes the id before the first attempt and every
+      ::  retry reuses it; that is what makes retry safe. Into a note ANOTHER ship hosts
+      ::  (the one path that forwards instead of storing) the host's [author msg-id]
+      ::  dedupe collapses repeated attempts, and the id is honored unconditionally.
+      ::  LOCALLY STORED notes (our own notes, DMs, gossip, cover) honor it too, so the
+      ::  browser's grey row can match the stored message and a retry is recognised
+      ::  below as one. There it is bounded to a sane window around now.bowl: at most
+      ::  a minute ahead (clock skew) and at most a day behind (a slow ship). Rumors are
+      ::  anonymous -- content is their identity -- and keep now.bowl, as does any
+      ::  caller that omits msg-id (the API). Display order is unaffected: notes order
+      ::  by seq, which is assigned here at store time.
+      =/  is-fwd=?
         ?&  ?|(=(%group type.u.exists) =(%notebook type.u.exists))
             !=(our.bowl creator.u.exists)
+        ==
+      =/  id-eligible=?
+        ?~  msg-id.act  %.n
+        ?:  is-fwd  %.y
+        ?&  !=(note-id.act %ars-rumors)
+            (lte u.msg-id.act (add now.bowl ~m1))
+            (gte u.msg-id.act (sub now.bowl ~d1))
         ==
       =/  eff-id=@da
         ?~  msg-id.act  now.bowl
         ?.  id-eligible  now.bowl
         u.msg-id.act
+      ::  RETRY OF A LOCAL SEND THAT ALREADY LANDED: our own message with this exact id
+      ::  is stored, so store nothing again. Re-confirm it to our browser and, for a
+      ::  DM, hand the stored copy to the other ship once more. The receiver dedupes on
+      ::  the message key, so a second delivery is a no-op there and a lost one is
+      ::  repaired.
+      =/  prior=(list message:noltbook)
+        ?.  ?&(id-eligible !is-fwd)  ~
+        %+  skim  (fall (~(get by messages) note-id.act) ~)
+        |=(m=message:noltbook ?&(=(id.m eff-id) =(author.m our.bowl)))
+      ?^  prior
+        =/  replay-cards=(list card)
+          ?~  client-id.act  ~
+          ~[(gf-notes `update:noltbook`[%send-pending u.client-id.act i.prior])]
+        ?.  =(%dm type.u.exists)  [replay-cards this]
+        =/  peers=(list @p)  (skim ~(tap in users.u.exists) |=(p=@p !=(p our.bowl)))
+        ?~  peers  [replay-cards this]
+        ?:  (~(has in pal-blocked) i.peers)  [replay-cards this]
+        =/  re-dm=card
+          (rpoke (dm-msg-wire note-id.act id.i.prior) i.peers `remote:noltbook`[%remote-dm-message u.exists i.prior ~])
+        [(snoc replay-cards re-dm) this]
       ::  entry-meta for hosted, cover, and gossip notes. Rumors use
       ::  content-hash identity (anonymous — no author for eid/seq).
       =/  is-regular=?
@@ -12922,6 +12959,12 @@
       =/  msg=message:noltbook
         :*  eff-id  note-id.act  our.bowl  text.act  eff-id  reply-to.act  %.n  em
         ==
+      ::  %send-pending binds the browser's client-id to this message's exact identity.
+      ::  A LOCAL fact that never leaves this ship. Every path below puts it FIRST, so
+      ::  the browser learns the identity before the message itself arrives.
+      =/  pend-cards=(list card)
+        ?~  client-id.act  ~
+        ~[(gf-notes `update:noltbook`[%send-pending u.client-id.act msg])]
       ::  ARS NOTORIA: store locally and gossip to all peers
       ?:  =(note-id.act %cover)
         =/  cur=(list message:noltbook)  (fall (~(get by messages) %cover) ~)
@@ -12941,7 +12984,7 @@
         ::  carries via to peers/members for their own via-by-eid.
         =.  via-by-eid  (api-via-put via-by-eid via.act msg)
         :_  this(notes (~(put by notes) %cover upd-note), messages (~(put by messages) %cover (cap-msgs (snoc cur msg) %.y)), gossip-hops (~(put by gossip-hops) id.msg 0), seq-counters (~(put by seq-counters) %cover nxt-seq))
-        :(weld ~[(gf-notes upd)] ~[(gf-paths ~[/notes/cover] env-upd)] gossip)
+        :(weld pend-cards ~[(gf-notes upd)] ~[(gf-paths ~[/notes/cover] env-upd)] gossip)
       ::  user-created gossip notes: same envelope model as cover
       ?:  =(%gossip type.u.exists)
         =/  nid=@ta  note-id.act
@@ -12974,7 +13017,7 @@
             ==
         =/  head-cards=(list card:agent:gall)
           ~[(gf-notes upd) (activity-fact nid now.bowl) (unread-activity-fact nid now.bowl) (note-read-fact nid now.bowl)]
-        :(weld head-cards ~[(gf-paths ~[/notes/[nid]] env-upd)] gossip)
+        :(weld pend-cards head-cards ~[(gf-paths ~[/notes/[nid]] env-upd)] gossip)
       ::  RUMORS: anonymous gossip — intentionally uses content-hash identity,
       ::  NOT entry-meta. Author is stripped (set to ~hosted), so eid/seq
       ::  (which are per-author) would be meaningless. Dedup uses (sham text)
@@ -13019,29 +13062,26 @@
         ::  message, so receiver can recreate the DM if they left without
         ::  relying on poke ordering or subscriptions.
         =/  dm-rem=remote:noltbook  [%remote-dm-message u.exists msg via.act]
+        ::  the message id rides the wire so the delivery ack can name it
         =/  peer-cards=(list card)
           ?:  =(other our.bowl)  ~
-          ~[(rpoke /dm-msg/[note-id.act] other dm-rem)]
+          ~[(rpoke (dm-msg-wire note-id.act id.msg) other dm-rem)]
         =/  notes-cards=(list card:agent:gall)
           ::  ordering rides the sidebar signal; the read cursor still travels
           ~[(gf-notes upd) (note-read-fact note-id.act now.bowl)]
         ::  Phase 11B: attribute our own stored DM copy (via.ship = us, the sender).
         =.  via-by-eid  (api-via-put via-by-eid via.act msg)
         :_  this(notes (~(put by notes) note-id.act upd-note), messages (~(put by messages) note-id.act (snoc cur msg)), seq-counters ?:(is-regular (~(put by seq-counters) note-id.act nxt-seq) seq-counters), note-activity (put-activity note-activity note-id.act now.bowl), note-unread-activity (put-unread-activity note-unread-activity note-id.act now.bowl), note-read (put-read note-read note-id.act now.bowl), import-only-dms (~(del in import-only-dms) note-id.act))
-        :(weld ~[(gf-paths ~[pax] upd)] notes-cards peer-cards)
+        :(weld pend-cards ~[(gf-paths ~[pax] upd)] notes-cards peer-cards)
       ::  remote note: forward to creator
       ?.  =(our.bowl creator.u.exists)
         =/  fwd-card=card
           ::  carry the explicit NOTE SEND marker to the host (regular/group)
           (rpoke /msg-fwd/[note-id.act] creator.u.exists `remote:noltbook`[%remote-message note-id.act msg directed-kind.act via.act])
         ::  OPTIMISTIC POST, sender side. Nothing is stored -- an unaccepted post is
-        ::  never a durable message. This LOCAL fact simply tells our own browser the
-        ::  exact identity we just generated, binding its client-id to
-        ::  [note-id author msg-id] so the row it already drew can reconcile against
-        ::  the host's authoritative %new-message. Never leaves this ship.
-        =/  pend-cards=(list card)
-          ?~  client-id.act  ~
-          ~[(gf-notes `update:noltbook`[%send-pending u.client-id.act msg])]
+        ::  never a durable message. pend-cards (above) simply tells our own browser
+        ::  the exact identity we just generated, so the row it already drew can
+        ::  reconcile against the host's authoritative %new-message.
         ::  for remote %group sends, arm the 8s host reachability timer so
         ::  we surface %host-unreachable even when Ames swallows the ack.
         =/  arm-timer=?
@@ -13087,7 +13127,7 @@
       ::  ordering and unread ride the sidebar signal that gf-notes emits above
       =?  base-cards  human-vis  (snoc base-cards (note-read-fact note-id.act now.bowl))
       :_  this(notes (~(put by notes) note-id.act upd-note), messages (~(put by messages) note-id.act (snoc cur msg)), seq-counters new-seq-counters, note-activity (put-activity note-activity note-id.act now.bowl), note-unread-activity new-unread-activity, note-read note-read)
-      base-cards
+      (weld pend-cards base-cards)
     ::
         %edit-message
       ?:  (is-write-blocked note-id.act host-status notes our.bowl)  `this
@@ -17336,6 +17376,23 @@
       [%fork-deny @ @ ~]
     ?+  -.sign  `this
         %poke-ack  `this
+    ==
+  ::
+      [%dm-msg @ @ ~]
+    ::  delivery receipt for a DM message we sent: the other ship's agent took it
+    ::  (ack) or crashed on it (nack). An unreachable ship is retried by Ames on its
+    ::  own, so silence means "not delivered yet", never failure. A local fact for our
+    ::  browser only. Two-segment /dm-msg wires (pins, wallet) fall to the default.
+    ?+  -.sign  `this
+        %poke-ack
+      =/  mid=(unit @da)  (slaw %da i.t.t.wire)
+      ?~  mid  `this
+      ?^  p.sign
+        ~&  [%dm-msg-failed i.t.wire]
+        :_  this
+        ~[(gf-notes `update:noltbook`[%dm-delivery i.t.wire u.mid %.n])]
+      :_  this
+      ~[(gf-notes `update:noltbook`[%dm-delivery i.t.wire u.mid %.y])]
     ==
   ::
       [%msg-fwd @ ~]

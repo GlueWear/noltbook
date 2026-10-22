@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="nb-build" content="t5reo2gb1j">
+<meta name="nb-build" content="dk8q6lvckm">
 <title>NOLTBOOK</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%20355.9%20355.9%22%20width=%22355.9%22%20height=%22355.9%22%3E%3Cg%20fill=%22%23ffffff%22%20transform=%22translate(-10.9901536%2036.4439936)%20scale(1.06235712)%22%3E%3Cpolygon%20points=%2266%20159.5%2066%2021.2%20204.3%2021.2%20204.3%2080.8%20204.3%20112.5%20204.3%20159.5%20160.7%20159.5%20160.7%20180.7%20225.5%20180.7%20225.5%20112.5%20225.5%2080.8%20225.5%200%2044.8%200%2044.8%20180.7%20121%20180.7%20121%20159.5%2066%20159.5%22/%3E%3Cpolygon%20points=%22234.7%2085.7%20234.7%20106.9%20289.8%20106.9%20289.8%20245.3%20151.4%20245.3%20151.4%20186.8%20151.4%20180.7%20151.4%20159.5%20151.4%20155.1%20151.4%20106.9%20195%20106.9%20195%2085.7%20130.2%2085.7%20130.2%20151.8%20130.2%20159.5%20130.2%20180.7%20130.2%20183.5%20130.2%20266.4%20310.9%20266.4%20310.9%2085.7%20234.7%2085.7%22/%3E%3C/g%3E%3C/svg%3E">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -260,6 +260,12 @@ html,body{height:100%;font-family:var(--font);font-size:14px;background:var(--bg
 .msg-retry-btn:hover:not(:disabled){background:rgba(255,68,68,.15)}
 .msg-retry-btn:focus-visible{outline:2px solid #ffaa00;outline-offset:1px}
 .msg-retry-btn:disabled{opacity:.5;cursor:default}
+/* a message on its way: grey until our ship has stored it and, for a DM, until the
+   other ship has acknowledged it. The status control keeps its own colours. */
+[data-nb-pending] .msg-text,[data-nb-undelivered] .msg-text{color:var(--text-muted)}
+.msg-late-label{color:#ffaa00}
+.msg-retry-btn.late{border-color:#ffaa00;color:#ffaa00}
+.msg-retry-btn.late:hover:not(:disabled){background:rgba(255,170,0,.15)}
 .msg-edited{font-size:.65rem;color:var(--text-dim);font-style:italic;margin-left:.4rem}
 .msg-import-badge{display:inline-block;margin-left:.45rem;padding:.08rem .3rem;border:1px solid #4a5568;color:#94a3b8;font-size:.62rem;letter-spacing:.04em;vertical-align:middle}
 .msg-text.nock-send{color:#00ff88}
@@ -2092,7 +2098,7 @@ const api = {
     console.log('[SSE] replaced, re-subscribed to',oldMeta.length,'paths');
   }
 };
-const state={notes:{},messages:{},pendingSends:{},artifacts:{},profiles:{},callGens:{},callMods:{},camOff:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),manualExpanded:new Set(),expandedSections:{ars:true,notes:true,shared:true,dm:true},replyingTo:null,replyingToEid:null,editingMsgId:null,editingEid:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},palRequestDeclined:new Set(),palRequestTimes:{},palRequestBusy:{},palRequestErrors:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},gossipUnavailable:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteUnreadActivity:{},noteRead:{},coverPreview:null,notePins:{},pinArtId:null,noteActive:{},gossipActive:{},appNotifications:{},artifactRefs:{},pendingRedirect:null,pendingDmTransition:null,documents:{},documentHistory:{},docView:{},docSaveWait:{},docReqSeq:0,docPeek:{},docSessionSeq:0};
+const state={notes:{},messages:{},pendingSends:{},dmUndelivered:{},artifacts:{},profiles:{},callGens:{},callMods:{},camOff:{},currentNoteId:'cover',currentNoteSub:null,notifications:new Set(),expandedNotes:new Set(),manualExpanded:new Set(),expandedSections:{ars:true,notes:true,shared:true,dm:true},replyingTo:null,replyingToEid:null,editingMsgId:null,editingEid:null,expandedThreads:new Set(),currentArtifactType:'code',lastMsgAuthor:null,pendingParent:null,palsView:false,palStatus:{},palRequestDeclined:new Set(),palRequestTimes:{},palRequestBusy:{},palRequestErrors:{},contacts:new Set(),dial:0,gossipHops:{},mentions:{},attention:{},activeCalls:{},inCall:null,blockNotifications:[],gossipEnvelopes:{},gossipFetching:{},gossipPending:{},gossipUnavailable:{},pendingJoins:{},joinRequests:[],pendingWalletMsg:null,discoveryNotes:{},removedFromNotes:{},pendingRefOpen:null,pendingGossipRef:null,noteAdmins:{},noteMuted:{},blockedBy:{},viewingProfileShip:null,artifactEnvelopes:{},artifactEnvHops:{},noteHostStatus:{},noteLineage:{},pendingForkInvites:{},acceptingForkRoots:new Set(),noteMemberRevs:{},retryingHosts:{},noteReadCursors:{},unreadDividers:{},searchQuery:'',searchDebounce:null,searchReqCounter:0,searchReqInFlight:0,searchMessageHits:[],searchMessageCapped:false,profileLookupReqCounter:0,profileLookupInFlight:{},profileLookupStatus:{},profileLookupTimers:{},notificationAcks:new Set(),noteActivity:{},noteUnreadActivity:{},noteRead:{},coverPreview:null,notePins:{},pinArtId:null,noteActive:{},gossipActive:{},appNotifications:{},artifactRefs:{},pendingRedirect:null,pendingDmTransition:null,documents:{},documentHistory:{},docView:{},docSaveWait:{},docReqSeq:0,docPeek:{},docSessionSeq:0};
 // call recording runtime (step 4), declared early so the call teardown paths reach it
 const callRec={active:false,starting:false,stopping:false,wanted:null,noteId:null,callId:null,audioOnly:false,recorder:null,parts:[],bytes:0,mime:'',startedAt:0,ctx:null,dest:null,sources:new Map(),canvas:null,drawTimer:null,uiTimer:null};
 // Phase G4 freshness: resolved profiles are fresh for 10 min; negative results
@@ -2876,6 +2882,7 @@ function handleUpdate(upd){
   else if(upd['new-message']){const msg=upd['new-message'];if(!state.messages[msg.noteId])state.messages[msg.noteId]=[];/* optimistic reconciliation runs FIRST: a replayed fact (host duplicate confirmation) must still convert a pending row even though the dedup below will drop the message itself. */const _nbRec=reconcilePendingSend(msg);/* Part 1B: EID-first dedup. A modern msg dups only by matching eid; a legacy msg only by [author,id]. Same @da id with different eids both survive. */if(state.messages[msg.noteId].some(m=>msgKeyOf(m)===msgKeyOf(msg)))return;state.messages[msg.noteId].push(msg);/* call markers stay stored but have no UI effect: no preview, no notification, no unread divider, no render */if(isHiddenCallMsg(msg))return;if(state.notes[msg.noteId]&&state.notes[msg.noteId].type==='dm'&&!msg.import){state.notes[msg.noteId].localImport=false;hydrateDmNoteProfile(state.notes[msg.noteId])}/* correction 5: a \01SYS:art-delete deletion marker must never become the sidebar preview; preserve the preceding preview/source so live and reload agree (backend leaves note.last-preview untouched). */if(state.notes[msg.noteId]&&!isArtDeleteControl(msg.text)){state.notes[msg.noteId].lastAuthor=msg.author;state.notes[msg.noteId].lastPreview=msg.text}if(state.currentNoteId===msg.noteId){const isOwn=msg.author===('~'+api.ship);if(_nbRec){updateCoverPreview();markOpenNoteReadSoon(msg.noteId);scheduleNoteList();/* The optimistic row sits under its parent, but the renderer puts a thread block at its NEWEST reply's position -- the end. Surgical reconcile never moves a row, so only the sender saw the reply in the wrong place. A reply already forces a full render when it arrives from anyone else (canAppendMessageFast), so this matches. */if(msg.replyTo||(msg.meta&&msg.meta.replyToEid))scheduleRender(msg.noteId);return}if(!isOwn){const _cmEl=document.getElementById('chatMessages');if(_cmEl&&!isNearBottom(_cmEl)&&!state.unreadDividers[msg.noteId]){const _ord=msgOrder(msg);if(typeof _ord==='number')state.unreadDividers[msg.noteId]={order:_ord,until:_ord}}}appendMessage(msg,isOwn)}else state.notifications.add(msg.noteId);updateCoverPreview();markOpenNoteReadSoon(msg.noteId);scheduleNoteList()}
   else if(upd['send-pending']){const d=upd['send-pending'];bindPendingSend(d.clientId,d.msgId,d.message)}
   else if(upd['send-rejected']){const d=upd['send-rejected'];rejectPendingSend(d.noteId,d.msgId)}
+  else if(upd['dm-delivery']){const d=upd['dm-delivery'];dmDeliveryResult(d.noteId,d.msgId,!!d.ok)}
   else if(upd['artifact-created']){const a=upd['artifact-created'];state.artifacts[a.id]=a;if((a.type==='app'||a.type==='file')&&a.noteId===state.currentNoteId){scheduleRender(a.noteId);renderPinSurface(a.noteId)}}
   else if(upd['artifact-updated']){
     const a=upd['artifact-updated'];state.artifacts[a.id]=a;
@@ -3073,7 +3080,7 @@ function handleUpdate(upd){
     else if(state.currentNoteId===newId)scheduleRender(newId);
     renderNoteList()}
   else if(upd['wallet-update']){wallet.transactions=upd['wallet-update'].map(tx=>({type:tx.type,who:tx.counterparty,amount:tx.amount,time:new Date(tx.timestamp).toLocaleString(),ts:Number(new Date(tx.timestamp)),txid:tx.txHash}));renderWalletNotes()}
-  else if(upd['gossip-message']){const{message,hops}=upd['gossip-message'];const nid=message.noteId||'cover';const msgEid=message.meta&&message.meta.eid||null;state.gossipHops[message.id]=hops;if(!state.messages[nid])state.messages[nid]=[];const nenvs=state.gossipEnvelopes[nid]||{};delete nenvs[message.id];if(msgEid)delete nenvs[msgEid];state.gossipEnvelopes[nid]=nenvs;const nfetch=state.gossipFetching[nid];if(nfetch){nfetch.delete(message.id);if(msgEid)nfetch.delete(msgEid)}const isDup=state.messages[nid].some(m=>(msgEid&&m.meta&&m.meta.eid===msgEid)||m.id===message.id);if(!isDup){state.messages[nid].push(message);const visible=coverMsgVisible(message);if(state.currentNoteId===nid&&visible){const isOwn=message.author===('~'+api.ship);appendMessage(message,isOwn)}else if(state.currentNoteId!==nid&&visible&&!isPinnedUnreadNote(nid))state.notifications.add(nid)}const visible=coverMsgVisible(message);if(visible&&state.notes[nid]){state.notes[nid].lastAuthor=message.author;state.notes[nid].lastPreview=message.text}if(nid==='cover'&&visible)state.coverPreview={author:message.author,preview:message.text};markOpenNoteReadSoon(nid);scheduleNoteList()}
+  else if(upd['gossip-message']){const{message,hops}=upd['gossip-message'];const nid=message.noteId||'cover';/* our own gossip/cover post confirms its grey row here, the same way %new-message does for other notes */const _nbRec=reconcilePendingSend(message.noteId?message:Object.assign({},message,{noteId:nid}));const msgEid=message.meta&&message.meta.eid||null;state.gossipHops[message.id]=hops;if(!state.messages[nid])state.messages[nid]=[];const nenvs=state.gossipEnvelopes[nid]||{};delete nenvs[message.id];if(msgEid)delete nenvs[msgEid];state.gossipEnvelopes[nid]=nenvs;const nfetch=state.gossipFetching[nid];if(nfetch){nfetch.delete(message.id);if(msgEid)nfetch.delete(msgEid)}const isDup=state.messages[nid].some(m=>(msgEid&&m.meta&&m.meta.eid===msgEid)||m.id===message.id);if(!isDup){state.messages[nid].push(message);const visible=coverMsgVisible(message);if(state.currentNoteId===nid&&visible&&!_nbRec){const isOwn=message.author===('~'+api.ship);appendMessage(message,isOwn)}else if(state.currentNoteId!==nid&&visible&&!isPinnedUnreadNote(nid))state.notifications.add(nid)}const visible=coverMsgVisible(message);if(visible&&state.notes[nid]){state.notes[nid].lastAuthor=message.author;state.notes[nid].lastPreview=message.text}if(nid==='cover'&&visible)state.coverPreview={author:message.author,preview:message.text};markOpenNoteReadSoon(nid);scheduleNoteList()}
   else if(upd['gossip-envelope']){const{noteId,envelope,hops}=upd['gossip-envelope'];const nid=noteId||'cover';const envEid=envelope.meta&&envelope.meta.eid||null;if((state.messages[nid]||[]).some(m=>(envEid&&m.meta&&m.meta.eid===envEid)||m.id===envelope.id))return;const nenvs=state.gossipEnvelopes[nid]||{};const envKey=envEid||envelope.id;if(nenvs[envKey])return;envelope._eid=envEid;nenvs[envKey]=envelope;state.gossipEnvelopes[nid]=nenvs;state.gossipHops[envelope.id]=hops;const shell={id:envelope.id,noteId:nid,author:envelope.author,text:null};fetchTopWindowEnvelopes(nid);if(state.currentNoteId!==nid&&coverMsgVisible(shell)&&!isPinnedUnreadNote(nid))state.notifications.add(nid);markOpenNoteReadSoon(nid);scheduleNoteList()}
   else if(upd['envelope-list']){const{noteId,envelopes}=upd['envelope-list'];const existingMsgs=state.messages[noteId]||[];const existingIds=new Set(existingMsgs.map(m=>m.id));const existingEids=new Set(existingMsgs.filter(m=>m.meta&&m.meta.eid).map(m=>m.meta.eid));const nenvs=state.gossipEnvelopes[noteId]||{};for(const env of envelopes){const eeid=env.meta&&env.meta.eid||null;const envKey=eeid||env.id;if(existingIds.has(env.id)||(eeid&&existingEids.has(eeid))||nenvs[envKey])continue;env._eid=eeid;nenvs[envKey]=env}state.gossipEnvelopes[noteId]=nenvs;const fetched=fetchTopWindowEnvelopes(noteId);if(fetched>0)scheduleNoteList()}
   else if(upd['gossip-msg-unavailable']){/* The author no longer holds this body (deleted, or never had it). Remember it for this session so fetchGossipContent stops re-requesting it, and settle the in-flight fetch so the loading bar clears. Keys mirror fetchGossipContent: the eid when present, otherwise the millisecond id. No render: an unfetched envelope is not drawn. */const d=upd['gossip-msg-unavailable'];const nid=d.noteId||'cover';const key=d.eid||d.msgId;if(!state.gossipUnavailable[nid])state.gossipUnavailable[nid]=new Set();state.gossipUnavailable[nid].add(key);const nf=state.gossipFetching[nid];if(nf&&nf.has(key)){nf.delete(key);state.gossipPending[nid]=Math.max(0,(state.gossipPending[nid]||1)-1);if(state.gossipPending[nid]===0)hideGossipLoading()}}
@@ -5586,6 +5593,7 @@ function renderMessages(noteId,target){
   // a full rebuild wipes the container, so redraw any optimistic rows this note
   // still has outstanding (including their FAILED / RETRY state).
   renderPendingSends(noteId);
+  renderUndeliveredRows(noteId);
   // after layout settles, sweep visible messages and advance the read cursor.
   requestAnimationFrame(markVisibleMessagesRead);
 }
@@ -7991,12 +7999,18 @@ function openImageFullscreen(url){var o=document.createElement('div');o.id='file
 // Acquired BEFORE the first await, so click-then-Enter in the same frame, key repeat,
 // double-click and mobile double-tap all collapse to one submission. Released in finally.
 
-// ===================== OPTIMISTIC POSTS (guest -> remote host) =====================
-// A post into a note ANOTHER ship hosts is not stored locally: our agent forwards it
-// and returns bare `this`, so nothing exists until the host validates, stamps and fans
-// the authoritative %new-message back. That is a full two-hop Ames round trip. Host
-// posts, DMs, cover, gossip and rumors all store locally and are already instant, so
-// they never take this path.
+// ============================== OPTIMISTIC POSTS ==============================
+// Every text post draws its row the moment it is sent, grey until it is confirmed.
+//   remote: a note ANOTHER ship hosts is not stored locally -- our agent forwards it,
+//           so the row waits for the host's authoritative %new-message (a two-hop
+//           Ames round trip).
+//   local:  our own notes, DMs, gossip and cover are stored by our own ship, but a
+//           busy ship can still take seconds to process the poke, and until then the
+//           send looked like nothing had happened. The row waits for our ship's
+//           %new-message. A DM then stays grey until the OTHER ship acknowledges it
+//           (see DM DELIVERY below).
+// Rumors are anonymous (stored under ~hosted) and documents carry no timeline, so
+// neither takes this path.
 //
 // The optimistic row is TEMPORARY LOCAL UI STATE ONLY. It is never written into
 // state.messages (which is EID-first authoritative), never persisted, and carries no
@@ -8059,13 +8073,14 @@ function allocClientId(){
   return out;
 }
 function nbTrace(){if(NB_SEND_TRACE)console.log.apply(console,['[send]'].concat([].slice.call(arguments)))}
-// only a remotely hosted group/notebook needs optimism; everything else is already
-// stored in the same event as the poke.
-function sendNeedsOptimistic(nid){
+// 'remote' for a group/notebook another ship hosts, 'local' for anything our own ship
+// stores, null for the two kinds that cannot carry a matchable identity.
+function sendOptimisticKind(nid){
   const n=state.notes[nid];
-  if(!n)return false;
-  if(n.type!=='group'&&n.type!=='notebook')return false;
-  return n.creator!==('~'+api.ship);
+  if(!n)return null;
+  if(nid==='ars-rumors'||n.type==='document')return null;
+  if((n.type==='group'||n.type==='notebook')&&n.creator!==('~'+api.ship))return 'remote';
+  return 'local';
 }
 function pendingList(nid){
   if(!state.pendingSends[nid])state.pendingSends[nid]=[];
@@ -8091,6 +8106,10 @@ function createPendingSend(o){
   const pend={clientId:o.clientId,noteId:o.noteId,author:'~'+api.ship,text:o.text,
               replyTo:o.replyTo||null,replyToEid:o.replyToEid||null,
               directedKind:o.directedKind||null,
+              // local: our own ship stores it (retry goes through %send-message).
+              // dm: once stored, the row also waits for the other ship's receipt,
+              // which can overtake our own message fact -- hence delivered/deliveryFailed.
+              local:!!o.local,dm:!!o.dm,delivered:false,deliveryFailed:false,
               tempId:'nbp-'+(++_nbPendSeq)+'-'+Date.now(),
               // the canonical @da identity, fixed BEFORE the first poke, never changed
               // and reused verbatim by every retry.
@@ -8170,18 +8189,20 @@ function renderPendingSends(noteId){
 function pendingRowEl(pend){
   return document.querySelector('[data-nb-pending="'+CSS.escape(pend.clientId)+'"]');
 }
-// FAILED is plain status text; RETRY is a real <button>, focusable and Enter/Space
-// activated by the browser with no extra key handling.
-function markRowFailed(node,pend){
+// The status is plain text; RETRY is a real <button>, focusable and Enter/Space
+// activated by the browser with no extra key handling. `late` is the amber
+// not-yet form; without it the control is the red FAILED form.
+function markRowStatus(node,label,attr,val,late){
   if(!node||node.querySelector('.msg-send-failed'))return;
   const tx=node.querySelector('.msg-text');
   if(!tx)return;
-  const html='<div class="msg-send-failed"><span class="msg-failed-label">FAILED</span>'
+  const html='<div class="msg-send-failed"><span class="'+(late?'msg-late-label':'msg-failed-label')+'">'+escHtml(label)+'</span>'
     +'<span class="msg-failed-dot">·</span>'
-    +'<button type="button" class="msg-retry-btn" data-nb-retry="'+escAttr(pend.clientId)+'"'
+    +'<button type="button" class="msg-retry-btn'+(late?' late':'')+'" '+attr+'="'+escAttr(val)+'"'
     +' aria-label="Retry sending this message">RETRY</button></div>';
   tx.insertAdjacentHTML('beforeend',html);
 }
+function markRowFailed(node,pend){markRowStatus(node,'FAILED','data-nb-retry',pend.clientId,false)}
 function failPendingSend(pend){
   if(!pend||pend.status==='failed'){if(pend)pend.retrying=false;return}
   clearPendingTimer(pend);
@@ -8190,15 +8211,21 @@ function failPendingSend(pend){
   const node=pendingRowEl(pend);
   if(node)markRowFailed(node,pend);
 }
-// %send-pending: our own agent echoing back the exact @da it used. Purely
-// CONFIRMATORY now -- the row generated that id itself, so reconciliation and retry
-// work whether this fact arrives early, late, or never. It never overwrites the id; a
-// mismatch would mean the agent declined our id, which is worth surfacing under trace.
+// %send-pending: our own agent echoing back the exact @da it used. CONFIRMATORY --
+// the row generated that id itself, so reconciliation and retry work whether this
+// fact arrives early, late, or never. A remote send's id is always honored, so a
+// mismatch there is only surfaced under trace. A LOCAL send's id is honored only
+// inside a window around the ship's clock (a badly skewed browser clock falls
+// outside it); the agent then used its own, and the row adopts it so the stored
+// message still matches. The agent sends this fact ahead of the message itself.
 // A binding for a row already reconciled finds nothing and changes nothing.
 function bindPendingSend(clientId,rawId,message){
   const pend=findPendingByClient(clientId);
   if(!pend)return;
-  if(rawId&&pend.rawId&&rawId!==pend.rawId)nbTrace('BINDING MISMATCH',pend.rawId,rawId);
+  if(rawId&&pend.rawId&&rawId!==pend.rawId){
+    nbTrace('BINDING MISMATCH',pend.rawId,rawId);
+    if(pend.local)pend.rawId=rawId;
+  }
   nbTrace('bound',clientId,rawId);
 }
 // Authoritative success. Correlates on [noteId, author, msg-id] -- never text or time.
@@ -8222,6 +8249,8 @@ function reconcilePendingSend(msg){
   for(const p of a){if(pendMatchesMsg(p,msg)){pend=p;break}}
   if(!pend)return false;
   dropPendingSend(pend);
+  // a DM is stored now but not yet delivered: keep tracking it until the receipt
+  const undelivered=pend.dm&&!pend.delivered?trackDmDelivery(pend,msg):null;
   const node=pendingRowEl(pend);
   if(!node)return false;                       // not on screen: normal render handles it
   // SURGICAL: the row's body, images, embeds and iframes are never touched. Only the
@@ -8234,6 +8263,7 @@ function reconcilePendingSend(msg){
   const html=msgActionsHtml(msg,note,false);
   const host=node.querySelector('.msg-header')||node.firstElementChild;
   if(host)host.insertAdjacentHTML('beforeend',html);
+  if(undelivered)applyUndeliveredRow(node,undelivered);
   nbTrace('reconciled',pend.clientId,msg.id);
   return true;
 }
@@ -8292,6 +8322,12 @@ function clearPendingSendsForNote(noteId){
     if(node)node.remove();
   }
   delete state.pendingSends[noteId];
+  for(const k of Object.keys(state.dmUndelivered)){
+    const e=state.dmUndelivered[k];
+    if(e.noteId!==noteId)continue;
+    clearDeliveryTimer(e);
+    delete state.dmUndelivered[k];
+  }
   nbTrace('cleared for removed note',noteId);
 }
 function failPendingForNote(noteId){
@@ -8317,7 +8353,19 @@ function retryPendingSend(clientId){
     if(f)f.remove();
     armPendingTimer(pend);
   };
-  // ALWAYS %resend-message with the ORIGINAL predetermined id -- there is no
+  // A LOCAL note (our own notes, DMs, gossip, cover) goes through %send-message again
+  // with the SAME id. If the first attempt landed after all -- a slow ship processes
+  // pokes in order, so it always lands first -- the agent finds it, stores nothing,
+  // and only re-confirms it (and re-delivers a DM), so a retry never makes a copy.
+  if(pend.local){
+    const d={noteId:pend.noteId,text:pend.text,msgId:pend.rawId,clientId:pend.clientId};
+    if(pend.replyTo!=null)d.replyTo=pend.replyTo;
+    if(pend.replyToEid)d.replyToEid=pend.replyToEid;
+    if(pend.directedKind)d.directedKind=pend.directedKind;
+    api.poke('noltbook','noltbook-action',{action:'send-message',data:d}).then(done);
+    return;
+  }
+  // REMOTE: ALWAYS %resend-message with the ORIGINAL predetermined id -- there is no
   // "fresh send" path any more. A missing %send-pending binding does NOT mean the
   // original never reached Gall: the HTTP response can be lost, the fact delayed or
   // dropped, the SSE channel recovering, or success may simply have overtaken it.
@@ -8335,6 +8383,128 @@ document.addEventListener('click',(e)=>{
   if(!b)return;
   e.preventDefault();e.stopPropagation();
   retryPendingSend(b.getAttribute('data-nb-retry'));
+});
+
+// ================================ DM DELIVERY ================================
+// A DM is stored by our ship and then handed to the other ship. Its row stays grey
+// until that ship's agent acknowledges it (%dm-delivery ok). Ames keeps retrying an
+// unreachable ship by itself, so silence means "not delivered yet", never failure:
+// after the timeout the row says so in amber and offers RETRY, and it still turns
+// white whenever the receipt lands. A nack (their agent crashed on it) is a real
+// failure: red FAILED and RETRY. Keyed by the exact raw @da -- 64 random bits, unique
+// on its own. Page-session state only: a reload forgets it, and the row then simply
+// shows as sent.
+const NB_DELIVERY_TIMEOUT_MS=8000;
+function trackDmDelivery(pend,msg){
+  const e={rawId:pend.rawId,noteId:msg.noteId,text:pend.text,
+           replyTo:pend.replyTo,replyToEid:pend.replyToEid,
+           status:pend.deliveryFailed?'failed':'waiting',timer:null,retrying:false};
+  state.dmUndelivered[e.rawId]=e;
+  if(e.status==='waiting')armDeliveryTimer(e);
+  return e;
+}
+function armDeliveryTimer(e){
+  clearDeliveryTimer(e);
+  e.timer=setTimeout(()=>{
+    e.timer=null;
+    if(state.dmUndelivered[e.rawId]!==e||e.status!=='waiting')return;
+    e.status='late';
+    const n=undeliveredRowEl(e);
+    if(n)applyUndeliveredRow(n,e);
+  },NB_DELIVERY_TIMEOUT_MS);
+}
+function clearDeliveryTimer(e){if(e.timer){clearTimeout(e.timer);e.timer=null}}
+function undeliveredRowEl(e){
+  return document.querySelector('[data-nb-undelivered="'+CSS.escape(e.rawId)+'"]');
+}
+// grey the row and draw the status control its state calls for
+function applyUndeliveredRow(node,e){
+  node.setAttribute('data-nb-undelivered',e.rawId);
+  const old=node.querySelector('.msg-send-failed');
+  if(old)old.remove();
+  if(e.status==='late')markRowStatus(node,'NOT DELIVERED YET','data-nb-redeliver',e.rawId,true);
+  else if(e.status==='failed')markRowStatus(node,'FAILED','data-nb-redeliver',e.rawId,false);
+}
+// a full timeline rebuild redraws confirmed rows from state.messages, so put the grey
+// and the status control back on any that are still undelivered
+function renderUndeliveredRows(noteId){
+  const ks=Object.keys(state.dmUndelivered);
+  if(!ks.length)return;
+  const me='~'+api.ship;
+  const msgs=state.messages[noteId]||[];
+  for(const k of ks){
+    const e=state.dmUndelivered[k];
+    if(e.noteId!==noteId)continue;
+    const m=msgs.find(x=>x.author===me&&x.msgIdRaw===e.rawId);
+    if(!m)continue;
+    const n=document.getElementById(msgDomId(m,noteId));
+    if(n)applyUndeliveredRow(n,e);
+  }
+}
+function dmDeliveryResult(noteId,rawId,ok){
+  if(!rawId)return;
+  // the receipt can overtake our own message fact (a stalled channel): note it on the
+  // still-pending row and let the reconcile read it
+  for(const nid in state.pendingSends){
+    for(const p of state.pendingSends[nid]){
+      if(p.rawId!==rawId)continue;
+      if(ok)p.delivered=true;else p.deliveryFailed=true;
+      return;
+    }
+  }
+  const e=state.dmUndelivered[rawId];
+  if(!e)return;
+  clearDeliveryTimer(e);
+  e.retrying=false;
+  const n=undeliveredRowEl(e);
+  if(ok){
+    delete state.dmUndelivered[rawId];
+    if(n){
+      n.removeAttribute('data-nb-undelivered');
+      const f=n.querySelector('.msg-send-failed');
+      if(f)f.remove();
+    }
+    nbTrace('delivered',rawId);
+    return;
+  }
+  e.status='failed';
+  if(n)applyUndeliveredRow(n,e);
+  nbTrace('delivery failed',rawId);
+}
+// Hand the stored DM to the other ship again: %send-message with the SAME id, which
+// the agent recognises as already stored and only re-delivers. The receiver dedupes on
+// the message key, so a duplicate delivery is a no-op there.
+function redeliverDm(rawId){
+  const e=state.dmUndelivered[rawId];
+  if(!e||e.retrying)return;
+  e.retrying=true;
+  const n=undeliveredRowEl(e);
+  const btn=n?n.querySelector('.msg-retry-btn'):null;
+  if(btn)btn.disabled=true;
+  const d={noteId:e.noteId,text:e.text,msgId:e.rawId};
+  if(e.replyTo!=null)d.replyTo=e.replyTo;
+  if(e.replyToEid)d.replyToEid=e.replyToEid;
+  api.poke('noltbook','noltbook-action',{action:'send-message',data:d}).then((ok)=>{
+    e.retrying=false;
+    if(state.dmUndelivered[rawId]!==e)return;   // delivered meanwhile
+    const n2=undeliveredRowEl(e);
+    if(!ok){
+      e.status='failed';
+      const b2=n2?n2.querySelector('.msg-retry-btn'):null;
+      if(b2)b2.disabled=false;
+      if(n2)applyUndeliveredRow(n2,e);
+      return;
+    }
+    e.status='waiting';
+    if(n2)applyUndeliveredRow(n2,e);
+    armDeliveryTimer(e);
+  });
+}
+document.addEventListener('click',(e)=>{
+  const b=e.target.closest?e.target.closest('[data-nb-redeliver]'):null;
+  if(!b)return;
+  e.preventDefault();e.stopPropagation();
+  redeliverDm(b.getAttribute('data-nb-redeliver'));
 });
 
 let _sendLock=false;
@@ -8358,6 +8528,15 @@ function _composerStillOwned(cap){
   if(state.editingMsgId!==cap.editingMsgId||state.editingEid!==cap.editingEid)return false;
   return true;
 }
+// Put unsent text back -- but only into an empty composer on the same note, so nothing
+// typed since is ever overwritten. Used where no optimistic row holds the text.
+function _restoreComposer(cap){
+  if(state.currentNoteId!==cap.nid)return;
+  const cur=document.getElementById('chatInput');
+  if(!cur||cur!==cap.input||cur.value!=='')return;
+  cur.value=cap.raw;
+  resetChatInputHeight();updateInputMirror();
+}
 async function sendMessage(){
   if(_sendLock)return;
   const input=document.getElementById('chatInput');const raw=input.value;
@@ -8378,7 +8557,9 @@ async function sendMessage(){
     const eid=state.editingEid||null;
     const editData={noteId:cap.nid,msgId,text};
     if(eid)editData.eid=eid;
-    await api.poke('noltbook','noltbook-action',{action:'edit-message',data:editData});
+    const eok=await api.poke('noltbook','noltbook-action',{action:'edit-message',data:editData});
+    // a failed edit leaves the composer as it is, still in edit mode, so it can be resent
+    if(!eok){console.error('[sendMessage] edit poke failed');if(!api.reconnecting)api.reconnect();return}
     if(_composerStillOwned(cap)){input.value='';resetChatInputHeight();cancelEdit();updateInputMirror()}
     return;
   }
@@ -8398,19 +8579,21 @@ async function sendMessage(){
   // own send/reply: pin the next render of this note to bottom regardless of
   // which fact path renders it (new-message, message-list, generic scheduleRender).
   ScrollCo.beginOwnAction(_nid);
-  // OPTIMISTIC POST. A note hosted by ANOTHER ship stores nothing locally, so without
-  // this the message is invisible for a full two-hop Ames round trip. Order matters:
+  // OPTIMISTIC POST. The row appears on Enter, grey until confirmed: by the host for a
+  // note another ship hosts (a full two-hop Ames round trip), by our own ship for
+  // everything else (a busy ship can take seconds). Order matters:
   // capture (done above, in `cap`) -> clear the composer -> draw the row -> poke.
   // Reply state is read from `cap`, because cancelReply() is about to clear it.
   // No strong randomness means no collision-free identity, and a colliding
   // [author msg-id] would let the host's dedupe silently swallow a genuinely different
   // message. Degrade to the ordinary (pre-optimistic) path instead: the agent mints its
   // own now.bowl id exactly as it always did. The post is never at risk, only instant.
-  const _optimistic=sendNeedsOptimistic(_nid)&&nbHasStrongRandom();
+  const _optKind=nbHasStrongRandom()?sendOptimisticKind(_nid):null;
   let _pend=null;
-  if(_optimistic){
+  if(_optKind){
     _pend=createPendingSend({clientId:allocClientId(),noteId:_nid,text,
-                             replyTo:cap.replyingTo||null,replyToEid:cap.replyingToEid||null});
+                             replyTo:cap.replyingTo||null,replyToEid:cap.replyingToEid||null,
+                             local:_optKind==='local',dm:!!(_note&&_note.type==='dm')});
     data.clientId=_pend.clientId;
     // the SAME canonical @da the retry will use. Fixed before the first attempt.
     data.msgId=_pend.rawId;
@@ -8430,7 +8613,9 @@ async function sendMessage(){
     console.error('[sendMessage] poke failed, retrying after reconnect');
     // local transport failure is a GENUINE delivery failure: keep the row and offer
     // RETRY. The text is not restored -- it is still visible in the row itself.
+    // With no row to hold it, the text goes back into the composer instead.
     if(_pend)failPendingSend(_pend);
+    else _restoreComposer(cap);
     if(!api.reconnecting)api.reconnect();
     return;
   }
