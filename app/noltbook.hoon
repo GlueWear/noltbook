@@ -11632,9 +11632,16 @@
       ::  remote host: fetch bytes over Ames (artifact-style fetch-serve-forget). Hold
       ::  this HTTP request; %remote-user-avatar-content/-denied answers eyre-id when the
       ::  owner replies. We NEVER persist the fetched bytes.
+      ::  BOUNDED: an offline or slow owner would otherwise hold the browser's request
+      ::  open indefinitely, and over plain HTTP a browser has only six connections
+      ::  to this ship across every tab. The timer answers 504 after 10s (on-arvo
+      ::  %uav-fetch-timeout); a refused poke answers at once (on-agent %uav-fetch-out).
       ?.  =(u.host-u our.bowl)
         :_  this
-        ~[(rpoke /uav-fetch-out/[eyre-id] u.host-u `remote:noltbook`[%remote-user-avatar-fetch eyre-id])]
+        ^-  (list card)
+        :~  (rpoke /uav-fetch-out/[eyre-id] u.host-u `remote:noltbook`[%remote-user-avatar-fetch eyre-id])
+            [%pass /uav-fetch-timeout/[eyre-id] %arvo %b %wait (add now.bowl ~s10)]
+        ==
       ::  local host: serve our own uploaded avatar bytes.
       ?.  has-avatar
         :_  this
@@ -16315,6 +16322,17 @@
     ?.  (~(has by pending-icon-fetches) eid)  `this
     :_  this(pending-icon-fetches (~(del by pending-icon-fetches) eid))
     (give-simple-payload:app:server eid `simple-payload:http`[[504 ~] ~])
+  ::  held REMOTE user-avatar fetch expired: the owner has not answered within 10s.
+  ::  Answer 504 only if the browser is still waiting -- Eyre is subscribed to the
+  ::  request's response path until it is answered -- so no state is kept for it.
+  ::  The page keeps the sigil it drew first. A late answer from the owner then
+  ::  finds no subscriber and goes nowhere.
+  ?:  ?=([%uav-fetch-timeout @ ~] wire)
+    ?.  ?=([%behn %wake *] sign-arvo)  `this
+    =/  eid=@ta  i.t.wire
+    ?.  (lien ~(val by sup.bowl) |=([* p=path] =(p /http-response/[eid])))  `this
+    :_  this
+    (give-simple-payload:app:server eid `simple-payload:http`[[504 ~] ~])
   ::  held avatar/note-icon UPLOAD expired: the completion wake has not arrived within
   ::  10s. Answer 504 so Save never hangs; no image or metadata is changed here.
   ?:  ?=([%img-write-timeout @ ~] wire)
@@ -17376,6 +17394,18 @@
       [%fork-deny @ @ ~]
     ?+  -.sign  `this
         %poke-ack  `this
+    ==
+  ::
+      [%uav-fetch-out @ ~]
+    ::  the owner's agent refused or crashed on our avatar request (or does not run
+    ::  Noltbook): answer the held browser request now rather than at the timeout.
+    ?+  -.sign  `this
+        %poke-ack
+      ?~  p.sign  `this
+      =/  eid=@ta  i.t.wire
+      ?.  (lien ~(val by sup.bowl) |=([* p=path] =(p /http-response/[eid])))  `this
+      :_  this
+      (give-simple-payload:app:server eid `simple-payload:http`[[502 ~] ~])
     ==
   ::
       [%dm-msg @ @ ~]
