@@ -548,6 +548,163 @@
       ::  ===== declined incoming pal requests =====
       pal-declined=(set @p)
   ==
+::  uav-ask: one remote profile picture we are asking its owner for. `since` is when
+::  the ask went out; `wait` holds the browser requests waiting on it, each with
+::  whether its address named a version (see uav-payload). Never the picture itself.
++$  uav-ask  [since=@da wait=(map @ta ?)]
+::  state-82: state-81 plus the remote profile-picture asks (uav-get). state-81 is
+::  FROZEN from here on. No picture is stored: only who we asked, when, and which
+::  requests wait.
++$  state-82
+  $:  %82
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      calls=(map @ta call-snapshot:noltbook)
+      call-leases=(map @ta (map @p @da))
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      note-unread-activity=(map @ta @da)
+      note-members=(map @ta (set @p))
+      app-notifications=(map [@tas @t] app-notification:noltbook)
+      dm-artifact-refs=(map @uv dm-artifact-ref:noltbook)
+      dm-artifact-tombs=(map @uv dm-artifact-tomb:noltbook)
+      dm-msg-tombs=(map dm-message-key:noltbook @da)
+      peer-proto=(map @p @ud)
+      pending-dm-fetches=(map @ta pending-dm-fetch:noltbook)
+      note-artifact-tombs=(map @ta note-artifact-tomb:noltbook)
+      mesh-tombs=(set @uv)
+      mesh-tomb-meta=(map @uv mesh-tomb:noltbook)
+      dm-imports=(map @uv dm-import:noltbook)
+      import-only-dms=(set @ta)
+      pending-icon-fetches=(map @ta pending-icon-fetch:noltbook)
+      pending-img-writes=(map @ta pending-img-write:noltbook)
+      pending-profile-lookups=(map @ud pending-profile-lookup:noltbook)
+      sfu-mode=call-transport:noltbook
+      documents=(map @ta document-current:noltbook)
+      document-history=(map @ta (list document-version:noltbook))
+      gossip-active=(map @ta (map [@p @tas] note-active:noltbook))
+      call-mods=(map @ta call-mod-snap:noltbook)
+      pal-declined=(set @p)
+      ::  ===== remote profile-picture asks =====
+      uav-asks=(map @p uav-ask)
+  ==
+::  dm-ack: the DM message ids sent to one peer in one conversation and not yet
+::  acked, oldest first, on the flow for the peer's `rift` (see dm-send). Ids only.
++$  dm-ack  [rift=@ud wait=(qeu @da)]
+::  state-83: state-82 plus the DM receipt queues (dm-send). state-82 is FROZEN from
+::  here on.
++$  state-83
+  $:  %83
+      notes=(map @ta note:noltbook)
+      messages=(map @ta (list message:noltbook))
+      artifacts=(map @ta artifact:noltbook)
+      profiles=(map @p profile:noltbook)
+      transactions=(list transaction:noltbook)
+      current-note=@ta
+      peers=(set @p)
+      has-avatar=?
+      pal-outgoing=(set @p)
+      pal-incoming=(set @p)
+      pal-blocked=(set @p)
+      blocked-by=(set @p)
+      dial=@ud
+      gossip-hops=(map @da @ud)
+      mentions=(map @ta (list [id=@da eid=(unit @uv) author=@p]))
+      calls=(map @ta call-snapshot:noltbook)
+      call-leases=(map @ta (map @p @da))
+      gossip-envelopes=(map @ta (map @da envelope:noltbook))
+      headlines=(map @ta @t)
+      seq-counters=(map @ta @ud)
+      join-requests=(map @ta (set @p))
+      note-admins=(map @ta (set @p))
+      note-muted=(map @ta (set @p))
+      artifact-envelopes=(map @ta (map @ta artifact-envelope:noltbook))
+      host-status=(map @ta ?(%host-deleted %host-unreachable))
+      fork-origin=(map @ta @uv)
+      fork-version=(map @ta @ud)
+      fork-of=(map @ta [host=@p nid=@ta])
+      pending-fork-invites=(map @ta pending-fork-invite:noltbook)
+      fork-invitees=(map @ta (set @p))
+      contacts=(set @p)
+      dm-prefs=(map @p dm-pref)
+      member-revs=(map @ta @ud)
+      fork-parent-version=(map @ta @ud)
+      host-checks=(map @ta @da)
+      notification-acks=(set durable-notification-ack:noltbook)
+      note-activity=(map @ta @da)
+      note-read=(map @ta @da)
+      attention=(map @ta (list attention-item:noltbook))
+      cleared-mentions=(map @ta (list [id=@da eid=(unit @uv)]))
+      via-by-eid=(map @uv via-app:noltbook)
+      note-pins=(map @ta note-pin:noltbook)
+      note-apps=(map @ta app-note-meta:noltbook)
+      note-active=(map @ta note-active:noltbook)
+      app-grants=(map @tas app-grant:noltbook)
+      note-unread-activity=(map @ta @da)
+      note-members=(map @ta (set @p))
+      app-notifications=(map [@tas @t] app-notification:noltbook)
+      dm-artifact-refs=(map @uv dm-artifact-ref:noltbook)
+      dm-artifact-tombs=(map @uv dm-artifact-tomb:noltbook)
+      dm-msg-tombs=(map dm-message-key:noltbook @da)
+      peer-proto=(map @p @ud)
+      pending-dm-fetches=(map @ta pending-dm-fetch:noltbook)
+      note-artifact-tombs=(map @ta note-artifact-tomb:noltbook)
+      mesh-tombs=(set @uv)
+      mesh-tomb-meta=(map @uv mesh-tomb:noltbook)
+      dm-imports=(map @uv dm-import:noltbook)
+      import-only-dms=(set @ta)
+      pending-icon-fetches=(map @ta pending-icon-fetch:noltbook)
+      pending-img-writes=(map @ta pending-img-write:noltbook)
+      pending-profile-lookups=(map @ud pending-profile-lookup:noltbook)
+      sfu-mode=call-transport:noltbook
+      documents=(map @ta document-current:noltbook)
+      document-history=(map @ta (list document-version:noltbook))
+      gossip-active=(map @ta (map [@p @tas] note-active:noltbook))
+      call-mods=(map @ta call-mod-snap:noltbook)
+      pal-declined=(set @p)
+      uav-asks=(map @p uav-ask)
+      ::  ===== DM receipt queues =====
+      dm-acks=(map [@ta @p] dm-ack)
+  ==
 +$  card  card:agent:gall
 ::
 ::  Gossip reservoir caps are now NO-OPS. "What you store/pass" (the gossip
@@ -2754,8 +2911,8 @@
 ::  lose==win. Group/fork/gossip-only fields hold no ordinary-DM data and are left
 ::  alone; pending-dm-fetches/dm-msg-tombs key by entry identity (not note-id).
 ++  reconcile-dm-roots
-  |=  [st=state-81 lose=@ta win=@ta cn=note:noltbook]
-  ^-  state-81
+  |=  [st=state-83 lose=@ta win=@ta cn=note:noltbook]
+  ^-  state-83
   ?:  =(lose win)  st
   =*  s  st
   ::  notes: install canonical winner, drop loser
@@ -2943,6 +3100,61 @@
 ::  empty lease map. A call in flight does NOT survive: every note that had one gets
 ::  a cleared record at generation 1 -- a real generation-bearing empty snapshot, so
 ::  the browser badge disappears on load and the next start allocates generation 2.
+++  upgrade-82-to-83
+  ::  Adds the DM receipt queues. Purely additive: every field is carried across
+  ::  verbatim. A DM sent before this used a wire per message, and its receipt still
+  ::  arrives there (on-agent %dm-msg), so every queue starts empty.
+  |=  o=state-82
+  ^-  state-83
+  :*  %83
+      notes.o  messages.o  artifacts.o  profiles.o  transactions.o
+      current-note.o  peers.o  has-avatar.o
+      pal-outgoing.o  pal-incoming.o  pal-blocked.o  blocked-by.o
+      dial.o  gossip-hops.o  mentions.o  calls.o  call-leases.o
+      gossip-envelopes.o  headlines.o  seq-counters.o  join-requests.o
+      note-admins.o  note-muted.o  artifact-envelopes.o  host-status.o
+      fork-origin.o  fork-version.o  fork-of.o  pending-fork-invites.o
+      fork-invitees.o  contacts.o  dm-prefs.o  member-revs.o
+      fork-parent-version.o  host-checks.o  notification-acks.o
+      note-activity.o  note-read.o  attention.o  cleared-mentions.o
+      via-by-eid.o  note-pins.o  note-apps.o  note-active.o  app-grants.o
+      note-unread-activity.o  note-members.o  app-notifications.o
+      dm-artifact-refs.o  dm-artifact-tombs.o  dm-msg-tombs.o  peer-proto.o
+      pending-dm-fetches.o  note-artifact-tombs.o  mesh-tombs.o
+      mesh-tomb-meta.o  dm-imports.o  import-only-dms.o
+      pending-icon-fetches.o  pending-img-writes.o  pending-profile-lookups.o
+      sfu-mode.o  documents.o  document-history.o  gossip-active.o
+      call-mods.o  pal-declined.o  uav-asks.o
+      ::  new in %83
+      *(map [@ta @p] dm-ack)
+  ==
+++  upgrade-81-to-82
+  ::  Adds the remote profile-picture asks. Purely additive: every field is carried
+  ::  across verbatim and no ask is in flight.
+  |=  o=state-81
+  ^-  state-82
+  :*  %82
+      notes.o  messages.o  artifacts.o  profiles.o  transactions.o
+      current-note.o  peers.o  has-avatar.o
+      pal-outgoing.o  pal-incoming.o  pal-blocked.o  blocked-by.o
+      dial.o  gossip-hops.o  mentions.o  calls.o  call-leases.o
+      gossip-envelopes.o  headlines.o  seq-counters.o  join-requests.o
+      note-admins.o  note-muted.o  artifact-envelopes.o  host-status.o
+      fork-origin.o  fork-version.o  fork-of.o  pending-fork-invites.o
+      fork-invitees.o  contacts.o  dm-prefs.o  member-revs.o
+      fork-parent-version.o  host-checks.o  notification-acks.o
+      note-activity.o  note-read.o  attention.o  cleared-mentions.o
+      via-by-eid.o  note-pins.o  note-apps.o  note-active.o  app-grants.o
+      note-unread-activity.o  note-members.o  app-notifications.o
+      dm-artifact-refs.o  dm-artifact-tombs.o  dm-msg-tombs.o  peer-proto.o
+      pending-dm-fetches.o  note-artifact-tombs.o  mesh-tombs.o
+      mesh-tomb-meta.o  dm-imports.o  import-only-dms.o
+      pending-icon-fetches.o  pending-img-writes.o  pending-profile-lookups.o
+      sfu-mode.o  documents.o  document-history.o  gossip-active.o
+      call-mods.o  pal-declined.o
+      ::  new in %82
+      *(map @p uav-ask)
+  ==
 ++  upgrade-80-to-81
   ::  Adds durable suppression for a declined incoming pal request. Existing
   ::  relationships are unchanged and no request begins declined.
@@ -3219,8 +3431,8 @@
       pending-profile-lookups.o
   ==
 ++  migrate-dm-artifacts
-  |=  [our=@p st=state-81]
-  ^-  state-81
+  |=  [our=@p st=state-83]
+  ^-  state-83
   =*  s  st
   =/  targets=(list [aid=@ta a=artifact:noltbook])
     %+  murn  ~(tap by artifacts.s)
@@ -3232,7 +3444,7 @@
     ?~  nt  ~
     ?.  (is-ordinary-dm u.nt)  ~
     `[aid a]
-  |-  ^-  state-81
+  |-  ^-  state-83
   ?~  targets  s
   =/  a=artifact:noltbook  a.i.targets
   =/  eid=@uv  (dm-artifact-eid a)
@@ -3630,6 +3842,69 @@
     (clay-read-mime ~[(scot %p our) art-store-desk (scot %da now) %avatar %mime])
   ?^  d  d
   (clay-read-mime ~[(scot %p our) live (scot %da now) %lib %noltbook %avatar %mime])
+::  REMOTE PROFILE PICTURES. The bytes come from the owner over Ames, answer the
+::  browser, and are dropped -- this ship never keeps another ship's picture.
+::  uav-asks holds only who we asked, when, and which requests wait.
+::    - one ask per ship at a time, on one wire per ship (/uav-ask/~ship). A wire per
+::      request opened a new Ames flow every time, and Gall never closes a poke's flow.
+::    - a request arriving while an ask is younger than uav-hold waits on that ask.
+::    - an ask with no answer after uav-hold means the owner is offline or slow:
+::      answer 404 at once, so the page keeps the sigil and no browser connection is
+::      held. Ames still carries the poke; the owner's late answer clears the row.
+::    - ask again only after uav-retry, in case an answer was lost.
+++  uav-hold   ~s10
+++  uav-retry  ~h1
+::  a versioned address (?v=) names one exact picture -- the version changes when the
+::  picture does -- so the BROWSER may keep it. A bare address can change any time.
+++  uav-keep  'private, max-age=604800, immutable'
+++  uav-versioned
+  |=  args=(list [key=@t value=@t])
+  ^-  ?
+  (lien args |=([key=@t value=@t] &(=('v' key) !=('' value))))
+++  uav-payload
+  |=  [type=@t bytes=octs versioned=?]
+  ^-  simple-payload:http
+  :_  `bytes
+  :-  200
+  :~  ['content-type' type]
+      ['cache-control' ?:(versioned uav-keep 'no-store')]
+      ['access-control-allow-origin' '*']
+      ['x-content-type-options' 'nosniff']
+  ==
+::  uav-get: a signed-in browser asks for `host`'s picture.
+++  uav-get
+  |=  [now=@da eyre-id=@ta host=@p versioned=? asks=(map @p uav-ask)]
+  ^-  (quip card (map @p uav-ask))
+  =/  ask  (~(get by asks) host)
+  =/  timer=card
+    [%pass /uav-wait/(scot %p host)/[eyre-id] %arvo %b %wait (add now uav-hold)]
+  ?:  &(?=(^ ask) (lth now (add since.u.ask uav-hold)))
+    :-  ~[timer]
+    (~(put by asks) host u.ask(wait (~(put by wait.u.ask) eyre-id versioned)))
+  ?:  &(?=(^ ask) (lth now (add since.u.ask uav-retry)))
+    :_  asks
+    %+  give-simple-payload:app:server  eyre-id
+    [[404 ~] ~]
+  =/  waiting=(map @ta ?)  ?~(ask ~ wait.u.ask)
+  :_  (~(put by asks) host [now (~(put by waiting) eyre-id versioned)])
+  :~  (rpoke /uav-ask/(scot %p host) host `remote:noltbook`[%remote-user-avatar-fetch eyre-id])
+      timer
+  ==
+::  uav-answer: every request waiting on `host` gets the picture `got`, or the status
+::  `code` when there is none. The row goes.
+++  uav-answer
+  |=  [host=@p asks=(map @p uav-ask) code=@ud got=(unit [type=@t bytes=octs])]
+  ^-  (quip card (map @p uav-ask))
+  =/  ask  (~(get by asks) host)
+  :_  (~(del by asks) host)
+  ?~  ask  ~
+  %-  zing
+  %+  turn  ~(tap by wait.u.ask)
+  |=  [eid=@ta versioned=?]
+  ^-  (list card)
+  %+  give-simple-payload:app:server  eid
+  ?~  got  [[code ~] ~]
+  (uav-payload type.u.got bytes.u.got versioned)
 ::  icon-read: a note icon this ship hosts. %noltbook-data ONLY -- note icons have no
 ::  legacy fallback (deliberately dropped; the profile-picture fallback is unaffected).
 ++  icon-read
@@ -3740,7 +4015,7 @@
 ::  than relying on that. See FUTURE(cleanup-scope) above for why these exclusions are
 ::  a group and must be relaxed together, never individually.
 ++  notebook-subtree-private
-  |=  [our=@p ids=(list @ta) st=state-81]
+  |=  [our=@p ids=(list @ta) st=state-83]
   ^-  ?
   ::  an empty subtree proves nothing.
   ?~  ids  %.n
@@ -4090,12 +4365,36 @@
   |=  [=wire who=@p rem=remote:noltbook]
   ^-  card
   [%pass wire %agent [who %noltbook] %poke %noltbook-remote !>(rem)]
-::  wire for a DM message handed to the other ship. Carries the message id, because
-::  the poke-ack that comes back on it carries nothing else (see on-agent %dm-msg).
-++  dm-msg-wire
-  |=  [nid=@ta mid=@da]
+::  wire for DM file/app content sent to `who`. Gall never closes a poke's Ames flow,
+::  so a wire per request left a new flow behind every time; four lanes per ship
+::  keep that bounded while one large file cannot hold up every other reply.
+++  dm-lane
+  |=  [who=@p eyre-id=@ta]
   ^-  wire
-  /dm-msg/[nid]/(scot %da mid)
+  /dm-content/(scot %p who)/(scot %ud (mod (mug eyre-id) 4))
+::  dm-send: hand DM message `mid` to `who`, and queue its id for the receipt.
+::  One wire per conversation and peer, /dm-send/<nid>/<ship>/<rift>: a wire per
+::  message (the old /dm-msg/<nid>/<id>) left a new Ames flow behind every time,
+::  since Gall never closes a poke's flow. Ames delivers and acks one flow in order,
+::  so the next ack is for the oldest id waiting (on-agent %dm-send). A breach drops
+::  in-flight pokes with no ack at all, so the peer's rift is on the wire: a new rift
+::  is a fresh flow and a fresh queue, and receipts cannot drift onto the wrong
+::  messages.
+++  dm-send
+  |=  [=bowl:gall nid=@ta who=@p mid=@da rem=remote:noltbook acks=(map [@ta @p] dm-ack)]
+  ^-  (quip card (map [@ta @p] dm-ack))
+  ::  a failed scry must never cost the send: it goes out on rift 0.
+  =/  ryft
+    %-  mule  |.
+    .^((unit @ud) %j /(scot %p our.bowl)/ryft/(scot %da now.bowl)/(scot %p who))
+  =/  rift=@ud  ?:(?=(%| -.ryft) 0 (fall p.ryft 0))
+  =/  old  (~(get by acks) [nid who])
+  =/  wait=(qeu @da)
+    ?~  old  ~
+    ?.  =(rift rift.u.old)  ~
+    wait.u.old
+  :-  ~[(rpoke /dm-send/[nid]/(scot %p who)/(scot %ud rift) who rem)]
+  (~(put by acks) [nid who] [rift (~(put to wait) mid)])
 ::  wallet-id-clean: an opaque transaction identifier must carry no ASCII control
 ::  characters -- it is rendered (escaped) in the client, and a control byte would
 ::  corrupt the row. Format-agnostic otherwise: we never assume hex or base58.
@@ -4593,11 +4892,11 @@
 ::  Nobody targets the host or themselves, and only the host acts on another admin.
 ::  DM calls have no moderation, but either person may record one.
 ++  call-mod-apply
-  |=  [=bowl:gall actor=@p nid=@ta cid=@ta target=@p op=@tas sin=state-81]
-  =|  state-81
+  |=  [=bowl:gall actor=@p nid=@ta cid=@ta target=@p op=@tas sin=state-83]
+  =|  state-83
   =*  state  -
   =.  state  sin
-  ^-  (quip card state-81)
+  ^-  (quip card state-83)
   =/  nt-u  (~(get by notes) nid)
   ?~  nt-u  `state
   =/  nt=note:noltbook  u.nt-u
@@ -4910,11 +5209,11 @@
   ::  Option-1: the whole %noltbook-remote dispatch moved OUT of the on-poke battery.
   ::  =| / =* / =. re-expose state-67 faces exactly like the door, so handler bodies are
   ::  unchanged except this->state. on-poke delegates: =^ cards state (rem-handle bowl rem state).
-  |=  [=bowl:gall rem=remote:noltbook sin=state-81]
-  =|  state-81
+  |=  [=bowl:gall rem=remote:noltbook sin=state-83]
+  =|  state-83
   =*  state  -
   =.  state  sin
-  ^-  (quip card state-81)
+  ^-  (quip card state-83)
     ?-  -.rem
     ::
     ::  ===== document notes =====
@@ -8261,22 +8560,23 @@
       ~[(rpoke /uav-content/(scot %p src.bowl) src.bowl `remote:noltbook`[%remote-user-avatar-content eyre-id.rem ct q.mim])]
     ::
         %remote-user-avatar-content
-      ::  requester: answer the held browser request with the fetched bytes; persist
-      ::  NOTHING. no-store (no versioning this pass, so never cache).
-      =/  hdrs=(list [@t @t])
-        :~  ['content-type' mime.rem]
-            ['cache-control' 'no-store']
-            ['access-control-allow-origin' '*']
-        ==
-      =/  =simple-payload:http  [[200 hdrs] `bytes.rem]
-      :_  state
-      (give-simple-payload:app:server eyre-id.rem simple-payload)
+      ::  requester: one answer for every browser request waiting on this ship's
+      ::  picture, then the bytes are dropped -- nothing is persisted (uav-answer).
+      ::  The Ames sender decides whose requests this answers, never the eyre-id in
+      ::  the reply, so a ship can only answer for its own picture. The type comes
+      ::  from the bytes, under the same 50 KB ceiling as an upload.
+      =/  mt=(unit (list @ta))
+        ?:  (gth p.bytes.rem 51.200)  ~
+        (image-sig-mite bytes.rem)
+      =^  cards  uav-asks
+        ?~  mt  (uav-answer src.bowl uav-asks 404 ~)
+        (uav-answer src.bowl uav-asks 200 `[(rap 3 (join '/' u.mt)) bytes.rem])
+      [cards state]
     ::
         %remote-user-avatar-denied
-      ::  requester: resolve the held request as 404; leave no pending state.
-      :_  state
-      %+  give-simple-payload:app:server  eyre-id.rem
-      [[404 ~] ~]
+      ::  requester: that ship has no picture to give; everyone waiting gets 404.
+      =^  cards  uav-asks  (uav-answer src.bowl uav-asks 404 ~)
+      [cards state]
     ::
         %remote-artifact-create
       ::  member registering metadata for an artifact whose bytes live on member
@@ -8748,7 +9048,7 @@
     ::  or gone (tombstoned) / unavailable (missing/unreadable).
         %remote-dm-content-fetch
       =/  unavail=(list card)
-        ~[(rpoke /dm-unavail/(scot %p src.bowl)/[eyre-id.rem] src.bowl `remote:noltbook`[%remote-dm-content-unavailable eyre-id.rem eid.rem])]
+        ~[(rpoke /dm-unavail/(scot %p src.bowl) src.bowl `remote:noltbook`[%remote-dm-content-unavailable eyre-id.rem eid.rem])]
       ::  P2: identity + membership gate BEFORE any tombstone reveal, so an unrelated ship
       ::  cannot probe arbitrary EIDs. The EID must be our own (sham [our aid]); the requester
       ::  must be the other member of our ordinary DM (authenticated {our,src} pair).
@@ -8761,7 +9061,7 @@
         =/  t  (~(got by dm-artifact-tombs) eid.rem)
         ?.  &(=(aid.t aid.rem) =(our.bowl creator.t))  `state
         :_  state
-        ~[(rpoke /dm-gone/(scot %p src.bowl)/[eyre-id.rem] src.bowl `remote:noltbook`[%remote-dm-content-gone eyre-id.rem t])]
+        ~[(rpoke /dm-gone/(scot %p src.bowl) src.bowl `remote:noltbook`[%remote-dm-content-gone eyre-id.rem t])]
       =/  art  (~(get by artifacts) aid.rem)
       ::  missing authoritative artifact => unavailable now (not a silent wait to timeout)
       ?~  art  [unavail state]
@@ -8783,7 +9083,7 @@
         =/  ref=(unit dm-artifact-ref:noltbook)  (dm-ref-of u.art note-id.u.art `(sham content))
         ?~  ref  [unavail state]
         :_  state
-        ~[(rpoke /dm-content/(scot %p src.bowl)/[eyre-id.rem] src.bowl `remote:noltbook`[%remote-dm-app-content eyre-id.rem u.ref content])]
+        ~[(rpoke (dm-lane src.bowl eyre-id.rem) src.bowl `remote:noltbook`[%remote-dm-app-content eyre-id.rem u.ref content])]
       ::  %file: serve current bytes from the separate %noltbook-data desk (never q.byk.bowl)
       =/  scry-res  (art-store-read our.bowl now.bowl aid.rem)
       ?~  scry-res  [unavail state]
@@ -8792,7 +9092,7 @@
       =/  ref=(unit dm-artifact-ref:noltbook)  (dm-ref-of u.art note-id.u.art `(sham q.q.mim))
       ?~  ref  [unavail state]
       :_  state
-      ~[(rpoke /dm-content/(scot %p src.bowl)/[eyre-id.rem] src.bowl `remote:noltbook`[%remote-dm-file-content eyre-id.rem u.ref mtype q.mim])]
+      ~[(rpoke (dm-lane src.bowl eyre-id.rem) src.bowl `remote:noltbook`[%remote-dm-file-content eyre-id.rem u.ref mtype q.mim])]
     ::  requester: complete the held HTTP request with fetched %file bytes; never persist.
     ::  P2: any authenticated-but-mismatched/stale/tombstoned response completes the held
     ::  request with 404 (never hangs to timeout); a stranger's response is ignored.
@@ -9127,8 +9427,8 @@
 ::  artifact, already-tombstoned, or unauthorized sender — is a harmless no-op ([~ st]), so
 ::  duplicate and replayed requests neither mutate state nor emit a marker.
 ++  delete-note-artifact
-  |=  [=bowl:gall sender=@p nid=@ta aid=@ta st=state-81]
-  ^-  [(list card:agent:gall) state-81]
+  |=  [=bowl:gall sender=@p nid=@ta aid=@ta st=state-83]
+  ^-  [(list card:agent:gall) state-83]
   =/  nt  (~(get by notes.st) nid)
   ?~  nt  [~ st]
   ::  we must host this note; shared %group/%notebook only
@@ -9187,7 +9487,7 @@
   =/  del-upd=update:noltbook  [%artifact-deleted aid]
   =/  msg-upd=update:noltbook  [%new-message sys-msg ~ ~ ~]
   =/  pax=path  ~[%notes nid]
-  =/  st2=state-81
+  =/  st2=state-83
     %=  st
       artifacts             (~(del by artifacts.st) aid)
       note-pins             new-pins
@@ -9321,7 +9621,7 @@
   ~[(gf-paths paths `update:noltbook`[%app-notifications-updated ~(val by live)])]
 --
 %-  agent:dbug
-=|  state-81
+=|  state-83
 =*  state  -
 ^-  agent:gall
 |_  =bowl:gall
@@ -9344,13 +9644,18 @@
   ?>  ?|  ?=([%75 *] q.old)  ?=([%76 *] q.old)
           ?=([%77 *] q.old)  ?=([%78 *] q.old)
           ?=([%79 *] q.old)  ?=([%80 *] q.old)
-          ?=([%81 *] q.old)
+          ?=([%81 *] q.old)  ?=([%82 *] q.old)
+          ?=([%83 *] q.old)
       ==
-  =/  base=state-81
+  =/  base=state-83
+    ?:  ?=([%83 *] q.old)  !<(state-83 old)
+    %-  upgrade-82-to-83
+    ?:  ?=([%82 *] q.old)  !<(state-82 old)
+    %-  upgrade-81-to-82
     ?:  ?=([%81 *] q.old)  !<(state-81 old)
     ::  The ladder is walked at its TERMINUS, never by wrapping every arm:
-    ::  %75 -> %76 -> %77 -> %78 -> %79 -> %80 -> %81. Each older mold stays FROZEN, so a
-    ::  noun saved by any of those builds still decodes on its own mold.
+    ::  %75 -> %76 -> ... -> %81 -> %82 -> %83. Each older mold stays
+    ::  FROZEN, so a noun saved by any of those builds still decodes on its own mold.
     =/  s80=state-80
       ?:  ?=([%80 *] q.old)  !<(state-80 old)
       =/  s79=state-79
@@ -9361,7 +9666,7 @@
         (upgrade-78-to-79 (upgrade-77-to-78 (upgrade-76-to-77 (upgrade-75-to-76 !<(state-75 old)))))
       (upgrade-79-to-80 s79)
     (upgrade-80-to-81 s80)
-  =/  based=state-81
+  =/  based=state-83
     %=  base
       note-members       (ensure-note-members note-members.base notes.base)
       app-notifications  (app-notifications-live app-notifications.base now.bowl)
@@ -9405,11 +9710,11 @@
     ^-  [@ta call-snapshot:noltbook]
     ?.  (~(has in ended) nid)  [nid sn]
     [nid [nid +(gen.sn) ~]]
-  =/  based=state-81
+  =/  based=state-83
     based(calls reloaded, call-leases *(map @ta (map @p @da)))
   ::  idempotent normalization of remote-owned ordinary-DM %file/%app artifacts into
   ::  content-free references (no content read/write; nothing serveable by a noncreator).
-  =/  loaded=state-81  (migrate-dm-artifacts our.bowl based)
+  =/  loaded=state-83  (migrate-dm-artifacts our.bowl based)
   ::  tell our own browser the full call list (which now includes any PRESERVED remote
   ::  cache), tell the members of every call we just ended that it is over, and ask every
   ::  remote host for its current truth. Those three are why a reload converges on both
@@ -11623,25 +11928,24 @@
     ::  host-scoped user avatar: /apps/noltbook/user-avatar/<host>. Phase 1: only the
     ::  owner (us) serves; remote-host Ames fetch is Phase 2 -> 404.
     ?:  &(=(%'GET' method.request.inbound-request) =((scag 27 url-tape) "/apps/noltbook/user-avatar/"))
-      ::  split off the host so a ?v=<rev> cache-buster query is ignored.
-      =/  host-u=(unit @p)  (slaw %p path:(split-url-tail url-tape 27))
+      ::  split off the host; a ?v=<rev> query only decides how long the browser keeps it.
+      =/  parts  (split-url-tail url-tape 27)
+      =/  host-u=(unit @p)  (slaw %p path.parts)
       ?~  host-u
         :_  this
         %+  give-simple-payload:app:server  eyre-id
         [[404 ~] ~]
-      ::  remote host: fetch bytes over Ames (artifact-style fetch-serve-forget). Hold
-      ::  this HTTP request; %remote-user-avatar-content/-denied answers eyre-id when the
-      ::  owner replies. We NEVER persist the fetched bytes.
-      ::  BOUNDED: an offline or slow owner would otherwise hold the browser's request
-      ::  open indefinitely, and over plain HTTP a browser has only six connections
-      ::  to this ship across every tab. The timer answers 504 after 10s (on-arvo
-      ::  %uav-fetch-timeout); a refused poke answers at once (on-agent %uav-fetch-out).
+      ::  remote host: ask the owner over Ames and never keep the bytes (uav-get). Only
+      ::  for a signed-in browser -- otherwise anyone who can reach this port could make
+      ::  the ship poke any ship it names.
       ?.  =(u.host-u our.bowl)
-        :_  this
-        ^-  (list card)
-        :~  (rpoke /uav-fetch-out/[eyre-id] u.host-u `remote:noltbook`[%remote-user-avatar-fetch eyre-id])
-            [%pass /uav-fetch-timeout/[eyre-id] %arvo %b %wait (add now.bowl ~s10)]
-        ==
+        ?.  authenticated.inbound-request
+          :_  this
+          %+  give-simple-payload:app:server  eyre-id
+          [[404 ~] ~]
+        =^  cards  uav-asks
+          (uav-get now.bowl eyre-id u.host-u (uav-versioned args.parts) uav-asks)
+        [cards this]
       ::  local host: serve our own uploaded avatar bytes.
       ?.  has-avatar
         :_  this
@@ -11657,7 +11961,7 @@
         :_  `q.avatar-data
         :-  200
         :~  ['content-type' (rap 3 (join '/' p.avatar-data))]
-            ['cache-control' 'max-age=3600']
+            ['cache-control' ?:((uav-versioned args.parts) uav-keep 'max-age=3600')]
             ['access-control-allow-origin' '*']
         ==
       [(give-simple-payload:app:server eyre-id simple-payload) this]
@@ -11751,8 +12055,9 @@
       =/  deadline=@da  (add now.bowl ~s10)
       =/  pend=pending-icon-fetch:noltbook  [eyre-id nid u.host-u deadline]
       :_  this(pending-icon-fetches (~(put by pending-icon-fetches) eyre-id pend))
+      ::  one wire per host: a wire per request opened a new Ames flow every time.
       :~  %^    rpoke
-                /nic-fetch-out/[nid]/[eyre-id]
+                /nic-ask/(scot %p u.host-u)
               u.host-u
             `remote:noltbook`[%remote-note-icon-fetch nid eyre-id]
           [%pass /icon-fetch-timeout/[eyre-id] %arvo %b %wait deadline]
@@ -11911,7 +12216,7 @@
       =/  deadline=@da  (add now.bowl ~s10)
       =/  pend=pending-dm-fetch:noltbook  [eyre-id eid aid.u.rf creator.u.rf fkind deadline]
       =/  fetch-card=card
-        (rpoke /dm-fetch-out/[eyre-id] creator.u.rf `remote:noltbook`[%remote-dm-content-fetch eid aid.u.rf fkind eyre-id known-rev])
+        (rpoke /dm-ask/(scot %p creator.u.rf) creator.u.rf `remote:noltbook`[%remote-dm-content-fetch eid aid.u.rf fkind eyre-id known-rev])
       =/  timer-card=card
         [%pass /dm-fetch-timeout/[eyre-id] %arvo %b %wait deadline]
       :_  this(pending-dm-fetches (~(put by pending-dm-fetches) eyre-id pend))
@@ -12935,9 +13240,12 @@
         =/  peers=(list @p)  (skim ~(tap in users.u.exists) |=(p=@p !=(p our.bowl)))
         ?~  peers  [replay-cards this]
         ?:  (~(has in pal-blocked) i.peers)  [replay-cards this]
-        =/  re-dm=card
-          (rpoke (dm-msg-wire note-id.act id.i.prior) i.peers `remote:noltbook`[%remote-dm-message u.exists i.prior ~])
-        [(snoc replay-cards re-dm) this]
+        =^  re-dm  dm-acks
+          %:  dm-send  bowl  note-id.act  i.peers  id.i.prior
+            `remote:noltbook`[%remote-dm-message u.exists i.prior ~]
+            dm-acks
+          ==
+        [(weld replay-cards re-dm) this]
       ::  entry-meta for hosted, cover, and gossip notes. Rumors use
       ::  content-hash identity (anonymous — no author for eid/seq).
       =/  is-regular=?
@@ -13069,10 +13377,10 @@
         ::  message, so receiver can recreate the DM if they left without
         ::  relying on poke ordering or subscriptions.
         =/  dm-rem=remote:noltbook  [%remote-dm-message u.exists msg via.act]
-        ::  the message id rides the wire so the delivery ack can name it
-        =/  peer-cards=(list card)
-          ?:  =(other our.bowl)  ~
-          ~[(rpoke (dm-msg-wire note-id.act id.msg) other dm-rem)]
+        ::  one wire per conversation; the id waits in dm-acks for its receipt
+        =^  peer-cards  dm-acks
+          ?:  =(other our.bowl)  [~ dm-acks]
+          (dm-send bowl note-id.act other id.msg dm-rem dm-acks)
         =/  notes-cards=(list card:agent:gall)
           ::  ordering rides the sidebar signal; the read cursor still travels
           ~[(gf-notes upd) (note-read-fact note-id.act now.bowl)]
@@ -16322,11 +16630,22 @@
     ?.  (~(has by pending-icon-fetches) eid)  `this
     :_  this(pending-icon-fetches (~(del by pending-icon-fetches) eid))
     (give-simple-payload:app:server eid `simple-payload:http`[[504 ~] ~])
-  ::  held REMOTE user-avatar fetch expired: the owner has not answered within 10s.
+  ::  a request waiting on a remote picture ran out of time (uav-get): answer it 504.
+  ::  The ask stays, so later requests for that ship get 404 at once until the owner
+  ::  answers or uav-retry passes.
+  ?:  ?=([%uav-wait @ @ ~] wire)
+    ?.  ?=([%behn %wake *] sign-arvo)  `this
+    =/  host=(unit @p)  (slaw %p i.t.wire)
+    =/  eid=@ta  i.t.t.wire
+    ?~  host  `this
+    =/  ask  (~(get by uav-asks) u.host)
+    ?~  ask  `this
+    ?.  (~(has by wait.u.ask) eid)  `this
+    :_  this(uav-asks (~(put by uav-asks) u.host u.ask(wait (~(del by wait.u.ask) eid))))
+    (give-simple-payload:app:server eid `simple-payload:http`[[504 ~] ~])
+  ::  pre-%82 timer for a held remote picture, set before the ask moved to uav-get.
   ::  Answer 504 only if the browser is still waiting -- Eyre is subscribed to the
-  ::  request's response path until it is answered -- so no state is kept for it.
-  ::  The page keeps the sigil it drew first. A late answer from the owner then
-  ::  finds no subscriber and goes nowhere.
+  ::  request's response path until it is answered.
   ?:  ?=([%uav-fetch-timeout @ ~] wire)
     ?.  ?=([%behn %wake *] sign-arvo)  `this
     =/  eid=@ta  i.t.wire
@@ -17357,6 +17676,41 @@
       (give-simple-payload:app:server eid `simple-payload:http`[[404 ~] ~])
     ==
   ::
+      [%nic-ask @ ~]
+    ::  the same nack on the one-wire-per-host form: which request it was is not on
+    ::  the wire, so every icon request held for that host is answered 404.
+    ?+  -.sign  `this
+        %poke-ack
+      ?~  p.sign  `this
+      =/  host=(unit @p)  (slaw %p i.t.wire)
+      ?~  host  `this
+      ~&  [%note-icon-fetch-failed u.host]
+      =/  mine  |=([eid=@ta pf=pending-icon-fetch:noltbook] =(u.host host.pf))
+      =/  rows  ~(tap by pending-icon-fetches)
+      :_  this(pending-icon-fetches (malt (skip rows mine)))
+      %-  zing
+      %+  turn  (skim rows mine)
+      |=  [eid=@ta *]
+      (give-simple-payload:app:server eid `simple-payload:http`[[404 ~] ~])
+    ==
+  ::
+      [%dm-ask @ ~]
+    ::  the creator refused or crashed on our DM content fetch. One wire per creator,
+    ::  so answer every fetch held for them as the timeout would.
+    ?+  -.sign  `this
+        %poke-ack
+      ?~  p.sign  `this
+      =/  host=(unit @p)  (slaw %p i.t.wire)
+      ?~  host  `this
+      =/  mine  |=([eid=@ta pf=pending-dm-fetch:noltbook] =(u.host creator.pf))
+      =/  rows  ~(tap by pending-dm-fetches)
+      :_  this(pending-dm-fetches (malt (skip rows mine)))
+      %-  zing
+      %+  turn  (skim rows mine)
+      |=  [eid=@ta *]
+      (give-simple-payload:app:server eid `simple-payload:http`[[503 ~] ~])
+    ==
+  ::
       [%invite @ @ ~]
     ::  ack/nack for outgoing invite pokes
     ?+  -.sign  `this
@@ -17396,9 +17750,23 @@
         %poke-ack  `this
     ==
   ::
+      [%uav-ask @ ~]
+    ::  the owner refused or crashed on our picture request, or does not run Noltbook.
+    ::  Answer everyone waiting now, and keep the ask as already unanswered so the
+    ::  next requests get 404 at once instead of asking again (uav-get).
+    ?+  -.sign  `this
+        %poke-ack
+      ?~  p.sign  `this
+      =/  host=(unit @p)  (slaw %p i.t.wire)
+      ?~  host  `this
+      =^  cards  uav-asks  (uav-answer u.host uav-asks 502 ~)
+      :-  cards
+      this(uav-asks (~(put by uav-asks) u.host [(sub now.bowl uav-hold) ~]))
+    ==
+  ::
       [%uav-fetch-out @ ~]
-    ::  the owner's agent refused or crashed on our avatar request (or does not run
-    ::  Noltbook): answer the held browser request now rather than at the timeout.
+    ::  pre-%82 wire, one per request: the owner refused our avatar request. Answer
+    ::  the held browser request now rather than at the timeout.
     ?+  -.sign  `this
         %poke-ack
       ?~  p.sign  `this
@@ -17408,10 +17776,37 @@
       (give-simple-payload:app:server eid `simple-payload:http`[[502 ~] ~])
     ==
   ::
+      [%dm-send @ @ @ ~]
+    ::  delivery receipt for a DM message we sent (dm-send): the other ship's agent
+    ::  took it (ack) or crashed on it (nack). The flow is in order, so it is for the
+    ::  oldest id waiting. An ack from an older rift's flow names nothing we hold.
+    ::  An unreachable ship is retried by Ames on its own, so silence means "not
+    ::  delivered yet", never failure. A local fact for our browser only.
+    ?+  -.sign  `this
+        %poke-ack
+      =/  nid=@ta  i.t.wire
+      =/  who=(unit @p)  (slaw %p i.t.t.wire)
+      =/  rift=(unit @ud)  (slaw %ud i.t.t.t.wire)
+      ?~  who  `this
+      ?~  rift  `this
+      =/  ack  (~(get by dm-acks) [nid u.who])
+      ?~  ack  `this
+      ?.  =(u.rift rift.u.ack)  `this
+      ?:  =(~ wait.u.ack)  `this
+      ::  p.got: the oldest id waiting; q.got: the rest, still in order.
+      =/  got  ~(get to wait.u.ack)
+      =/  left=(map [@ta @p] dm-ack)
+        ?:  =(~ q.got)  (~(del by dm-acks) [nid u.who])
+        (~(put by dm-acks) [nid u.who] u.ack(wait q.got))
+      =/  ok=?  ?=(~ p.sign)
+      ~?  !ok  [%dm-msg-failed nid]
+      :_  this(dm-acks left)
+      ~[(gf-notes `update:noltbook`[%dm-delivery nid p.got ok])]
+    ==
+  ::
       [%dm-msg @ @ ~]
-    ::  delivery receipt for a DM message we sent: the other ship's agent took it
-    ::  (ack) or crashed on it (nack). An unreachable ship is retried by Ames on its
-    ::  own, so silence means "not delivered yet", never failure. A local fact for our
+    ::  pre-%83 per-message wire: delivery receipt for a DM message we sent: the other
+    ::  ship's agent took it (ack) or crashed on it (nack). A local fact for our
     ::  browser only. Two-segment /dm-msg wires (pins, wallet) fall to the default.
     ?+  -.sign  `this
         %poke-ack
