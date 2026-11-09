@@ -4365,6 +4365,32 @@
   |=  [=wire who=@p rem=remote:noltbook]
   ^-  card
   [%pass wire %agent [who %noltbook] %poke %noltbook-remote !>(rem)]
+::  a hosted note's own description as the facts that carry each part when it changes.
+::  The invite carries only name, visibility and writable; the icon, the headline and
+::  later renames travel only on a change, so a member that joins or re-subscribes
+::  after one never hears of it. Members apply all three as ordinary changes.
+++  note-meta-cards
+  |=  [paths=(list path) n=note:noltbook]
+  ^-  (list card)
+  :~  (gf-paths paths `update:noltbook`[%note-meta-updated id.n visibility.n icon-url.n writable.n])
+      (gf-paths paths `update:noltbook`[%headline-updated id.n headline.n])
+      (gf-paths paths `update:noltbook`[%note-renamed id.n name.n])
+  ==
+::  send a member its invite again, with the child notes a first join sends. A host
+::  lists a ship from the moment it invites it, but the invite can be lost (a nack, a
+::  breach) and a member can lose its copy (breach, reinstall). The member side takes
+::  a repeated invite as a reinvite and keeps its history.
+++  reinvite-cards
+  |=  [who=@p n=note:noltbook nmap=(map @ta note:noltbook)]
+  ^-  (list card)
+  =/  inv=remote:noltbook
+    [%remote-invite id.n name.n type.n creator.n users.n visibility.n writable.n]
+  =/  descs=(list @ta)
+    ?.  =(%group type.n)  ~
+    (collect-group-descendants id.n nmap)
+  :-  (rpoke /invite/(scot %p who)/[id.n] who inv)
+  ?~  descs  ~
+  (build-remote-child-notes-to-ship who descs nmap)
 ::  wire for DM file/app content sent to `who`. Gall never closes a poke's Ames flow,
 ::  so a wire per request left a new flow behind every time; four lanes per ship
 ::  keep that bounded while one large file cannot hold up every other reply.
@@ -7998,11 +8024,14 @@
       ?~  old  `state
       ::  must be our note
       ?.  =(our.bowl creator.u.old)  `state
-      ::  already a member? no-op
-      ?:  (~(has in users.u.old) src.bowl)  `state
       ::  only %group/%gossip notes are joinable
       ?.  ?|(=(%group type.u.old) =(%gossip type.u.old) =(%document type.u.old))
         `state
+      ::  already a member, yet asking: it lost the invite or its copy of the note, and
+      ::  used to be ignored here for good. Send the invite again; nothing changes here.
+      ?:  (~(has in users.u.old) src.bowl)
+        :_  state
+        (reinvite-cards src.bowl u.old notes)
       ::  secret notes: deny silently
       ?:  =(%secret visibility.u.old)  `state
       ::  removed users cannot rejoin — tell them explicitly
@@ -8509,11 +8538,12 @@
       =/  fail-404
         :_  state(pending-icon-fetches dropped)
         (give-simple-payload:app:server eyre-id.rem `simple-payload:http`[[404 ~] ~])
+      ::  if we hold the note, the Ames-authenticated sender must be the creator of OUR
+      ::  copy and it must carry the internal pointer. A note we do not hold (listed on
+      ::  its host's profile) has only the held row as authority: this host, this note.
       =/  nt  (~(get by notes) note-id.rem)
-      ?~  nt  fail-404
-      ::  the Ames-authenticated sender must be the creator of OUR copy of the note.
-      ?.  =(src.bowl creator.u.nt)  fail-404
-      ?.  (note-icon-is-internal note-id.rem icon-url.u.nt)  fail-404
+      ?:  &(?=(^ nt) !=(src.bowl creator.u.nt))  fail-404
+      ?:  &(?=(^ nt) !(note-icon-is-internal note-id.rem icon-url.u.nt))  fail-404
       ?:  (gth p.bytes.rem 51.200)  fail-404
       =/  mt  (image-sig-mite bytes.rem)
       ?~  mt  fail-404
@@ -8528,17 +8558,16 @@
       `simple-payload:http`[[200 hdrs] `bytes.rem]
     ::
         %remote-note-icon-denied
-      ::  REQUESTER: resolve the held request as 404. Only the note's creator may
+      ::  REQUESTER: resolve the held request as 404. Only the host we asked may
       ::  complete a request for that note -- otherwise any ship could 404 a browser
-      ::  request it does not own. Unknown note or wrong sender: ignore entirely.
-      ::  No pending-request state is kept; authority comes from our local note record.
+      ::  request it does not own. Wrong sender: ignore entirely. A note we hold must
+      ::  also name the sender as its creator; one we do not hold has only the held row.
       =/  pend  (~(get by pending-icon-fetches) eyre-id.rem)
       ?~  pend  `state
       ?.  =(note-id.rem note-id.u.pend)  `state
       ?.  =(src.bowl host.u.pend)  `state
       =/  nt  (~(get by notes) note-id.rem)
-      ?~  nt  `state
-      ?.  =(src.bowl creator.u.nt)  `state
+      ?:  &(?=(^ nt) !=(src.bowl creator.u.nt))  `state
       :_  state(pending-icon-fetches (~(del by pending-icon-fetches) eyre-id.rem))
       %+  give-simple-payload:app:server  eyre-id.rem
       `simple-payload:http`[[404 ~] ~]
@@ -9759,6 +9788,20 @@
     =/  s=(set @p)  (~(uni in s) pal-declined.loaded)
     %+  turn  ~(tap in (~(del in s) our.bowl))
     |=(p=@p (pal-sync-card p pal-outgoing.loaded pal-incoming.loaded pal-blocked.loaded))
+  ::  HOSTED NOTE DESCRIPTION BACKSTOP. A member that subscribed before on-watch sent
+  ::  the note's description never got an icon or headline set before it joined, and
+  ::  will not subscribe again on its own. Once per load, re-state the description of
+  ::  every hosted note that has either; repeating an unchanged value is harmless.
+  =/  meta-repair-cards=(list card)
+    %-  zing
+    %+  murn  ~(val by notes.loaded)
+    |=  n=note:noltbook
+    ^-  (unit (list card))
+    ?.  =(our.bowl creator.n)  ~
+    ?:  ?=(?(%dm %gossip %cover) type.n)  ~
+    ?:  =(id.n %ars-rumors)  ~
+    ?:  &(?=(~ icon-url.n) ?=(~ headline.n))  ~
+    `(note-meta-cards ~[/notes/[id.n]] n)
   ::  Retire the per-peer Cover subscription: leave every one we hold, and kick every
   ::  remote ship still subscribed to ours. Idempotent -- a later load finds nothing.
   =/  cover-cleanup-cards=(list card)
@@ -9774,7 +9817,7 @@
     ?.  =(p /notes/cover)  ~
     ?:  =(s our.bowl)  ~
     `[%give %kick ~[/notes/cover] `s]
-  [:(weld prof-cards call-cards pal-sync-cards cover-cleanup-cards (ensure-data-desk bowl)) this(state loaded)]
+  [:(weld prof-cards call-cards pal-sync-cards meta-repair-cards cover-cleanup-cards (ensure-data-desk bowl)) this(state loaded)]
 ++  on-watch
   |=  =path
   ^-  (quip card _this)
@@ -10155,6 +10198,16 @@
       :~  (gf-paths ~ `update:noltbook`[%admins-updated nid ~(tap in adms)])
           (gf-paths ~ `update:noltbook`[%muted-updated nid ~(tap in mts)])
       ==
+    ::  the note's own description, for a remote member (see +note-meta-cards). DMs keep
+    ::  their own local name and icon; gossip and Cover are frozen at creation.
+    =/  meta-snapshot-cards=(list card)
+      ?:  is-local  ~
+      ?:  is-gossip-note  ~
+      ?:  =(nid %ars-rumors)  ~
+      ?~  note-for-type  ~
+      ?.  =(our.bowl creator.u.note-for-type)  ~
+      ?:  ?=(?(%dm %cover) type.u.note-for-type)  ~
+      (note-meta-cards ~ u.note-for-type)
     ::  send the current pin snapshot so a (re)subscribing member renders the pin
     ::  even if it missed the live %note-pin-updated fact (durable, like roles).
     =/  pin-snapshot-cards=(list card)
@@ -10196,7 +10249,7 @@
       ?.  (is-ordinary-dm u.note-for-type)  ~
       ~[(gf-paths ~ `update:noltbook`[%dm-ref-list nid (dm-refs-for-note nid dm-artifact-refs)])]
     :_  this(peers new-peers)
-    :(weld init-cards ~[(gf-paths ~ pupd)] intro-cards call-cards note-role-cards pin-snapshot-cards active-snapshot-cards jr-admin-cards art-env-cards dm-ref-snapshot-cards)
+    :(weld init-cards ~[(gf-paths ~ pupd)] intro-cards call-cards note-role-cards meta-snapshot-cards pin-snapshot-cards active-snapshot-cards jr-admin-cards art-env-cards dm-ref-snapshot-cards)
   ::
       [%http-response @ ~]
     `this
@@ -12021,14 +12074,20 @@
       =/  host-u=(unit @p)  ?~(hslash ~ (slaw %p (crip (scag u.hslash tail))))
       =/  nid=@ta  ?~(hslash '' (crip (slag +(u.hslash) tail)))
       =/  nt  ?:(=('' nid) ~ (~(get by notes) nid))
-      ::  malformed host/nid, unknown note, wrong host, or a non-internal pointer: 404
-      ::  and no fetch. Never emit a poke for something we cannot vouch for locally.
+      ::  malformed host/nid, or a note we hold under another host or without the
+      ::  internal pointer: 404 and no fetch.
       ?:  ?|  ?=(~ host-u)
               =('' nid)
-              ?=(~ nt)
-              !=(u.host-u creator.u.nt)
-              !(note-icon-is-internal nid icon-url.u.nt)
+              &(?=(^ nt) !=(u.host-u creator.u.nt))
+              &(?=(^ nt) !(note-icon-is-internal nid icon-url.u.nt))
           ==
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[404 ~] ~]
+      ::  a note we do not hold is one listed on its host's profile and not joined. Only
+      ::  its host can answer for it, and the host serves only a public/private note or
+      ::  a member; we never ask ourselves about a note we do not have.
+      ?:  &(?=(~ nt) =(u.host-u our.bowl))
         :_  this
         %+  give-simple-payload:app:server  eyre-id
         [[404 ~] ~]
@@ -12049,9 +12108,16 @@
               ['x-content-type-options' 'nosniff']
           ==
         [(give-simple-payload:app:server eyre-id simple-payload) this]
-      ::  remote host: hold this request. Record it and arm a 10s Behn timeout, so
-      ::  content, denial, poke-nack and timeout each have a completion path and the
-      ::  browser can never wait forever.
+      ::  remote host: only for a signed-in browser, as with remote avatars --
+      ::  otherwise anyone who can reach this port could make the ship poke any ship
+      ::  it names.
+      ?.  authenticated.inbound-request
+        :_  this
+        %+  give-simple-payload:app:server  eyre-id
+        [[404 ~] ~]
+      ::  hold this request. Record it and arm a 10s Behn timeout, so content, denial,
+      ::  poke-nack and timeout each have a completion path and the browser can never
+      ::  wait forever.
       =/  deadline=@da  (add now.bowl ~s10)
       =/  pend=pending-icon-fetch:noltbook  [eyre-id nid u.host-u deadline]
       :_  this(pending-icon-fetches (~(put by pending-icon-fetches) eyre-id pend))
